@@ -7,10 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Compagnon">
+<meta name="apple-mobile-web-app-title" content="Compagnon des Tasha">
 <style>html,body{margin:0;padding:0;background:#121620;overscroll-behavior:none}</style>
 </head><body>
-<title>Compagnon de Table</title>
+<title>Le compagnon des Tasha</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#121620">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1116,7 +1116,7 @@ function listView(){
     <span class="pc-sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${edOf(c)==='2014'?' · '+edBadge('2014'):''}</span>
     <span class="pc-stats"><span>PV <b>${c.hp}/${c.hpMax}</b></span><span>CA <b>${acOf(c)}</b></span><span>Maîtrise <b>${fmt(prof(c.level))}</b></span></span></button>
     <button class="pc-del ${pd?'confirm':''}" data-a="del" data-id="${c.id}">${pd?'Confirmer':'Supprimer'}</button></article>`;}).join('');useEd(ed0);
-  return `<header class="vh"><div class="vh-row"><div><span class="lbl">Compagnon de table</span><h1>Personnages</h1></div></div></header>
+  return `<header class="vh"><div class="vh-row"><div><span class="lbl">Le compagnon des Tasha</span><h1>Personnages</h1></div></div></header>
   ${cloudConflictCard()}${fileReminder()}
   <button class="btn primary big" data-a="newChar">Créer un personnage</button>
   <div class="pcs">${cards||'<p class="empty">Aucun personnage pour l’instant. Crée le premier avec le bouton ci-dessus.</p>'}</div>
