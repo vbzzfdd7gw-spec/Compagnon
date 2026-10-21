@@ -525,6 +525,11 @@ body{background:var(--bg)}
 .bar-t{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:2px;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 1px 3px #000c,0 0 8px #0008;pointer-events:none}
 .bar-t b{font-family:var(--f-display);font-size:1.6rem;line-height:1}
 .bar-t small{font-size:1rem;font-weight:700;opacity:.9}
+
+.cnt b small{font-size:.9rem;color:var(--muted);font-weight:700;margin-left:1px}
+.cnt.ok{box-shadow:inset 0 0 0 1.5px var(--good)}.cnt.ok b{color:var(--good)}
+.cnt.over{box-shadow:inset 0 0 0 1.5px var(--bad)}.cnt.over b{color:var(--bad)}
+.cnt-s{font-size:.66rem;color:var(--muted);letter-spacing:.02em}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">
@@ -1481,6 +1486,16 @@ function diceView(){
 }
 
 /* ---------- Sorts : fiche ---------- */
+function spellRule(c){const e14=edOf(c)==='2014';const cls=c.cls;const hr=hbCastRec(c);
+  if(hr)return hr.known?{m:'known',t:'Ta classe connaît un nombre limité de sorts : tous ceux que tu connais sont utilisables, sans préparation.'}:{m:'prep',t:'Ta classe prépare ses sorts : après un repos long, choisis ceux que tu prépares.'};
+  if(e14){if(KNOWN14[cls])return {m:'known',t:'Ta classe connaît un nombre limité de sorts : tous tes sorts connus sont utilisables sans préparation. À chaque niveau gagné, tu peux en remplacer un.'};
+    if(cls==='magicien')return {m:'prep',book:1,t:'Tu prépares tes sorts depuis ton grimoire (6 sorts au niveau 1, puis 2 de plus par niveau). Après un repos long, choisis ceux que tu prépares.'};
+    return {m:'prep',t:'Ta classe connaît tous les sorts de sa liste. Après un repos long, choisis ceux que tu prépares parmi eux.'};}
+  if(cls==='clerc'||cls==='druide')return {m:'prep',t:'Ta classe connaît tous les sorts de sa liste. Après un repos long, tu peux changer tous tes sorts préparés.'};
+  if(cls==='paladin'||cls==='rodeur')return {m:'prep',t:'Ta classe connaît tous les sorts de sa liste. Après un repos long, tu peux remplacer un de tes sorts préparés.'};
+  if(cls==='magicien')return {m:'prep',book:1,t:'Tu prépares tes sorts depuis ton grimoire (6 sorts au niveau 1, puis 2 de plus par niveau). Après un repos long, tu peux changer tes sorts préparés.'};
+  return {m:'prep',t:'Ta liste de sorts préparés est fixe : tu peux en remplacer un quand tu gagnes un niveau.'};}
+const cntCls=(n,max)=>n>max?'over':n===max?'ok':'';
 function spellCard(c){
   const st=castStatOf(c);const lv=slotLevels(c);
   if(!st&&!c.spells.length)return '';
@@ -1496,8 +1511,12 @@ function spellCard(c){
       <button class="sp-n" data-a="spOpen" data-id="${sp.id}"><span>${esc(sp.n)}${sp.en?`<em class="en">${esc(sp.en)}</em>`:''}</span><span class="tg">${sp.cc?'<span class="mk">C</span>':''}${sp.ri?'<span class="mk">R</span>':''}</span></button></div></div>`;
   }
   const nPrep=list.filter(sp=>sp.l>0&&c.prep[sp.id]).length;const unk=c.spells.length-list.length;
+  const rule=spellRule(c);const sc=spellCount(c,c.level);const n0=list.filter(sp=>sp.l===0).length,max0=cantripsOf(c,c.level);const nL=list.filter(sp=>sp.l>0).length;
+  const mainN=rule.m==='known'?nL:nPrep;const mainMax=sc?sc.n:null;
+  const cnt=(lab,n,max,sub)=>`<div class="vit cnt ${max!=null?cntCls(n,max):''}"><span class="lbl">${lab}</span><b>${n}${max!=null?`<small>/${max}</small>`:''}</b>${sub?`<span class="cnt-s">${sub}</span>`:''}</div>`;
+  const counters=st?`<div class="row${rule.book?3:2}">${cnt('Sorts mineurs',n0,max0||null)}${cnt(rule.m==='known'?'Sorts connus':'Sorts préparés',mainN,mainMax,sc&&sc.f?sc.f:'')}${rule.book?cnt('Grimoire',nL,6+2*(c.level-1),'6 + 2 par niveau'):''}</div><p class="hint" style="margin:0">${rule.t}${mainMax!=null&&mainN>mainMax?` <b style="color:var(--bad)">Tu en as ${mainN-mainMax} de trop.</b>`:''}</p>`:'';
   return `<section class="card"><div class="between"><h2>Incantation</h2>${st?`<span class="lbl">${STAT_NAMES[st]}</span>`:''}</div>
-    ${st?`<div class="row3"><div class="vit"><span class="lbl">DD des sorts</span><b>${8+pb+m+mfx(c).dc}</b></div><button class="vit" data-a="rollSpellAtk"><span class="lbl">Attaque de sort</span><b>${fmt(pb+m+mfx(c).sa)}</b></button><div class="vit"><span class="lbl">Préparés</span><b>${nPrep}</b></div></div>`:''}
+    ${st?`<div class="row3"><div class="vit"><span class="lbl">DD des sorts</span><b>${8+pb+m+mfx(c).dc}</b></div><button class="vit" data-a="rollSpellAtk"><span class="lbl">Attaque de sort</span><b>${fmt(pb+m+mfx(c).sa)}</b></button><div class="vit"><span class="lbl">Mod. ${st}</span><b>${fmt(m)}</b></div></div>${counters}`:''}
     ${rows?`<div class="stack" style="gap:10px">${rows}</div>${sl.pact?'<button class="btn sm" data-a="shortRest">Repos court : récupérer les emplacements de pacte</button>':''}`:''}
     ${list.length?`<div class="list">${groups}</div><p class="hint">Touche le rond pour marquer un sort comme préparé, et le nom pour le lire et le lancer. Fais glisser un sort vers la droite pour le retirer de la fiche, ou vers la gauche pour le préparer (ou ne plus le préparer).</p>`:'<p class="hint">Aucun sort pour l’instant.</p>'}
     ${unk>0?`<p class="hint">${unk} sort${unk>1?'s':''} de la fiche n’existe${unk>1?'nt':''} pas dans les règles ${edOf(c)} et ${unk>1?'sont masqués':'est masqué'}. ${unk>1?'Ils réapparaissent':'Il réapparaît'} si tu changes d’édition.</p>`:''}
