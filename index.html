@@ -15,7 +15,7 @@
 <meta name="theme-color" content="#121620">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@500&family=Ephesis&display=swap">
 <style>
 /* Layout: one-column phone app on ink-blue "table felt", sticky view header, fixed bottom tab bar, roll results in a floating tray above it */
 :root{
@@ -379,6 +379,34 @@ a.btn{color:var(--fg);text-decoration:none;display:block}
 @keyframes spIdle{to{transform:translateY(-6px)}}
 @media (prefers-reduced-motion:reduce){.sp *{animation:none!important;transition:none!important}.sp.open .sp-items .it{opacity:1;transform:translate(var(--x),var(--y)) scale(var(--s)) rotate(var(--r))}}
 @media (max-height:640px){.sp-stage{transform:scale(.8)}}
+
+.sp{background:radial-gradient(ellipse at 50% 62%,#2a1f3a 0%,#161226 45%,var(--bg) 80%)}
+.bk-front{background:radial-gradient(ellipse at 45% 40%,#4a2c1c 0%,#2e1a10 55%,#1c0f08 100%),repeating-linear-gradient(35deg,#0000 0 3px,#0000000d 3px 4px);background-blend-mode:multiply;border:0;box-shadow:inset 0 0 0 3px #1c0f08,inset 0 0 0 5px #b8893a,inset 0 0 28px #000a,0 22px 50px #000c,0 0 0 2px #0f0804;gap:10px;padding:18px 12px;align-content:center}
+.bk-front .bk-t{font-family:"Ephesis","Great Vibes",cursive;font-size:2.3rem;line-height:1;letter-spacing:0;color:#e9c46a;text-shadow:0 0 10px #d8a64799,0 1px 0 #3a2410;margin-top:4px}
+.bk-sig{width:96px!important;height:96px!important;stroke:#d8a647!important;stroke-width:1.6!important;filter:drop-shadow(0 0 6px #d8a64780);animation:spGlow 2.4s ease-in-out infinite alternate}
+.bk-sig .st{fill:#e9c46a;stroke:none}
+@keyframes spGlow{from{filter:drop-shadow(0 0 3px #d8a64755)}to{filter:drop-shadow(0 0 10px #e9c46acc)}}
+.bk-cn{position:absolute;width:30px!important;height:30px!important;fill:none;stroke:#c99a45!important;stroke-width:2.2!important}
+.bk-cn circle{fill:#c99a45}
+.bk-cn.c0{left:6px;top:6px}.bk-cn.c1{right:6px;top:6px;transform:scaleX(-1)}.bk-cn.c2{left:6px;bottom:6px;transform:scaleY(-1)}.bk-cn.c3{right:6px;bottom:6px;transform:scale(-1,-1)}
+.bk-strap{position:absolute;right:-6px;top:50%;width:34px;height:26px;margin-top:-13px;background:linear-gradient(#5a3520,#3a2214);border-radius:4px 0 0 4px;box-shadow:0 2px 4px #0008}
+.bk-strap span{position:absolute;left:6px;top:5px;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f3d68a,#b8893a 60%,#6d4f1c);box-shadow:0 0 6px #e9c46a88}
+.sp.open .bk-strap{opacity:0;transition:opacity .2s}
+.bk-pages,.bk-in{background:radial-gradient(ellipse at 30% 20%,#f4ead0 0%,#e8d9b2 55%,#cdb685 100%)!important;box-shadow:0 0 0 1px #6d5530,inset 0 0 26px #8a6a3466!important}
+.bk-pages span{display:none}
+.bk-in{display:grid;align-content:start;justify-items:center;padding:18px 10px;gap:2px;box-sizing:border-box}
+.pg-h{font-family:var(--f-display);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:#7a5a2a;border-bottom:1px solid #9a7a4a88;padding-bottom:4px;margin-bottom:4px}
+.pg-names{list-style:none;margin:0;padding:0;text-align:center}
+.pg-names li{font-family:"Ephesis","Great Vibes",cursive;font-size:1.7rem;line-height:1.08;color:#3b2412;clip-path:inset(0 100% 0 0);opacity:.2}
+.sp.open .pg-names li{animation:spWrite .7s calc(1.1s + var(--i) * .28s) ease-out forwards}
+@keyframes spWrite{to{clip-path:inset(0 0 0 0);opacity:1}}
+.pg-r{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:14px;padding:14px;text-align:center}
+.pg-motto{margin:0;font-family:"Ephesis","Great Vibes",cursive;font-size:2rem;line-height:1.05;color:#3b2412;clip-path:inset(0 100% 0 0)}
+.sp.open .pg-motto{animation:spWrite 1s 2.9s ease-out forwards}
+.pg-sig{width:64px;height:64px;fill:none;stroke:#8a6a34;stroke-width:1.4;opacity:0}
+.sp.open .pg-sig{animation:spFade 1s 3.4s forwards}
+@keyframes spFade{to{opacity:.6}}
+.sp.open .bk-pages{box-shadow:0 0 0 1px #6d5530,inset 0 0 26px #8a6a3466,0 0 40px #e9c46a55!important}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">
@@ -404,8 +432,11 @@ a.btn{color:var(--fg);text-decoration:none;display:block}
       <svg class="it st" style="--x:40px;--y:-150px;--r:0deg;--s:.35;--d:1.1s" viewBox="0 0 40 40"><path d="M20 2L23 17L38 20L23 23L20 38L17 23L2 20L17 17Z"/></svg>
     </div>
     <div class="bk">
-      <div class="bk-pages"><span></span></div>
-      <div class="bk-cover"><div class="bk-front"><span class="bk-t">Tasha’s<br>Friends</span><svg viewBox="0 0 60 60" aria-hidden="true"><polygon points="30,3 54,17 54,43 30,57 6,43 6,17"/><polygon points="30,14 44,38 16,38"/><path d="M30 3V14M54 17L44 38M54 43L44 38M30 57L44 38M30 57L16 38M6 43L16 38M6 17L16 38M6 17L30 14M54 17L30 14"/></svg></div><div class="bk-in"></div></div>
+      <div class="bk-pages"><div class="pg-r"><p class="pg-motto">Libère ta Tasha.</p><svg class="pg-sig" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27"/><polygon points="30,8 49,19 49,41 30,52 11,41 11,19"/><polygon points="30,17 41,36 19,36"/></svg></div></div>
+      <div class="bk-cover"><div class="bk-front"><svg class="bk-cn c0" viewBox="0 0 40 40"><path d="M2 38V8Q2 2 8 2H38"/><path d="M8 32V12Q8 8 12 8H32"/><circle cx="8" cy="8" r="3"/><path d="M14 14l6 6"/></svg><svg class="bk-cn c1" viewBox="0 0 40 40"><path d="M2 38V8Q2 2 8 2H38"/><path d="M8 32V12Q8 8 12 8H32"/><circle cx="8" cy="8" r="3"/><path d="M14 14l6 6"/></svg><svg class="bk-cn c2" viewBox="0 0 40 40"><path d="M2 38V8Q2 2 8 2H38"/><path d="M8 32V12Q8 8 12 8H32"/><circle cx="8" cy="8" r="3"/><path d="M14 14l6 6"/></svg><svg class="bk-cn c3" viewBox="0 0 40 40"><path d="M2 38V8Q2 2 8 2H38"/><path d="M8 32V12Q8 8 12 8H32"/><circle cx="8" cy="8" r="3"/><path d="M14 14l6 6"/></svg><div class="bk-strap"><span></span></div>
+        <svg class="bk-sig" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><circle cx="50" cy="50" r="39" stroke-dasharray="2 5"/><polygon points="50,14 81,32 81,68 50,86 19,68 19,32"/><polygon points="50,28 69,61 31,61"/><path d="M50 14V28M81 32L69 61M81 68L69 61M50 86L69 61M50 86L31 61M19 68L31 61M19 32L31 61M19 32L50 28M81 32L50 28"/><g class="st"><path d="M50 1l1.5 3.5L55 6l-3.5 1.5L50 11l-1.5-3.5L45 6l3.5-1.5z"/><path d="M50 89l1.5 3.5L55 94l-3.5 1.5L50 99l-1.5-3.5L45 94l3.5-1.5z"/><path d="M1 50l3.5-1.5L6 45l1.5 3.5L11 50l-3.5 1.5L6 55l-1.5-3.5z"/><path d="M89 50l3.5-1.5L94 45l1.5 3.5L99 50l-3.5 1.5L94 55l-1.5-3.5z"/></g></svg>
+        <span class="bk-t">Tasha’s Friends</span></div>
+        <div class="bk-in"><span class="pg-h">Les héros de la table</span><ul class="pg-names"><li style="--i:0">Sparta</li><li style="--i:1">Sheyan</li><li style="--i:2">Kibito</li><li style="--i:3">Florgesse</li><li style="--i:4">Lebrav</li><li style="--i:5">Bebou</li></ul></div></div>
     </div>
   </div>
   <p class="sp-hint">Touche le livre pour l’ouvrir</p>
@@ -2898,7 +2929,7 @@ setTimeout(()=>{cloudInit().catch(()=>{CL.st='off';cloudBadge();});},0);
   if(!force&&(navigator.webdriver||skip)){sp.remove();return;}
   let st=0,t=0;const hint=sp.querySelector('.sp-hint');
   const close=()=>{if(st===2)return;st=2;clearTimeout(t);sp.classList.add('out');setTimeout(()=>sp.remove(),650);};
-  const open=()=>{if(st===0){st=1;sp.classList.add('open');if(hint)hint.textContent='Touche pour entrer';t=setTimeout(close,4200);}else close();};
+  const open=()=>{if(st===0){st=1;sp.classList.add('open');if(hint)hint.textContent='Touche pour entrer';t=setTimeout(close,6500);}else close();};
   sp.addEventListener('click',e=>{e.stopPropagation();open();});
   sp.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});})();
 </script>
