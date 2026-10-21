@@ -202,6 +202,7 @@ details.add summary::-webkit-details-marker{display:none}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--panel);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,1fr);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
 .nav button{padding:9px 2px 11px;display:grid;justify-items:center;gap:2px;font-size:.74rem;font-weight:500;color:var(--muted);text-align:center}
 .nav button.on{color:var(--brass)}
+.nav button[hidden]{display:none}
 .nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
 .toast{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:50;max-width:536px;margin:0 auto;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:12px 16px;box-shadow:0 14px 40px rgb(0 0 0 / .55);transform:translateY(16px);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
 .toast.show{opacity:1;transform:none;pointer-events:auto}
