@@ -19,8 +19,8 @@
 <style>
 /* Layout: one-column phone app on ink-blue "table felt", sticky view header, fixed bottom tab bar, roll results in a floating tray above it */
 :root{
-  --bg:#0b0d22; --panel:#15163a; --panel2:#201f4b; --line:#34306c;
-  --fg:#eeeaf8; --muted:#a7a3cb; --brass:#b18cff; --brass-ink:#160b30;
+  --bg:#0b0e1f; --panel:#161a30; --panel2:#20253f; --line:#353b5e;
+  --fg:#f3f3f7; --muted:#b9bdcf; --brass:#bb9bff; --brass-ink:#140a2c;
   --good:#78c597; --bad:#e2675f;
   --f-display:"Alegreya SC", Georgia, "Times New Roman", serif;
   --f-body:"Alegreya Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -450,7 +450,10 @@ a.btn{color:var(--fg);text-decoration:none;display:block}
 .sp-items .it text{fill:#e9c46a!important}
 .sp-items .it .b{fill:#d8a64740!important;stroke:#e9c46a!important}
 .rar-vr{color:#d29cff}
-body{background:radial-gradient(ellipse 120% 60% at 50% 0%,#1a1546 0%,var(--bg) 60%) fixed,var(--bg)}
+body{background:var(--bg)}
+.card,.pc,.chip,.cb{border-color:#3a4066}
+.lbl{color:#c3c6d6}
+.hint,.sub{color:#bfc2d3}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">
