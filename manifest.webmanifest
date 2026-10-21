@@ -1,0 +1,29 @@
+{
+ "name": "Compagnon de Table",
+ "short_name": "Compagnon",
+ "lang": "fr",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#121620",
+ "theme_color": "#121620",
+ "description": "Fiches, dés, sorts et combat pour D&D 5e à la table.",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-maskable-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}
