@@ -491,6 +491,20 @@ body{background:var(--bg)}
 .rfx.crit.done .rfx-in::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 42%,#ffd76a55,#0000 45%);animation:rfxBurst .9s ease-out forwards}
 @keyframes rfxBurst{from{opacity:1;transform:scale(.6)}to{opacity:0;transform:scale(1.4)}}
 @media (prefers-reduced-motion:reduce){.fxd{animation:none!important}}
+.rfx{display:block!important;padding:0!important}
+.rfx-table{position:absolute;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));top:calc(70px + env(safe-area-inset-top,0px));height:44%;border-radius:22px;background:radial-gradient(ellipse at 50% 40%,#2a2366aa,#120f3088 70%);box-shadow:inset 0 0 0 1px #bb9bff33,inset 0 0 40px #0008}
+.rfx-in{position:absolute;left:0;right:0;bottom:calc(40px + env(safe-area-inset-bottom,0px));margin:0 auto;padding:0 20px;box-sizing:border-box}
+.rfx-l{position:fixed;left:0;right:0;top:calc(26px + env(safe-area-inset-top,0px))}
+.rfx-table .fxd{position:absolute;left:0;top:0;animation:none!important;will-change:transform}
+.rfx-table .fxd .bd{position:absolute;inset:0;display:grid;place-items:center;will-change:transform}
+.rfx-table .fxd .bd svg{position:absolute;inset:0;width:100%;height:100%}
+.rfx-table .fxd .sh{position:absolute;left:8%;right:8%;bottom:-8%;height:22%;border-radius:50%;background:radial-gradient(ellipse,#000c,#0000 70%);filter:blur(2px)}
+.rfx-table .fxd small{bottom:-18px}
+.rfx-table .fxd.land .bd{animation:fxSquash .28s ease-out;transition:transform .35s ease-out}
+@keyframes fxSquash{0%{scale:1.12 .86}60%{scale:.96 1.06}100%{scale:1 1}}
+.rfx:not(.done) .fxd small{opacity:0}
+.rfx.done .rfx-table .fxd.nat20 .bd{animation:fxGlow 1.2s ease-in-out infinite alternate}
+@keyframes fxGlow{to{filter:brightness(1.25)}}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">
@@ -952,17 +966,37 @@ const FXSH={4:'<polygon points="50,6 96,90 4,90"/>',6:'<rect x="8" y="8" width="
 const rollAnimMode=()=>S.rollAnim||(navigator.webdriver&&!/rollfx/.test(location.hash)?'off':'full');
 function fxDie(d,i){const f=FXSH[d.f]?d.f:6;return `<div class="fxd ${d.drop?'drop':''} ${d.f===20&&d.v===20&&!d.drop?'nat20':''} ${d.f===20&&d.v===1&&!d.drop?'nat1':''}" style="--i:${i}" data-f="${d.f}"><svg viewBox="0 0 100 100" aria-hidden="true">${FXSH[f]}</svg><b data-v="${d.v}">${d.v}</b><small>d${d.f}</small></div>`;}
 function rollFx(r){const old=$('#rollfx');if(old)old.remove();const fast=rollAnimMode()==='fast';
-  const dice=(r.dice||[]).slice(0,24);const more=(r.dice||[]).length-dice.length;
+  const all=r.dice||[];const dice=all.slice(0,24);const more=all.length-dice.length;
   const el=document.createElement('div');el.id='rollfx';el.className='rfx'+(fast?' fast':'')+(r.kind==='crit'?' crit':r.kind==='fumble'?' fumble':'');
-  el.innerHTML=`<div class="rfx-in"><p class="rfx-l">${esc(r.label||'Jet')}</p><div class="rfx-dice">${dice.map(fxDie).join('')}${more>0?`<span class="rfx-more">+${more} dés</span>`:''}</div>
-    <div class="rfx-res"><div class="rfx-t">${r.total}</div>${r.flag?`<div class="rfx-f">${esc(r.flag)}</div>`:''}<div class="rfx-d">${r.detail||''}</div></div>
+  el.innerHTML=`<div class="rfx-table"></div><div class="rfx-in"><p class="rfx-l">${esc(r.label||'Jet')}</p>
+    <div class="rfx-res"><div class="rfx-t">${r.total}</div>${r.flag?`<div class="rfx-f">${esc(r.flag)}</div>`:''}<div class="rfx-d">${r.detail||''}${more>0?` · +${more} dés non affichés`:''}</div></div>
     <p class="rfx-h">Touche l’écran pour continuer</p></div>`;
   document.body.appendChild(el);
-  const nums=[...el.querySelectorAll('.fxd b')];let done=false;const dur=fast?350:1000;
-  const tick=setInterval(()=>{nums.forEach(b=>{const f=+b.parentNode.dataset.f;b.textContent=1+Math.floor(Math.random()*(f===100?100:f));});},70);
-  const settle=()=>{if(done)return;done=true;clearInterval(tick);nums.forEach(b=>b.textContent=b.dataset.v);el.classList.add('done');try{if(navigator.vibrate)navigator.vibrate(r.kind==='crit'?[30,40,60]:25);}catch(e){}};
-  const st=setTimeout(settle,dur);
-  el.addEventListener('click',e=>{e.stopPropagation();if(!done){clearTimeout(st);settle();return;}el.classList.add('out');setTimeout(()=>el.remove(),220);});}
+  const tb=el.querySelector('.rfx-table');const W=tb.clientWidth,H=tb.clientHeight;const S=dice.length>8?48:dice.length>4?60:76;
+  const P=dice.map((d,i)=>{const n=document.createElement('div');const f=FXSH[d.f]?d.f:6;
+    n.className='fxd'+(d.drop?' drop':'')+(d.f===20&&d.v===20&&!d.drop?' nat20':'')+(d.f===20&&d.v===1&&!d.drop?' nat1':'');
+    n.style.width=n.style.height=S+'px';n.innerHTML=`<i class="sh"></i><span class="bd"><svg viewBox="0 0 100 100" aria-hidden="true">${FXSH[f]}</svg><b style="font-size:${S*.34}px">${d.v}</b></span><small>d${d.f}</small>`;tb.appendChild(n);
+    const side=i%2?1:-1;
+    return {n,bd:n.querySelector('.bd'),b:n.querySelector('b'),d,x:Math.random()*(W-S),y:H+S*.2,vx:side*(80+Math.random()*320),vy:-(H*(1.6+Math.random()*1.4)),
+      a:Math.random()*360,va:(Math.random()<.5?-1:1)*(500+Math.random()*700),ph:Math.random()*3,tr:9+Math.random()*6,z:1,za:1,zt:0,face:0,rest:false};});
+  let done=false,last=performance.now(),t0=last;const maxT=fast?520:1700;
+  const show=(p)=>{const sq=0.62+0.38*Math.abs(Math.cos(p.ph));const lift=p.rest?0:p.z;
+    p.bd.style.transform=`translateY(${-lift*S*.5}px) rotate(${p.a}deg) scale(${(1+lift*.18)},${(1+lift*.18)*sq})`;
+    p.n.style.transform=`translate(${p.x}px,${p.y}px)`;p.n.querySelector('.sh').style.transform=`scale(${1-lift*.35})`;p.n.querySelector('.sh').style.opacity=.55-lift*.3;};
+  const finish=()=>{if(done)return;done=true;P.forEach(p=>{if(!p.rest){p.a=Math.random()*20-10;p.n.classList.add('land');}p.rest=true;p.b.textContent=p.d.v;p.ph=0;p.z=0;show(p);});el.classList.add('done');
+    try{if(navigator.vibrate)navigator.vibrate(r.kind==='crit'?[30,40,70]:30);}catch(e){}};
+  const step=now=>{if(done)return;const dt=Math.min(.04,(now-last)/1000);last=now;const T=now-t0;const k=fast?5.5:2.6;let moving=0;
+    for(const p of P){if(p.rest)continue;const fr=Math.exp(-k*dt);p.vx*=fr;p.vy*=fr;p.va*=fr;p.tr*=Math.exp(-k*.9*dt);
+      p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.va*dt;
+      if(p.x<0){p.x=0;p.vx=Math.abs(p.vx)*.6;p.va*=-.7;}if(p.x>W-S){p.x=W-S;p.vx=-Math.abs(p.vx)*.6;p.va*=-.7;}
+      if(p.y<0){p.y=0;p.vy=Math.abs(p.vy)*.55;p.va*=-.7;}if(p.y>H-S&&p.vy>0){p.y=H-S;p.vy=-Math.abs(p.vy)*.55;}
+      p.zt+=dt*(8+p.tr*.3);p.za*=Math.exp(-2.4*dt);p.z=p.za*Math.abs(Math.sin(p.zt));
+      const ph=p.ph+p.tr*dt;if(Math.floor(ph/Math.PI)!==Math.floor(p.ph/Math.PI)){p.face++;p.b.textContent=1+Math.floor(Math.random()*(p.d.f===100?100:p.d.f));}p.ph=ph;
+      const sp=Math.hypot(p.vx,p.vy);if(sp<25&&p.tr<1.2&&p.za<.06){p.rest=true;p.b.textContent=p.d.v;p.ph=Math.round(p.ph/Math.PI)*Math.PI;p.a=Math.random()*20-10;p.n.classList.add('land');}else moving++;}
+    for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){const a=P[i],b=P[j];const dx=b.x-a.x,dy=b.y-a.y,dd=Math.hypot(dx,dy)||1;if(dd<S*.92){const o=(S*.92-dd)/2,ux=dx/dd,uy=dy/dd;a.x-=ux*o;a.y-=uy*o;b.x+=ux*o;b.y+=uy*o;if(!a.rest&&!b.rest){const t=a.vx;a.vx=b.vx*.8;b.vx=t*.8;const u=a.vy;a.vy=b.vy*.8;b.vy=u*.8;}}}
+    P.forEach(show);if(!moving||T>maxT){finish();return;}requestAnimationFrame(step);};
+  P.forEach(show);requestAnimationFrame(step);
+  el.addEventListener('click',e=>{e.stopPropagation();if(!done){finish();return;}el.classList.add('out');setTimeout(()=>el.remove(),220);});}
 
 function d20(m,label){
   const mode=S.mode;const a=rnd(20);let dice=[a],kept=a;
