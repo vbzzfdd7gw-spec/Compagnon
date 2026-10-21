@@ -519,6 +519,12 @@ body{background:var(--bg)}
 .subcl{display:block;margin-top:2px;font-family:var(--f-display);font-size:1rem;color:var(--brass);letter-spacing:.02em}
 .subcl.sm{font-size:.9rem;margin-top:1px}
 .subcl.todo{font-family:var(--f-body);font-size:.82rem;color:var(--muted);font-style:italic}
+
+.bar.big{position:relative;height:40px;border-radius:12px;background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line)}
+.bar.big i{border-radius:12px;opacity:.85}
+.bar-t{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:2px;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 1px 3px #000c,0 0 8px #0008;pointer-events:none}
+.bar-t b{font-family:var(--f-display);font-size:1.6rem;line-height:1}
+.bar-t small{font-size:1rem;font-weight:700;opacity:.9}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">
@@ -1407,9 +1413,9 @@ function sheetView(){
     <p class="hint">${c.acAuto?esc(acCalc(c).txt):'La CA saisie à la main est utilisée. Elle repasse en automatique avec ce bouton.'}</p>
     <label class="fld"><span>Caractéristique d'incantation</span><select id="c-cast" data-f="castStat"><option value="">${CAST_STAT[c.cls]?'Celle de la classe ('+CAST_STAT[c.cls]+')':'Aucune'}</option>${STATS.map(k=>`<option value="${k}" ${c.castStat===k?'selected':''}>${STAT_NAMES[k]}</option>`).join('')}</select></label></section>`:''}
   <section class="card"><div class="hp-top"><div><span class="lbl">Points de vie</span>
-    <div class="hp-num"><b>${c.hp}</b><span>/ ${e?`<input type="number" inputmode="numeric" id="c-hpmax" data-f="hpMax" value="${c.hpMax}" aria-label="PV max">`:c.hpMax}</span></div></div>
+    ${e?`<div class="hp-num"><b>${c.hp}</b><span>/ <input type="number" inputmode="numeric" id="c-hpmax" data-f="hpMax" value="${c.hpMax}" aria-label="PV max"></span></div>`:''}</div>
     ${c.hpTemp?`<span class="temp">+${c.hpTemp} PV temp.</span>`:''}</div>
-    <div class="bar"><i style="width:${pct}%;background:${barCol}"></i></div>
+    <div class="bar ${e?'':'big'}"><i style="width:${pct}%;background:${barCol}"></i>${e?'':`<span class="bar-t"><b>${c.hp}</b><small> / ${c.hpMax}</small></span>`}</div>
     <div class="hp-ctrl"><button class="sq" data-a="hpStep" data-d="-1" aria-label="Retirer 1 PV">−</button><input id="hpAmt" type="number" inputmode="numeric" min="0" placeholder="Montant" aria-label="Montant"><button class="sq" data-a="hpStep" data-d="1" aria-label="Ajouter 1 PV">+</button></div>
     <div class="row3"><button class="btn danger" data-a="hpDmg">Dégâts</button><button class="btn good" data-a="hpHeal">Soins</button><button class="btn" data-a="hpTemp">PV temp.</button></div>
     <button class="btn sm" data-a="rest">Repos long</button></section>
