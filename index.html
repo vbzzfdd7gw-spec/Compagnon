@@ -8,19 +8,19 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Tasha’s Friends">
-<style>html,body{margin:0;padding:0;background:#121620;overscroll-behavior:none}</style>
+<style>html,body{margin:0;padding:0;background:#0b0d22;overscroll-behavior:none}</style>
 </head><body>
 <title>Tasha’s Friends</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="theme-color" content="#121620">
+<meta name="theme-color" content="#0b0d22">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@500&family=Ephesis&display=swap">
 <style>
 /* Layout: one-column phone app on ink-blue "table felt", sticky view header, fixed bottom tab bar, roll results in a floating tray above it */
 :root{
-  --bg:#121620; --panel:#1a202b; --panel2:#232b38; --line:#323c4c;
-  --fg:#ece6d6; --muted:#98a1b0; --brass:#d8a647; --brass-ink:#1b1408;
+  --bg:#0b0d22; --panel:#15163a; --panel2:#201f4b; --line:#34306c;
+  --fg:#eeeaf8; --muted:#a7a3cb; --brass:#b18cff; --brass-ink:#160b30;
   --good:#78c597; --bad:#e2675f;
   --f-display:"Alegreya SC", Georgia, "Times New Roman", serif;
   --f-body:"Alegreya Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -261,7 +261,7 @@ details.cf .desc{padding:0 0 10px}
 .mst small{font-size:.66rem;color:var(--muted)}
 .mon-s p{margin:.45em 0}
 .mon-s .sc{padding-left:10px}
-.spl{color:var(--brass);font-style:italic;text-decoration:underline;text-decoration-color:rgba(216,166,71,.4);text-underline-offset:2px}
+.spl{color:var(--brass);font-style:italic;text-decoration:underline;text-decoration-color:rgba(177,140,255,.45);text-underline-offset:2px}
 .cond-g{display:flex;flex-wrap:wrap;gap:6px}
 .cond-g button{flex:none;width:auto;border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:6px 11px;font-weight:600;font-size:.88rem;color:var(--muted)}
 .cond-g button.on{background:var(--bad);border-color:var(--bad);color:#fff}
@@ -444,6 +444,13 @@ a.btn{color:var(--fg);text-decoration:none;display:block}
 .sp.open .sp-title{animation:spTitle 1.4s .7s cubic-bezier(.2,.8,.25,1) forwards}
 @keyframes spTitle{to{opacity:1;transform:none}}
 @media (max-height:700px){.sp-title{font-size:2.6rem;top:calc(14px + env(safe-area-inset-top,0px))}}
+
+.sp{--bg:#121620;--fg:#ece6d6;--muted:#98a1b0;--brass:#d8a647;--brass-ink:#1b1408}
+.sp-items .it{stroke:#e9c46a!important;filter:drop-shadow(0 0 4px #d8a64766)}
+.sp-items .it text{fill:#e9c46a!important}
+.sp-items .it .b{fill:#d8a64740!important;stroke:#e9c46a!important}
+.rar-vr{color:#d29cff}
+body{background:radial-gradient(ellipse 120% 60% at 50% 0%,#1a1546 0%,var(--bg) 60%) fixed,var(--bg)}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">

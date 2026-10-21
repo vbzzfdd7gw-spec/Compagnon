@@ -5,8 +5,8 @@
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
- "background_color": "#121620",
- "theme_color": "#121620",
+ "background_color": "#0b0d22",
+ "theme_color": "#0b0d22",
  "description": "Fiches, dés, sorts et combat pour D&D 5e à la table.",
  "icons": [
   {
