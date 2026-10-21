@@ -454,6 +454,43 @@ body{background:var(--bg)}
 .card,.pc,.chip,.cb{border-color:#3a4066}
 .lbl{color:#c3c6d6}
 .hint,.sub{color:#bfc2d3}
+.rfx{position:fixed;inset:0;z-index:150;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 45%,#1d1840ee,#05060ff2 70%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:rfxIn .18s ease-out;cursor:pointer;padding:24px;box-sizing:border-box}
+.rfx.out{opacity:0;transition:opacity .2s}
+@keyframes rfxIn{from{opacity:0}}
+.rfx-in{width:100%;max-width:420px;display:grid;justify-items:center;gap:18px;text-align:center}
+.rfx-l{margin:0;font-family:var(--f-display);font-size:1.15rem;color:var(--fg);opacity:.9}
+.rfx-dice{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;min-height:84px}
+.fxd{position:relative;width:76px;height:76px;display:grid;place-items:center;animation:fxRoll 1s cubic-bezier(.2,.7,.3,1) both;animation-delay:calc(var(--i) * 40ms)}
+.rfx-dice:has(.fxd:nth-child(7)) .fxd{width:54px;height:54px}
+.fxd svg{position:absolute;inset:0;width:100%;height:100%;fill:#2a2160;stroke:#e9c46a;stroke-width:4;stroke-linejoin:round;filter:drop-shadow(0 6px 10px #0009)}
+.fxd svg .in{fill:none;stroke:#e9c46a30;stroke-width:2.5}
+.fxd b{position:relative;font:700 1.55rem var(--f-mono);color:#fff;text-shadow:0 1px 3px #000}
+.rfx-dice:has(.fxd:nth-child(7)) .fxd b{font-size:1.1rem}
+.fxd small{position:absolute;bottom:-17px;left:0;right:0;font-size:.62rem;color:var(--muted);letter-spacing:.06em}
+@keyframes fxRoll{0%{transform:translate(calc((var(--i) % 3 - 1) * 60px),-120px) rotate(-200deg) scale(.6);opacity:0}20%{opacity:1}45%{transform:translate(calc((1 - var(--i) % 3) * 20px),12px) rotate(60deg) scale(1.05)}65%{transform:translateY(-14px) rotate(-18deg)}80%{transform:translateY(4px) rotate(6deg)}100%{transform:none}}
+.rfx:not(.done) .fxd{animation:fxRoll 1s cubic-bezier(.2,.7,.3,1) both,fxWob .22s .5s linear infinite alternate}
+@keyframes fxWob{from{rotate:-6deg}to{rotate:6deg}}
+.rfx.fast .fxd{animation-duration:.35s!important}
+.rfx.done .fxd{animation:fxLand .25s ease-out}
+@keyframes fxLand{from{transform:scale(1.12)}to{transform:none}}
+.rfx.done .fxd.drop{opacity:.35;filter:grayscale(1)}
+.rfx.done .fxd.nat20 svg{fill:#5a3f0f;stroke:#ffd76a;filter:drop-shadow(0 0 16px #ffd76acc)}
+.rfx.done .fxd.nat1 svg{fill:#4a1216;stroke:#ff6b6b;filter:drop-shadow(0 0 14px #ff6b6baa)}
+.rfx-res{display:grid;gap:6px;justify-items:center;opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s}
+.rfx.done .rfx-res{opacity:1;transform:none}
+.rfx-t{font-family:var(--f-display);font-size:4.4rem;line-height:1;color:#fff;text-shadow:0 0 24px #bb9bff99}
+.rfx.crit .rfx-t{color:#ffd76a;text-shadow:0 0 30px #ffd76acc}
+.rfx.fumble .rfx-t{color:#ff7b7b;text-shadow:0 0 24px #ff6b6b99}
+.rfx-f{font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:.9rem;color:#ffd76a}
+.rfx.fumble .rfx-f{color:#ff8a8a}
+.rfx-d{color:var(--muted);font-size:.95rem;max-width:340px}
+.rfx-d b{color:var(--fg)}
+.rfx-more{align-self:center;color:var(--muted)}
+.rfx-h{margin:8px 0 0;color:var(--muted);font-size:.85rem;opacity:0;transition:opacity .3s .3s}
+.rfx.done .rfx-h{opacity:.8}
+.rfx.crit.done .rfx-in::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 42%,#ffd76a55,#0000 45%);animation:rfxBurst .9s ease-out forwards}
+@keyframes rfxBurst{from{opacity:1;transform:scale(.6)}to{opacity:0;transform:scale(1.4)}}
+@media (prefers-reduced-motion:reduce){.fxd{animation:none!important}}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">
@@ -909,7 +946,24 @@ function txt(s){
 }
 
 /* ---------- Moteur de dés ---------- */
-function pushRoll(r){r.time=Date.now();S.history.unshift(r);S.history=S.history.slice(0,40);save();showToast(r);return r;}
+function pushRoll(r){r.time=Date.now();const dice=r.dice;delete r.dice;S.history.unshift(r);S.history=S.history.slice(0,40);save();if(rollAnimMode()!=='off'&&dice&&dice.length)rollFx(Object.assign({},r,{dice}));else showToast(r);return r;}
+/* ---------- Animation des jets ---------- */
+const FXSH={4:'<polygon points="50,6 96,90 4,90"/>',6:'<rect x="8" y="8" width="84" height="84" rx="12"/>',8:'<polygon points="50,3 96,50 50,97 4,50"/>',10:'<polygon points="50,3 96,42 50,97 4,42"/>',12:'<polygon points="50,4 96,37 79,93 21,93 4,37"/>',20:'<polygon points="50,3 93,27 93,73 50,97 7,73 7,27"/><polygon class="in" points="50,22 74,64 26,64"/>',100:'<polygon points="50,3 96,42 50,97 4,42"/>'};
+const rollAnimMode=()=>S.rollAnim||(navigator.webdriver&&!/rollfx/.test(location.hash)?'off':'full');
+function fxDie(d,i){const f=FXSH[d.f]?d.f:6;return `<div class="fxd ${d.drop?'drop':''} ${d.f===20&&d.v===20&&!d.drop?'nat20':''} ${d.f===20&&d.v===1&&!d.drop?'nat1':''}" style="--i:${i}" data-f="${d.f}"><svg viewBox="0 0 100 100" aria-hidden="true">${FXSH[f]}</svg><b data-v="${d.v}">${d.v}</b><small>d${d.f}</small></div>`;}
+function rollFx(r){const old=$('#rollfx');if(old)old.remove();const fast=rollAnimMode()==='fast';
+  const dice=(r.dice||[]).slice(0,24);const more=(r.dice||[]).length-dice.length;
+  const el=document.createElement('div');el.id='rollfx';el.className='rfx'+(fast?' fast':'')+(r.kind==='crit'?' crit':r.kind==='fumble'?' fumble':'');
+  el.innerHTML=`<div class="rfx-in"><p class="rfx-l">${esc(r.label||'Jet')}</p><div class="rfx-dice">${dice.map(fxDie).join('')}${more>0?`<span class="rfx-more">+${more} dés</span>`:''}</div>
+    <div class="rfx-res"><div class="rfx-t">${r.total}</div>${r.flag?`<div class="rfx-f">${esc(r.flag)}</div>`:''}<div class="rfx-d">${r.detail||''}</div></div>
+    <p class="rfx-h">Touche l’écran pour continuer</p></div>`;
+  document.body.appendChild(el);
+  const nums=[...el.querySelectorAll('.fxd b')];let done=false;const dur=fast?350:1000;
+  const tick=setInterval(()=>{nums.forEach(b=>{const f=+b.parentNode.dataset.f;b.textContent=1+Math.floor(Math.random()*(f===100?100:f));});},70);
+  const settle=()=>{if(done)return;done=true;clearInterval(tick);nums.forEach(b=>b.textContent=b.dataset.v);el.classList.add('done');try{if(navigator.vibrate)navigator.vibrate(r.kind==='crit'?[30,40,60]:25);}catch(e){}};
+  const st=setTimeout(settle,dur);
+  el.addEventListener('click',e=>{e.stopPropagation();if(!done){clearTimeout(st);settle();return;}el.classList.add('out');setTimeout(()=>el.remove(),220);});}
+
 function d20(m,label){
   const mode=S.mode;const a=rnd(20);let dice=[a],kept=a;
   if(mode!=='normal'){const b=rnd(20);dice=[a,b];kept=mode==='adv'?Math.max(a,b):Math.min(a,b);}
@@ -918,7 +972,8 @@ function d20(m,label){
   const tag=mode==='adv'?' avantage':mode==='dis'?' désavantage':'';
   const detail=`d20${tag} [${dh}]${m?' '+sgn(m):''}`;
   S.mode='normal';
-  return pushRoll({label,total,detail,kind,flag:kind==='crit'?'20 naturel !':kind==='fumble'?'1 naturel':''});
+  const fxd=dice.map((v,i)=>({f:20,v,drop:dice.length===2&&i!==dice.indexOf(kept)}));
+  return pushRoll({label,total,detail,kind,flag:kind==='crit'?'20 naturel !':kind==='fumble'?'1 naturel':'',dice:fxd});
 }
 function cd20(c,m,label,kind){const e=c&&c.exh||0;if(!e)return d20(m,label);
   if(edOf(c)==='2014'){const dis=kind==='atk'||kind==='sv'?e>=3:e>=1;if(!dis)return d20(m,label);S.mode=S.mode==='adv'?'normal':'dis';return d20(m,label+' · Épuisement (désavantage)');}
@@ -942,15 +997,15 @@ function parseFormula(str){
 function rollFormula(str,label,crit){
   const t=parseFormula(str);
   if(!t){showMsg('Formule non reconnue','Écris par exemple 2d6+3, 1d8+1d6+2 ou d20-1.');return null;}
-  let total=0;const bits=[];
+  let total=0;const bits=[];const fxd=[];
   for(const x of t){
     if(x.k!=null){total+=x.sign*x.k;bits.push(`${x.sign<0?'−':'+'} ${x.k}`);continue;}
-    const n=crit?x.n*2:x.n;const rs=[];for(let i=0;i<n;i++)rs.push(rnd(x.f));
+    const n=crit?x.n*2:x.n;const rs=[];for(let i=0;i<n;i++)rs.push(rnd(x.f));rs.forEach(v=>fxd.push({f:x.f,v}));
     total+=x.sign*rs.reduce((a,b)=>a+b,0);
     bits.push(`${x.sign<0?'−':'+'} ${n}d${x.f} [<b>${rs.join(', ')}</b>]`);
   }
   const detail=bits.join(' ').replace(/^\+ /,'');
-  return pushRoll({label,total,detail,kind:crit?'crit':'',flag:crit?'Critique : dés doublés':''});
+  return pushRoll({label,total,detail,kind:crit?'crit':'',flag:crit?'Critique : dés doublés':'',dice:fxd});
 }
 let tt;
 function showToast(r){
@@ -1349,6 +1404,7 @@ function diceView(){
   const f=poolFormula();
   return `<header class="vh"><div class="vh-row"><div><span class="lbl">Lanceur</span><h1>Dés</h1></div></div>${modeSeg()}</header>
   <div class="stack">
+  <div class="between" style="align-items:center"><span class="hint" style="margin:0">Animation des jets</span><div class="seg" style="min-width:210px">${[['full','Normale'],['fast','Rapide'],['off','Aucune']].map(([k,n])=>`<button class="${rollAnimMode()===k?'on':''}" data-a="rollAnim" data-v="${k}" style="padding:7px 4px;font-size:.85rem">${n}</button>`).join('')}</div></div>
   <section class="card"><div class="dgrid">${[4,6,8,10,12,20,100].map(x=>`<button class="die" data-a="addDie" data-f="${x}" aria-label="Ajouter un d${x}">${dieSvg(x)}<span>d${x}</span>${ui.pool[x]?`<em>${ui.pool[x]}</em>`:''}</button>`).join('')}
     <button class="die" data-a="quickD20" aria-label="Lancer 1d20 directement"><span style="font-family:var(--f-display);font-size:1.5rem;line-height:34px">1d20</span><span>direct</span></button></div>
     <div class="pool-f ${f?'':'ph'}">${f||'Touche des dés pour composer ton jet'}</div>
@@ -2648,6 +2704,7 @@ const A={
   cmDel:d=>{if(ui.pendingCmDel!==d.id){ui.pendingCmDel=d.id;return;}S.cmagic=S.cmagic.filter(m=>m.id!==d.id);unregCM(d.id);S.chars.forEach(c=>{c.items=c.items.filter(i=>i.mid!==d.id);});ui.pendingCmDel=null;ui.ov=null;},
   ioOpen:()=>{ui.ov={type:'io',fresh:1,txt:'',draft:{}};},
   ioExport:d=>{ioExport(d.id);return false;},
+  rollAnim:d=>{S.rollAnim=d.v;},
   spToggle:()=>{const off=lsGet('ct-nosplash')==='1';lsSet('ct-nosplash',off?'0':'1');showMsg('Animation d’ouverture',off?'Réactivée : tu la verras à la prochaine ouverture.':'Désactivée.');},
   fbAcct:()=>{ui.ov={type:'acct',fresh:1,mode:'in'};},
   fbMode:d=>{ui.ov.mode=d.m;ui.ov.err='';ui.ov.msg='';},
@@ -2764,12 +2821,12 @@ const A={
     else if(v>=10)c.death.s=Math.min(3,c.death.s+1);else c.death.f=Math.min(3,c.death.f+1);
     if(!flag&&c.death.s>=3)flag='Trois réussites : stabilisé';
     if(c.death.f>=3)flag='Trois échecs : le personnage meurt';
-    pushRoll({label:`${c.name} · Jet contre la mort`,total:v,detail:`d20 [<b>${v}</b>] · 10 ou plus = réussite`,kind:v===20?'crit':(v===1||c.death.f>=3)?'fumble':'',flag});},
+    pushRoll({label:`${c.name} · Jet contre la mort`,total:v,dice:[{f:20,v}],detail:`d20 [<b>${v}</b>] · 10 ou plus = réussite`,kind:v===20?'crit':(v===1||c.death.f>=3)?'fumble':'',flag});},
   addDie:d=>{ui.pool[d.f]=Math.min(20,(ui.pool[d.f]||0)+1);},
   pmod:d=>{ui.poolMod=Math.max(-20,Math.min(20,ui.poolMod+ +d.d));},
   clearPool:()=>{for(const k in ui.pool)ui.pool[k]=0;ui.poolMod=0;},
   rollPool:()=>{const onlyD20=ui.pool[20]===1&&[4,6,8,10,12,100].every(f=>!ui.pool[f]);
-    if(onlyD20)d20(ui.poolMod,'1d20'+(ui.poolMod?(ui.poolMod>0?'+':'')+ui.poolMod:''));else rollFormula(poolFormula(''),poolFormula());},
+    if(onlyD20)d20(ui.poolMod,'1d20'+(ui.poolMod?(ui.poolMod>0?'+':'')+ui.poolMod:''));else rollFormula(poolFormula('+'),poolFormula());},
   quickD20:()=>{d20(0,'1d20');},
   rollFormula:()=>{const f=($('#formula')||{}).value||ui.formula;ui.formula=f;if(!f.trim()){showMsg('Formule vide','Écris un jet, par exemple 2d6+3.');return;}rollFormula(f,f.replace(/\s+/g,''));},
   clearHist:()=>{S.history=[];},
