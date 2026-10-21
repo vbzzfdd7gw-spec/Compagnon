@@ -515,6 +515,10 @@ body{background:var(--bg)}
 .tile-t{display:grid;gap:2px;min-width:0}.tile-t b{font-size:1rem}.tile-t small{color:var(--muted);font-size:.84rem;line-height:1.3}
 .tile .btn{flex:none;white-space:nowrap}
 .tile-x{grid-column:1/-1}.tile-x .cloudst{margin:0!important}
+
+.subcl{display:block;margin-top:2px;font-family:var(--f-display);font-size:1rem;color:var(--brass);letter-spacing:.02em}
+.subcl.sm{font-size:.9rem;margin-top:1px}
+.subcl.todo{font-family:var(--f-body);font-size:.82rem;color:var(--muted);font-style:italic}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">
@@ -1110,7 +1114,7 @@ function cloudLine(){const st=CL.st;const txt=st==='on'?(CL.at?'Sauvegardé en l
 function cloudConflictCard(){if(CL.st!=='conflict')return '';return `<section class="card" style="border-color:var(--brass)"><h2>Sauvegarde en ligne plus récente</h2><p class="hint">Une sauvegarde du ${hm(CL.meta.ts)}${CL.meta.dev!==devId()?', faite sur un autre appareil,':''} est plus récente que les données de ce téléphone.</p><div class="row2"><button class="btn primary" data-a="clRestore">La récupérer</button><button class="btn" data-a="clKeep">Garder celles d’ici</button></div><p class="hint">« Garder celles d’ici » remplace la sauvegarde en ligne par les données de ce téléphone.</p></section>`;}
 function fileAge(){const t=+lsGet('ct-file')||0;return t?Math.floor((Date.now()-t)/864e5):null;}
 function fileReminder(){if(!S.chars.some(c=>!c.example))return '';const a=fileAge();if(a!==null&&a<7)return '';if(CL.st==='on'&&a!==null&&a<30)return '';
-  return `<section class="card"><div class="between" style="gap:10px"><span class="hint" style="margin:0">${a===null?'Tu n’as encore jamais sauvegardé tes personnages dans un fichier.':'Dernier fichier de sauvegarde il y a '+a+' jours.'}${CL.st==='on'?'':' Sans fichier, changer de téléphone ou vider le navigateur efface tout.'}</span><button class="btn sm primary" data-a="ioExport" style="flex:none">Sauvegarder</button></div></section>`;}
+  return `<section class="card" style="margin-bottom:14px"><div class="between" style="gap:10px"><span class="hint" style="margin:0">${a===null?'Tu n’as encore jamais sauvegardé tes personnages dans un fichier.':'Dernier fichier de sauvegarde il y a '+a+' jours.'}${CL.st==='on'?'':' Sans fichier, changer de téléphone ou vider le navigateur efface tout.'}</span><button class="btn sm primary" data-a="ioExport" style="flex:none">Sauvegarder</button></div></section>`;}
 
 /* ---------- Combat (mode MJ) ---------- */
 function enc(){if(!S.enc)S.enc={ed:(S.chars.find(x=>!x.example)?edOf(S.chars.find(x=>!x.example)):'2014'),round:0,cur:null,list:[]};return S.enc;}
@@ -1356,10 +1360,12 @@ function syncCardOld(){const u=FB.user;
   return `<section class="card" style="margin-top:14px"><div class="between" style="align-items:center"><span><b>${u?'Compte':'Sauvegarde en ligne'}</b><br><small class="hint">${u?esc(u.email):'Crée un compte pour sauvegarder tes fiches et jouer en campagne.'}</small></span><button class="btn sm ${u?'':'primary'}" data-a="fbAcct" style="flex:none">${u?'Gérer':'Se connecter'}</button></div>${u?cloudLine():''}
    <div class="between" style="align-items:center;border-top:1px solid var(--line);padding-top:10px"><span><b>Campagne</b><br><small class="hint">${S.camp?esc(S.camp.name||'')+' · code '+esc(S.camp.id)+(isGmCamp()?' · MJ':''):'Aucune : rejoins celle de ton MJ ou crée la tienne.'}</small></span><button class="btn sm" data-a="campOpen" style="flex:none">${S.camp?'Ouvrir':'Rejoindre'}</button></div></section>`;}
 
+function subLine(c,small){const n=c.sub&&SUBN[c.sub];const lv=subLevel(c);if(!n&&c.level<lv)return '';
+  return `<span class="subcl ${small?'sm':''} ${n?'':'todo'}">${n?esc(n):'Sous-classe à choisir'}</span>`;}
 function listView(){
   const ed0=ED.e;const cards=S.chars.map(c=>{useEd(edOf(c));const cl=CLASSES[c.cls];const pd=ui.pendingDel===c.id;return `<article class="pc ${c.id===S.current?'cur':''}">
     <button class="pc-main" data-a="open" data-id="${c.id}"><span class="pc-name">${esc(c.name)}${c.example?' <span class="tag">exemple</span>':''}</span>
-    <span class="pc-sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${edOf(c)==='2014'?' · '+edBadge('2014'):''}</span>
+    <span class="pc-sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${edOf(c)==='2014'?' · '+edBadge('2014'):''}</span>${subLine(c,1)}
     <span class="pc-stats"><span>PV <b>${c.hp}/${c.hpMax}</b></span><span>CA <b>${acOf(c)}</b></span><span>Maîtrise <b>${fmt(prof(c.level))}</b></span></span></button>
     <button class="pc-del ${pd?'confirm':''}" data-a="del" data-id="${c.id}">${pd?'Confirmer':'Supprimer'}</button></article>`;}).join('');useEd(ed0);
   return `<header class="vh"><div class="vh-row"><div><span class="lbl">Tasha’s Friends</span><h1>Personnages</h1></div></div></header>
@@ -1389,7 +1395,7 @@ function sheetView(){
   const dots=(t,n,cls)=>[0,1,2].map(i=>`<button class="dot ${i<n?'on '+cls:''}" data-a="ds" data-t="${t}" data-i="${i}" aria-label="${t==='s'?'Réussite':'Échec'} ${i+1}"></button>`).join('');
 
   return `<header class="vh"><div class="vh-row"><div>${e?`<input id="c-name" data-f="name" value="${esc(c.name)}" aria-label="Nom du personnage">`:`<h1>${esc(c.name)}</h1>`}
-    <span class="sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${bg?' · '+bg.n.replace(' (homebrew)',''):''} ${edBadge(edOf(c))}</span>${!e&&c.level<20?`<button class="lvb" data-a="lvlUp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>Monter au niveau ${c.level+1}</button>`:''}${!e&&c.level>1?`<button class="lvb dn" data-a="lvlDown" aria-label="Redescendre au niveau ${c.level-1}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5L12 19l6.5-6.5"/></svg>${c.level<20?'':'Redescendre au niveau '+(c.level-1)}</button>`:''}</div>
+    <span class="sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${bg?' · '+bg.n.replace(' (homebrew)',''):''} ${edBadge(edOf(c))}</span>${subLine(c)}${!e&&c.level<20?`<button class="lvb" data-a="lvlUp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>Monter au niveau ${c.level+1}</button>`:''}${!e&&c.level>1?`<button class="lvb dn" data-a="lvlDown" aria-label="Redescendre au niveau ${c.level-1}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5L12 19l6.5-6.5"/></svg>${c.level<20?'':'Redescendre au niveau '+(c.level-1)}</button>`:''}</div>
     <button class="btn sm ${e?'primary':''}" data-a="edit">${e?'Terminer':'Modifier'}</button></div>${modeSeg()}</header>
   <div class="stack">
   ${e?`<section class="card editbox"><h2>Modification</h2>
