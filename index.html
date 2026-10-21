@@ -505,6 +505,16 @@ body{background:var(--bg)}
 .rfx:not(.done) .fxd small{opacity:0}
 .rfx.done .rfx-table .fxd.nat20 .bd{animation:fxGlow 1.2s ease-in-out infinite alternate}
 @keyframes fxGlow{to{filter:brightness(1.25)}}
+
+.sect{margin:26px 2px 10px;font-family:var(--f-body);font-size:.74rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
+.sect::after{content:"";flex:1;height:1px;background:var(--line)}
+.tiles{display:grid;gap:10px}
+.tile{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;background:var(--panel2);border:1px solid #3a4066;border-left:4px solid var(--tc);border-radius:14px;padding:12px 12px 12px 12px;box-shadow:0 4px 14px #0005}
+.tile-i{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--tc) 18%,transparent);color:var(--tc)}
+.tile-i svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tile-t{display:grid;gap:2px;min-width:0}.tile-t b{font-size:1rem}.tile-t small{color:var(--muted);font-size:.84rem;line-height:1.3}
+.tile .btn{flex:none;white-space:nowrap}
+.tile-x{grid-column:1/-1}.tile-x .cloudst{margin:0!important}
 </style>
 
 <div id="splash" class="sp" role="button" tabindex="0" aria-label="Ouvrir le livre">
@@ -1336,7 +1346,13 @@ function campView(){const o=ui.ov;const c=S.camp;
     <section class="card"><h2>Contenu du MJ</h2><p class="hint" style="margin:0">Les classes, races, dons, objets et sorts partagés par ton MJ arrivent automatiquement à l’ouverture de l’appli.</p><button class="btn" data-a="campPull">Vérifier maintenant</button></section>`}
    ${o.err?`<p class="err">${esc(o.err)}</p>`:''}
    <button class="btn danger" data-a="campLeave">${o.leave?'Confirmer':'Quitter la campagne'}</button></div></div>`;}
-function syncCard(){if(!FB.on)return cloudLine();const u=FB.user;
+const TICO={"cloud": "<path d=\"M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.5 4.3 4.3 0 0 0 7 18z\"/>", "file": "<path d=\"M6 3h9l4 4v14H6z\"/><path d=\"M12 10v7M9 14l3 3 3-3\"/>", "users": "<circle cx=\"9\" cy=\"8\" r=\"3.2\"/><path d=\"M3.5 19c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2\"/><circle cx=\"17\" cy=\"9\" r=\"2.4\"/><path d=\"M15.6 13.9c2.4.2 4 1.8 4.6 4.6\"/>", "crown": "<path d=\"M4 18h16M5 18l-1-10 5 4 3-6 3 6 5-4-1 10\"/>", "book": "<path d=\"M4 5c3-1.5 6-1.5 8 .5 2-2 5-2 8-.5v14c-3-1.5-6-1.5-8 .5-2-2-5-2-8-.5z\"/><path d=\"M12 5.5v14\"/>"};
+function tile(ic,col,title,sub,btn,extra){return `<div class="tile" style="--tc:${col}"><span class="tile-i"><svg viewBox="0 0 24 24" aria-hidden="true">${TICO[ic]}</svg></span><span class="tile-t"><b>${title}</b><small>${sub}</small></span>${btn}${extra?`<div class="tile-x">${extra}</div>`:''}</div>`;}
+const secT=t=>`<h3 class="sect">${t}</h3>`;
+function syncCard(){if(!FB.on)return tile('cloud','#bb9bff','Sauvegarde en ligne',inClaude()?'Sur ton compte Claude, à chaque modification.':'Indisponible ici : pense au fichier.','',cloudLine());const u=FB.user;
+  return tile('cloud','#bb9bff',u?'Compte':'Sauvegarde en ligne',u?esc(u.email):'Crée un compte pour sauvegarder tes fiches.',`<button class="btn sm ${u?'':'primary'}" data-a="fbAcct">${u?'Gérer':'Se connecter'}</button>`,u?cloudLine():'');}
+function campTile(){if(!FB.on)return '';return tile('users','#e9c46a','Campagne',S.camp?esc(S.camp.name||'')+' · code '+esc(S.camp.id)+(isGmCamp()?' · MJ':''):'Rejoins celle de ton MJ ou crée la tienne.',`<button class="btn sm" data-a="campOpen">${S.camp?'Ouvrir':'Rejoindre'}</button>`);}
+function syncCardOld(){const u=FB.user;
   return `<section class="card" style="margin-top:14px"><div class="between" style="align-items:center"><span><b>${u?'Compte':'Sauvegarde en ligne'}</b><br><small class="hint">${u?esc(u.email):'Crée un compte pour sauvegarder tes fiches et jouer en campagne.'}</small></span><button class="btn sm ${u?'':'primary'}" data-a="fbAcct" style="flex:none">${u?'Gérer':'Se connecter'}</button></div>${u?cloudLine():''}
    <div class="between" style="align-items:center;border-top:1px solid var(--line);padding-top:10px"><span><b>Campagne</b><br><small class="hint">${S.camp?esc(S.camp.name||'')+' · code '+esc(S.camp.id)+(isGmCamp()?' · MJ':''):'Aucune : rejoins celle de ton MJ ou crée la tienne.'}</small></span><button class="btn sm" data-a="campOpen" style="flex:none">${S.camp?'Ouvrir':'Rejoindre'}</button></div></section>`;}
 
@@ -1350,9 +1366,12 @@ function listView(){
   ${cloudConflictCard()}${fileReminder()}
   <button class="btn primary big" data-a="newChar">Créer un personnage</button>
   <div class="pcs">${cards||'<p class="empty">Aucun personnage pour l’instant. Crée le premier avec le bouton ci-dessus.</p>'}</div>
-  <div class="row2" style="margin-top:14px"><button class="btn" data-a="ioExport">Sauvegarder dans un fichier</button><button class="btn" data-a="ioOpen">Import et export</button></div>${syncCard()}
-  <section class="card" style="margin-top:14px"><div class="between" style="align-items:center"><span><b>Mode MJ</b><br><small class="hint">Ajoute l’onglet Combat : initiative, PV des monstres, états, actions légendaires.</small></span><button class="pk ${S.mj?'on':''}" data-a="mjToggle" style="flex:none">${S.mj?'Activé':'Activer'}</button></div></section>
-  <div class="between" style="margin-top:10px;align-items:center"><span class="hint" style="margin:0">Animation du livre à l’ouverture</span><button class="btn sm" data-a="spToggle">${lsGet('ct-nosplash')==='1'?'Réactiver':'Désactiver'}</button></div>`;
+  ${secT('Mes données')}
+  <div class="tiles">${syncCard()}${tile('file','#7fc8a9','Fichier de sauvegarde','Une copie complète à garder dans Fichiers, Drive…','',`<div class="row2"><button class="btn sm" data-a="ioExport">Sauvegarder</button><button class="btn sm" data-a="ioOpen">Import et export</button></div>`)}</div>
+  ${secT('Jouer ensemble')}
+  <div class="tiles">${campTile()}${tile('crown','#f08a6b','Mode MJ','Onglet Combat : initiative, PV des monstres, états…',`<button class="btn sm ${S.mj?'primary':''}" data-a="mjToggle">${S.mj?'Activé':'Activer'}</button>`)}</div>
+  ${secT('Options')}
+  <div class="tiles">${tile('book','#a7a3cb','Animation du livre','Le grimoire qui s’ouvre au lancement.',`<button class="btn sm" data-a="spToggle">${lsGet('ct-nosplash')==='1'?'Réactiver':'Désactiver'}</button>`)}</div>`;
 }
 
 function sheetView(){
