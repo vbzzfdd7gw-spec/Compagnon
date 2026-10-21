@@ -838,34 +838,34 @@ const lsGet=k=>{try{return localStorage.getItem(k);}catch(e){return null;}};cons
 const CHK=80000;
 function cloudData(){const o=Object.assign({},S);delete o.tab;delete o.current;delete o.mode;return JSON.stringify(o);}
 function localFresh(){return !S.chars.some(c=>!c.example)&&!S.custom.length&&!S.cmon.length&&!(S.hb&&Object.keys(S.hb).some(k=>Object.keys(S.hb[k]||{}).length));}
-function cloudTouch(){clearTimeout(CL.t);CL.t=setTimeout(cloudSync,2500);}
+function cloudTouch(){clearTimeout(CL.t);CL.t=setTimeout(cloudSync,2500);try{campTouch();}catch(e){}}
 function cloudSync(){if(CL.st!=='on'&&CL.st!=='err')return;const js=cloudData();if(js!==CL.last){CL.last=js;lsSet('ct-mod',String(Date.now()));}cloudPush();}
 async function cloudPush(){if(CL.st!=='on'&&CL.st!=='err')return;if(CL.busy){CL.again=1;return;}CL.busy=1;
-  try{const rm=await CL.db.doc('data/users/'+CL.uid+'/meta').get();const r=rm.exists?rm.data():null;if(r&&r.dev!==devId()&&r.ts>(CL.meta?CL.meta.ts:0)){CL.meta=r;CL.st='conflict';CL.busy=0;CL.again=0;if(!ui.ov&&!ui.wiz)S.tab='list';render();return;}
-    const js=CL.last;const parts=[];for(let i=0;i<js.length;i+=CHK)parts.push(js.slice(i,i+CHK));const col=CL.db.collection('data/users/'+CL.uid);let w=0;
+  try{const rm=await CL.db.doc(CL.base+'/meta').get();const r=rm.exists?rm.data():null;if(r&&r.dev!==devId()&&r.ts>(CL.meta?CL.meta.ts:0)){CL.meta=r;CL.st='conflict';CL.busy=0;CL.again=0;if(!ui.ov&&!ui.wiz)S.tab='list';render();return;}
+    const js=CL.last;const parts=[];for(let i=0;i<js.length;i+=CHK)parts.push(js.slice(i,i+CHK));const col=CL.db.collection(CL.base);let w=0;
     for(let i=0;i<parts.length;i++){if(CL.sent[i]===parts[i])continue;await col.doc('c'+i).set({s:parts[i]});CL.sent[i]=parts[i];w++;}
     const mod=+lsGet('ct-mod')||Date.now();
     if(w||!CL.meta||CL.meta.n!==parts.length||CL.meta.ts!==mod){const meta={n:parts.length,ts:mod,dev:devId(),v:1};await col.doc('meta').set(meta);CL.meta=meta;}
     for(let i=parts.length;i<CL.n;i++){try{await col.doc('c'+i).delete();}catch(e){}}CL.sent.length=parts.length;CL.n=parts.length;
     CL.st='on';CL.at=Date.now();CL.msg='';}
-  catch(e){const c=e&&e.code;if(c==='invalid_argument'){CL.st='ro';CL.msg='Ce compte ne peut pas enregistrer en ligne dans cette appli.';}else if(c==='quota_exceeded'){CL.st='err';CL.msg='L’espace de sauvegarde en ligne est plein : supprime des contenus importés inutiles.';}else{CL.st='err';CL.msg='Sauvegarde en ligne momentanément impossible, nouvel essai à la prochaine modification.';}}
+  catch(e){const c=e&&e.code;if(c==='invalid_argument'||c==='permission-denied'){CL.st='ro';CL.msg='Ce compte ne peut pas enregistrer en ligne dans cette appli.';}else if(c==='quota_exceeded'){CL.st='err';CL.msg='L’espace de sauvegarde en ligne est plein : supprime des contenus importés inutiles.';}else{CL.st='err';CL.msg='Sauvegarde en ligne momentanément impossible, nouvel essai à la prochaine modification.';}}
   CL.busy=0;cloudBadge();if(CL.again){CL.again=0;cloudPush();}}
 function devId(){let d=lsGet('ct-dev');if(!d){d=uid();lsSet('ct-dev',d);}return d;}
-async function cloudFetch(){const col=CL.db.collection('data/users/'+CL.uid);let js='';for(let i=0;i<CL.meta.n;i++){const s=await col.doc('c'+i).get();if(!s.exists)throw new Error('morceau manquant');js+=s.data().s;}return js;}
+async function cloudFetch(){const col=CL.db.collection(CL.base);let js='';for(let i=0;i<CL.meta.n;i++){const s=await col.doc('c'+i).get();if(!s.exists)throw new Error('morceau manquant');js+=s.data().s;}return js;}
 async function cloudRestore(){try{CL.st='busy';cloudBadge();const js=await cloudFetch();const o=JSON.parse(js);o.tab='list';lsSet(KEY,JSON.stringify(o));lsSet('ct-mod',String(CL.meta.ts));location.reload();}
   catch(e){CL.st='err';CL.msg='La sauvegarde en ligne n’a pas pu être lue.';render();}}
-async function cloudInit(){let db=null,user=null;try{if(!window.claude||!window.claude.use){CL.st='off';cloudBadge();return;}[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);}catch(e){}
+async function cloudInit(){let db=null,user=null;try{if(!window.claude||!window.claude.use){if(await fbInit())return;CL.st='off';cloudBadge();return;}[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);}catch(e){}
   if(!db||!user){CL.st='off';cloudBadge();return;}
   let id=null;try{id=await user.id();}catch(e){}if(!id){CL.st='off';cloudBadge();return;}
   try{if(await user.can('data.write')===false){CL.st='ro';CL.msg='La sauvegarde en ligne est réservée au propriétaire de l’appli.';cloudBadge();return;}}catch(e){}
-  CL.db=db;CL.uid=id;CL.last=cloudData();if(!lsGet('ct-mod'))lsSet('ct-mod',localFresh()?'0':String(Date.now()));
+  CL.db=db;CL.uid=id;CL.base='data/users/'+id;CL.last=cloudData();if(!lsGet('ct-mod'))lsSet('ct-mod',localFresh()?'0':String(Date.now()));
   try{const m=await db.doc('data/users/'+id+'/meta').get();CL.meta=m.exists?m.data():null;}catch(e){CL.st='err';CL.msg='Sauvegarde en ligne injoignable pour le moment.';cloudBadge();return;}
   CL.n=CL.meta?CL.meta.n:0;const lm=+lsGet('ct-mod')||0;
   if(CL.meta&&CL.meta.ts>lm){if(localFresh()){cloudRestore();return;}CL.st='conflict';if(!ui.ov&&!ui.wiz)S.tab='list';render();return;}
   CL.st='on';cloudPush();}
 function cloudBadge(){document.querySelectorAll('.cloudst').forEach(el=>{el.outerHTML=cloudLine();});}
 const hm=t=>new Date(t).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-function cloudLine(){const st=CL.st;const txt=st==='on'?(CL.at?'Sauvegardé en ligne · '+hm(CL.at):'Sauvegarde en ligne active'):st==='busy'?'Récupération de la sauvegarde en ligne…':st==='wait'?'Connexion à la sauvegarde en ligne…':st==='conflict'?'Une sauvegarde en ligne plus récente existe':st==='err'||st==='ro'?CL.msg:'Sauvegarde en ligne indisponible ici : pense au fichier.';
+function cloudLine(){const st=CL.st;const txt=st==='on'?(CL.at?'Sauvegardé en ligne · '+hm(CL.at):'Sauvegarde en ligne active'):st==='busy'?'Récupération de la sauvegarde en ligne…':st==='wait'?'Connexion à la sauvegarde en ligne…':st==='conflict'?'Une sauvegarde en ligne plus récente existe':st==='signout'?'Non connecté : les données restent sur ce téléphone.':st==='err'||st==='ro'?CL.msg:'Sauvegarde en ligne indisponible ici : pense au fichier.';
   return `<p class="hint cloudst" style="margin:6px 0 0;display:flex;gap:6px;align-items:center"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;flex:none;background:${st==='on'?'var(--good)':st==='err'||st==='conflict'?'var(--bad)':'var(--line)'}"></span>${esc(txt)}</p>`;}
 function cloudConflictCard(){if(CL.st!=='conflict')return '';return `<section class="card" style="border-color:var(--brass)"><h2>Sauvegarde en ligne plus récente</h2><p class="hint">Une sauvegarde du ${hm(CL.meta.ts)}${CL.meta.dev!==devId()?', faite sur un autre appareil,':''} est plus récente que les données de ce téléphone.</p><div class="row2"><button class="btn primary" data-a="clRestore">La récupérer</button><button class="btn" data-a="clKeep">Garder celles d’ici</button></div><p class="hint">« Garder celles d’ici » remplace la sauvegarde en ligne par les données de ce téléphone.</p></section>`;}
 function fileAge(){const t=+lsGet('ct-file')||0;return t?Math.floor((Date.now()-t)/864e5):null;}
@@ -990,7 +990,7 @@ function partyView(){const o=ui.ov;const lv=o.lv;
    <button class="btn primary big" data-a="ptSave">Enregistrer</button></div></div>`;}
 
 /* ---------- Écran du groupe (mode MJ) ---------- */
-function grpMembers(){const loc=(S.grpLoc||S.chars.filter(c=>!c.example).map(c=>c.id)).map(id=>S.chars.find(c=>c.id===id)).filter(Boolean).map(c=>({c,loc:1}));return loc.concat((S.grp||[]).map(g=>({c:g.c,at:g.at,ext:1})));}
+function grpMembers(){const loc=(S.grpLoc||S.chars.filter(c=>!c.example).map(c=>c.id)).map(id=>S.chars.find(c=>c.id===id)).filter(Boolean).map(c=>({c,loc:1}));return loc.concat((S.grp||[]).map(g=>({c:g.c,at:g.at,ext:1,live:g.live})));}
 function grpStats(c){const ed0=ED.e;try{useEd(edOf(c));const pb=prof(c.level||1);const sk=k=>{const s=SKILLS.find(x=>x[0]===k);return mod(c.stats[s[2]])+((c.skills||{})[k]||0)*pb;};
   let ac;try{ac=acOf(c);}catch(e){ac=c.ac;}let ib;try{ib=initOf(c);}catch(e){ib=mod(c.stats.DEX);}
   const cl=CLASSES[c.cls];const sub=c.sub&&SUBN[c.sub];
@@ -1004,7 +1004,7 @@ function grpView(){const M=grpMembers();const rows=M.map(m=>({m,s:grpStats(m.c)}
   return `<div class="stack">
    ${rows.length?`<div class="gsums">${best(s=>s.pp,'Perception passive max')}${low(s=>s.pp,'Perception passive min')}${best(s=>s.pinv,'Investigation passive max')}${best(s=>s.pins,'Intuition passive max')}</div>`:''}
    <div class="gtab">${rows.map(({m,s},i)=>{const c=m.c;const ex=ui.gx===i;const pct=s.max?Math.round(s.hp/s.max*100):0;
-    return `<article class="cb"><button class="cb-main" data-a="gExp" data-i="${i}" style="padding:12px"><span class="between"><b>${esc(c.name)} ${m.ext?'<span class="mk">joueur</span>':''}</b><span class="hint" style="margin:0">${m.ext?'fiche du '+esc(m.at||''):'cet appareil'}</span></span>
+    return `<article class="cb"><button class="cb-main" data-a="gExp" data-i="${i}" style="padding:12px"><span class="between"><b>${esc(c.name)} ${m.ext?'<span class="mk">joueur</span>':''}</b><span class="hint" style="margin:0">${m.live?'<span style="color:var(--good)">● en direct</span> · '+esc(m.at||''):m.ext?'fiche du '+esc(m.at||''):'cet appareil'}</span></span>
      <span class="cb-sub">${s.sub}</span>
      <span class="gline"><span><small>CA</small><b>${s.ac}</b></span><span><small>PV</small><b>${s.hp}/${s.max}</b></span><span><small>Init.</small><b>${fmt(s.ib)}</b></span><span><small>Perc.</small><b>${s.pp}</b></span><span><small>Vit.</small><b>${esc(String(s.sp).replace(/\s*m$/,'').replace('.',','))} m</b></span></span>
      <span class="bar"><span style="display:block;height:100%;width:${pct}%;background:${pct>50?'var(--good)':pct>20?'var(--brass)':'var(--bad)'}"></span></span></button>
@@ -1023,6 +1023,93 @@ function grpImport(txt){let o;try{o=JSON.parse(txt);}catch(e){return [0,'Ce fich
   L.forEach(c=>{if(!c||!c.stats||!c.cls||!c.name)return;const x=JSON.parse(JSON.stringify(c));fixChar(x);const i=S.grp.findIndex(g=>g.c.id===x.id);const g={c:x,at:o.date?new Date(o.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):date};if(i>=0)S.grp[i]=g;else S.grp.push(g);n++;});
   return n?[n,`${L.filter(c=>c&&c.name).map(c=>c.name).join(', ')} ajouté${n>1?'s':''} au groupe.`]:[0,'Aucune fiche de personnage dans ce fichier.'];}
 
+/* ---------- Synchronisation Firebase (version installée) ---------- */
+const FBCFG={"apiKey":"AIzaSyAtrz4Grulg6sjcwXne6FodbrnSNzws7fU","authDomain":"compagnon-table.firebaseapp.com","projectId":"compagnon-table","storageBucket":"compagnon-table.firebasestorage.app","messagingSenderId":"488935881241","appId":"1:488935881241:web:65917f5182e02d13b58888"};
+const FBV='10.12.2';
+const FB={on:false,auth:null,db:null,user:null,ready:false,err:'',unsub:[],sheetSent:{},contentAt:0};
+const inClaude=()=>!!(window.claude&&window.claude.use);
+function loadScript(src){return new Promise((ok,ko)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>ko(new Error('script'));document.head.appendChild(s);});}
+async function fbInit(){if(!FBCFG||inClaude())return false;FB.on=true;
+  try{for(const m of ['app','auth','firestore']){try{await loadScript(`https://www.gstatic.com/firebasejs/${FBV}/firebase-${m}-compat.js`);}catch(e){await loadScript(`https://cdn.jsdelivr.net/npm/firebase@${FBV}/firebase-${m}-compat.js`);}}}
+  catch(e){CL.st='err';CL.msg='Synchronisation indisponible sans connexion : les données restent sur ce téléphone.';cloudBadge();return true;}
+  firebase.initializeApp(FBCFG);FB.auth=firebase.auth();FB.db=firebase.firestore();
+  FB.auth.onAuthStateChanged(u=>{FB.user=u;FB.ready=true;FB.unsub.forEach(f=>{try{f();}catch(e){}});FB.unsub=[];
+    if(!u){CL.st='signout';CL.db=null;render();return;}
+    fbStart(u).catch(()=>{CL.st='err';CL.msg='Synchronisation momentanément impossible.';cloudBadge();});});
+  return true;}
+async function fbStart(u){CL.db=FB.db;CL.uid=u.uid;CL.base='users/'+u.uid+'/save';CL.sent=[];CL.last=cloudData();if(!lsGet('ct-mod'))lsSet('ct-mod',localFresh()?'0':String(Date.now()));
+  if(lsGet('ct-owner')&&lsGet('ct-owner')!==u.uid){lsSet('ct-mod','0');}lsSet('ct-owner',u.uid);
+  const m=await FB.db.doc(CL.base+'/meta').get();CL.meta=m.exists?m.data():null;CL.n=CL.meta?CL.meta.n:0;const lm=+lsGet('ct-mod')||0;
+  if(CL.meta&&CL.meta.ts>lm){if(localFresh()||lm===0){cloudRestore();return;}CL.st='conflict';if(!ui.ov&&!ui.wiz)S.tab='list';render();campStart();return;}
+  CL.st='on';render();cloudPush();campStart();}
+const FBERR={'auth/invalid-email':'Adresse e-mail invalide.','auth/missing-password':'Indique un mot de passe.','auth/weak-password':'Mot de passe trop court (6 caractères minimum).','auth/email-already-in-use':'Un compte existe déjà avec cette adresse : connecte-toi.','auth/invalid-credential':'E-mail ou mot de passe incorrect.','auth/wrong-password':'E-mail ou mot de passe incorrect.','auth/user-not-found':'Aucun compte avec cette adresse : crée-le.','auth/too-many-requests':'Trop d’essais : patiente quelques minutes.','auth/network-request-failed':'Pas de connexion internet.'};
+function acctView(){const o=ui.ov;const u=FB.user;
+  if(u)return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Compte</span><h1>Connecté</h1><span class="sub">${esc(u.email)}</span></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">
+    <section class="card">${cloudLine()}<p class="hint">Tes personnages, imports, monstres, rencontres et réglages sont enregistrés sur ton compte à chaque modification. Sur un autre téléphone, connecte-toi avec la même adresse pour tout retrouver.</p></section>
+    <button class="btn danger" data-a="fbOut">Se déconnecter</button><p class="hint">Se déconnecter garde les données sur ce téléphone ; elles ne sont simplement plus synchronisées.</p></div></div>`;
+  return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Compte</span><h1>${o.mode==='new'?'Créer un compte':'Se connecter'}</h1><span class="sub">Pour sauvegarder en ligne et rejoindre une campagne</span></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">
+   <div class="seg"><button class="${o.mode!=='new'?'on':''}" data-a="fbMode" data-m="in">J’ai un compte</button><button class="${o.mode==='new'?'on':''}" data-a="fbMode" data-m="new">Nouveau compte</button></div>
+   <label class="fld"><span>Adresse e-mail</span><input type="email" autocomplete="email" data-fb="email" value="${esc(o.email||'')}" inputmode="email" autocapitalize="off"></label>
+   <label class="fld"><span>Mot de passe${o.mode==='new'?' (6 caractères minimum)':''}</span><input type="password" autocomplete="${o.mode==='new'?'new-password':'current-password'}" data-fb="pw" value="${esc(o.pw||'')}"></label>
+   ${o.err?`<p class="err">${esc(o.err)}</p>`:''}${o.msg?`<p class="iomsg" style="color:var(--good);font-weight:700">${esc(o.msg)}</p>`:''}
+   <button class="btn primary big" data-a="fbGo" ${o.busy?'disabled':''}>${o.busy?'Un instant…':o.mode==='new'?'Créer mon compte':'Me connecter'}</button>
+   ${o.mode!=='new'?'<button class="btn" data-a="fbReset">Mot de passe oublié</button>':''}
+   <p class="hint">Les données déjà présentes sur ce téléphone sont gardées : à la première connexion, elles sont envoyées sur ton compte (ou, si ton compte a déjà une sauvegarde plus récente, l’appli te demande laquelle garder).</p></div></div>`;}
+async function fbGo(){const o=ui.ov;const em=String(o.email||'').trim(),pw=String(o.pw||'');o.err='';o.msg='';o.busy=1;renderOv();
+  try{if(o.mode==='new')await FB.auth.createUserWithEmailAndPassword(em,pw);else await FB.auth.signInWithEmailAndPassword(em,pw);ui.ov=null;showMsg('Connecté',em+' · synchronisation en cours.');render();}
+  catch(e){o.busy=0;o.err=FBERR[e&&e.code]||'Connexion impossible ('+(e&&e.code||'erreur')+').';renderOv();}}
+async function fbReset(){const o=ui.ov;const em=String(o.email||'').trim();if(!em){o.err='Indique ton adresse e-mail, puis touche de nouveau « Mot de passe oublié ».';renderOv();return;}
+  try{await FB.auth.sendPasswordResetEmail(em);o.err='';o.msg='E-mail envoyé : suis le lien pour choisir un nouveau mot de passe (pense aux indésirables).';}catch(e){o.err=FBERR[e&&e.code]||'Envoi impossible.';}renderOv();}
+
+/* ---------- Campagnes ---------- */
+const CAMP_CH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const campCode=()=>Array.from({length:6},()=>CAMP_CH[Math.floor(Math.random()*CAMP_CH.length)]).join('');
+const isGmCamp=()=>S.camp&&FB.user&&S.camp.gm===FB.user.uid;
+function campShareIds(){return S.campShare||S.chars.filter(c=>!c.example).map(c=>c.id);}
+async function campStart(){if(!S.camp||!FB.user||!FB.db)return;const cid=S.camp.id;const ref=FB.db.collection('campaigns').doc(cid);
+  try{const d=await ref.get();if(!d.exists){showMsg('Campagne introuvable','La campagne '+cid+' n’existe plus.');S.camp=null;save();render();return;}S.camp=Object.assign(S.camp,{name:d.data().name,gm:d.data().gm});
+    await ref.collection('members').doc(FB.user.uid).set({name:campMyName(),at:Date.now()},{merge:true});}catch(e){return;}
+  campPushSheets();
+  if(isGmCamp()){FB.unsub.push(ref.collection('sheets').onSnapshot(qs=>{let ch=0;S.grp=S.grp||[];
+      qs.docChanges().forEach(x=>{const d=x.doc.data();if(d.owner===FB.user.uid)return;let c;try{c=JSON.parse(d.c);}catch(e){return;}
+        const i=S.grp.findIndex(g=>g.c.id===c.id);if(x.type==='removed'){if(i>=0&&S.grp[i].live){S.grp.splice(i,1);ch=1;}return;}
+        fixChar(c);const g={c,at:new Date(d.at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}),live:1,owner:d.owner};if(i>=0)S.grp[i]=g;else S.grp.push(g);ch=1;});
+      if(ch){save();if(S.tab==='combat'&&!ui.ov&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))render();}},()=>{}));
+    FB.unsub.push(ref.collection('members').onSnapshot(qs=>{ui.campMembers=qs.docs.map(d=>Object.assign({uid:d.id},d.data()));if(ui.ov&&ui.ov.type==='camp')renderOv();},()=>{}));}
+  else campPullContent(false);}
+function campMyName(){const n=S.chars.filter(c=>campShareIds().includes(c.id)).map(c=>c.name);return n.length?n.join(', '):(FB.user&&FB.user.email||'').split('@')[0];}
+let campT=0;function campTouch(){if(!S.camp||!FB.user)return;clearTimeout(campT);campT=setTimeout(campPushSheets,3000);}
+async function campPushSheets(){if(!S.camp||!FB.user||!FB.db)return;const ref=FB.db.collection('campaigns').doc(S.camp.id).collection('sheets');const ids=campShareIds();
+  for(const c of S.chars){if(!ids.includes(c.id))continue;const js=JSON.stringify(c);const k=FB.user.uid+'_'+c.id;if(FB.sheetSent[k]===js)continue;try{await ref.doc(k).set({owner:FB.user.uid,charId:c.id,c:js,at:Date.now()});FB.sheetSent[k]=js;}catch(e){}}
+  for(const k of Object.keys(FB.sheetSent)){const cid=k.slice(FB.user.uid.length+1);if(!ids.includes(cid)||!S.chars.some(c=>c.id===cid)){try{await ref.doc(k).delete();}catch(e){}delete FB.sheetSent[k];}}
+  try{await FB.db.collection('campaigns').doc(S.camp.id).collection('members').doc(FB.user.uid).set({name:campMyName(),at:Date.now()},{merge:true});}catch(e){}}
+function campPayload(){return JSON.stringify({format:'compagnon-table',version:1,sorts:S.custom,objets:S.cmagic,dons:S.cfeats,homebrew5e:S.hb||undefined});}
+async function campShareContent(){if(!isGmCamp())return;const col=FB.db.collection('campaigns').doc(S.camp.id).collection('content');const js=campPayload();const parts=[];for(let i=0;i<js.length;i+=CHK)parts.push(js.slice(i,i+CHK));
+  const old=await col.doc('meta').get();const on=old.exists?old.data().n:0;
+  for(let i=0;i<parts.length;i++)await col.doc('c'+i).set({s:parts[i]});for(let i=parts.length;i<on;i++){try{await col.doc('c'+i).delete();}catch(e){}}
+  const ver=Date.now();await col.doc('meta').set({n:parts.length,ver});S.camp.shared=ver;save();return parts.length;}
+async function campPullContent(force){if(!S.camp||!FB.db)return 0;const col=FB.db.collection('campaigns').doc(S.camp.id).collection('content');
+  try{const m=await col.doc('meta').get();if(!m.exists)return 0;const meta=m.data();if(!force&&S.camp.got===meta.ver)return 0;let js='';for(let i=0;i<meta.n;i++){const d=await col.doc('c'+i).get();js+=d.data().s;}
+    const r=ioImport(js);S.camp.got=meta.ver;save();render();showMsg('Contenu de la campagne',`Contenu partagé par le MJ mis à jour.${r&&r.msg?' '+r.msg:''}`);return 1;}catch(e){return 0;}}
+function campView(){const o=ui.ov;const c=S.camp;
+  if(!FB.user)return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Campagne</span><h1>Connexion requise</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack"><p class="hint">Connecte-toi d’abord à ton compte pour créer ou rejoindre une campagne.</p><button class="btn primary big" data-a="fbAcct">Se connecter</button></div></div>`;
+  if(!c)return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Campagne</span><h1>Jouer ensemble</h1><span class="sub">Fiches partagées en direct avec le MJ</span></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">
+   <section class="card"><h2>Rejoindre une campagne</h2><p class="hint" style="margin:0">Entre le code donné par ton MJ.</p><input data-cp="code" value="${esc(o.code||'')}" placeholder="ABC123" autocapitalize="characters" style="text-transform:uppercase;font-size:1.3rem;letter-spacing:.2em;text-align:center"><button class="btn primary" data-a="campJoin">Rejoindre</button></section>
+   <section class="card"><h2>Créer une campagne (MJ)</h2><input data-cp="name" value="${esc(o.name||'')}" placeholder="Nom : Drakkenheim, Curse of Strahd…"><button class="btn" data-a="campNew">Créer et obtenir un code</button></section>
+   ${o.err?`<p class="err">${esc(o.err)}</p>`:''}</div></div>`;
+  const gm=isGmCamp();const mem=(ui.campMembers||[]).filter(m=>m.uid!==FB.user.uid);
+  return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Campagne · ${gm?'tu es le MJ':'joueur'}</span><h1>${esc(c.name||'Campagne')}</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">
+   <section class="card" style="text-align:center"><span class="lbl">Code de la campagne</span><b style="font-size:2rem;letter-spacing:.25em;font-family:var(--f-mono)">${esc(c.id)}</b>${gm?'<p class="hint" style="margin:0">Donne ce code à tes joueurs : dans l’appli, « Campagne » → Rejoindre.</p>':''}</section>
+   ${gm?`<section class="card"><h2>Joueurs connectés</h2>${mem.length?mem.map(m=>`<div class="between"><span>${esc(m.name||'Joueur')}</span><small class="hint">${m.at?hm(m.at):''}</small></div>`).join(''):'<p class="hint" style="margin:0">Personne pour l’instant.</p>'}<p class="hint" style="margin:0">Leurs fiches arrivent en direct dans Combat → Groupe (mode MJ).</p></section>
+    <section class="card"><h2>Partager mon contenu</h2><p class="hint" style="margin:0">Envoie à tes joueurs tes imports 5etools (classes, sous-classes, races, dons, historiques, objets, sorts) et tes sorts, objets et dons perso. Tes monstres et tes rencontres restent privés.</p><button class="btn primary" data-a="campShare" ${o.busy?'disabled':''}>${o.busy?'Envoi…':'Partager avec la table'}</button>${c.shared?`<p class="hint" style="margin:0">Dernier partage : ${hm(c.shared)}</p>`:''}</section>`
+   :`<section class="card"><h2>Mes fiches partagées avec le MJ</h2>${S.chars.map(ch=>{const on=campShareIds().includes(ch.id);return `<div class="between" style="align-items:center"><span>${esc(ch.name)}${ch.example?' <span class="tag">exemple</span>':''}</span><button class="pk ${on?'on':''}" data-a="campShareT" data-id="${ch.id}">${on?'✓ Partagée':'Partager'}</button></div>`;}).join('')}<p class="hint" style="margin:0">Le MJ voit ces fiches en direct (PV, CA, sauvegardes…). Il ne peut pas les modifier.</p></section>
+    <section class="card"><h2>Contenu du MJ</h2><p class="hint" style="margin:0">Les classes, races, dons, objets et sorts partagés par ton MJ arrivent automatiquement à l’ouverture de l’appli.</p><button class="btn" data-a="campPull">Vérifier maintenant</button></section>`}
+   ${o.err?`<p class="err">${esc(o.err)}</p>`:''}
+   <button class="btn danger" data-a="campLeave">${o.leave?'Confirmer':'Quitter la campagne'}</button></div></div>`;}
+function syncCard(){if(!FB.on)return cloudLine();const u=FB.user;
+  return `<section class="card" style="margin-top:14px"><div class="between" style="align-items:center"><span><b>${u?'Compte':'Sauvegarde en ligne'}</b><br><small class="hint">${u?esc(u.email):'Crée un compte pour sauvegarder tes fiches et jouer en campagne.'}</small></span><button class="btn sm ${u?'':'primary'}" data-a="fbAcct" style="flex:none">${u?'Gérer':'Se connecter'}</button></div>${u?cloudLine():''}
+   <div class="between" style="align-items:center;border-top:1px solid var(--line);padding-top:10px"><span><b>Campagne</b><br><small class="hint">${S.camp?esc(S.camp.name||'')+' · code '+esc(S.camp.id)+(isGmCamp()?' · MJ':''):'Aucune : rejoins celle de ton MJ ou crée la tienne.'}</small></span><button class="btn sm" data-a="campOpen" style="flex:none">${S.camp?'Ouvrir':'Rejoindre'}</button></div></section>`;}
+
 function listView(){
   const ed0=ED.e;const cards=S.chars.map(c=>{useEd(edOf(c));const cl=CLASSES[c.cls];const pd=ui.pendingDel===c.id;return `<article class="pc ${c.id===S.current?'cur':''}">
     <button class="pc-main" data-a="open" data-id="${c.id}"><span class="pc-name">${esc(c.name)}${c.example?' <span class="tag">exemple</span>':''}</span>
@@ -1033,7 +1120,7 @@ function listView(){
   ${cloudConflictCard()}${fileReminder()}
   <button class="btn primary big" data-a="newChar">Créer un personnage</button>
   <div class="pcs">${cards||'<p class="empty">Aucun personnage pour l’instant. Crée le premier avec le bouton ci-dessus.</p>'}</div>
-  <div class="row2" style="margin-top:14px"><button class="btn" data-a="ioExport">Sauvegarder dans un fichier</button><button class="btn" data-a="ioOpen">Import et export</button></div>${cloudLine()}
+  <div class="row2" style="margin-top:14px"><button class="btn" data-a="ioExport">Sauvegarder dans un fichier</button><button class="btn" data-a="ioOpen">Import et export</button></div>${syncCard()}
   <section class="card" style="margin-top:14px"><div class="between" style="align-items:center"><span><b>Mode MJ</b><br><small class="hint">Ajoute l’onglet Combat : initiative, PV des monstres, états, actions légendaires.</small></span><button class="pk ${S.mj?'on':''}" data-a="mjToggle" style="flex:none">${S.mj?'Activé':'Activer'}</button></div></section>`;
 }
 
@@ -1266,6 +1353,8 @@ function renderOv(){
   else if(ui.ov.type==='io')html=ioView();
   else if(ui.ov.type==='newMon')html=newMonForm();
   else if(ui.ov.type==='cbAdd')html=cbAddView();
+  else if(ui.ov.type==='acct')html=acctView();
+  else if(ui.ov.type==='camp')html=campView();
   else if(ui.ov.type==='encEd')html=encEdView();
   else if(ui.ov.type==='party')html=partyView();
   else if(ui.ov.type==='cbPc')html=cbPcView();
@@ -2417,6 +2506,23 @@ const A={
   cmDel:d=>{if(ui.pendingCmDel!==d.id){ui.pendingCmDel=d.id;return;}S.cmagic=S.cmagic.filter(m=>m.id!==d.id);unregCM(d.id);S.chars.forEach(c=>{c.items=c.items.filter(i=>i.mid!==d.id);});ui.pendingCmDel=null;ui.ov=null;},
   ioOpen:()=>{ui.ov={type:'io',fresh:1,txt:'',draft:{}};},
   ioExport:d=>{ioExport(d.id);return false;},
+  fbAcct:()=>{ui.ov={type:'acct',fresh:1,mode:'in'};},
+  fbMode:d=>{ui.ov.mode=d.m;ui.ov.err='';ui.ov.msg='';},
+  fbGo:()=>{fbGo();return false;},
+  fbReset:()=>{fbReset();return false;},
+  fbOut:()=>{FB.auth.signOut();ui.ov=null;showMsg('Déconnecté','Les données restent sur ce téléphone.');},
+  campOpen:()=>{ui.ov={type:'camp',fresh:1};},
+  campJoin:()=>{const o=ui.ov;const code=String(o.code||'').trim().toUpperCase();if(code.length<4){o.err='Entre le code donné par ton MJ.';return;}
+    FB.db.collection('campaigns').doc(code).get().then(d=>{if(!d.exists){o.err='Aucune campagne avec ce code.';renderOv();return;}S.camp={id:code,name:d.data().name,gm:d.data().gm};save();campStart().then(()=>{ui.ov={type:'camp',fresh:1};render();showMsg('Campagne rejointe',S.camp.name+' · tes fiches sont partagées avec le MJ.');});}).catch(()=>{o.err='Connexion impossible.';renderOv();});return false;},
+  campNew:()=>{const o=ui.ov;const name=String(o.name||'').trim();if(!name){o.err='Donne un nom à la campagne.';return;}
+    (async()=>{let code,ok=false;for(let i=0;i<5&&!ok;i++){code=campCode();const d=await FB.db.collection('campaigns').doc(code).get();ok=!d.exists;}
+      await FB.db.collection('campaigns').doc(code).set({name,gm:FB.user.uid,at:Date.now()});S.camp={id:code,name,gm:FB.user.uid};S.mj=true;save();await campStart();ui.ov={type:'camp',fresh:1};render();showMsg('Campagne créée','Code : '+code);})().catch(()=>{o.err='Création impossible (connexion ?).';renderOv();});return false;},
+  campShare:()=>{const o=ui.ov;o.busy=1;renderOv();campShareContent().then(n=>{o.busy=0;showMsg('Contenu partagé','Tes joueurs le recevront à la prochaine ouverture de l’appli.');renderOv();}).catch(()=>{o.busy=0;o.err='Partage impossible (connexion ?).';renderOv();});return false;},
+  campShareT:d=>{const cur0=campShareIds();S.campShare=cur0.includes(d.id)?cur0.filter(x=>x!==d.id):cur0.concat(d.id);ui.ov.keepScroll=1;campTouch();},
+  campPull:()=>{campPullContent(true).then(n=>{if(!n)showMsg('Contenu du MJ','Rien de nouveau.');});return false;},
+  campLeave:()=>{const o=ui.ov;if(!o.leave){o.leave=1;return;}const c=S.camp;const u=FB.user;
+    (async()=>{try{const ref=FB.db.collection('campaigns').doc(c.id);await ref.collection('members').doc(u.uid).delete();for(const k of Object.keys(FB.sheetSent)){await ref.collection('sheets').doc(k).delete();}}catch(e){}})();
+    FB.sheetSent={};FB.unsub.forEach(f=>{try{f();}catch(e){}});FB.unsub=[];S.camp=null;S.grp=(S.grp||[]).filter(g=>!g.live);ui.ov=null;showMsg('Campagne quittée','');},
   mjToggle:()=>{S.mj=!S.mj;if(S.mj)showMsg('Mode MJ activé','L’onglet Combat est dans la barre du bas.');else if(S.tab==='combat')S.tab='list';},
   cbEd:d=>{enc().ed=d.e;},
   mjv:d=>{S.mjv=d.v==='grp'?'grp':'cb';ui.gx=null;},
@@ -2619,6 +2725,8 @@ document.addEventListener('input',e=>{
   else if(t.id&&t.id.startsWith('cbv-')){(ui.cbv||(ui.cbv={}))[t.id.slice(4)]=t.value;}
   else if(t.id==='encq'&&ui.ov&&ui.ov.type==='encEd'){ui.ov.q=t.value;const l=$('#enclist');if(l)l.innerHTML=encAddList();}
   else if(t.dataset.enc&&ui.ov&&ui.ov.type==='encEd'){ui.ov.e[t.dataset.enc]=t.value;}
+  else if(t.dataset.fb&&ui.ov&&ui.ov.type==='acct'){ui.ov[t.dataset.fb]=t.value;}
+  else if(t.dataset.cp&&ui.ov&&ui.ov.type==='camp'){ui.ov[t.dataset.cp]=t.value;}
   else if(t.id==='cbq'&&ui.ov&&ui.ov.type==='cbAdd'){ui.ov.q=t.value;const l=$('#cblist');if(l)l.innerHTML=cbAddList();}
   else if(t.dataset.cbn&&ui.ov&&ui.ov.type==='cbPc'){ui.ov[t.dataset.cbn]=t.value;}
   else if(t.id==='cdq'){cdx().q=t.value;const l=$('#cdxlist');if(l)l.innerHTML=cdxListHtml();}

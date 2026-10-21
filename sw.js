@@ -1,5 +1,5 @@
 // Compagnon de Table : fonctionnement hors connexion
-const V='ct-5ad38d0c05';
+const V='ct-439cae2924';
 const CORE=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V&&k!=='ct-fonts').map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
@@ -8,6 +8,8 @@ self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;c
     if(r.mode==='navigate'||u.pathname.endsWith('/index.html')||u.pathname.endsWith('/')){
       e.respondWith(fetch(r).then(res=>{const cp=res.clone();caches.open(V).then(c=>c.put('index.html',cp));return res;}).catch(()=>caches.match('index.html')));return;}
     e.respondWith(caches.match(r).then(m=>m||fetch(r).then(res=>{const cp=res.clone();caches.open(V).then(c=>c.put(r,cp));return res;})));return;}
+  if((u.hostname==='www.gstatic.com'&&u.pathname.startsWith('/firebasejs/'))||(u.hostname==='cdn.jsdelivr.net'&&u.pathname.startsWith('/npm/firebase@'))){
+    e.respondWith(caches.open('ct-fonts').then(c=>c.match(r).then(m=>m||fetch(r).then(res=>{c.put(r,res.clone());return res;}))));return;}
   if(/fonts\.(googleapis|gstatic)\.com$/.test(u.hostname)){
     e.respondWith(caches.open('ct-fonts').then(c=>c.match(r).then(m=>m||fetch(r).then(res=>{c.put(r,res.clone());return res;}))));}
 });
