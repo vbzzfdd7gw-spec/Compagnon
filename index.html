@@ -2514,7 +2514,7 @@ function cdxListHtml(){
 function monEntry(m,e){
   const [n,d,sc]=e;let h=txt(d);
   h=h.replace(/^<p>/,`<p><b><i>${esc(n)}.</i></b> `);
-  h=h.replace(/(<i>(?:Jet d(?:&#39;|')attaque|Attaque d)[^<]*?:<\/i>)\s*([+−-]\d+)/g,(x,a,b)=>`${a} <button class="dl" data-a="mRoll" data-b="${b.replace('−','-')}" data-l="${esc(m.n)} · ${esc(n.replace(/\s*\(.*\)$/,''))}">${b}</button>`);
+  h=h.replace(/(<i>(?:Jet d(?:&#39;|')attaque|Attaque d)[^<]*?:<\/i>)\s*([+−-]\d+)/g,(x,a,b)=>`${a} <button class="dl" data-a="mRoll" data-atk="1" data-b="${b.replace('−','-')}" data-l="${esc(m.n)} · ${esc(n.replace(/\s*\(.*\)$/,''))}">${b}</button>`);
   if(sc)h+=sc.map(([u,list])=>`<p class="sc"><i>${esc(u)} :</i> ${list.map(([id,note])=>{const sp=getSpell(id);return `<button class="spl" data-a="spOpen" data-id="${id}">${esc(sp?sp.n:id)}</button>${note?` (${esc(note)})`:''}`;}).join(', ')}</p>`).join('');
   return h;
 }
@@ -2934,7 +2934,7 @@ const A={
     const f={id:'cf-'+uid(),n:d.n.trim(),en:'',t:d.t,pr:d.pr.trim(),d:d.d.trim(),custom:1,asi:d.asi?{al:d.asi==='*'?STATS.slice():d.asi.split(','),max:d.t==='e'?30:20}:null};
     S.cfeats.push(f);ui.ov={type:'feat',id:f.id,fresh:1};showMsg('Don créé',f.n+' est disponible pour tous tes personnages.');},
   cfDel:d=>{const o=ui.ov;if(!o.del){o.del=1;renderOv();return false;}S.cfeats=S.cfeats.filter(f=>f.id!==d.id);S.chars.forEach(ch=>{ch.feats=ch.feats.filter(x=>x!==d.id);});ui.ov=null;showMsg('Don supprimé','Il a aussi été retiré des fiches.');},
-  mRoll:d=>{d20(parseInt(String(d.b).replace('−','-'))||0,d.l);return false;},
+  mRoll:d=>{const r=d20(parseInt(String(d.b).replace('−','-'))||0,d.l);if(d.atk&&r&&r.kind==='crit'){ui.critNext=true;critSync();}return false;},
   cTog:d=>{const c=cur();if(!c)return;const i=c.cond.indexOf(d.id);if(i>=0)c.cond.splice(i,1);else c.cond.push(d.id);if(ui.ov&&ui.ov.type==='cond')renderOv();},
   cExh:d=>{const c=cur();if(!c)return;c.exh=Math.max(0,Math.min(6,(c.exh||0)+ +d.d));if(c.exh>=6)showMsg(c.name,'Épuisement de niveau 6 : le personnage meurt.');},
   featTog:d=>{const f=getFeat(d.id);const c=cur();if(c&&!c.feats.includes(d.id)&&featAsi(f)&&ui.ov&&ui.ov.type==='feat'&&!ui.ov.fa){showMsg(f.n,'Choisis d’abord la caractéristique augmentée.');return false;}toggleFeat(d.id);if(ui.ov)renderOv();return false;},
