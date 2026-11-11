@@ -517,6 +517,15 @@ details.fold>summary::-webkit-details-marker{display:none}
 details.fold>summary::after{content:'';width:9px;height:9px;border-right:2px solid var(--brass);border-bottom:2px solid var(--brass);transform:rotate(45deg);transition:transform .2s;margin-right:4px}
 details.fold[open]>summary::after{transform:rotate(-135deg)}
 details.fold>.stack{padding:0 10px 12px}
+.livec{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line);border-left:4px solid #f08a6b;border-radius:14px;padding:12px 14px;color:var(--fg)}
+.livec.me{border-color:var(--brass);background:color-mix(in srgb,var(--brass) 18%,var(--panel2))}
+.lv-dot{width:10px;height:10px;border-radius:50%;background:#f08a6b;flex:none;animation:lvp 1.6s ease-in-out infinite}.livec.me .lv-dot{background:var(--brass)}
+@keyframes lvp{50%{opacity:.35}}@media (prefers-reduced-motion:reduce){.lv-dot{animation:none}}
+.lv-t{flex:1;display:flex;flex-direction:column;min-width:0}.lv-t small{color:var(--muted)}.lv-go{font-weight:700;color:var(--brass);flex:none}
+.lvl{display:grid;gap:8px}.lvr{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.lvr.on{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass) inset}.lvr.dead{opacity:.5}.lvr.dead b{text-decoration:line-through}
+.lv-i{font-family:var(--f-mono);font-weight:700;font-size:1.15rem;width:2.2em;text-align:center;flex:none;color:var(--brass)}.lv-n{display:flex;flex-direction:column;min-width:0}.lv-n small{color:var(--muted)}.lv-n .tag{align-self:flex-start}
+.jr-x{white-space:pre-wrap;margin:6px 0 0}.jr-b{border-top:1px solid var(--line);margin-top:10px;padding-top:8px}.h-w{color:var(--brass)}
 .qrw{display:inline-block;background:#fff;padding:6px;border-radius:12px;line-height:0;margin:0 auto}.qr{display:block}
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){details.fold>summary::after{transition:none}}
@@ -923,7 +932,7 @@ function hpMaxFor(c){const hd=CLASSES[c.cls].hd,con=mod(c.stats.CON);const e14=e
 /* ---------- Stockage ---------- */
 const KEY='compagnon-table-v1';
 function load(){try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r);}catch(e){}return null;}
-function save(){try{cloudTouch();}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{if(!ui.saveWarn){ui.saveWarn=1;showMsg('Mémoire pleine','La mémoire de l’appli sur cet appareil est pleine : les derniers changements ne sont pas enregistrés. Supprime des contenus importés inutiles et fais un export.');}}catch(x){}}}
+function save(){try{cloudTouch();}catch(e){}try{liveTouch();}catch(e){}try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){try{if(!ui.saveWarn){ui.saveWarn=1;showMsg('Mémoire pleine','La mémoire de l’appli sur cet appareil est pleine : les derniers changements ne sont pas enregistrés. Supprime des contenus importés inutiles et fais un export.');}}catch(x){}}}
 function sample(){
   const c={id:uid(),example:true,name:'Brenna Corbec',species:'nain',speciesCustom:'',cls:'guerrier',bg:'soldat',level:3,
     stats:{FOR:17,DEX:12,CON:16,INT:10,SAG:13,CHA:8},saves:['FOR','CON'],skills:{athletisme:1,intimidation:1,perception:1,survie:1},
@@ -996,7 +1005,7 @@ function txt(s){
 }
 
 /* ---------- Moteur de dés ---------- */
-function pushRoll(r){r.time=Date.now();const dice=r.dice;delete r.dice;S.history.unshift(r);S.history=S.history.slice(0,40);save();if(rollAnimMode()!=='off'&&dice&&dice.length)rollFx(Object.assign({},r,{dice}));else showToast(r);return r;}
+function pushRoll(r){r.time=Date.now();const dice=r.dice;delete r.dice;try{liveShareRoll(r);}catch(e){}S.history.unshift(r);S.history=S.history.slice(0,40);save();if(rollAnimMode()!=='off'&&dice&&dice.length)rollFx(Object.assign({},r,{dice}));else showToast(r);return r;}
 /* ---------- Animation des jets ---------- */
 const FXSH={4:'<polygon points="50,6 96,90 4,90"/>',6:'<rect x="8" y="8" width="84" height="84" rx="12"/>',8:'<polygon points="50,3 96,50 50,97 4,50"/>',10:'<polygon points="50,3 96,42 50,97 4,42"/>',12:'<polygon points="50,4 96,37 79,93 21,93 4,37"/>',20:'<polygon points="50,3 93,27 93,73 50,97 7,73 7,27"/><polygon class="in" points="50,22 74,64 26,64"/>',100:'<polygon points="50,3 96,42 50,97 4,42"/>'};
 const rollAnimMode=()=>S.rollAnim||(navigator.webdriver&&!/rollfx/.test(location.hash)?'off':'full');
@@ -1358,14 +1367,51 @@ function campShareIds(){return S.campShare||S.chars.filter(c=>!c.example).map(c=
 async function campStart(){if(!S.camp||!FB.user||!FB.db)return;const cid=S.camp.id;const ref=FB.db.collection('campaigns').doc(cid);
   try{const d=await ref.get();if(!d.exists){showMsg('Campagne introuvable','La campagne '+cid+' n’existe plus.');S.camp=null;save();render();return;}S.camp=Object.assign(S.camp,{name:d.data().name,gm:d.data().gm});
     await ref.collection('members').doc(FB.user.uid).set({name:campMyName(),at:Date.now()},{merge:true});}catch(e){return;}
-  campPushSheets();
-  if(isGmCamp()){FB.unsub.push(ref.collection('sheets').onSnapshot(qs=>{let ch=0;S.grp=S.grp||[];
+  campPushSheets();liveStart();
+  if(isGmCamp()){liveTouch();FB.unsub.push(ref.collection('sheets').onSnapshot(qs=>{let ch=0;S.grp=S.grp||[];
       qs.docChanges().forEach(x=>{const d=x.doc.data();if(d.owner===FB.user.uid)return;let c;try{c=JSON.parse(d.c);}catch(e){return;}
         const i=S.grp.findIndex(g=>g.c.id===c.id);if(x.type==='removed'){if(i>=0&&S.grp[i].live){S.grp.splice(i,1);ch=1;}return;}
         fixChar(c);const g={c,at:new Date(d.at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}),live:1,owner:d.owner};if(i>=0)S.grp[i]=g;else S.grp.push(g);ch=1;});
       if(ch){save();if(S.tab==='combat'&&!ui.ov&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)))render();}},()=>{}));
     FB.unsub.push(ref.collection('members').onSnapshot(qs=>{ui.campMembers=qs.docs.map(d=>Object.assign({uid:d.id},d.data()));if(ui.ov&&ui.ov.type==='camp')renderOv();},()=>{}));}
   else campPullContent(false);}
+/* ---------- Table en direct : combat partagé, jets visibles, journal ---------- */
+const LV={cb:null,rolls:{},journal:[],seen:Date.now(),sent:'',turn:''};
+const campRef=()=>FB.db.collection('campaigns').doc(S.camp.id);
+const rollShareOn=()=>S.rollShare==null?!isGmCamp():!!S.rollShare;
+const plain=h=>String(h==null?'':h).replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').slice(0,140);
+function liveCbPayload(){const E=S.enc;if(!E||!E.round||!E.list.length)return {on:0};
+  return {on:1,round:E.round,cur:E.cur||'',list:JSON.stringify(E.list.map(x=>{const h=cbHp(x);const pc=x.t==='pc';return {k:x.k,n:x.n,pc:pc?1:0,cid:x.cid||x.gid||'',init:x.init,dead:(!cbAlive(x)||(pc&&h.hp<=0))?1:0,cond:x.cond||[],conc:x.conc?1:0};}))};}
+let liveT=0;function liveTouch(){if(!S.camp||!FB.user||!FB.db||!isGmCamp())return;clearTimeout(liveT);liveT=setTimeout(async()=>{if(!isGmCamp())return;const p=liveCbPayload();const js=JSON.stringify(p);if(js===LV.sent)return;
+  try{await campRef().collection('live').doc('combat').set(Object.assign({at:Date.now()},p));LV.sent=js;}catch(e){}},700);}
+function liveShareRoll(r){if(!S.camp||!FB.user||!FB.db||!rollShareOn())return;const c=S.tab==='sheet'&&cur();const who=c?c.name:(isGmCamp()?'MJ':campMyName());
+  const mine=(LV.mine||(LV.mine=[]));mine.unshift({w:String(who).slice(0,40),l:String(r.label||'').replace(new RegExp('^'+String(who).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*[·:—-]\\s*'),'').slice(0,80),t:String(r.total),k:r.kind||'',d:plain(r.detail),f:String(r.flag||'').slice(0,60),at:r.time||Date.now()});LV.mine=mine.slice(0,8);
+  campRef().collection('rolls').doc(FB.user.uid).set({uid:FB.user.uid,at:Date.now(),list:JSON.stringify(LV.mine)}).catch(()=>{});}
+function liveQuiet(){return !(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));}
+function liveRefresh(){if(ui.ov){if(['liveCb','journal'].includes(ui.ov.type)&&liveQuiet())renderOv();return;}if(liveQuiet()&&['list','sheet','dice'].includes(S.tab))render();}
+function liveStart(){const ref=campRef();LV.cb=null;LV.rolls={};LV.journal=[];LV.seen=Date.now();LV.sent='';
+  FB.unsub.push(ref.collection('live').onSnapshot(qs=>{qs.docs.forEach(d=>{if(d.id!=='combat')return;const x=d.data()||{};let list=[];try{list=JSON.parse(x.list||'[]');}catch(e){}LV.cb={on:x.on?1:0,round:x.round||0,cur:x.cur||'',list};
+      if(!isGmCamp()&&LV.cb.on){const me=list.find(z=>z.k===LV.cb.cur);const key=LV.cb.round+':'+LV.cb.cur;if(me&&me.pc&&S.chars.some(c=>c.id===me.cid)&&LV.turn!==key){LV.turn=key;showMsg('C’est ton tour !',me.n+' · round '+LV.cb.round);try{navigator.vibrate&&navigator.vibrate(200);}catch(e){}}else if(!me||!me.pc)LV.turn=key;}});liveRefresh();},()=>{}));
+  FB.unsub.push(ref.collection('rolls').onSnapshot(qs=>{let fresh=null;qs.docs.forEach(d=>{const x=d.data()||{};let l=[];try{l=JSON.parse(x.list||'[]');}catch(e){}LV.rolls[d.id]=l;if(d.id!==FB.user.uid&&l[0]&&l[0].at>LV.seen&&(!fresh||l[0].at>fresh.at))fresh=l[0];});
+      if(fresh){LV.seen=fresh.at;if(!document.querySelector('.fxo'))showToast({label:fresh.w+' · '+fresh.l,total:esc(fresh.t),detail:esc(fresh.d),kind:fresh.k,flag:fresh.f});}if(S.tab==='dice'&&!ui.ov&&liveQuiet()){const el=$('#tablerolls');if(el)el.innerHTML=tableRollsHtml();}},()=>{}));
+  FB.unsub.push(ref.collection('journal').onSnapshot(qs=>{LV.journal=qs.docs.map(d=>Object.assign({id:d.id},d.data())).sort((a,b)=>(b.at||0)-(a.at||0));if(ui.ov&&ui.ov.type==='journal'&&liveQuiet())renderOv();},()=>{}));}
+function tableRollsHtml(){const all=[];Object.keys(LV.rolls).forEach(u=>(LV.rolls[u]||[]).forEach(r=>all.push(r)));all.sort((a,b)=>b.at-a.at);
+  if(!all.length)return '<p class="hint" style="margin:0">Les jets partagés par la table apparaîtront ici.</p>';
+  return `<ul class="hist">${all.slice(0,15).map(r=>`<li class="${esc(r.k||'')}"><span class="h-l"><b class="h-w">${esc(r.w)}</b> ${esc(r.l)}</span><span class="h-d">${esc(r.d)}</span><b>${esc(r.t)}</b></li>`).join('')}</ul>`;}
+function tableRollsCard(){if(!S.camp||!FB.user)return '';const on=rollShareOn();return `<section class="card"><div class="between" style="align-items:center"><h2>Jets de la table</h2><button class="pk ${on?'on':''}" data-a="rollShareT">${on?'✓ Mes jets sont visibles':isGmCamp()?'Mes jets sont secrets':'Mes jets sont privés'}</button></div><div id="tablerolls">${tableRollsHtml()}</div></section>`;}
+function liveBanner(){const L=LV.cb;if(!S.camp||!FB.user||isGmCamp()||!L||!L.on)return '';const me=L.list.find(z=>z.k===L.cur);const mine=me&&me.pc&&S.chars.some(c=>c.id===me.cid);
+  return `<button class="livec ${mine?'me':''}" data-a="liveOpen"><span class="lv-dot"></span><span class="lv-t"><b>${mine?'C’est ton tour !':'Combat en cours'}</b><small>Round ${L.round}${me?' · tour de '+esc(me.n):''}</small></span><span class="lv-go">Ordre</span></button>`;}
+function liveCbView(){const L=LV.cb;const h=`<div class="ov-h"><div><span class="lbl">Combat en direct</span><h1>${L&&L.on?'Round '+L.round:'Pas de combat'}</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div>`;
+  if(!L||!L.on)return `<div class="ov-in">${h}<p class="empty">Le MJ n’a pas de combat en cours.</p></div>`;
+  return `<div class="ov-in">${h}<div class="stack"><div class="lvl">${L.list.map(x=>{const on=x.k===L.cur;const mine=x.pc&&S.chars.some(c=>c.id===x.cid);return `<div class="lvr ${on?'on':''} ${x.dead?'dead':''}"><span class="lv-i">${x.init==null?'–':x.init}</span><span class="lv-n"><b>${esc(x.n)}</b>${mine?' <span class="tag">toi</span>':''}<small>${[on?'Joue maintenant':'',x.dead?(x.pc?'À terre':'Vaincu'):'',x.conc?'Concentration':''].concat((x.cond||[]).map(cdName)).filter(Boolean).map(esc).join(' · ')}</small></span></div>`;}).join('')}</div>
+  <p class="hint">Mis à jour en direct par le MJ. Les points de vie des créatures restent cachés.</p></div></div>`;}
+function journalView(){const o=ui.ov;const gm=isGmCamp();const fr=t=>new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">${esc(S.camp.name||'Campagne')}</span><h1>Journal</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">
+  ${gm?`<section class="card"><h2>${o.eid?'Modifier l’entrée':'Nouvelle entrée'}</h2><input data-jr="t" value="${esc(o.t||'')}" placeholder="Titre : Séance 4, La crypte…"><textarea data-jr="x" placeholder="Résumé de la séance, pistes ouvertes…" style="min-height:110px">${esc(o.x||'')}</textarea><textarea data-jr="l" placeholder="Butin distribué (facultatif)" style="min-height:60px">${esc(o.l||'')}</textarea><input data-jr="xp" inputmode="numeric" value="${esc(o.xp||'')}" placeholder="PX par personnage (facultatif)">
+    <div class="row2"><button class="btn primary" data-a="jrSave">${o.eid?'Enregistrer':'Publier pour la table'}</button>${o.eid?'<button class="btn" data-a="jrCancel">Annuler</button>':''}</div>${o.err?`<p class="err">${esc(o.err)}</p>`:''}</section>`:''}
+  ${LV.journal.length?LV.journal.map(j=>`<section class="card jr"><div class="between"><h2>${esc(j.t||'Séance')}</h2><span class="lbl">${j.at?fr(j.at):''}</span></div>${j.x?`<p class="jr-x">${esc(j.x)}</p>`:''}${j.l?`<div class="jr-b"><span class="lbl">Butin</span><p class="jr-x">${esc(j.l)}</p></div>`:''}${j.xp?`<div class="jr-b"><span class="lbl">Expérience</span><p class="jr-x">${esc(j.xp)} PX par personnage</p></div>`:''}${gm?`<div class="row2"><button class="btn sm" data-a="jrEdit" data-id="${esc(j.id)}">Modifier</button><button class="btn sm danger" data-a="jrDel" data-id="${esc(j.id)}">${o.del===j.id?'Confirmer':'Supprimer'}</button></div>`:''}</section>`).join(''):`<p class="empty">${gm?'Aucune entrée. Écris la première ci-dessus : tes joueurs la verront aussitôt.':'Le MJ n’a encore rien écrit dans le journal.'}</p>`}
+  </div></div>`;}
+
 function campMyName(){const n=S.chars.filter(c=>campShareIds().includes(c.id)).map(c=>c.name);return n.length?n.join(', '):(FB.user&&FB.user.email||'').split('@')[0];}
 let campT=0;function campTouch(){if(!S.camp||!FB.user)return;clearTimeout(campT);campT=setTimeout(campPushSheets,3000);}
 async function campPushSheets(){if(!S.camp||!FB.user||!FB.db)return;const ref=FB.db.collection('campaigns').doc(S.camp.id).collection('sheets');const ids=campShareIds();
@@ -1394,6 +1440,9 @@ function campView(){const o=ui.ov;const c=S.camp;
     <section class="card"><h2>Partager mon contenu</h2><p class="hint" style="margin:0">Envoie à tes joueurs tes imports 5etools (classes, sous-classes, races, dons, historiques, objets, sorts) et tes sorts, objets et dons perso. Tes monstres et tes rencontres restent privés.</p><button class="btn primary" data-a="campShare" ${o.busy?'disabled':''}>${o.busy?'Envoi…':'Partager avec la table'}</button>${c.shared?`<p class="hint" style="margin:0">Dernier partage : ${hm(c.shared)}</p>`:''}</section>`
    :`<section class="card"><h2>Mes fiches partagées avec le MJ</h2>${S.chars.map(ch=>{const on=campShareIds().includes(ch.id);return `<div class="between" style="align-items:center"><span>${esc(ch.name)}${ch.example?' <span class="tag">exemple</span>':''}</span><button class="pk ${on?'on':''}" data-a="campShareT" data-id="${ch.id}">${on?'✓ Partagée':'Partager'}</button></div>`;}).join('')}<p class="hint" style="margin:0">Le MJ voit ces fiches en direct (PV, CA, sauvegardes…). Il ne peut pas les modifier.</p></section>
     <section class="card"><h2>Contenu du MJ</h2><p class="hint" style="margin:0">Les classes, races, dons, objets et sorts partagés par ton MJ arrivent automatiquement à l’ouverture de l’appli.</p><button class="btn" data-a="campPull">Vérifier maintenant</button></section>`}
+   <section class="card"><h2>Table en direct</h2><button class="btn" data-a="jrOpen">Journal de campagne${LV.journal.length?' · '+LV.journal.length:''}</button>${gm?'':'<button class="btn" data-a="liveOpen">Ordre du combat</button>'}
+    <div class="between" style="align-items:center"><span>Partager mes jets de dés</span><button class="pk ${rollShareOn()?'on':''}" data-a="rollShareT">${rollShareOn()?'✓ Visibles':'Privés'}</button></div>
+    <p class="hint" style="margin:0">${gm?'Dès que tu lances un combat (onglet Combat), tes joueurs voient l’ordre d’initiative et à qui c’est le tour. Les PV des créatures restent cachés. Tes jets sont secrets tant que tu ne les rends pas visibles.':'Tes jets apparaissent chez le MJ et les autres joueurs, dans l’onglet Dés.'}</p></section>
    ${o.err?`<p class="err">${esc(o.err)}</p>`:''}
    <button class="btn danger" data-a="campLeave">${o.leave?'Confirmer':'Quitter la campagne'}</button></div></div>`;}
 const TICO={"text": "<path d=\"M4 19l5-14 5 14M6 14h6\"/><path d=\"M15 19l2.5-7 2.5 7M16 17h3\"/>", "search": "<circle cx=\"11\" cy=\"11\" r=\"6\"/><path d=\"M20 20l-4.5-4.5\"/>", "cloud": "<path d=\"M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.5 4.3 4.3 0 0 0 7 18z\"/>", "file": "<path d=\"M6 3h9l4 4v14H6z\"/><path d=\"M12 10v7M9 14l3 3 3-3\"/>", "users": "<circle cx=\"9\" cy=\"8\" r=\"3.2\"/><path d=\"M3.5 19c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2\"/><circle cx=\"17\" cy=\"9\" r=\"2.4\"/><path d=\"M15.6 13.9c2.4.2 4 1.8 4.6 4.6\"/>", "crown": "<path d=\"M4 18h16M5 18l-1-10 5 4 3-6 3 6 5-4-1 10\"/>", "book": "<path d=\"M4 5c3-1.5 6-1.5 8 .5 2-2 5-2 8-.5v14c-3-1.5-6-1.5-8 .5-2-2-5-2-8-.5z\"/><path d=\"M12 5.5v14\"/>"};
@@ -1427,7 +1476,7 @@ function listView(){
     <span class="pc-stats"><span>PV <b>${c.hp}/${c.hpMax}</b></span><span>CA <b>${acOf(c)}</b></span><span>Maîtrise <b>${fmt(prof(c.level))}</b></span></span></button>
     <button class="pc-del ${pd?'confirm':''}" data-a="del" data-id="${c.id}">${pd?'Confirmer':'Supprimer'}</button></article>`;}).join('');useEd(ed0);
   return `<header class="vh"><div class="vh-row"><div><span class="lbl">Tasha’s Friends</span><h1>Personnages</h1></div><button class="btn sm gsb" data-a="gsOpen" aria-label="Rechercher partout"><svg viewBox="0 0 24 24" aria-hidden="true">${TICO.search}</svg>Rechercher</button></div></header>
-  ${cloudConflictCard()}${fileReminder()}
+  ${liveBanner()}${cloudConflictCard()}${fileReminder()}
   <button class="btn primary big" data-a="newChar">Créer un personnage</button>
   <div class="pcs">${cards||'<p class="empty">Aucun personnage pour l’instant. Crée le premier avec le bouton ci-dessus.</p>'}</div>
   ${secT('Mes données')}
@@ -1473,7 +1522,7 @@ function sheetView(){
   const pbtn=`<button class="btn sm ${S.play&&!e?'primary':''}" data-a="playT" aria-pressed="${S.play&&!e?'true':'false'}">Mode jeu</button>`;
   if(S.play&&!e){const fold=(id,t,h)=>h.trim()?`<details class="fold" data-fold="${id}" ${ui.fold&&ui.fold[id]?'open':''}><summary>${t}</summary><div class="stack">${h}</div></details>`:'';
     return `<header class="vh"><div class="vh-row"><div><h1>${esc(c.name)}</h1><span class="sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}</span>${subLine(c)}</div><div class="vh-b">${pbtn}</div></div>${modeSeg()}</header>
-  <div class="stack">${hpCard}${vitals}<div class="stats">${statCards}</div>${c.hp<=0?deathCard:''}${condCard(c)}${atkCard}${spellCard(c)}
+  <div class="stack">${liveBanner()}${hpCard}${vitals}<div class="stats">${statCards}</div>${c.hp<=0?deathCard:''}${condCard(c)}${atkCard}${spellCard(c)}
   ${fold('sv','Sauvegardes et compétences',`<div class="cols"><section class="card"><h2>Jets de sauvegarde</h2><div class="list">${saves}</div></section><section class="card"><div class="between"><h2>Compétences</h2><span class="lbl">Perception passive ${10+perc}</span></div><div class="list">${skills}</div></section></div>`)}
   ${fold('ft','Aptitudes, traits et dons',raceCard(c)+featCard(c)+classCard(c)+choicesCard(c))}
   ${fold('inv','Inventaire',invCard(c))}
@@ -1482,7 +1531,7 @@ function sheetView(){
   return `<header class="vh"><div class="vh-row"><div>${e?`<input id="c-name" data-f="name" value="${esc(c.name)}" aria-label="Nom du personnage">`:`<h1>${esc(c.name)}</h1>`}
     <span class="sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${bg?' · '+bg.n.replace(' (homebrew)',''):''} ${edBadge(edOf(c))}</span>${subLine(c)}${!e&&c.level<20?`<button class="lvb" data-a="lvlUp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>Monter au niveau ${c.level+1}</button>`:''}${!e&&c.level>1?`<button class="lvb dn" data-a="lvlDown" aria-label="Redescendre au niveau ${c.level-1}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5L12 19l6.5-6.5"/></svg>${c.level<20?'':'Redescendre au niveau '+(c.level-1)}</button>`:''}</div>
     <div class="vh-b"><button class="btn sm ${e?'primary':''}" data-a="edit">${e?'Terminer':'Modifier'}</button>${e?'':pbtn}</div></div>${modeSeg()}</header>
-  <div class="stack">
+  <div class="stack">${liveBanner()}
   ${e?`<section class="card editbox"><h2>Modification</h2>
     <div class="between"><span>Règles du personnage</span><div class="seg" style="min-width:170px">${['2014','2024'].map(x=>`<button class="${edOf(c)===x?'on':''}" data-a="chEd" data-e="${x}">${x}</button>`).join('')}</div></div>
     <p class="hint">L’édition choisie s’applique au grimoire, aux objets, aux emplacements de sorts et aux règles affichées pour ce personnage.</p><p class="hint">Touche une sauvegarde ou une compétence pour changer sa maîtrise. Une compétence passe de rien à maîtrise, puis à expertise.</p>
@@ -1541,6 +1590,7 @@ function diceView(){
     <div class="modrow"><span>Modificateur</span><div class="step"><button data-a="pmod" data-d="-1" aria-label="Modificateur moins">−</button><b>${fmt(ui.poolMod)}</b><button data-a="pmod" data-d="1" aria-label="Modificateur plus">+</button></div></div>
     <div class="row2"><button class="btn" data-a="clearPool">Vider</button><button class="btn primary" data-a="rollPool" ${f?'':'disabled'}>Lancer</button></div></section>
   <section class="card"><h2>Formule libre</h2><div class="fr"><input id="formula" placeholder="ex. 2d6+1d4+3" value="${esc(ui.formula)}" autocapitalize="off" autocomplete="off" spellcheck="false" enterkeyhint="go"><button class="btn primary" data-a="rollFormula">Lancer</button></div></section>
+  ${tableRollsCard()}
   <section class="card"><h2>Historique</h2>${histHtml()}</section>
   </div>`;
 }
@@ -1690,6 +1740,8 @@ function renderOv(){
   else if(ui.ov.type==='item'){const c=cur();const it=c&&c.items.find(i=>i.k===ui.ov.k);if(!it){ui.ov=null;return renderOv();}html=itemDetail(c,it);}
   else if(ui.ov.type==='shop')html=shopView();
   else if(ui.ov.type==='search')html=searchView();
+  else if(ui.ov.type==='liveCb')html=liveCbView();
+  else if(ui.ov.type==='journal'){if(!S.camp){ui.ov=null;return renderOv();}html=journalView();}
   else if(ui.ov.type==='cat'){const d=ITI[ui.ov.id];if(!d){ui.ov=null;return renderOv();}html=catalogInfo(d);}
   else if(ui.ov.type==='mcat'){const m=MI[ui.ov.id];if(!m){ui.ov=null;return renderOv();}html=magicInfo(m);}
   else if(ui.ov.type==='newItem')html=newItemForm();
@@ -2853,10 +2905,20 @@ const A={
   splashT:()=>{const off=lsGet('ct-nosplash')==='1';lsSet('ct-nosplash',off?'0':'1');showMsg('Animation d’ouverture',off?'Réactivée : tu la verras à la prochaine ouverture.':'Désactivée.');},
   fbAcct:()=>{ui.ov={type:'acct',fresh:1,mode:'in'};},
   fsSet:d=>{S.fs=+d.v;},
+  liveOpen:()=>{ui.ov={type:'liveCb',fresh:1,back:ui.ov&&ui.ov.type==='camp'?ui.ov:null};},
+  rollShareT:()=>{S.rollShare=!rollShareOn();if(ui.ov)ui.ov.keepScroll=1;},
+  jrOpen:()=>{ui.ov={type:'journal',fresh:1,back:ui.ov};},
+  jrEdit:d=>{const j=LV.journal.find(x=>x.id===d.id);if(j)Object.assign(ui.ov,{eid:j.id,t:j.t||'',x:j.x||'',l:j.l||'',xp:j.xp||'',fresh:1,err:''});},
+  jrCancel:()=>{Object.assign(ui.ov,{eid:'',t:'',x:'',l:'',xp:'',err:''});},
+  jrSave:()=>{const o=ui.ov;if(!isGmCamp())return;const t=String(o.t||'').trim(),x=String(o.x||'').trim();if(!t&&!x){o.err='Écris au moins un titre ou un résumé.';return;}
+    const old=o.eid&&LV.journal.find(j=>j.id===o.eid);const id=o.eid||uid();const doc={t:t.slice(0,120),x:x.slice(0,6000),l:String(o.l||'').trim().slice(0,2000),xp:String(o.xp||'').trim().slice(0,12),at:old?old.at:Date.now(),by:FB.user.uid};
+    campRef().collection('journal').doc(id).set(doc).catch(()=>{showMsg('Journal','Envoi impossible : vérifie la connexion et les règles Firebase.');});Object.assign(o,{eid:'',t:'',x:'',l:'',xp:'',err:''});
+    const i=LV.journal.findIndex(j=>j.id===id);const row=Object.assign({id},doc);if(i>=0)LV.journal[i]=row;else LV.journal.unshift(row);},
+  jrDel:d=>{const o=ui.ov;if(!isGmCamp())return;if(o.del!==d.id){o.del=d.id;return;}o.del='';campRef().collection('journal').doc(d.id).delete().catch(()=>{});LV.journal=LV.journal.filter(j=>j.id!==d.id);},
   playT:()=>{S.play=!S.play;ui.edit=false;window.scrollTo(0,0);},
   gsOpen:()=>{ui.ov={type:'search',q:'',fresh:1,focus:1};},
   gsGo:d=>{const back=ui.ov;if(d.t==='char'){ui.ov=null;return A.open({id:d.id});}ui.ov={type:d.t,id:d.id,fresh:1,back};},
-  campLink:()=>{const u=campUrl();const ok=()=>showToast('Lien d’invitation copié');if(navigator.share){navigator.share({title:'Tasha’s Friends',text:'Rejoins ma campagne « '+(S.camp.name||'')+' » (code '+S.camp.id+')',url:u}).catch(()=>{});}else if(navigator.clipboard){navigator.clipboard.writeText(u).then(ok,()=>showMsg('Lien d’invitation',u));}else showMsg('Lien d’invitation',u);return false;},
+  campLink:()=>{const u=campUrl();const ok=()=>showMsg('Lien copié','Colle-le dans un message pour tes joueurs.');if(navigator.share){navigator.share({title:'Tasha’s Friends',text:'Rejoins ma campagne « '+(S.camp.name||'')+' » (code '+S.camp.id+')',url:u}).catch(()=>{});}else if(navigator.clipboard){navigator.clipboard.writeText(u).then(ok,()=>showMsg('Lien d’invitation',u));}else showMsg('Lien d’invitation',u);return false;},
   fbMode:d=>{ui.ov.mode=d.m;ui.ov.err='';ui.ov.msg='';},
   fbGo:()=>{fbGo();return false;},
   fbReset:()=>{fbReset();return false;},
@@ -2872,7 +2934,7 @@ const A={
   campPull:()=>{campPullContent(true).then(n=>{if(!n)showMsg('Contenu du MJ','Rien de nouveau.');});return false;},
   campLeave:()=>{const o=ui.ov;if(!o.leave){o.leave=1;return;}const c=S.camp;const u=FB.user;
     (async()=>{try{const ref=FB.db.collection('campaigns').doc(c.id);await ref.collection('members').doc(u.uid).delete();for(const k of Object.keys(FB.sheetSent)){await ref.collection('sheets').doc(k).delete();}}catch(e){}})();
-    FB.sheetSent={};FB.unsub.forEach(f=>{try{f();}catch(e){}});FB.unsub=[];S.camp=null;S.grp=(S.grp||[]).filter(g=>!g.live);ui.ov=null;showMsg('Campagne quittée','');},
+    FB.sheetSent={};FB.unsub.forEach(f=>{try{f();}catch(e){}});FB.unsub=[];S.camp=null;LV.cb=null;LV.rolls={};LV.journal=[];S.grp=(S.grp||[]).filter(g=>!g.live);ui.ov=null;showMsg('Campagne quittée','');},
   mjToggle:()=>{S.mj=!S.mj;if(S.mj)showMsg('Mode MJ activé','L’onglet Combat est dans la barre du bas.');else if(S.tab==='combat')S.tab='list';},
   cbEd:d=>{enc().ed=d.e;},
   mjv:d=>{S.mjv=d.v==='grp'?'grp':'cb';ui.gx=null;},
@@ -3078,6 +3140,7 @@ document.addEventListener('input',e=>{
   else if(t.dataset.enc&&ui.ov&&ui.ov.type==='encEd'){ui.ov.e[t.dataset.enc]=t.value;}
   else if(t.dataset.fb&&ui.ov&&ui.ov.type==='acct'){ui.ov[t.dataset.fb]=t.value;}
   else if(t.dataset.cp&&ui.ov&&ui.ov.type==='camp'){ui.ov[t.dataset.cp]=t.value;}
+  else if(t.dataset.jr&&ui.ov&&ui.ov.type==='journal'){ui.ov[t.dataset.jr]=t.value;}
   else if(t.id==='cbq'&&ui.ov&&ui.ov.type==='cbAdd'){ui.ov.q=t.value;const l=$('#cblist');if(l)l.innerHTML=cbAddList();}
   else if(t.dataset.cbn&&ui.ov&&ui.ov.type==='cbPc'){ui.ov[t.dataset.cbn]=t.value;}
   else if(t.id==='gsq'&&ui.ov&&ui.ov.type==='search'){ui.ov.q=t.value;const l=$('#gslist');if(l)l.innerHTML=gsListHtml();}
