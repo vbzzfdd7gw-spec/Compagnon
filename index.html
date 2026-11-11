@@ -967,7 +967,26 @@ const skillName=id=>(SKILLS.find(s=>s[0]===id)||[,id])[1];
 const raceSet=e=>e==='2014'?RACES14:SPECIES;
 const bgSet=e=>e==='2014'?BG14:BACKGROUNDS;
 function speciesName(c){if(c.species==='autre')return c.speciesCustom||(edOf(c)==='2014'?'Race homebrew':'Espèce homebrew');const r=raceSet(edOf(c))[c.species];if(!r)return c.species||'';const sb=r.subs&&r.subs[c.subrace];return sb?sb.n:r.n;}
-function hpMaxFor(c){const hd=CLASSES[c.cls].hd,con=mod(c.stats.CON);const e14=edOf(c)==='2014';const tough=(e14&&c.species==='nain'&&c.subrace==='collines'?c.level:0)+(e14&&c.cls==='ensorceleur'&&c.sub==='draconic'?c.level:0);const log=c.hpLog?Object.entries(c.hpLog).reduce((s,[l,v])=>s+(+l<=c.level?v:0),0):0;return Math.max(1,hd+con+(c.level-1)*Math.max(1,hd/2+1+con)+log)+tough;}
+/* ---------- Multiclassage ---------- */
+const mcOn=c=>!!(c&&c.mc&&c.mc.length);
+const clsAt=(c,l)=>(l>1&&c.lvc&&c.lvc[l])||c.cls;
+function clvl(c,cls){let n=0;for(let l=1;l<=c.level;l++)if(clsAt(c,l)===cls)n++;return n;}
+const mcList=c=>mcOn(c)?[c.cls].concat(c.mc.map(m=>m.cls)):[c.cls];
+const hasCls=(c,id)=>mcList(c).includes(id);
+/* vue d’un personnage limitée à une de ses classes : cls, level (niveau DANS la classe), sub et ch sont ceux de cette classe */
+function cv(c,cls,pend){if(!c)return c;if(c._real)c=c._real;if(!mcOn(c)&&!pend)return c;cls=cls||c.cls;const ent=cls===c.cls?null:(pend&&pend.cls===cls?pend:(c.mc||[]).find(m=>m.cls===cls));if(cls!==c.cls&&!ent)return c;
+  return new Proxy(c,{get:(t,k)=>k==='cls'?cls:k==='level'?clvl(t,cls):k==='sub'?(ent?ent.sub||'':t.sub):k==='ch'?(ent?(ent.ch||(ent.ch={})):t.ch):k==='mc'||k==='lvc'?undefined:k==='castStat'?(ent?'':t.castStat):k==='_mc'?(ent?1:0):k==='_real'?t:t[k],
+    set:(t,k,v)=>{if(k==='sub'){if(ent)ent.sub=v;else t.sub=v;}else if(k==='ch'){if(ent)ent.ch=v;else t.ch=v;}else if(k==='level'||k==='cls'||k==='mc'||k==='lvc'){}else t[k]=v;return true;}});}
+function mcClean(c){if(!c)return;if(c.lvc){Object.keys(c.lvc).forEach(l=>{if(+l>c.level||+l<2||c.lvc[l]===c.cls||!(c.mc||[]).some(m=>m.cls===c.lvc[l]))delete c.lvc[l];});}
+  if(c.mc){c.mc=c.mc.filter(m=>m&&m.cls&&m.cls!==c.cls&&clvl(Object.assign({},c,{mc:[m]}),m.cls)>0);if(!c.mc.length){delete c.mc;delete c.lvc;}}}
+const clsLabel=c=>mcOn(c)?mcList(c).map(x=>`${(CLASSES[x]||{n:x}).n} ${clvl(c,x)}`).join(' / ')+` · niv. ${c.level}`:`${(CLASSES[c.cls]||{n:c.cls}).n} niv. ${c.level}`;
+const MC_REQ={barbare:[['FOR']],barde:[['CHA']],clerc:[['SAG']],druide:[['SAG']],guerrier:[['FOR','DEX']],moine:[['DEX'],['SAG']],paladin:[['FOR'],['CHA']],rodeur:[['DEX'],['SAG']],roublard:[['DEX']],ensorceleur:[['CHA']],occultiste:[['CHA']],magicien:[['INT']]};
+const MC_PROF={barbare:'boucliers, armes courantes, armes de guerre',barde:'armures légères, une compétence au choix, un instrument de musique',clerc:'armures légères, armures intermédiaires, boucliers',druide:'armures légères, armures intermédiaires, boucliers',guerrier:'armures légères, armures intermédiaires, boucliers, armes courantes, armes de guerre',moine:'armes courantes, épées courtes',paladin:'armures légères, armures intermédiaires, boucliers, armes courantes, armes de guerre',rodeur:'armures légères, armures intermédiaires, boucliers, armes courantes, armes de guerre, une compétence de la liste du rôdeur',roublard:'armures légères, une compétence de la liste du roublard, outils de voleur',ensorceleur:'aucune',occultiste:'armures légères, armes courantes',magicien:'aucune'};
+function mcReqMiss(c,cls){const out=[];[c.cls,cls].forEach(x=>{(MC_REQ[x]||[]).forEach(g=>{if(!g.some(k=>c.stats[k]>=13))out.push(`${(CLASSES[x]||{n:x}).n} : ${g.join(' ou ')} 13`);});});return out;}
+function hpMaxFor(c){const con=mod(c.stats.CON);const e14=edOf(c)==='2014';const hdOf=x=>(CLASSES[x]||CLASSES[c.cls]).hd;
+  let base=hdOf(c.cls)+con;for(let l=2;l<=c.level;l++)base+=Math.max(1,hdOf(clsAt(c,l))/2+1+con);
+  const drac=e14?((c.cls==='ensorceleur'&&c.sub==='draconic'?clvl(c,'ensorceleur'):0)+((c.mc||[]).some(m=>m.cls==='ensorceleur'&&m.sub==='draconic')?clvl(c,'ensorceleur'):0)):0;
+  const tough=(e14&&c.species==='nain'&&c.subrace==='collines'?c.level:0)+drac;const log=c.hpLog?Object.entries(c.hpLog).reduce((t,[l,v])=>t+(+l<=c.level?v:0),0):0;return Math.max(1,base+log)+tough;}
 
 /* ---------- Stockage ---------- */
 const KEY='compagnon-table-v1';
@@ -993,7 +1012,7 @@ function sample2(){
 function mkItem(id,q,eq){return {k:uid(),id,q:q||1,eq:eq?1:0,b:0};}
 function brennaItems(){return [mkItem('chain-mail',1,1),mkItem('shield',1,1),mkItem('battleaxe',1,1),mkItem('handaxe',2,1),mkItem('backpack'),mkItem('bedroll'),mkItem('oil',2),mkItem('rations',10),mkItem('rope'),mkItem('tinderbox'),mkItem('torch',10),mkItem('waterskin')];}
 function ilsaItems(){return [mkItem('dagger',2,1),mkItem('quarterstaff',1,0),mkItem('spellbook'),mkItem('component-pouch'),mkItem('backpack'),mkItem('ink'),mkItem('ink-pen'),mkItem('parchment',10),mkItem('rations',5)];}
-function fixChar(c){if(!Array.isArray(c.items))c.items=[];if(!c.coins)c.coins={pp:0,po:0,pe:0,pa:0,pc:0};if(c.acAuto==null)c.acAuto=false;if(!Array.isArray(c.spells))c.spells=[];if(!c.prep)c.prep={};if(!c.slotsUsed)c.slotsUsed={};if(c.castStat==null)c.castStat='';if(!Array.isArray(c.cond))c.cond=[];if(!Array.isArray(c.feats))c.feats=[];if(c.exh==null)c.exh=0;if(c.sub==null)c.sub='';if(!c.ch)c.ch={};if(!c.notes)c.notes={inv:'',spells:'',traits:''};return c;}
+function fixChar(c){try{mcClean(c);}catch(e){}if(!Array.isArray(c.items))c.items=[];if(!c.coins)c.coins={pp:0,po:0,pe:0,pa:0,pc:0};if(c.acAuto==null)c.acAuto=false;if(!Array.isArray(c.spells))c.spells=[];if(!c.prep)c.prep={};if(!c.slotsUsed)c.slotsUsed={};if(c.castStat==null)c.castStat='';if(!Array.isArray(c.cond))c.cond=[];if(!Array.isArray(c.feats))c.feats=[];if(c.exh==null)c.exh=0;if(c.sub==null)c.sub='';if(!c.ch)c.ch={};if(!c.notes)c.notes={inv:'',spells:'',traits:''};return c;}
 let S=load()||{v:2,chars:[sample(),sample2()],current:null,tab:'list',mode:'normal',history:[],custom:[]};
 if(!S.chars)S.chars=[];if(!S.history)S.history=[];if(!S.mode)S.mode='normal';if(!S.custom)S.custom=[];if(!S.cmagic)S.cmagic=[];if(!S.cfeats)S.cfeats=[];if(!S.cmon)S.cmon=[];
 S.cmagic.forEach(m=>regCM(m));
@@ -1012,15 +1031,20 @@ const cur=()=>S.chars.find(c=>c.id===S.current);
 
 /* ---------- Incantation ---------- */
 const getSpell=id=>SPI[id]||S.custom.find(s=>s.id===id);
-const castStatOf=c=>c.castStat||CAST_STAT[c.cls]||((hbCastRec(c)||{}).cast)||'';
+const castStatOf=c=>c.castStat||CAST_STAT[c.cls]||((hbCastRec(c)||{}).cast)||(mcOn(c)?c.mc.map(m=>castStatOf(cv(c,m.cls))).find(Boolean):'')||'';
+function mcSlots(c){const L=mcList(c).map(x=>{const v=cv(c,x);return {x,v,s:slotsOf(v)};}).filter(o=>o.s);const pact=L.find(o=>o.s.pact);const norm=L.filter(o=>!o.s.pact);let list=null;
+  if(norm.length===1)list=norm[0].s.list;
+  else if(norm.length>1){const e14=edOf(c)==='2014';let ecl=0;norm.forEach(o=>{const n=o.v.level;const r=hbCastRec(o.v);const p=r?(r.prog||'full'):['paladin','rodeur'].includes(o.x)?'1/2':'full';ecl+=p==='1/2'?(e14?Math.floor(n/2):Math.ceil(n/2)):p==='1/3'?Math.floor(n/3):n;});if(ecl>=1)list=FULL_SLOTS[Math.min(20,ecl)-1];}
+  if(!list&&!pact)return null;if(!list)return {pact:true,lvl:pact.s.lvl,max:pact.s.max};return pact?{pact:false,list,pp:{lvl:pact.s.lvl,max:pact.s.max}}:{pact:false,list};}
 function slotsOf(c){
+  if(mcOn(c))return mcSlots(c);
   {const h=hbSlots(c);if(h!==undefined)return h;}
   if(c.cls==='occultiste'){const p=PACT[c.level-1];return {pact:true,lvl:p[1],max:p[0]};}
   const t=['paladin','rodeur'].includes(c.cls)?(edOf(c)==='2014'?HALF14:HALF_SLOTS):CASTER_CLASSES.includes(c.cls)?FULL_SLOTS:null;
   return t&&t[c.level-1].length?{pact:false,list:t[c.level-1]}:null;
 }
-function slotLevels(c){const s=slotsOf(c);if(!s)return [];if(s.pact)return [{l:s.lvl,max:s.max}];return s.list.map((m,i)=>({l:i+1,max:m}));}
-const slotAvail=(c,l,max)=>Math.max(0,max-(c.slotsUsed[l]||0));
+function slotLevels(c){const s=slotsOf(c);if(!s)return [];if(s.pact)return [{l:s.lvl,max:s.max,k:s.lvl,pact:1}];const a=s.list.map((m,i)=>({l:i+1,max:m,k:i+1}));if(s.pp)a.push({l:s.pp.lvl,max:s.pp.max,k:'p',pact:1});return a;}
+const slotAvail=(c,k,max)=>Math.max(0,max-(c.slotsUsed[k]||0));
 function cantripDice(sp,lvl){const b=sp.dg&&sp.dg.sl&&sp.dg.sl['0'];if(!b)return null;const m=b.match(/^(\d+)d(\d+)$/);if(!m)return null;const k=lvl>=17?4:lvl>=11?3:lvl>=5?2:1;return sp.id==='eldritch-blast'?b:(+m[1]*k)+'d'+m[2];}
 function upcastDice(sp,L){
   if(!sp.dg||!sp.dg.sl)return null;const base=sp.dg.sl[String(sp.l)];if(!base)return null;
@@ -1357,7 +1381,7 @@ function grpStats(c){const ed0=ED.e;try{useEd(edOf(c));const pb=prof(c.level||1)
   const cl=CLASSES[c.cls];const sub=c.sub&&SUBN[c.sub];
   return {ac,ib,pb,hp:c.hp,max:c.hpMax,tmp:c.hpTemp||0,sp:c.speed,pp:10+sk('perception'),pinv:10+sk('investigation'),pins:10+sk('intuition'),
     sv:STATS.map(k=>({k,v:mod(c.stats[k])+((c.saves||[]).includes(k)?pb:0),p:(c.saves||[]).includes(k)})),
-    sub:`${esc(speciesName(c))} · ${esc(cl?cl.n:c.cls)}${sub?' ('+esc(sub)+')':''} niv. ${c.level}`,cond:c.cond||[]};}
+    sub:mcOn(c)?`${esc(speciesName(c))} · ${esc(clsLabel(c))}`:`${esc(speciesName(c))} · ${esc(cl?cl.n:c.cls)}${sub?' ('+esc(sub)+')':''} niv. ${c.level}`,cond:c.cond||[]};}
   catch(e){return {ac:c.ac,ib:0,pb:2,hp:c.hp,max:c.hpMax,tmp:0,sp:c.speed,pp:10,pinv:10,pins:10,sv:[],sub:'',cond:[]};}finally{useEd(ed0);}}
 function grpView(){const M=grpMembers();const rows=M.map(m=>({m,s:grpStats(m.c)}));
   const best=(f,lab)=>{if(!rows.length)return '';const r=rows.reduce((a,b)=>f(b.s)>f(a.s)?b:a);return `<div class="gsum"><span class="lbl">${lab}</span><b>${f(r.s)}</b><small>${esc(r.m.c.name)}</small></div>`;};
@@ -1544,7 +1568,7 @@ function gsListHtml(){const q=norm((ui.ov&&ui.ov.q)||'');if(q.length<2)return '<
   const row=(t,id,n,en,sub)=>`<button class="spi" data-a="gsGo" data-t="${t}" data-id="${esc(id)}"><b>${esc(n)}${en?`<em class="en">${esc(en)}</em>`:''}</b><small>${sub}</small></button>`;
   const grp=(title,L,f)=>{if(!L.length)return '';L.sort(rank);const more=L.length-10;return `<div class="lvlh">${title} · ${L.length}</div>`+L.slice(0,10).map(f).join('')+(more>0?`<p class="hint" style="margin:2px 4px 8px">… et ${more} de plus : précise ta recherche.</p>`:'');};
   const hbV=S.custom.filter(sp=>!hbHidden(sp,ED.e));
-  const h=grp('Personnages',S.chars.filter(c=>norm(c.name).includes(q)).map(c=>({n:c.name,c})),x=>row('char',x.c.id,x.c.name,'',`${esc(speciesName(x.c))} · ${CLASSES[x.c.cls].n} niv. ${x.c.level}`))
+  const h=grp('Personnages',S.chars.filter(c=>norm(c.name).includes(q)).map(c=>({n:c.name,c})),x=>row('char',x.c.id,x.c.name,'',`${esc(speciesName(x.c))} · ${esc(clsLabel(x.c))}`))
    +grp('Sorts',SPELLS.concat(hbV).filter(hit),sp=>row('spell',sp.id,sp.n,sp.en,`${lvlLabel(sp.l)} · ${esc(sp.s||'')}`))
    +grp('Objets',ITEMS.filter(hit).map(i=>({n:i.n,en:i.en,id:i.id,t:'cat',sub:esc(itemMeta({id:i.id,q:1}))})).concat(MLIST.filter(hit).map(m=>({n:m.n,en:m.en,id:m.id,t:'mcat',sub:'Objet magique · '+esc(MCATN[m.c]||'')}))),x=>row(x.t,x.id,x.n,x.en,x.sub))
    +grp('Créatures',MONSTERS.concat(S.cmon||[]).filter(hit),m=>row('mon',m.id,m.n,m.en,`FP ${m.cr} · ${esc(m.ty)}`))
@@ -1554,7 +1578,8 @@ function gsListHtml(){const q=norm((ui.ov&&ui.ov.q)||'');if(q.length<2)return '<
 function searchView(){return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Règles ${ED.e}</span><h1>Rechercher</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div>
   <input id="gsq" type="search" value="${esc(ui.ov.q||'')}" placeholder="Boule de feu, fireball, gobelin…" autocomplete="off" autocapitalize="off" aria-label="Rechercher partout"><div class="splist" id="gslist" style="margin-top:10px">${gsListHtml()}</div></div>`;}
 
-function subLine(c,small){const n=c.sub&&SUBN[c.sub];const lv=subLevel(c);if(!n&&c.level<lv)return '';
+function subLine(c,small){if(mcOn(c)){const a=mcList(c).map(x=>{const v=cv(c,x);return v.sub&&SUBN[v.sub]?SUBN[v.sub]:v.level>=subLevel(v)?CLASSES[x].n+' : sous-classe à choisir':'';}).filter(Boolean);return a.length?`<span class="subcl ${small?'sm':''}">${esc(a.join(' · '))}</span>`:'';}
+  const n=c.sub&&SUBN[c.sub];const lv=subLevel(c);if(!n&&c.level<lv)return '';
   return `<span class="subcl ${small?'sm':''} ${n?'':'todo'}">${n?esc(n):'Sous-classe à choisir'}</span>`;}
 function listView(){
   const ed0=ED.e;const cards=S.chars.map(c=>{useEd(edOf(c));const cl=CLASSES[c.cls];const pd=ui.pendingDel===c.id;return `<article class="pc ${c.id===S.current?'cur':''}">
@@ -1608,7 +1633,7 @@ function sheetView(){
     <div class="ds"><span>Réussites</span><div class="dots">${dots('s',c.death.s,'g')}</div><span>Échecs</span><div class="dots">${dots('f',c.death.f,'b')}</div></div></section>`;
   const pbtn=`<button class="btn sm ${S.play&&!e?'primary':''}" data-a="playT" aria-pressed="${S.play&&!e?'true':'false'}">Mode jeu</button>`;
   if(S.play&&!e){const fold=(id,t,h)=>h.trim()?`<details class="fold" data-fold="${id}" ${ui.fold&&ui.fold[id]?'open':''}><summary>${t}</summary><div class="stack">${h}</div></details>`:'';
-    return `<header class="vh"><div class="vh-row"><div><h1>${esc(c.name)}</h1><span class="sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}</span>${subLine(c)}</div><div class="vh-b">${pbtn}</div></div>${modeSeg()}</header>
+    return `<header class="vh"><div class="vh-row"><div><h1>${esc(c.name)}</h1><span class="sub">${esc(speciesName(c))} · ${esc(clsLabel(c))}</span>${subLine(c)}</div><div class="vh-b">${pbtn}</div></div>${modeSeg()}</header>
   <div class="stack">${liveBanner()}${hpCard}${vitals}<div class="stats">${statCards}</div>${c.hp<=0?deathCard:''}${condCard(c)}${atkCard}${spellCard(c)}
   ${fold('sv','Sauvegardes et compétences',`<div class="cols"><section class="card"><h2>Jets de sauvegarde</h2><div class="list">${saves}</div></section><section class="card"><div class="between"><h2>Compétences</h2><span class="lbl">Perception passive ${10+perc}</span></div><div class="list">${skills}</div></section></div>`)}
   ${fold('ft','Aptitudes, traits et dons',raceCard(c)+featCard(c)+classCard(c)+choicesCard(c))}
@@ -1616,7 +1641,7 @@ function sheetView(){
   ${fold('dm',c.hp>0?'Jets contre la mort':'',c.hp>0?deathCard:'')}
   <p class="hint">Mode jeu : l’essentiel pour la partie. Le reste est replié ; touche « Mode jeu » pour retrouver la fiche complète.</p></div>`;}
   return `<header class="vh"><div class="vh-row"><div>${e?`<input id="c-name" data-f="name" value="${esc(c.name)}" aria-label="Nom du personnage">`:`<h1>${esc(c.name)}</h1>`}
-    <span class="sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${bg?' · '+bg.n.replace(' (homebrew)',''):''} ${edBadge(edOf(c))}</span>${subLine(c)}${!e&&c.level<20?`<button class="lvb" data-a="lvlUp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>Monter au niveau ${c.level+1}</button>`:''}${!e&&c.level>1?`<button class="lvb dn" data-a="lvlDown" aria-label="Redescendre au niveau ${c.level-1}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5L12 19l6.5-6.5"/></svg>${c.level<20?'':'Redescendre au niveau '+(c.level-1)}</button>`:''}</div>
+    <span class="sub">${esc(speciesName(c))} · ${esc(clsLabel(c))}${bg?' · '+bg.n.replace(' (homebrew)',''):''} ${edBadge(edOf(c))}</span>${subLine(c)}${!e&&c.level<20?`<button class="lvb" data-a="lvlUp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>Monter au niveau ${c.level+1}</button>`:''}${!e&&c.level>1?`<button class="lvb dn" data-a="lvlDown" aria-label="Redescendre au niveau ${c.level-1}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5L12 19l6.5-6.5"/></svg>${c.level<20?'':'Redescendre au niveau '+(c.level-1)}</button>`:''}</div>
     <div class="vh-b"><button class="btn sm ${e?'primary':''}" data-a="edit">${e?'Terminer':'Modifier'}</button>${e?'':pbtn}</div></div>${modeSeg()}</header>
   <div class="stack">${liveBanner()}
   ${e?`<section class="card editbox"><h2>Modification</h2>
@@ -1700,7 +1725,7 @@ function spellCard(c){
   if(!st&&!c.spells.length)return '';
   const pb=prof(c.level);const m=st?mod(c.stats[st]):0;
   const sl=slotsOf(c);
-  const rows=lv.map(({l,max})=>{const a=slotAvail(c,l,max);return `<div class="slotrow"><span>${sl.pact?'Pacte':'Niv. '+l}${sl.pact?' <span class="lbl">niv. '+l+'</span>':''}</span><div class="dots">${Array.from({length:max},(_,i)=>`<button class="sbox ${i<a?'on':''}" data-a="slot" data-l="${l}" data-i="${i}" aria-label="Emplacement de niveau ${l}"></button>`).join('')}</div><span class="lbl">${a}/${max}</span></div>`;}).join('');
+  const rows=lv.map(({l,max,k,pact})=>{const a=slotAvail(c,k,max);return `<div class="slotrow"><span>${pact?'Pacte':'Niv. '+l}${pact?' <span class="lbl">niv. '+l+'</span>':''}</span><div class="dots">${Array.from({length:max},(_,i)=>`<button class="sbox ${i<a?'on':''}" data-a="slot" data-l="${l}" data-k="${k}" data-i="${i}" aria-label="Emplacement de niveau ${l}"></button>`).join('')}</div><span class="lbl">${a}/${max}</span></div>`;}).join('');
   const list=c.spells.map(getSpell).filter(Boolean).sort((a,b)=>a.l-b.l||a.n.localeCompare(b.n,'fr'));
   let groups='',last=-1;
   for(const sp of list){
@@ -1710,13 +1735,16 @@ function spellCard(c){
       <button class="sp-n" data-a="spOpen" data-id="${sp.id}"><span>${esc(sp.n)}${sp.en?`<em class="en">${esc(sp.en)}</em>`:''}</span><span class="tg">${sp.cc?'<span class="mk">C</span>':''}${sp.ri?'<span class="mk">R</span>':''}</span></button></div></div>`;
   }
   const nPrep=list.filter(sp=>sp.l>0&&c.prep[sp.id]).length;const unk=c.spells.length-list.length;
-  const rule=spellRule(c);const sc=spellCount(c,c.level);const n0=list.filter(sp=>sp.l===0).length,max0=cantripsOf(c,c.level);const nL=list.filter(sp=>sp.l>0).length;
+  let rule=spellRule(c);let sc=spellCount(c,c.level);const n0=list.filter(sp=>sp.l===0).length;let max0=cantripsOf(c,c.level);const nL=list.filter(sp=>sp.l>0).length;let mcDD='';let bookMax=6+2*(c.level-1);
+  if(mcOn(c)){const V=mcList(c).map(x=>cv(c,x)).filter(v=>castStatOf(v));const parts=[];let tot=0,any=0,allK=true,book=0;max0=0;V.forEach(v=>{max0+=cantripsOf(v,v.level)||0;const r=spellRule(v);const k=spellCount(v,v.level);if(r.book){book=1;bookMax=6+2*(v.level-1);}if(r.m!=='known')allK=false;if(k&&k.n!=null){any=1;tot+=k.n;parts.push(`${CLASSES[v.cls].n} ${k.n} ${r.m==='known'?'connus':'préparés'}`);}});
+    rule={m:allK&&V.length?'known':'prep',book,t:'Multiclassé : chaque classe gère ses sorts à part ('+(parts.join(', ')||'aucun')+'). Les emplacements, eux, sont mis en commun.'};sc=any?{n:tot}:null;
+    const pbm=prof(c.level);mcDD=V.filter(v=>castStatOf(v)!==st).map(v=>{const k=castStatOf(v);const mm=mod(c.stats[k]);return `${CLASSES[v.cls].n} (${k}) : DD ${8+pbm+mm+mfx(c).dc}, attaque ${fmt(pbm+mm+mfx(c).sa)}`;}).join(' · ');}
   const mainN=rule.m==='known'?nL:nPrep;const mainMax=sc?sc.n:null;
   const cnt=(lab,n,max,sub)=>`<div class="vit cnt ${max!=null?cntCls(n,max):''}"><span class="lbl">${lab}</span><b>${n}${max!=null?`<small>/${max}</small>`:''}</b>${sub?`<span class="cnt-s">${sub}</span>`:''}</div>`;
-  const counters=st?`<div class="row${rule.book?3:2}">${cnt('Sorts mineurs',n0,max0||null)}${cnt(rule.m==='known'?'Sorts connus':'Sorts préparés',mainN,mainMax,sc&&sc.f?sc.f:'')}${rule.book?cnt('Grimoire',nL,6+2*(c.level-1),'6 + 2 par niveau'):''}</div><p class="hint" style="margin:0">${rule.t}${mainMax!=null&&mainN>mainMax?` <b style="color:var(--bad)">Tu en as ${mainN-mainMax} de trop.</b>`:''}</p>`:'';
+  const counters=st?`<div class="row${rule.book?3:2}">${cnt('Sorts mineurs',n0,max0||null)}${cnt(rule.m==='known'?'Sorts connus':'Sorts préparés',mainN,mainMax,sc&&sc.f?sc.f:'')}${rule.book?cnt('Grimoire',nL,bookMax,'6 + 2 par niveau'):''}</div>${mcDD?`<p class="hint" style="margin:0">${esc(mcDD)}</p>`:''}<p class="hint" style="margin:0">${rule.t}${mainMax!=null&&mainN>mainMax?` <b style="color:var(--bad)">Tu en as ${mainN-mainMax} de trop.</b>`:''}</p>`:'';
   return `<section class="card"><div class="between"><h2>Incantation</h2>${st?`<span class="lbl">${STAT_NAMES[st]}</span>`:''}</div>
     ${st?`<div class="row3"><div class="vit"><span class="lbl">DD des sorts</span><b>${8+pb+m+mfx(c).dc}</b></div><button class="vit" data-a="rollSpellAtk"><span class="lbl">Attaque de sort</span><b>${fmt(pb+m+mfx(c).sa)}</b></button><div class="vit"><span class="lbl">Mod. ${st}</span><b>${fmt(m)}</b></div></div>${counters}`:''}
-    ${rows?`<div class="stack" style="gap:10px">${rows}</div>${sl.pact?'<button class="btn sm" data-a="shortRest">Repos court : récupérer les emplacements de pacte</button>':''}`:''}
+    ${rows?`<div class="stack" style="gap:10px">${rows}</div>${sl.pact||sl.pp?'<button class="btn sm" data-a="shortRest">Repos court : récupérer les emplacements de pacte</button>':''}`:''}
     ${list.length?`<div class="list">${groups}</div><p class="hint">Touche le rond pour marquer un sort comme préparé, et le nom pour le lire et le lancer. Fais glisser un sort vers la droite pour le retirer de la fiche, ou vers la gauche pour le préparer (ou ne plus le préparer).</p>`:'<p class="hint">Aucun sort pour l’instant.</p>'}
     ${unk>0?`<p class="hint">${unk} sort${unk>1?'s':''} de la fiche n’existe${unk>1?'nt':''} pas dans les règles ${edOf(c)} et ${unk>1?'sont masqués':'est masqué'}. ${unk>1?'Ils réapparaissent':'Il réapparaît'} si tu changes d’édition.</p>`:''}
     <button class="btn" data-a="goSpells">Ajouter des sorts depuis le grimoire</button></section>`;
@@ -1779,7 +1807,7 @@ function spellDetail(sp){
   }else if(c&&sp.l>0){
     const lv=slotLevels(c).filter(x=>x.l>=sp.l);
     if(lv.length){
-      cast=`<section class="card"><h2>Lancer avec un emplacement</h2><div class="castrow">${lv.map(({l,max})=>{const a=slotAvail(c,l,max);const d=upcastDice(sp,l);return `<button class="btn ${l===sp.l?'primary':''}" data-a="cast" data-id="${sp.id}" data-l="${l}" ${a?'':'disabled'}>Niv. ${l}${d?' · '+d:''} <span class="lbl">(${a})</span></button>`;}).join('')}</div>
+      cast=`<section class="card"><h2>Lancer avec un emplacement</h2><div class="castrow">${lv.map(({l,max,k,pact})=>{const a=slotAvail(c,k,max);const d=upcastDice(sp,l);return `<button class="btn ${l===sp.l&&!(pact&&k==='p')?'primary':''}" data-a="cast" data-id="${sp.id}" data-l="${l}" data-k="${k}" ${a?'':'disabled'}>${pact&&k==='p'?'Pacte ':''}Niv. ${l}${d?' · '+d:''} <span class="lbl">(${a})</span></button>`;}).join('')}</div>
         <p class="hint">Dépense un emplacement ${deN(c.name)}${upcastDice(sp,sp.l)?' et lance les dégâts au niveau choisi':''}. Le chiffre entre parenthèses indique les emplacements restants.</p></section>`;
     }
   }
@@ -1946,10 +1974,11 @@ function chToggle(ch,sk,def,v){
   if(i>=0)a.splice(i,1);else if(def.n===1)ch[def.k]=[v];else if(a.length<def.n)a.push(v);
 }
 function hasStyle(c,id){const N={archery:'Archerie',defense:'Défense'};const vals=Object.values(c.ch||{}).flat();return (c.feats||[]).includes(id)||vals.includes(id)||vals.includes(N[id]);}
-function choicesCard(c){
+function choicesCard(c){return mcOn(c)?mcList(c).map(x=>`<div data-mc="${x}" style="display:contents">${choicesCard1(cv(c,x))}</div>`).join(''):choicesCard1(c);}
+function choicesCard1(c){
   const D=choiceDefs(c);if(!D.length)return '';
   const miss=D.filter(d=>d.skill?SKILLS.filter(([id])=>(c.skills[id]||0)===2).length<d.n:chOf(c,d.k).length<d.n).length;
-  return `<section class="card"><div class="between"><h2>Choix de classe</h2>${miss?`<span class="lbl" style="color:var(--brass)">${miss} à compléter</span>`:''}</div>
+  return `<section class="card"><div class="between"><h2>Choix de classe${c._real?' · '+esc(CLASSES[c.cls].n):''}</h2>${miss?`<span class="lbl" style="color:var(--brass)">${miss} à compléter</span>`:''}</div>
     ${D.map(d=>{const done=d.skill?SKILLS.filter(([id])=>(c.skills[id]||0)===2):chOf(c,d.k);const full=d.skill?done.length>=d.n:done.length>=d.n;
       if(!full)return chBlock(c,d,c.ch||{},c.skills,c.level,'cCh');
       const names=d.skill?done.map(x=>x[1]):done.map(v=>{const o=d.opts.find(x=>x.v===v);return o?o.n:v;});
@@ -2153,8 +2182,15 @@ function hpGainAvg(c){const hd=CLASSES[c.cls].hd;return Math.max(1,hd/2+1+mod(c.
 function luState(){return ui.ov;}
 function featAsi(f){if(!f)return null;if(f.asi)return f.asi;if(f.ns||f.custom)return null;const l=(f.d||'').split('\n').find(x=>/^\*\*Augmentation de caractéristique\.\*\*/.test(x));if(!l)return null;
   const al=STATS.filter(k=>new RegExp(STAT_NAMES[k],'i').test(l));return {al:al.length?al:STATS.slice(),max:/30/.test(l)?30:20};}
+function luC(){const R=cur();const o=ui.ov||{};return cv(R,o.cls||R.cls,o.pend);}
+function luSetCls(id){const R=cur();const o=ui.ov;if(!CLASSES[id])return;o.cls=id;o.pend=mcList(R).includes(id)?null:{cls:id,sub:'',ch:{}};const v=luC();Object.assign(o,{hp:'avg',roll:0,man:'',sub:'',asi:'2',a2:null,a1:null,a1b:null,feat:'',featName:'',fa:null,err:'',ch:JSON.parse(JSON.stringify(v.ch||{})),sk:Object.assign({},R.skills)});}
+function luClsCard(R,c,isNew){const have=mcList(R);const e=edOf(R);const others=Object.keys(CLASSES).filter(id=>!have.includes(id)&&(!CLASSES[id].eds||CLASSES[id].eds.includes(e))).sort((a,b)=>CLASSES[a].n.localeCompare(CLASSES[b].n,'fr'));
+  const miss=isNew?mcReqMiss(R,c.cls):[];
+  return `<section class="card"><h2>Classe de ce niveau</h2><label class="fld"><span>Dans quelle classe prends-tu ce niveau ?</span><select data-lu="cls">${have.map(id=>`<option value="${id}" ${c.cls===id?'selected':''}>${esc(CLASSES[id].n)} (niveau ${clvl(R,id)} → ${clvl(R,id)+1})</option>`).join('')}<optgroup label="Multiclassage : nouvelle classe">${others.map(id=>`<option value="${id}" ${c.cls===id?'selected':''}>${esc(CLASSES[id].n)} (niveau 1)</option>`).join('')}</optgroup></select></label>
+    ${isNew?`${miss.length?`<p class="note">Prérequis de multiclassage non remplis : ${esc(miss.join(' ; '))}. Tu peux continuer si ton MJ l’autorise.</p>`:'<p class="hint" style="margin:0">Prérequis de multiclassage remplis (13 dans les caractéristiques clés des deux classes).</p>'}
+      <p class="hint" style="margin:0">Une nouvelle classe ne donne pas ses maîtrises de sauvegarde. ${!MC_PROF[c.cls]?'Pour ses autres maîtrises, vois avec ton MJ.':MC_PROF[c.cls]==='aucune'?'Elle ne donne aucune autre maîtrise.':'Maîtrises gagnées : '+esc(MC_PROF[c.cls])+'. '+(e==='2014'?'':'(Liste des règles 2014 ; vérifie les petites différences en 2024.) ')+'Ajoute-les à la main avec « Modifier ».'}</p>`:''}</section>`;}
 function lvlUpView(){
-  const c=cur();const o=ui.ov;const nl=c.level+1;const e14=edOf(c)==='2014';const cl=CLASSES[c.cls];const hd=cl.hd;const con=mod(c.stats.CON);
+  const R=cur();const c=luC();const o=ui.ov;const nl=c.level+1;const tnl=R.level+1;const isNew=!mcList(R).includes(c.cls);const e14=edOf(c)==='2014';const cl=CLASSES[c.cls];const hd=cl.hd;const con=mod(c.stats.CON);
   const avg=hpGainAvg(c);
   const gain=o.hp==='roll'&&o.roll?Math.max(1,o.roll+con):o.hp==='man'&&o.man!==''?Math.max(1,+o.man||1):avg;
   const extra=(e14&&c.species==='nain'&&c.subrace==='collines'?1:0)+(e14&&c.cls==='ensorceleur'&&(o.sub||c.sub)==='draconic'?1:0);
@@ -2173,7 +2209,7 @@ function lvlUpView(){
   const sub=o.sub||c.sub;
   const F=CFEATS.filter(f=>f.c===c.cls&&f.l===nl&&(!f.s||f.s===sub)).sort((a,b)=>(a.s?1:0)-(b.s?1:0));
   const featSec=`<section class="card"><h2>Nouvelles aptitudes</h2>${F.length?cfList(F):'<p class="hint">Aucune nouvelle aptitude de classe à ce niveau.</p>'}
-    ${prof(nl)>prof(c.level)?`<p class="hint">Ton bonus de maîtrise passe à ${fmt(prof(nl))}.</p>`:''}</section>`;
+    ${prof(tnl)>prof(R.level)?`<p class="hint">Ton bonus de maîtrise passe à ${fmt(prof(tnl))}.</p>`:''}</section>`;
   // ASI / don
   let asiSec='';
   if(asiLevels(c.cls).includes(nl)){
@@ -2202,34 +2238,34 @@ function lvlUpView(){
   // sorts
   let spSec='';
   if(CAST_STAT[c.cls]||hbCastRec(c)){
-    const c0=cantripsOf(c,c.level),c1=cantripsOf(c,nl);const s0=spellCount(c,c.level),s1=spellCount(c,nl);
-    const m0=maxSlotLv(c,c.level),m1=maxSlotLv(c,nl);
+    const c0=c.level?cantripsOf(c,c.level):0,c1=cantripsOf(c,nl);const s0=(c.level&&spellCount(c,c.level))||{n:0},s1=spellCount(c,nl);
+    const m0=c.level?maxSlotLv(c,c.level):0,m1=maxSlotLv(c,nl);
     const rows=[];
     if(c1)rows.push(`<div class="between"><span>Sorts mineurs connus</span><b>${c1>c0?c0+' → '+c1+' (+'+(c1-c0)+')':c1}</b></div>`);
     if(s1&&s1.n)rows.push(`<div class="between"><span>${s1.k}${s1.f?' <span class="lbl">'+s1.f+'</span>':''}</span><b>${s1.n!==s0.n?s0.n+' → '+s1.n+(s1.n>s0.n?' (+'+(s1.n-s0.n)+')':''):s1.n}</b></div>`);
-    if(c.cls==='magicien')rows.push(`<div class="between"><span>Grimoire</span><b>+2 sorts de magicien</b></div>`);
-    if(m1>m0)rows.push(`<p class="hint" style="margin:4px 0 0">Nouveau : emplacements de sort de niveau ${m1}${c.cls==='occultiste'?' (magie de pacte)':''}.</p>`);
+    if(c.cls==='magicien')rows.push(`<div class="between"><span>Grimoire</span><b>${isNew?'6 sorts de magicien de niveau 1':'+2 sorts de magicien'}</b></div>`);
+    if(m1>m0&&!mcOn(R)&&!isNew)rows.push(`<p class="hint" style="margin:4px 0 0">Nouveau : emplacements de sort de niveau ${m1}${c.cls==='occultiste'?' (magie de pacte)':''}.</p>`);
     spSec=rows.length?`<section class="card"><h2>Sorts</h2><div class="stack" style="gap:8px">${rows.join('')}</div>
       <p class="hint">${e14&&s1&&s1.k==='Sorts connus'?'Tu peux aussi remplacer un sort connu par un autre de niveau accessible.':'Les sorts préparés se choisissent dans le grimoire ; marque-les avec le rond de la fiche.'} Tu pourras ouvrir le grimoire juste après.</p></section>`:'';
   }
   const err=o.err?`<p class="err">${esc(o.err)}</p>`:'';
-  return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">${o.chainTo?'Création · étape '+(nl-1)+' sur '+(o.chainTo-1):'Montée de niveau'} ${edBadge(edOf(c))}</span><h1>${esc(c.name)}</h1><span class="sub">${cl.n} niveau ${c.level} → ${nl}${o.chainTo?' (objectif niveau '+o.chainTo+')':''}</span></div><button class="btn sm" data-a="ovClose">${o.chainTo?'Finir plus tard':'Annuler'}</button></div>${o.chainTo&&nl===2?'<p class="hint" style="margin:0 0 8px">Ton personnage est créé au niveau 1, puis chaque niveau est validé comme une montée de niveau : sous-classe, amélioration de caractéristiques ou don, choix de classe, PV. Tu pourras redescendre de niveau proprement si besoin. Si tu fermes, il reste au niveau atteint et le bouton « Monter de niveau » reprend.</p>':''}
-  <div class="stack">${hpSec}${subSec}${featSec}${asiSec}${chSec}${spSec}${err}
-  <button class="btn primary big" data-a="luApply">Passer au niveau ${nl}</button></div></div>`;
+  return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">${o.chainTo?'Création · étape '+(nl-1)+' sur '+(o.chainTo-1):'Montée de niveau'} ${edBadge(edOf(c))}</span><h1>${esc(c.name)}</h1><span class="sub">${mcOn(R)||isNew?`${cl.n} ${c.level} → ${nl} · niveau total ${R.level} → ${tnl}`:`${cl.n} niveau ${c.level} → ${nl}`}${o.chainTo?' (objectif niveau '+o.chainTo+')':''}</span></div><button class="btn sm" data-a="ovClose">${o.chainTo?'Finir plus tard':'Annuler'}</button></div>${o.chainTo&&nl===2?'<p class="hint" style="margin:0 0 8px">Ton personnage est créé au niveau 1, puis chaque niveau est validé comme une montée de niveau : sous-classe, amélioration de caractéristiques ou don, choix de classe, PV. Tu pourras redescendre de niveau proprement si besoin. Si tu fermes, il reste au niveau atteint et le bouton « Monter de niveau » reprend.</p>':''}
+  <div class="stack">${o.chainTo?'':luClsCard(R,c,isNew)}${hpSec}${subSec}${featSec}${asiSec}${chSec}${spSec}${err}
+  <button class="btn primary big" data-a="luApply">Passer au niveau ${tnl}${mcOn(R)||isNew?' ('+esc(cl.n)+' '+nl+')':''}</button></div></div>`;
 }
 const cfOk=(f,e)=>!f.eds||f.eds.includes(e);
 const nsHidden=(f,e)=>f.ns&&S.cfeats.some(x=>x.hb&&cfOk(x,e)&&norm(x.en)===norm(f.en));
 function luFeatPool(c){const nl=c.level+1;const epic=edOf(c)!=='2014'&&nl===19;const okT=f=>f.t==='g'||f.t==='o'||f.t==='d'||(epic&&f.t==='e');
   const e=edOf(c);return FEATS.filter(f=>f.id!=='ability-score-improvement'&&okT(f)&&!nsHidden(f,e)).concat(S.cfeats.filter(f=>cfOk(f,e)&&(!f.hb||okT(f))));}
-function luFeatList(){const c=cur();const o=ui.ov;const q=norm(o.fq||'');
+function luFeatList(){const c=luC();const o=ui.ov;const q=norm(o.fq||'');
   const L=luFeatPool(c).filter(f=>!q||norm(f.n).includes(q)||norm(f.en||'').includes(q));
   const row=f=>{const dis=c.feats.includes(f.id)&&!/Répétable/.test(f.pr||'');return `<button class="spi" data-a="luFeat" data-id="${f.id}" ${dis?'disabled style="opacity:.45"':''}><b>${esc(f.n)}${f.en?`<em class="en">${esc(f.en)}</em>`:''}</b><span class="tg">${f.ns?'<span class="mk">Hors SRD</span>':''}${f.custom?`<span class="mk">${f.hb?esc(f.src):'Perso'}</span>`:''}${featAsi(f)?'<span class="mk">+1</span>':''}${dis?'<span class="mk f">Déjà pris</span>':''}</span><small>${FEATT[f.t]||'Don'}${f.pr?' · '+esc(f.pr):''}</small></button>`;};
   const grp=(t,a)=>a.length?`<div class="lvlh">${t}</div>${a.map(row).join('')}`:'';
   return (L.length?grp('SRD',L.filter(f=>!f.ns&&!f.custom))+grp('Hors SRD (texte sur AideDD)',L.filter(f=>f.ns))+grp('Mes dons et dons importés',L.filter(f=>f.custom)):'<p class="empty">Aucun don ne correspond.</p>')
     +`<button class="spi" data-a="luFeat" data-id="_other"><b>Nouveau don perso…</b><span class="tg"></span><small>Saisis toi-même le nom et le texte</small></button>`;}
-function luOpen(c,chainTo){ui.ov={type:'lvlup',fresh:1,hp:'avg',roll:0,man:'',sub:'',asi:'2',a2:null,a1:null,a1b:null,feat:'',featName:'',fa:null,err:'',ch:JSON.parse(JSON.stringify(c.ch||{})),sk:Object.assign({},c.skills),chainTo:chainTo||0,chainGot:(ui.ov&&ui.ov.chainGot)||[]};}
+function luOpen(c,chainTo){c=cv(c,mcOn(c)&&!chainTo?clsAt(c,c.level):c.cls);ui.ov={type:'lvlup',cls:c.cls,fresh:1,hp:'avg',roll:0,man:'',sub:'',asi:'2',a2:null,a1:null,a1b:null,feat:'',featName:'',fa:null,err:'',ch:JSON.parse(JSON.stringify(c.ch||{})),sk:Object.assign({},c.skills),chainTo:chainTo||0,chainGot:(ui.ov&&ui.ov.chainGot)||[]};}
 function luApply(){
-  const c=cur();const o=ui.ov;const nl=c.level+1;
+  const R=cur();const c=luC();const o=ui.ov;const nl=c.level+1;const tnl=R.level+1;const isNew=!mcList(R).includes(c.cls);
   if(asiLevels(c.cls).includes(nl)){
     if(o.asi==='2'&&!o.a2){o.err='Choisis la caractéristique à +2.';return false;}
     if(o.asi==='11'&&(!o.a1||!o.a1b||o.a1===o.a1b)){o.err='Choisis deux caractéristiques différentes à +1.';return false;}
@@ -2239,7 +2275,8 @@ function luApply(){
   if(o.hp==='roll'&&!o.roll){o.err='Lance le dé de vie, ou choisis la moyenne.';return false;}
   const old=c.hpMax;const avg=hpGainAvg(c);const con=mod(c.stats.CON);
   const gain=o.hp==='roll'?Math.max(1,o.roll+con):o.hp==='man'&&o.man!==''?Math.max(1,+o.man||1):avg;
-  c.hpLog=c.hpLog||{};c.hpLog[nl]=gain-avg;
+  if(isNew){R.mc=R.mc||[];R.mc.push(o.pend);}
+  R.hpLog=R.hpLog||{};R.hpLog[tnl]=gain-avg;
   const b0={st:Object.assign({},c.stats),sv:c.saves.slice(),ft:c.feats.slice(),sub:c.sub,ch:JSON.parse(JSON.stringify(c.ch||{})),sk:Object.assign({},c.skills),sp:c.spells.slice()};
   const got=[];
   if(o.sub&&!c.sub){c.sub=o.sub;got.push(SUBN[o.sub]);}
@@ -2250,22 +2287,23 @@ function luApply(){
     else{const f=getFeat(o.feat);c.feats.push(o.feat);got.push('don '+(f||{}).n);const fa=featAsi(f);if(fa&&o.fa){c.stats[o.fa]=Math.min(fa.max,c.stats[o.fa]+1);got.push(o.fa+' +1');if(f.svp&&!c.saves.includes(o.fa)){c.saves.push(o.fa);got.push('maîtrise sauvegarde '+o.fa);}}}
   }
   c.ch=o.ch;c.skills=o.sk;
-  const rec={l:nl,st:{},sv:c.saves.filter(k=>!b0.sv.includes(k)),ft:c.feats.slice(b0.ft.length),sub:!b0.sub&&c.sub?c.sub:'',ch0:b0.ch,sk:{},sk0:{},sp0:b0.sp};
+  const rec={l:tnl,cls:c.cls,st:{},sv:c.saves.filter(k=>!b0.sv.includes(k)),ft:c.feats.slice(b0.ft.length),sub:!b0.sub&&c.sub?c.sub:'',ch0:b0.ch,sk:{},sk0:{},sp0:b0.sp};
   STATS.forEach(k=>{const d=c.stats[k]-b0.st[k];if(d)rec.st[k]=d;});
   Object.keys(c.skills).forEach(k=>{if((c.skills[k]||0)!==(b0.sk[k]||0)){rec.sk[k]=c.skills[k];rec.sk0[k]=b0.sk[k]||0;}});
-  c.lvh=(c.lvh||[]).filter(x=>x.l<nl);c.lvh.push(rec);
-  c.level=nl;c.hpMax=hpMaxFor(c);c.hp=Math.max(0,Math.min(c.hpMax,c.hp+(c.hpMax-old)));
+  R.lvh=(R.lvh||[]).filter(x=>x.l<tnl);R.lvh.push(rec);
+  if(c.cls!==R.cls){R.lvc=R.lvc||{};R.lvc[tnl]=c.cls;}else if(R.lvc)delete R.lvc[tnl];
+  R.level=tnl;R.hpMax=hpMaxFor(R);R.hp=Math.max(0,Math.min(R.hpMax,R.hp+(R.hpMax-old)));
   const caster=!!(CAST_STAT[c.cls]||hbCastRec(c));
-  if(o.chainTo){const cg=o.chainGot.concat(got);save();if(nl<o.chainTo){ui.ov={chainGot:cg};luOpen(c,o.chainTo);window.scrollTo(0,0);showMsg(`Niveau ${nl} fait`,`Choix du niveau ${nl+1} sur ${o.chainTo}.`);return;}
+  if(o.chainTo){const cg=o.chainGot.concat(got);save();if(nl<o.chainTo){ui.ov={chainGot:cg};luOpen(R,o.chainTo);window.scrollTo(0,0);showMsg(`Niveau ${nl} fait`,`Choix du niveau ${nl+1} sur ${o.chainTo}.`);return;}
     ui.ov=null;showMsg(`${c.name} est prêt`,`Niveau ${nl} · PV max ${c.hpMax}${cg.length?' · '+cg.join(', '):''}.${caster?' Ajoute ses sorts depuis l’onglet Sorts.':''}`);return;}
   ui.ov=null;
-  showMsg(`Niveau ${nl} !`,`PV max ${old} → ${c.hpMax}${got.length?' · '+got.join(', '):''}.${caster?' Pense à ajouter tes nouveaux sorts depuis le grimoire.':''}`);
+  showMsg(isNew?`Multiclassage : ${CLASSES[c.cls].n}`:`Niveau ${tnl} !`,`PV max ${old} → ${c.hpMax}${got.length?' · '+got.join(', '):''}.${caster?' Pense à ajouter tes nouveaux sorts depuis le grimoire.':''}${isNew&&MC_PROF[c.cls]&&MC_PROF[c.cls]!=='aucune'?' Maîtrises gagnées à noter : '+MC_PROF[c.cls]+'.':''}`);
 }
 
 /* ---------- Redescendre de niveau ---------- */
 function lastRec(c){const h=c.lvh||[];const r=h[h.length-1];return r&&r.l===c.level?r:null;}
 function lvlDownPlan(c){
-  const r=lastRec(c);const nl=c.level-1;const T=Object.assign({},c,{level:nl});const P={r,nl,lines:[]};
+  const r=lastRec(c);const nl=c.level-1;const T=Object.assign({},c,{level:nl});const X=clsAt(c,c.level);const P={r,nl,lines:[],cls:X};const V=cv(c,X);if(mcOn(c))P.lines.push(`${CLASSES[X].n} ${V.level} → ${V.level-1}${V.level===1?' (classe retirée)':''}`);
   const hpNew=hpMaxFor(Object.assign({},T,{hpLog:Object.fromEntries(Object.entries(c.hpLog||{}).filter(([l])=>+l<=nl)),stats:r?Object.fromEntries(STATS.map(k=>[k,Math.max(1,c.stats[k]-(r.st[k]||0))])):c.stats,sub:r&&r.sub?'':c.sub}));
   P.hpNew=hpNew;P.lines.push(`PV max ${c.hpMax} → ${hpNew}`);
   if(r){
@@ -2274,7 +2312,7 @@ function lvlDownPlan(c){
     if(r.ft.length)P.lines.push('Don retiré : '+r.ft.map(id=>(getFeat(id)||{n:id}).n).join(', '));
     if(r.sub)P.lines.push('Sous-classe retirée : '+(SUBN[r.sub]||r.sub));
     const exU=Object.keys(r.sk).filter(k=>r.sk[k]===2&&c.skills[k]===2);if(exU.length)P.lines.push('Expertise retirée : '+exU.map(skillName).join(', '));
-    if(JSON.stringify(r.ch0)!==JSON.stringify(c.ch||{}))P.lines.push('Choix de classe remis comme avant le niveau '+c.level);
+    if(JSON.stringify(r.ch0)!==JSON.stringify(V.ch||{}))P.lines.push('Choix de classe remis comme avant le niveau '+c.level);
     P.sp=c.spells.filter(id=>!r.sp0.includes(id));
   }else{P.sp=[];}
   return P;
@@ -2282,7 +2320,7 @@ function lvlDownPlan(c){
 function lvlDownView(){
   const c=cur();const o=ui.ov;const P=lvlDownPlan(c);const cl=CLASSES[c.cls];
   const sp=P.sp.map(id=>getSpell(id)).filter(Boolean);
-  return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Redescendre de niveau ${edBadge(edOf(c))}</span><h1>${esc(c.name)}</h1><span class="sub">${cl.n} niveau ${c.level} → ${P.nl}</span></div><button class="btn sm" data-a="ovClose">Annuler</button></div>
+  return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Redescendre de niveau ${edBadge(edOf(c))}</span><h1>${esc(c.name)}</h1><span class="sub">${mcOn(c)?esc(clsLabel(c))+' → niveau '+P.nl:`${cl.n} niveau ${c.level} → ${P.nl}`}</span></div><button class="btn sm" data-a="ovClose">Annuler</button></div>
   <div class="stack">
   <section class="card"><h2>Ce qui sera annulé</h2>${P.lines.map(l=>`<p>• ${esc(l)}</p>`).join('')}
     ${P.r?'<p class="hint">Ces changements ont été enregistrés lors du passage au niveau '+c.level+'.</p>':'<p class="note">Ce niveau n’a pas été gagné avec « Monter au niveau » (ou avant cette mise à jour) : l’appli ne sait pas ce qui avait été ajouté. Seuls le niveau, les PV et les choix de classe en trop sont ajustés ; vérifie le reste à la main.</p>'}</section>
@@ -2290,23 +2328,23 @@ function lvlDownView(){
   <button class="btn danger big" data-a="ldApply">Redescendre au niveau ${P.nl}</button></div></div>`;
 }
 function lvlDownApply(){
-  const c=cur();const o=ui.ov;const P=lvlDownPlan(c);const r=P.r;const old=c.hpMax;
+  const c=cur();const o=ui.ov;const P=lvlDownPlan(c);const r=P.r;const old=c.hpMax;let V=cv(c,P.cls);
   if(r){
     STATS.forEach(k=>{if(r.st[k])c.stats[k]=Math.max(1,c.stats[k]-r.st[k]);});
     c.saves=c.saves.filter(k=>!r.sv.includes(k));
     r.ft.forEach(id=>{const i=c.feats.lastIndexOf(id);if(i>=0)c.feats.splice(i,1);});
-    if(r.sub&&c.sub===r.sub)c.sub='';
+    if(r.sub&&V.sub===r.sub)V.sub='';
     Object.entries(r.sk).forEach(([k,v])=>{if(c.skills[k]===v)c.skills[k]=r.sk0[k]||0;});
-    c.ch=JSON.parse(JSON.stringify(r.ch0));
+    V.ch=JSON.parse(JSON.stringify(r.ch0));
     const rm=P.sp.filter(id=>!o.keep.includes(id));c.spells=c.spells.filter(id=>!rm.includes(id));rm.forEach(id=>{delete c.prep[id];});
     c.lvh.pop();
   }
   if(c.hpLog)delete c.hpLog[c.level];
-  c.level=P.nl;
+  if(c.lvc)delete c.lvc[c.level];c.level=P.nl;const gone=mcOn(c)&&clvl(c,P.cls)<1;mcClean(c);V=gone?null:cv(c,P.cls);
   // choix de classe : retire ce qui n’existe plus ou dépasse le nombre permis
-  const D=choiceDefs(c);const keys=new Set(D.map(d=>d.k));
-  Object.keys(c.ch||{}).forEach(k=>{if(k==='exp')return;const d=D.find(x=>x.k===k);if(!keys.has(k))delete c.ch[k];else if(c.ch[k].length>d.n)c.ch[k]=c.ch[k].slice(0,d.n);});
-  if(c.sub&&c.level<subLevel(c)&&!r)c.sub='';
+  if(V){const D=choiceDefs(V);const keys=new Set(D.map(d=>d.k));const ch=V.ch||{};
+  Object.keys(ch).forEach(k=>{if(k==='exp')return;const d=D.find(x=>x.k===k);if(!keys.has(k))delete ch[k];else if(ch[k].length>d.n)ch[k]=ch[k].slice(0,d.n);});
+  if(V.sub&&V.level<subLevel(V)&&!r)V.sub='';}
   c.hpMax=hpMaxFor(c);c.hp=Math.max(0,Math.min(c.hpMax,c.hp-(old-c.hpMax)));
   ui.ov=null;showMsg(`Retour au niveau ${c.level}`,`PV max ${old} → ${c.hpMax}.`);
 }
@@ -2333,8 +2371,8 @@ function acCalc(c){
   const arm=eq.find(i=>(itemDef(i)||{}).cat==='armure');const sh=eq.find(i=>(itemDef(i)||{}).cat==='bouclier');
   const dex=mod(c.stats.DEX);let ac,parts=[];
   if(arm){const a=itemDef(arm).ar;const dx=a.dex?(a.max?Math.min(dex,a.max):dex):0;ac=a.b+dx+(arm.b||0);parts.push(`${itemName(arm)} ${a.b}`);if(a.dex)parts.push(`DEX ${fmt(dx)}`);if(arm.b)parts.push(`magie ${fmt(arm.b)}`);}
-  else if(c.cls==='barbare'){ac=10+dex+mod(c.stats.CON);parts.push('Défense sans armure 10',`DEX ${fmt(dex)}`,`CON ${fmt(mod(c.stats.CON))}`);}
-  else if(c.cls==='moine'&&!sh){ac=10+dex+mod(c.stats.SAG);parts.push('Défense sans armure 10',`DEX ${fmt(dex)}`,`SAG ${fmt(mod(c.stats.SAG))}`);}
+  else if(hasCls(c,'barbare')&&!(hasCls(c,'moine')&&!sh&&mod(c.stats.SAG)>mod(c.stats.CON))){ac=10+dex+mod(c.stats.CON);parts.push('Défense sans armure 10',`DEX ${fmt(dex)}`,`CON ${fmt(mod(c.stats.CON))}`);}
+  else if(hasCls(c,'moine')&&!sh){ac=10+dex+mod(c.stats.SAG);parts.push('Défense sans armure 10',`DEX ${fmt(dex)}`,`SAG ${fmt(mod(c.stats.SAG))}`);}
   else{ac=10+dex;parts.push('Sans armure 10',`DEX ${fmt(dex)}`);}
   const fx=mfx(c);
   if(!arm&&fx.base&&fx.base+dex>ac){ac=fx.base+dex;parts.length=0;parts.push(`${fx.bn} ${fx.base}`,`DEX ${fmt(dex)}`);}
@@ -2346,9 +2384,9 @@ function acCalc(c){
 const acOf=c=>c.acAuto?acCalc(c).ac:c.ac;
 function weaponProf(c,w){
   if(!w.mart)return true;
-  if(['barbare','guerrier','paladin','rodeur'].includes(c.cls)||(CLASSES[c.cls]||{}).mart)return true;
-  if(c.cls==='roublard')return w.p.includes('finesse')||w.p.includes('light');
-  if(c.cls==='moine')return !w.dist&&w.p.includes('light');
+  const K=mcList(c);if(K.some(x=>['barbare','guerrier','paladin','rodeur'].includes(x)||(CLASSES[x]||{}).mart))return true;
+  if(K.includes('roublard')&&(w.p.includes('finesse')||w.p.includes('light')))return true;
+  if(K.includes('moine')&&!w.dist&&w.p.includes('light'))return true;
   return false;
 }
 function weaponAttacks(c){
@@ -2622,13 +2660,14 @@ function toggleFeat(id){const c=cur();if(!c)return;const f=getFeat(id);const i=c
   if(S.tab==='codex'&&!ui.ov){const l=$('#cdxlist');if(l)l.innerHTML=cdxListHtml();}else render();
   showMsg(f.n,(i>=0?'Retiré de ':'Ajouté à ')+c.name+'.'+x);}
 function cfList(L){return L.map(f=>`<details class="cf"><summary><span>${esc(f.n)}</span><span class="lbl">${f.s?esc(SUBN[f.s])+' · ':''}niv. ${f.l}</span></summary><div class="desc">${txt(f.d)}</div></details>`).join('');}
-function classCard(c){
+function classCard(c){return mcOn(c)?mcList(c).map(x=>`<div data-mc="${x}" style="display:contents">${classCard1(cv(c,x))}</div>`).join(''):classCard1(c);}
+function classCard1(c){
   const cl=CLASSES[c.cls];if(!cl)return '';
   const L=CFEATS.filter(f=>f.c===c.cls&&f.l<=c.level&&(!f.s||f.s===c.sub)).sort((a,b)=>a.l-b.l||(a.s?1:0)-(b.s?1:0));
   const subs=SUBOF[c.cls]||[];
   const subL=subLevel(c);
   if(!CFEATS.length)return `<section class="card"><div class="between"><h2>Aptitudes de classe</h2><span class="lbl">${cl.n} niv. ${c.level}</span></div><p class="note">Aptitudes de classe 2014 (SRD 5.1) : traduction en cours. Note-les dans « Capacités et traits » en attendant.</p></section>`;
-  const sel=c.level>=subL?`<label class="fld" style="margin:6px 0 4px"><span>Sous-classe</span><select id="c-sub" data-f="sub"><option value="">Non choisie ou hors SRD</option>${subs.map(id=>`<option value="${id}" ${c.sub===id?'selected':''}>${esc(SUBN[id])}</option>`).join('')}</select></label>`:'';
+  const sel=c.level>=subL?`<label class="fld" style="margin:6px 0 4px"><span>Sous-classe</span><select ${c._mc?`data-mcsub="${c.cls}"`:'id="c-sub" data-f="sub"'}><option value="">Non choisie ou hors SRD</option>${subs.map(id=>`<option value="${id}" ${c.sub===id?'selected':''}>${esc(SUBN[id])}</option>`).join('')}</select></label>`:'';
   return `<section class="card"><div class="between"><h2>Aptitudes de classe</h2><span class="lbl">${cl.n} niv. ${c.level}</span></div>${sel}${L.length?cfList(L):'<p class="hint">Aucune aptitude.</p>'}
     <p class="hint">Aptitudes du SRD jusqu’à ton niveau. Touche un titre pour lire le texte complet.</p></section>`;
 }
@@ -2937,7 +2976,7 @@ const A={
   rollInit:()=>{const c=cur();cd20(c,initOf(c),`${c.name} · Initiative`);},
   tSave:d=>{const c=cur();c.saves=c.saves.includes(d.k)?c.saves.filter(k=>k!==d.k):[...c.saves,d.k];},
   tSkill:d=>{const c=cur();const n=((c.skills[d.k]||0)+1)%3;if(n)c.skills[d.k]=n;else delete c.skills[d.k];},
-  lvl:d=>{const c=cur();const nl=Math.max(1,Math.min(20,c.level+ +d.d));if(nl===c.level)return;const old=c.hpMax;c.level=nl;c.hpMax=hpMaxFor(c);c.hp=Math.max(0,Math.min(c.hpMax,c.hp+(c.hpMax-old)));},
+  lvl:d=>{const c=cur();const nl=Math.max(1,Math.min(20,c.level+ +d.d));if(nl===c.level)return;const old=c.hpMax;c.level=nl;mcClean(c);c.hpMax=hpMaxFor(c);c.hp=Math.max(0,Math.min(c.hpMax,c.hp+(c.hpMax-old)));},
   hpStep:d=>{const c=cur();c.hp=Math.max(0,Math.min(c.hpMax,c.hp+ +d.d));if(c.hp>0)c.death={s:0,f:0};},
   hpDmg:()=>{const c=cur();const n=amt();if(!n)return;let r=n;if(c.hpTemp){const t=Math.min(c.hpTemp,r);c.hpTemp-=t;r-=t;}c.hp=Math.max(0,c.hp-r);if(c.hp===0)showMsg(c.name,'Tombe à 0 PV. Pense aux jets contre la mort.');},
   hpHeal:()=>{const c=cur();const n=amt();if(!n)return;c.hp=Math.min(c.hpMax,c.hp+n);c.death={s:0,f:0};},
@@ -3087,9 +3126,9 @@ const A={
   saveItem:()=>{const c=cur();const d=ui.ov.draft;if(!d.n.trim()){showMsg('Nom manquant','Donne un nom à l’objet.');return false;}
     c.items.push({k:uid(),id:null,n:d.n.trim(),q:Math.max(1,Math.round(+d.q||1)),w:Math.max(0,+String(d.w).replace(',','.')||0),d:d.d.trim(),eq:0,b:0});ui.ov=null;showMsg(d.n.trim(),'Ajouté à l’inventaire.');},
   rest:()=>{const c=cur();c.hp=c.hpMax;c.hpTemp=0;c.death={s:0,f:0};c.slotsUsed={};showMsg('Repos long','PV au maximum, emplacements de sorts récupérés, PV temporaires et jets contre la mort remis à zéro.');},
-  shortRest:()=>{const c=cur();c.slotsUsed={};showMsg('Repos court','Emplacements de pacte récupérés.');},
-  slot:d=>{const c=cur();const l=+d.l;const lv=slotLevels(c).find(x=>x.l===l);if(!lv)return;const a=slotAvail(c,l,lv.max);const used=c.slotsUsed[l]||0;
-    c.slotsUsed[l]=+d.i<a?Math.min(lv.max,used+1):Math.max(0,used-1);},
+  shortRest:()=>{const c=cur();const sl=slotsOf(c);if(sl&&sl.pp)delete c.slotsUsed.p;else c.slotsUsed={};showMsg('Repos court','Emplacements de pacte récupérés.');},
+  slot:d=>{const c=cur();const k=d.k||d.l;const lv=slotLevels(c).find(x=>String(x.k)===String(k));if(!lv)return;const a=slotAvail(c,lv.k,lv.max);const used=c.slotsUsed[lv.k]||0;
+    c.slotsUsed[lv.k]=+d.i<a?Math.min(lv.max,used+1):Math.max(0,used-1);},
   prep:d=>{const c=cur();if(c.prep[d.id])delete c.prep[d.id];else c.prep[d.id]=1;},
   rollSpellAtk:()=>{const c=cur();const st=castStatOf(c);const r=cd20(c,prof(c.level)+(st?mod(c.stats[st]):0)+mfx(c).sa,`${c.name} · Attaque de sort`,'atk');if(r&&r.kind==='crit')ui.critNext=true;},
   goSpells:()=>{const c=cur();ui.spf=null;initSpf();if(c&&!CASTER_CLASSES.includes(c.cls))ui.spf.cls='';S.tab='spells';window.scrollTo(0,0);},
@@ -3101,9 +3140,9 @@ const A={
   spRi:()=>{ui.spf.ri=ui.spf.ri?0:1;},
   spMine:()=>{ui.spf.mine=ui.spf.mine?0:1;},
   rollTxt:d=>{const o=ui.ov;let n=d.n;if(!n&&o){if(o.type==='spell'){const sp=getSpell(o.id);n=sp&&sp.n;}else if(o.type==='mon')n=(getMon(o.id)||{}).n;else if(o.type==='mcat')n=(MI[o.id]||{}).n;else if(o.type==='feat')n=(getFeat(o.id)||{}).n;}rollFormula(d.f,`${n||'Jet'} · ${d.f}`);return false;},
-  cast:d=>{const c=cur();const sp=getSpell(d.id);const l=+d.l;const lv=slotLevels(c).find(x=>x.l===l);if(!c||!sp||!lv)return;
-    if(!slotAvail(c,l,lv.max)){showMsg('Plus d’emplacement',`Aucun emplacement de niveau ${l} disponible.`);return;}
-    c.slotsUsed[l]=(c.slotsUsed[l]||0)+1;const left=slotAvail(c,l,lv.max);const f=upcastDice(sp,l);
+  cast:d=>{const c=cur();const sp=getSpell(d.id);const l=+d.l;const lv=slotLevels(c).find(x=>String(x.k)===String(d.k||d.l));if(!c||!sp||!lv)return;
+    if(!slotAvail(c,lv.k,lv.max)){showMsg('Plus d’emplacement',`Aucun emplacement de niveau ${l} disponible.`);return;}
+    c.slotsUsed[lv.k]=(c.slotsUsed[lv.k]||0)+1;const left=slotAvail(c,lv.k,lv.max);const f=upcastDice(sp,l);
     if(f)rollFormula(f,`${sp.n} · niveau ${l} (${left} emplacement${left>1?'s':''} restant${left>1?'s':''})`);
     else showMsg(`${sp.n} lancé au niveau ${l}`,`Il reste ${left} emplacement${left>1?'s':''} de niveau ${l}.${sp.cc?' Pense à la concentration.':''}`);},
   newSpell:()=>{const f=ui.spf||{};ui.ov={type:'new',fresh:1,draft:{n:'',l:f.lvl===''||f.lvl==null?1:f.lvl,s:'Évocation',ct:'Action',r:'18 m',co:'VS',du:'Instantanée',m:'',cc:false,ri:false,c:f.cls||'',d:'',hl:''}};},
@@ -3164,7 +3203,7 @@ const A={
   wBuySuggest:()=>{const w=ui.wiz;const arr=[15,14,13,12,10,8];CLASSES[w.cls].prio.forEach((k,j)=>w.buy[k]=arr[j]);},
   lvlUp:()=>{const c=cur();if(!c||c.level>=20)return;luOpen(c);},
   luHp:d=>{ui.ov.hp=d.m;ui.ov.err='';},
-  luRoll:()=>{ui.ov.roll=rnd(CLASSES[cur().cls].hd);ui.ov.err='';},
+  luRoll:()=>{ui.ov.roll=rnd(CLASSES[luC().cls].hd);ui.ov.err='';},
   luAsi:d=>{ui.ov.asi=d.m;ui.ov.err='';},
   luPick:d=>{const o=ui.ov;o[d.t]=o[d.t]===d.k?null:d.k;o.err='';},
   luApply:()=>{luApply();},
@@ -3173,14 +3212,14 @@ const A={
   hbDo:()=>{hbDo();},
   hbAll:d=>{const o=ui.ov;const q=norm(o.q||'');o.L.forEach((x,i)=>{if(!q||norm(x.n+' '+x.src).includes(q))o.sel[i]=d.v==='1'&&!x.dup&&!x.miss;});if(d.v==='0')o.sel=o.sel.map(()=>false);},
   hbItemDel:d=>{if(ui.ov.hbDel!=='i:'+d.id){ui.ov.hbDel='i:'+d.id;return;}const H=S.hb;Object.keys(H.item||{}).forEach(k=>{if(H.item[k].src===d.id){delete H.item[k];unregCM(k);}});ui.ov.hbDel=null;hbApply();save();},
-  hbDel:d=>{const H=S.hb;H.race=H.race||{};H.bg=H.bg||{};if(H.bg[d.id]){if(S.chars.some(c=>c.bg===d.id)){showMsg('Historique utilisé','Un personnage utilise cet historique : change-le avant de le supprimer.');return false;}if(ui.ov.hbDel!==d.id){ui.ov.hbDel=d.id;return;}delete H.bg[d.id];ui.ov.hbDel=null;hbApply();return;}if(H.race[d.id]){if(S.chars.some(c=>c.species===d.id)){showMsg('Race utilisée','Un personnage utilise cette race : change-la avant de la supprimer.');return false;}if(ui.ov.hbDel!==d.id){ui.ov.hbDel=d.id;return;}delete H.race[d.id];ui.ov.hbDel=null;hbApply();return;}const isC=!!H.cls[d.id];if(isC&&S.chars.some(c=>c.cls===d.id)){showMsg('Classe utilisée','Un personnage utilise cette classe : supprime-le ou change sa classe avant.');return false;}
+  hbDel:d=>{const H=S.hb;H.race=H.race||{};H.bg=H.bg||{};if(H.bg[d.id]){if(S.chars.some(c=>c.bg===d.id)){showMsg('Historique utilisé','Un personnage utilise cet historique : change-le avant de le supprimer.');return false;}if(ui.ov.hbDel!==d.id){ui.ov.hbDel=d.id;return;}delete H.bg[d.id];ui.ov.hbDel=null;hbApply();return;}if(H.race[d.id]){if(S.chars.some(c=>c.species===d.id)){showMsg('Race utilisée','Un personnage utilise cette race : change-la avant de la supprimer.');return false;}if(ui.ov.hbDel!==d.id){ui.ov.hbDel=d.id;return;}delete H.race[d.id];ui.ov.hbDel=null;hbApply();return;}const isC=!!H.cls[d.id];if(isC&&S.chars.some(c=>mcList(c).includes(d.id))){showMsg('Classe utilisée','Un personnage utilise cette classe : supprime-le ou change sa classe avant.');return false;}
     if(ui.ov.hbDel!==d.id){ui.ov.hbDel=d.id;return;}if(isC){delete H.cls[d.id];delete CLASSES[d.id];delete CAST_STAT[d.id];Object.keys(H.sub).forEach(k=>{if(H.sub[k].cls===d.id)delete H.sub[k];});}else delete H.sub[d.id];ui.ov.hbDel=null;hbApply();},
   luFeat:d=>{const o=ui.ov;o.feat=d.id;o.fa=null;o.err='';if(!d.id)o.fq='';ui.ov.keepScroll=1;},
   lvlDown:()=>{const c=cur();if(!c||c.level<=1)return;ui.ov={type:'lvldown',fresh:1,keep:[]};},
   ldSp:d=>{const o=ui.ov;o.keep=o.keep.includes(d.id)?o.keep.filter(x=>x!==d.id):[...o.keep,d.id];},
   ldApply:()=>{lvlDownApply();},
-  luCh:d=>{const c=cur();const o=ui.ov;const T=o.sub&&!c.sub?Object.assign({},c,{sub:o.sub}):c;const def=choiceDefs(T,c.level+1).find(x=>x.k===d.k);if(def)chToggle(o.ch,o.sk,def,d.v);o.err='';},
-  cCh:d=>{const c=cur();c.ch=c.ch||{};const def=choiceDefs(c).find(x=>x.k===d.k);if(def)chToggle(c.ch,c.skills,def,d.v);},
+  luCh:d=>{const c=luC();const o=ui.ov;const T=o.sub&&!c.sub?Object.assign({},c,{sub:o.sub}):c;const def=choiceDefs(T,c.level+1).find(x=>x.k===d.k);if(def)chToggle(o.ch,o.sk,def,d.v);o.err='';},
+  cCh:(d,t)=>{const w=t&&t.closest&&t.closest('[data-mc]');const c=cv(cur(),w?w.dataset.mc:null);c.ch=c.ch||{};const def=choiceDefs(c).find(x=>x.k===d.k);if(def)chToggle(c.ch,c.skills,def,d.v);},
   wBm:d=>{ui.wiz.bm=d.m;ui.wiz.err='';},
   wRm:d=>{const w=ui.wiz;w.rm=d.m;w.err='';if(d.m==='free'){w.b2=w.b1=null;w.b111=[];w.bm='21';}},
   wPick:d=>{const w=ui.wiz;w[d.t]=d.k;if(d.t==='b2'&&w.b1===d.k)w.b1=null;w.err='';},
@@ -3245,6 +3284,8 @@ document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.cbi){const x=enc().list.find(y=>y.k===t.dataset.cbi);if(x){x.init=t.value===''?null:Math.round(+t.value);if(enc().round)cbSort();save();render();}return;}
   if(t.dataset.cbn&&ui.ov&&ui.ov.type==='cbPc'){ui.ov[t.dataset.cbn]=t.value;return;}
+  if(t.dataset.mcsub&&cur()){const v=cv(cur(),t.dataset.mcsub);v.sub=t.value;const R=cur();R.hpMax=hpMaxFor(R);R.hp=Math.min(R.hp,R.hpMax);save();render();return;}
+  if(t.dataset.lu==='cls'&&ui.ov&&ui.ov.type==='lvlup'){luSetCls(t.value);render();return;}
   if(t.dataset.lu&&ui.ov&&ui.ov.type==='lvlup'&&t.tagName==='SELECT'){ui.ov[t.dataset.lu]=t.value;if(t.dataset.lu==='feat')ui.ov.fa=null;ui.ov.err='';render();return;}
   if(t.id==='grp-file'&&t.files&&t.files.length){Promise.all([...t.files].map(f=>f.text())).then(txts=>{let n=0;const msgs=[];txts.forEach(x=>{const r=grpImport(x);n+=r[0];msgs.push(r[1]);});ui.gMsg=n?msgs.filter((m,i)=>m).join(' '):msgs[0];ui.gErr=!n;save();render();});return;}
   if(t.id==='io-file'&&t.files&&t.files.length>1){Promise.all([...t.files].map(f=>f.text())).then(txts=>{const all={};let bad=0;txts.forEach(x=>{let o;try{o=JSON.parse(x);}catch(e){bad++;return;}if(isSpSrc(o)){all._spsrc=Object.assign(all._spsrc||{},o);return;}['class','subclass','classFeature','subclassFeature','race','subrace','feat','background','monster','baseitem','item','itemProperty','spell'].forEach(k=>{if(Array.isArray(o[k]))all[k]=(all[k]||[]).concat(o[k]);});});const r=ioImport(all);if(ui.ov&&ui.ov.type==='io'){ui.ov.msg=r.msg||(bad?bad+' fichier(s) illisible(s).':'');ui.ov.err=r.err;}render();});return;}
