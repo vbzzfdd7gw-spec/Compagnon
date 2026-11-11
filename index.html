@@ -28,7 +28,7 @@
   color-scheme:dark;
 }
 html{background:var(--bg)}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:1rem;line-height:1.4;-webkit-tap-highlight-color:transparent}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 .wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:env(safe-area-inset-top,0px) calc(88px + env(safe-area-inset-bottom,0px))}
 h1,h2{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance}
@@ -509,6 +509,17 @@ body{background:var(--bg)}
 .sect{margin:26px 2px 10px;font-family:var(--f-body);font-size:.74rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
 .sect::after{content:"";flex:1;height:1px;background:var(--line)}
 .tiles{display:grid;gap:10px}
+.vh-b{display:flex;flex-direction:column;gap:6px;flex:none;align-items:stretch}
+.gsb{display:inline-flex;align-items:center;gap:6px;flex:none}.gsb svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+details.fold{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+details.fold>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;display:flex;justify-content:space-between;align-items:center;min-height:48px}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:'';width:9px;height:9px;border-right:2px solid var(--brass);border-bottom:2px solid var(--brass);transform:rotate(45deg);transition:transform .2s;margin-right:4px}
+details.fold[open]>summary::after{transform:rotate(-135deg)}
+details.fold>.stack{padding:0 10px 12px}
+.qrw{display:inline-block;background:#fff;padding:6px;border-radius:12px;line-height:0;margin:0 auto}.qr{display:block}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){details.fold>summary::after{transition:none}}
 .tile{position:relative;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;background:var(--panel2);border:1px solid #3a4066;border-left:4px solid var(--tc);border-radius:14px;padding:12px 12px 12px 12px;box-shadow:0 4px 14px #0005}
 .tile-i{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--tc) 18%,transparent);color:var(--tc)}
 .tile-i svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -1311,13 +1322,36 @@ function acctView(){const o=ui.ov;const u=FB.user;
    ${o.mode!=='new'?'<button class="btn" data-a="fbReset">Mot de passe oublié</button>':''}
    <p class="hint">Les données déjà présentes sur ce téléphone sont gardées : à la première connexion, elles sont envoyées sur ton compte (ou, si ton compte a déjà une sauvegarde plus récente, l’appli te demande laquelle garder).</p></div></div>`;}
 async function fbGo(){const o=ui.ov;const em=String(o.email||'').trim(),pw=String(o.pw||'');o.err='';o.msg='';o.busy=1;renderOv();
-  try{if(o.mode==='new')await FB.auth.createUserWithEmailAndPassword(em,pw);else await FB.auth.signInWithEmailAndPassword(em,pw);ui.ov=null;showMsg('Connecté',em+' · synchronisation en cours.');render();}
+  try{if(o.mode==='new')await FB.auth.createUserWithEmailAndPassword(em,pw);else await FB.auth.signInWithEmailAndPassword(em,pw);ui.ov=ui.joinCode&&!S.camp?{type:'camp',fresh:1,code:ui.joinCode}:null;if(!ui.ov)showMsg('Connecté',em+' · synchronisation en cours.');render();}
   catch(e){o.busy=0;o.err=FBERR[e&&e.code]||'Connexion impossible ('+(e&&e.code||'erreur')+').';renderOv();}}
 async function fbReset(){const o=ui.ov;const em=String(o.email||'').trim();if(!em){o.err='Indique ton adresse e-mail, puis touche de nouveau « Mot de passe oublié ».';renderOv();return;}
   try{await FB.auth.sendPasswordResetEmail(em);o.err='';o.msg='E-mail envoyé : suis le lien pour choisir un nouveau mot de passe (pense aux indésirables).';}catch(e){o.err=FBERR[e&&e.code]||'Envoi impossible.';}renderOv();}
 
 /* ---------- Campagnes ---------- */
 const CAMP_CH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+/* ---------- QR code (octets, correction L, versions 1 à 6) ---------- */
+function qrMatrix(text){const bytes=Array.from(unescape(encodeURIComponent(text))).map(c=>c.charCodeAt(0));
+  const V=[[19,7,1],[34,10,1],[55,15,1],[80,20,1],[108,26,1],[136,18,2]];let v=V.findIndex(x=>bytes.length+2<=x[0]);if(v<0)return null;const [nd,ne,nb]=V[v];v++;
+  const bits=[];const put=(val,n)=>{for(let i=n-1;i>=0;i--)bits.push(val>>i&1);};put(4,4);put(bytes.length,8);bytes.forEach(b=>put(b,8));put(0,Math.min(4,nd*8-bits.length));while(bits.length%8)bits.push(0);
+  const data=[];for(let i=0;i<bits.length;i+=8)data.push(parseInt(bits.slice(i,i+8).join(''),2));for(let p=0;data.length<nd;p^=1)data.push(p?17:236);
+  const EXP=[],LOG=[];for(let i=0,x=1;i<255;i++){EXP[i]=x;LOG[x]=i;x<<=1;if(x&256)x^=285;}const mul=(a,b)=>a&&b?EXP[(LOG[a]+LOG[b])%255]:0;
+  let gen=[1];for(let i=0;i<ne;i++){const g=gen.concat(0);for(let j=0;j<gen.length;j++)g[j+1]^=mul(gen[j],EXP[i]);gen=g;}
+  const blocks=[],bl=nd/nb;for(let b=0;b<nb;b++){const d=data.slice(b*bl,(b+1)*bl);const r=d.concat(Array(ne).fill(0));for(let i=0;i<d.length;i++){const f=r[i];if(f)for(let j=0;j<gen.length;j++)r[i+j]^=mul(gen[j],f);}blocks.push([d,r.slice(d.length)]);}
+  const cw=[];for(let i=0;i<bl;i++)blocks.forEach(b=>cw.push(b[0][i]));for(let i=0;i<ne;i++)blocks.forEach(b=>cw.push(b[1][i]));
+  const n=17+4*v;const M=Array.from({length:n},()=>Array(n).fill(0)),F=Array.from({length:n},()=>Array(n).fill(0));
+  const set=(r,c,x)=>{if(r>=0&&c>=0&&r<n&&c<n){M[r][c]=x?1:0;F[r][c]=1;}};
+  const finder=(r,c)=>{for(let i=-1;i<8;i++)for(let j=-1;j<8;j++){const a=Math.max(Math.abs(i-3),Math.abs(j-3));set(r+i,c+j,a!==2&&a<4);}};finder(0,0);finder(0,n-7);finder(n-7,0);
+  if(v>1){const p=n-7;for(let i=-2;i<3;i++)for(let j=-2;j<3;j++)set(p+i,p+j,Math.max(Math.abs(i),Math.abs(j))!==1);}
+  for(let i=8;i<n-8;i++){set(6,i,i%2===0);set(i,6,i%2===0);}
+  let f=1<<3;let rem=f;for(let i=0;i<10;i++)rem=rem<<1^((rem>>9)*0x537);f=(f<<10|rem)^0x5412;const fb=i=>f>>i&1;
+  for(let i=0;i<6;i++)set(i,8,fb(i));set(7,8,fb(6));set(8,8,fb(7));set(8,7,fb(8));for(let i=9;i<15;i++)set(8,14-i,fb(i));
+  for(let i=0;i<8;i++)set(8,n-1-i,fb(i));for(let i=8;i<15;i++)set(n-15+i,8,fb(i));set(n-8,8,1);
+  let k=0;const tot=cw.length*8;for(let right=n-1;right>=1;right-=2){if(right===6)right=5;for(let vert=0;vert<n;vert++)for(let j=0;j<2;j++){const c=right-j;const up=((right+1)&2)===0;const r=up?n-1-vert:vert;
+    if(F[r][c])continue;const bit=k<tot?cw[k>>3]>>(7-(k&7))&1:0;k++;M[r][c]=bit^((r+c)%2===0?1:0);}}
+  return M;}
+function qrSvg(text,px){const M=qrMatrix(text);if(!M)return '';const n=M.length;let d='';M.forEach((row,r)=>row.forEach((x,c)=>{if(x)d+=`M${c+4} ${r+4}h1v1h-1z`;}));
+  return `<svg class="qr" viewBox="0 0 ${n+8} ${n+8}" width="${px||200}" height="${px||200}" role="img" aria-label="QR code d’invitation"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;}
+const campUrl=()=>location.origin+location.pathname+'#join='+S.camp.id;
 const campCode=()=>Array.from({length:6},()=>CAMP_CH[Math.floor(Math.random()*CAMP_CH.length)]).join('');
 const isGmCamp=()=>S.camp&&FB.user&&S.camp.gm===FB.user.uid;
 function campShareIds(){return S.campShare||S.chars.filter(c=>!c.example).map(c=>c.id);}
@@ -1349,27 +1383,40 @@ async function campPullContent(force){if(!S.camp||!FB.db)return 0;const col=FB.d
 function campView(){const o=ui.ov;const c=S.camp;
   if(!FB.user)return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Campagne</span><h1>Connexion requise</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack"><p class="hint">Connecte-toi d’abord à ton compte pour créer ou rejoindre une campagne.</p><button class="btn primary big" data-a="fbAcct">Se connecter</button></div></div>`;
   if(!c)return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Campagne</span><h1>Jouer ensemble</h1><span class="sub">Fiches partagées en direct avec le MJ</span></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">
-   <section class="card"><h2>Rejoindre une campagne</h2><p class="hint" style="margin:0">Entre le code donné par ton MJ.</p><input data-cp="code" value="${esc(o.code||'')}" placeholder="ABC123" autocapitalize="characters" style="text-transform:uppercase;font-size:1.3rem;letter-spacing:.2em;text-align:center"><button class="btn primary" data-a="campJoin">Rejoindre</button></section>
+   <section class="card"><h2>Rejoindre une campagne</h2><p class="hint" style="margin:0">Entre le code donné par ton MJ.</p><input data-cp="code" value="${esc(o.code||(o.code=ui.joinCode||''))}" placeholder="ABC123" autocapitalize="characters" style="text-transform:uppercase;font-size:1.3rem;letter-spacing:.2em;text-align:center"><button class="btn primary" data-a="campJoin">Rejoindre</button></section>
    <section class="card"><h2>Créer une campagne (MJ)</h2><input data-cp="name" value="${esc(o.name||'')}" placeholder="Nom : Drakkenheim, Curse of Strahd…"><button class="btn" data-a="campNew">Créer et obtenir un code</button></section>
    ${o.err?`<p class="err">${esc(o.err)}</p>`:''}</div></div>`;
   const gm=isGmCamp();const mem=(ui.campMembers||[]).filter(m=>m.uid!==FB.user.uid);
   return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Campagne · ${gm?'tu es le MJ':'joueur'}</span><h1>${esc(c.name||'Campagne')}</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">
-   <section class="card" style="text-align:center"><span class="lbl">Code de la campagne</span><b style="font-size:2rem;letter-spacing:.25em;font-family:var(--f-mono)">${esc(c.id)}</b>${gm?'<p class="hint" style="margin:0">Donne ce code à tes joueurs : dans l’appli, « Campagne » → Rejoindre.</p>':''}</section>
+   <section class="card" style="text-align:center"><span class="lbl">Code de la campagne</span><b style="font-size:2rem;letter-spacing:.25em;font-family:var(--f-mono)">${esc(c.id)}</b>${gm?'<p class="hint" style="margin:0">Donne ce code à tes joueurs, ou fais-leur scanner le QR code ci-dessous.</p>':''}</section>
+   <section class="card" style="text-align:center"><h2>Inviter</h2><div class="qrw">${qrSvg(campUrl(),190)}</div><p class="hint" style="margin:0">Scanné avec l’appareil photo, il ouvre l’application avec le code déjà rempli.</p><button class="btn" data-a="campLink">Envoyer le lien d’invitation</button></section>
    ${gm?`<section class="card"><h2>Joueurs connectés</h2>${mem.length?mem.map(m=>`<div class="between"><span>${esc(m.name||'Joueur')}</span><small class="hint">${m.at?hm(m.at):''}</small></div>`).join(''):'<p class="hint" style="margin:0">Personne pour l’instant.</p>'}<p class="hint" style="margin:0">Leurs fiches arrivent en direct dans Combat → Groupe (mode MJ).</p></section>
     <section class="card"><h2>Partager mon contenu</h2><p class="hint" style="margin:0">Envoie à tes joueurs tes imports 5etools (classes, sous-classes, races, dons, historiques, objets, sorts) et tes sorts, objets et dons perso. Tes monstres et tes rencontres restent privés.</p><button class="btn primary" data-a="campShare" ${o.busy?'disabled':''}>${o.busy?'Envoi…':'Partager avec la table'}</button>${c.shared?`<p class="hint" style="margin:0">Dernier partage : ${hm(c.shared)}</p>`:''}</section>`
    :`<section class="card"><h2>Mes fiches partagées avec le MJ</h2>${S.chars.map(ch=>{const on=campShareIds().includes(ch.id);return `<div class="between" style="align-items:center"><span>${esc(ch.name)}${ch.example?' <span class="tag">exemple</span>':''}</span><button class="pk ${on?'on':''}" data-a="campShareT" data-id="${ch.id}">${on?'✓ Partagée':'Partager'}</button></div>`;}).join('')}<p class="hint" style="margin:0">Le MJ voit ces fiches en direct (PV, CA, sauvegardes…). Il ne peut pas les modifier.</p></section>
     <section class="card"><h2>Contenu du MJ</h2><p class="hint" style="margin:0">Les classes, races, dons, objets et sorts partagés par ton MJ arrivent automatiquement à l’ouverture de l’appli.</p><button class="btn" data-a="campPull">Vérifier maintenant</button></section>`}
    ${o.err?`<p class="err">${esc(o.err)}</p>`:''}
    <button class="btn danger" data-a="campLeave">${o.leave?'Confirmer':'Quitter la campagne'}</button></div></div>`;}
-const TICO={"cloud": "<path d=\"M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.5 4.3 4.3 0 0 0 7 18z\"/>", "file": "<path d=\"M6 3h9l4 4v14H6z\"/><path d=\"M12 10v7M9 14l3 3 3-3\"/>", "users": "<circle cx=\"9\" cy=\"8\" r=\"3.2\"/><path d=\"M3.5 19c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2\"/><circle cx=\"17\" cy=\"9\" r=\"2.4\"/><path d=\"M15.6 13.9c2.4.2 4 1.8 4.6 4.6\"/>", "crown": "<path d=\"M4 18h16M5 18l-1-10 5 4 3-6 3 6 5-4-1 10\"/>", "book": "<path d=\"M4 5c3-1.5 6-1.5 8 .5 2-2 5-2 8-.5v14c-3-1.5-6-1.5-8 .5-2-2-5-2-8-.5z\"/><path d=\"M12 5.5v14\"/>"};
+const TICO={"text": "<path d=\"M4 19l5-14 5 14M6 14h6\"/><path d=\"M15 19l2.5-7 2.5 7M16 17h3\"/>", "search": "<circle cx=\"11\" cy=\"11\" r=\"6\"/><path d=\"M20 20l-4.5-4.5\"/>", "cloud": "<path d=\"M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.5 4.3 4.3 0 0 0 7 18z\"/>", "file": "<path d=\"M6 3h9l4 4v14H6z\"/><path d=\"M12 10v7M9 14l3 3 3-3\"/>", "users": "<circle cx=\"9\" cy=\"8\" r=\"3.2\"/><path d=\"M3.5 19c.6-3.4 2.8-5.2 5.5-5.2s4.9 1.8 5.5 5.2\"/><circle cx=\"17\" cy=\"9\" r=\"2.4\"/><path d=\"M15.6 13.9c2.4.2 4 1.8 4.6 4.6\"/>", "crown": "<path d=\"M4 18h16M5 18l-1-10 5 4 3-6 3 6 5-4-1 10\"/>", "book": "<path d=\"M4 5c3-1.5 6-1.5 8 .5 2-2 5-2 8-.5v14c-3-1.5-6-1.5-8 .5-2-2-5-2-8-.5z\"/><path d=\"M12 5.5v14\"/>"};
 function tile(ic,col,title,sub,btn,extra){return `<div class="tile" style="--tc:${col}"><span class="tile-i"><svg viewBox="0 0 24 24" aria-hidden="true">${TICO[ic]}</svg></span><span class="tile-t"><b>${title}</b><small>${sub}</small></span>${btn}${extra?`<div class="tile-x">${extra}</div>`:''}</div>`;}
 const secT=t=>`<h3 class="sect">${t}</h3>`;
 function syncCard(){if(!FB.on)return tile('cloud','#bb9bff','Sauvegarde en ligne',inClaude()?'Sur ton compte Claude, à chaque modification.':'Indisponible ici : pense au fichier.','',cloudLine());const u=FB.user;
   return tile('cloud','#bb9bff',u?'Compte':'Sauvegarde en ligne',u?esc(u.email):'Crée un compte pour sauvegarder tes fiches.',`<button class="btn sm ${u?'':'primary'}" data-a="fbAcct">${u?'Gérer':'Se connecter'}</button>`,u?cloudLine():'');}
 function campTile(){if(!FB.on)return '';return tile('users','#e9c46a','Campagne',S.camp?esc(S.camp.name||'')+' · code '+esc(S.camp.id)+(isGmCamp()?' · MJ':''):'Rejoins celle de ton MJ ou crée la tienne.',`<button class="btn sm" data-a="campOpen">${S.camp?'Ouvrir':'Rejoindre'}</button>`);}
-function syncCardOld(){const u=FB.user;
-  return `<section class="card" style="margin-top:14px"><div class="between" style="align-items:center"><span><b>${u?'Compte':'Sauvegarde en ligne'}</b><br><small class="hint">${u?esc(u.email):'Crée un compte pour sauvegarder tes fiches et jouer en campagne.'}</small></span><button class="btn sm ${u?'':'primary'}" data-a="fbAcct" style="flex:none">${u?'Gérer':'Se connecter'}</button></div>${u?cloudLine():''}
-   <div class="between" style="align-items:center;border-top:1px solid var(--line);padding-top:10px"><span><b>Campagne</b><br><small class="hint">${S.camp?esc(S.camp.name||'')+' · code '+esc(S.camp.id)+(isGmCamp()?' · MJ':''):'Aucune : rejoins celle de ton MJ ou crée la tienne.'}</small></span><button class="btn sm" data-a="campOpen" style="flex:none">${S.camp?'Ouvrir':'Rejoindre'}</button></div></section>`;}
+/* ---------- Recherche globale ---------- */
+function gsListHtml(){const q=norm((ui.ov&&ui.ov.q)||'');if(q.length<2)return '<p class="empty">Tape au moins 2 lettres : sort, objet, créature, don, état ou personnage. Les noms anglais marchent aussi.</p>';
+  const hit=o=>norm(o.n).includes(q)||norm(o.en||'').includes(q);const rank=(a,b)=>(norm(b.n).startsWith(q)-norm(a.n).startsWith(q))||a.n.localeCompare(b.n,'fr');
+  const row=(t,id,n,en,sub)=>`<button class="spi" data-a="gsGo" data-t="${t}" data-id="${esc(id)}"><b>${esc(n)}${en?`<em class="en">${esc(en)}</em>`:''}</b><small>${sub}</small></button>`;
+  const grp=(title,L,f)=>{if(!L.length)return '';L.sort(rank);const more=L.length-10;return `<div class="lvlh">${title} · ${L.length}</div>`+L.slice(0,10).map(f).join('')+(more>0?`<p class="hint" style="margin:2px 4px 8px">… et ${more} de plus : précise ta recherche.</p>`:'');};
+  const hbV=S.custom.filter(sp=>!hbHidden(sp,ED.e));
+  const h=grp('Personnages',S.chars.filter(c=>norm(c.name).includes(q)).map(c=>({n:c.name,c})),x=>row('char',x.c.id,x.c.name,'',`${esc(speciesName(x.c))} · ${CLASSES[x.c.cls].n} niv. ${x.c.level}`))
+   +grp('Sorts',SPELLS.concat(hbV).filter(hit),sp=>row('spell',sp.id,sp.n,sp.en,`${lvlLabel(sp.l)} · ${esc(sp.s||'')}`))
+   +grp('Objets',ITEMS.filter(hit).map(i=>({n:i.n,en:i.en,id:i.id,t:'cat',sub:esc(itemMeta({id:i.id,q:1}))})).concat(MLIST.filter(hit).map(m=>({n:m.n,en:m.en,id:m.id,t:'mcat',sub:'Objet magique · '+esc(MCATN[m.c]||'')}))),x=>row(x.t,x.id,x.n,x.en,x.sub))
+   +grp('Créatures',MONSTERS.concat(S.cmon||[]).filter(hit),m=>row('mon',m.id,m.n,m.en,`FP ${m.cr} · ${esc(m.ty)}`))
+   +grp('Dons',FEATS.filter(f=>!f.ns&&!nsHidden(f,ED.e)).concat(S.cfeats.filter(f=>cfOk(f,ED.e))).filter(hit),f=>row('feat',f.id,f.n,f.en,FEATT[f.t]||'Don'))
+   +grp('États',CONDS.filter(hit),k=>row('cond',k.id,k.n,k.en,'État'));
+  return h||'<p class="empty">Rien ne correspond.</p>';}
+function searchView(){return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Règles ${ED.e}</span><h1>Rechercher</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div>
+  <input id="gsq" type="search" value="${esc(ui.ov.q||'')}" placeholder="Boule de feu, fireball, gobelin…" autocomplete="off" autocapitalize="off" aria-label="Rechercher partout"><div class="splist" id="gslist" style="margin-top:10px">${gsListHtml()}</div></div>`;}
 
 function subLine(c,small){const n=c.sub&&SUBN[c.sub];const lv=subLevel(c);if(!n&&c.level<lv)return '';
   return `<span class="subcl ${small?'sm':''} ${n?'':'todo'}">${n?esc(n):'Sous-classe à choisir'}</span>`;}
@@ -1379,7 +1426,7 @@ function listView(){
     <span class="pc-sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${edOf(c)==='2014'?' · '+edBadge('2014'):''}</span>${subLine(c,1)}
     <span class="pc-stats"><span>PV <b>${c.hp}/${c.hpMax}</b></span><span>CA <b>${acOf(c)}</b></span><span>Maîtrise <b>${fmt(prof(c.level))}</b></span></span></button>
     <button class="pc-del ${pd?'confirm':''}" data-a="del" data-id="${c.id}">${pd?'Confirmer':'Supprimer'}</button></article>`;}).join('');useEd(ed0);
-  return `<header class="vh"><div class="vh-row"><div><span class="lbl">Tasha’s Friends</span><h1>Personnages</h1></div></div></header>
+  return `<header class="vh"><div class="vh-row"><div><span class="lbl">Tasha’s Friends</span><h1>Personnages</h1></div><button class="btn sm gsb" data-a="gsOpen" aria-label="Rechercher partout"><svg viewBox="0 0 24 24" aria-hidden="true">${TICO.search}</svg>Rechercher</button></div></header>
   ${cloudConflictCard()}${fileReminder()}
   <button class="btn primary big" data-a="newChar">Créer un personnage</button>
   <div class="pcs">${cards||'<p class="empty">Aucun personnage pour l’instant. Crée le premier avec le bouton ci-dessus.</p>'}</div>
@@ -1388,7 +1435,7 @@ function listView(){
   ${secT('Jouer ensemble')}
   <div class="tiles">${campTile()}${tile('crown','#f08a6b','Mode MJ','Onglet Combat : initiative, PV des monstres, états…',`<button class="btn sm ${S.mj?'primary':''}" data-a="mjToggle">${S.mj?'Activé':'Activer'}</button>`)}</div>
   ${secT('Options')}
-  <div class="tiles">${tile('book','#a7a3cb','Animation du livre','Le grimoire qui s’ouvre au lancement.',`<button class="btn sm" data-a="spToggle">${lsGet('ct-nosplash')==='1'?'Réactiver':'Désactiver'}</button>`)}</div>`;
+  <div class="tiles">${tile('book','#a7a3cb','Animation du livre','Le grimoire qui s’ouvre au lancement.',`<button class="btn sm" data-a="splashT">${lsGet('ct-nosplash')==='1'?'Réactiver':'Désactiver'}</button>`)}${tile('text','#8fb8ff','Taille du texte','Pour lire plus confortablement à la table.','',`<div class="seg">${[[1,'Normale'],[1.12,'Grande'],[1.25,'Très grande']].map(x=>`<button class="${(S.fs||1)===x[0]?'on':''}" data-a="fsSet" data-v="${x[0]}">${x[1]}</button>`).join('')}</div>`)}</div>`;
 }
 
 function sheetView(){
@@ -1405,9 +1452,36 @@ function sheetView(){
   const atks=watks+c.attacks.map(a=>`<div class="atk ${e?'e':''}"><div class="atk-name">${esc(a.name)}<small>${fmt(a.hit)} · ${esc(a.dmg)}</small></div><button class="btn sm" data-a="rollAtk" data-id="${a.id}">Toucher</button><button class="btn sm" data-a="rollDmg" data-id="${a.id}">Dégâts</button>${e?`<button class="x" data-a="delAtk" data-id="${a.id}" aria-label="Retirer ${esc(a.name)}">×</button>`:''}</div>`).join('');
   const dots=(t,n,cls)=>[0,1,2].map(i=>`<button class="dot ${i<n?'on '+cls:''}" data-a="ds" data-t="${t}" data-i="${i}" aria-label="${t==='s'?'Réussite':'Échec'} ${i+1}"></button>`).join('');
 
+  const hpCard=`<section class="card"><div class="hp-top"><div><span class="lbl">Points de vie</span>
+    ${e?`<div class="hp-num"><b>${c.hp}</b><span>/ <input type="number" inputmode="numeric" id="c-hpmax" data-f="hpMax" value="${c.hpMax}" aria-label="PV max"></span></div>`:''}</div>
+    ${c.hpTemp?`<span class="temp">+${c.hpTemp} PV temp.</span>`:''}</div>
+    <div class="bar ${e?'':'big'}"><i style="width:${pct}%;background:${barCol}"></i>${e?'':`<span class="bar-t"><b>${c.hp}</b><small> / ${c.hpMax}</small></span>`}</div>
+    <div class="hp-ctrl"><button class="sq" data-a="hpStep" data-d="-1" aria-label="Retirer 1 PV">−</button><input id="hpAmt" type="number" inputmode="numeric" min="0" placeholder="Montant" aria-label="Montant"><button class="sq" data-a="hpStep" data-d="1" aria-label="Ajouter 1 PV">+</button></div>
+    <div class="row3"><button class="btn danger" data-a="hpDmg">Dégâts</button><button class="btn good" data-a="hpHeal">Soins</button><button class="btn" data-a="hpTemp">PV temp.</button></div>
+    <button class="btn sm" data-a="rest">Repos long</button></section>`;
+  const vitals=`<div class="vitals">
+    <div class="vit"><span class="lbl">CA${c.acAuto?' auto':''}</span>${e?`<input type="number" inputmode="numeric" id="c-ac" data-f="ac" value="${acOf(c)}">`:`<b>${acOf(c)}</b>`}</div>
+    <button class="vit" data-a="rollInit"><span class="lbl">Initiative</span><b>${fmt(initOf(c))}</b></button>
+    <div class="vit"><span class="lbl">Vitesse</span>${e?`<input type="number" step="1.5" id="c-speed" data-f="speed" value="${c.speed}">`:`<b>${String(exhSpeed(c)).replace('.',',')}</b><span class="lbl">mètres${c.exh?' (épuisé)':''}</span>`}</div>
+    <div class="vit"><span class="lbl">Maîtrise</span><b>${fmt(pb)}</b></div>
+  </div>`;
+  const atkCard=`<section class="card"><h2>Attaques</h2>${atks||'<p class="hint">Aucune attaque. Équipe une arme dans l’inventaire ou ajoute une attaque à la main.</p>'}
+    <p class="hint">Les armes équipées apparaissent ici automatiquement. Après un 20 naturel au toucher, le bouton Dégâts double les dés.</p>
+    <details class="add"><summary>+ Ajouter une attaque</summary><div class="add-f"><input id="aN" placeholder="Nom (ex. Épée longue)"><input id="aD" placeholder="Dégâts (ex. 1d8+3)" autocapitalize="off"><input id="aH" type="number" placeholder="Toucher" aria-label="Bonus au toucher"><button class="btn" data-a="addAtk">Ajouter l’attaque</button></div></details></section>`;
+  const deathCard=`<section class="card"><div class="between"><h2>Jets contre la mort</h2><button class="btn sm" data-a="rollDeath">Lancer</button></div>
+    <div class="ds"><span>Réussites</span><div class="dots">${dots('s',c.death.s,'g')}</div><span>Échecs</span><div class="dots">${dots('f',c.death.f,'b')}</div></div></section>`;
+  const pbtn=`<button class="btn sm ${S.play&&!e?'primary':''}" data-a="playT" aria-pressed="${S.play&&!e?'true':'false'}">Mode jeu</button>`;
+  if(S.play&&!e){const fold=(id,t,h)=>h.trim()?`<details class="fold" data-fold="${id}" ${ui.fold&&ui.fold[id]?'open':''}><summary>${t}</summary><div class="stack">${h}</div></details>`:'';
+    return `<header class="vh"><div class="vh-row"><div><h1>${esc(c.name)}</h1><span class="sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}</span>${subLine(c)}</div><div class="vh-b">${pbtn}</div></div>${modeSeg()}</header>
+  <div class="stack">${hpCard}${vitals}<div class="stats">${statCards}</div>${c.hp<=0?deathCard:''}${condCard(c)}${atkCard}${spellCard(c)}
+  ${fold('sv','Sauvegardes et compétences',`<div class="cols"><section class="card"><h2>Jets de sauvegarde</h2><div class="list">${saves}</div></section><section class="card"><div class="between"><h2>Compétences</h2><span class="lbl">Perception passive ${10+perc}</span></div><div class="list">${skills}</div></section></div>`)}
+  ${fold('ft','Aptitudes, traits et dons',raceCard(c)+featCard(c)+classCard(c)+choicesCard(c))}
+  ${fold('inv','Inventaire',invCard(c))}
+  ${fold('dm',c.hp>0?'Jets contre la mort':'',c.hp>0?deathCard:'')}
+  <p class="hint">Mode jeu : l’essentiel pour la partie. Le reste est replié ; touche « Mode jeu » pour retrouver la fiche complète.</p></div>`;}
   return `<header class="vh"><div class="vh-row"><div>${e?`<input id="c-name" data-f="name" value="${esc(c.name)}" aria-label="Nom du personnage">`:`<h1>${esc(c.name)}</h1>`}
     <span class="sub">${esc(speciesName(c))} · ${cl.n} niv. ${c.level}${bg?' · '+bg.n.replace(' (homebrew)',''):''} ${edBadge(edOf(c))}</span>${subLine(c)}${!e&&c.level<20?`<button class="lvb" data-a="lvlUp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>Monter au niveau ${c.level+1}</button>`:''}${!e&&c.level>1?`<button class="lvb dn" data-a="lvlDown" aria-label="Redescendre au niveau ${c.level-1}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5L12 19l6.5-6.5"/></svg>${c.level<20?'':'Redescendre au niveau '+(c.level-1)}</button>`:''}</div>
-    <button class="btn sm ${e?'primary':''}" data-a="edit">${e?'Terminer':'Modifier'}</button></div>${modeSeg()}</header>
+    <div class="vh-b"><button class="btn sm ${e?'primary':''}" data-a="edit">${e?'Terminer':'Modifier'}</button>${e?'':pbtn}</div></div>${modeSeg()}</header>
   <div class="stack">
   ${e?`<section class="card editbox"><h2>Modification</h2>
     <div class="between"><span>Règles du personnage</span><div class="seg" style="min-width:170px">${['2014','2024'].map(x=>`<button class="${edOf(c)===x?'on':''}" data-a="chEd" data-e="${x}">${x}</button>`).join('')}</div></div>
@@ -1417,20 +1491,9 @@ function sheetView(){
     <div class="between"><span>CA calculée avec l'équipement</span><button class="btn sm ${c.acAuto?'primary':''}" data-a="acAuto">${c.acAuto?'Oui':'Non'}</button></div>
     <p class="hint">${c.acAuto?esc(acCalc(c).txt):'La CA saisie à la main est utilisée. Elle repasse en automatique avec ce bouton.'}</p>
     <label class="fld"><span>Caractéristique d'incantation</span><select id="c-cast" data-f="castStat"><option value="">${CAST_STAT[c.cls]?'Celle de la classe ('+CAST_STAT[c.cls]+')':'Aucune'}</option>${STATS.map(k=>`<option value="${k}" ${c.castStat===k?'selected':''}>${STAT_NAMES[k]}</option>`).join('')}</select></label></section>`:''}
-  <section class="card"><div class="hp-top"><div><span class="lbl">Points de vie</span>
-    ${e?`<div class="hp-num"><b>${c.hp}</b><span>/ <input type="number" inputmode="numeric" id="c-hpmax" data-f="hpMax" value="${c.hpMax}" aria-label="PV max"></span></div>`:''}</div>
-    ${c.hpTemp?`<span class="temp">+${c.hpTemp} PV temp.</span>`:''}</div>
-    <div class="bar ${e?'':'big'}"><i style="width:${pct}%;background:${barCol}"></i>${e?'':`<span class="bar-t"><b>${c.hp}</b><small> / ${c.hpMax}</small></span>`}</div>
-    <div class="hp-ctrl"><button class="sq" data-a="hpStep" data-d="-1" aria-label="Retirer 1 PV">−</button><input id="hpAmt" type="number" inputmode="numeric" min="0" placeholder="Montant" aria-label="Montant"><button class="sq" data-a="hpStep" data-d="1" aria-label="Ajouter 1 PV">+</button></div>
-    <div class="row3"><button class="btn danger" data-a="hpDmg">Dégâts</button><button class="btn good" data-a="hpHeal">Soins</button><button class="btn" data-a="hpTemp">PV temp.</button></div>
-    <button class="btn sm" data-a="rest">Repos long</button></section>
+  ${hpCard}
 
-  <div class="vitals">
-    <div class="vit"><span class="lbl">CA${c.acAuto?' auto':''}</span>${e?`<input type="number" inputmode="numeric" id="c-ac" data-f="ac" value="${acOf(c)}">`:`<b>${acOf(c)}</b>`}</div>
-    <button class="vit" data-a="rollInit"><span class="lbl">Initiative</span><b>${fmt(initOf(c))}</b></button>
-    <div class="vit"><span class="lbl">Vitesse</span>${e?`<input type="number" step="1.5" id="c-speed" data-f="speed" value="${c.speed}">`:`<b>${String(exhSpeed(c)).replace('.',',')}</b><span class="lbl">mètres${c.exh?' (épuisé)':''}</span>`}</div>
-    <div class="vit"><span class="lbl">Maîtrise</span><b>${fmt(pb)}</b></div>
-  </div>
+  ${vitals}
 
   <div class="stats">${statCards}</div>
   ${e?'':'<p class="hint">Touche une caractéristique, une sauvegarde ou une compétence pour lancer le d20. Le mode Avantage ou Désavantage revient à Normal après chaque jet.</p>'}
@@ -1440,12 +1503,9 @@ function sheetView(){
     <section class="card"><div class="between"><h2>Compétences</h2><span class="lbl">Perception passive ${10+perc}</span></div><div class="list">${skills}</div></section>
   </div>
 
-  <section class="card"><h2>Attaques</h2>${atks||'<p class="hint">Aucune attaque. Équipe une arme dans l’inventaire ou ajoute une attaque à la main.</p>'}
-    <p class="hint">Les armes équipées apparaissent ici automatiquement. Après un 20 naturel au toucher, le bouton Dégâts double les dés.</p>
-    <details class="add"><summary>+ Ajouter une attaque</summary><div class="add-f"><input id="aN" placeholder="Nom (ex. Épée longue)"><input id="aD" placeholder="Dégâts (ex. 1d8+3)" autocapitalize="off"><input id="aH" type="number" placeholder="Toucher" aria-label="Bonus au toucher"><button class="btn" data-a="addAtk">Ajouter l’attaque</button></div></details></section>
+  ${atkCard}
 
-  <section class="card"><div class="between"><h2>Jets contre la mort</h2><button class="btn sm" data-a="rollDeath">Lancer</button></div>
-    <div class="ds"><span>Réussites</span><div class="dots">${dots('s',c.death.s,'g')}</div><span>Échecs</span><div class="dots">${dots('f',c.death.f,'b')}</div></div></section>
+  ${deathCard}
 
   ${condCard(c)}
   ${raceCard(c)}
@@ -1629,6 +1689,7 @@ function renderOv(){
   if(ui.ov.type==='spell'){const sp=getSpell(ui.ov.id);if(!sp){ui.ov=null;return renderOv();}html=spellDetail(sp);}
   else if(ui.ov.type==='item'){const c=cur();const it=c&&c.items.find(i=>i.k===ui.ov.k);if(!it){ui.ov=null;return renderOv();}html=itemDetail(c,it);}
   else if(ui.ov.type==='shop')html=shopView();
+  else if(ui.ov.type==='search')html=searchView();
   else if(ui.ov.type==='cat'){const d=ITI[ui.ov.id];if(!d){ui.ov=null;return renderOv();}html=catalogInfo(d);}
   else if(ui.ov.type==='mcat'){const m=MI[ui.ov.id];if(!m){ui.ov=null;return renderOv();}html=magicInfo(m);}
   else if(ui.ov.type==='newItem')html=newItemForm();
@@ -1648,7 +1709,7 @@ function renderOv(){
   else if(ui.ov.type==='lvldown'){if(!cur()||cur().level<=1){ui.ov=null;return renderOv();}html=lvlDownView();}
   else if(ui.ov.type==='feat'){const f=getFeat(ui.ov.id);if(!f){ui.ov=null;return renderOv();}html=featDetail(f);}
   else html=newSpellForm();
-  el.innerHTML=html;el.hidden=false;document.documentElement.classList.add('lock');if(ui.ov.fresh){el.scrollTop=0;ui.ov.fresh=0;}
+  el.innerHTML=html;el.hidden=false;document.documentElement.classList.add('lock');if(ui.ov.fresh){el.scrollTop=0;ui.ov.fresh=0;}if(ui.ov.focus){ui.ov.focus=0;const q=$('#gsq');if(q)q.focus();}
 }
 
 /* ---------- Choix de classe (styles, manifestations, métamagie, expertise…) ---------- */
@@ -2703,7 +2764,7 @@ function wizView(){
 /* ---------- Rendu ---------- */
 function ctxEd(){if(S.tab==='combat'&&S.mj)return enc().ed;if(S.tab==='wizard'&&ui.wiz)return ui.wiz.ed;if(S.tab==='codex')return cdx().ed;return edOf(cur());}
 function render(){
-  useEd(ctxEd());
+  useEd(ctxEd());document.documentElement.style.fontSize=S.fs&&S.fs!==1?(S.fs*100)+'%':'';
   const v=$('#view');
   if(S.tab==='wizard'&&ui.wiz)v.innerHTML=wizView();
   else if(S.tab==='sheet'&&cur())v.innerHTML=sheetView();
@@ -2789,8 +2850,13 @@ const A={
   ioOpen:()=>{ui.ov={type:'io',fresh:1,txt:'',draft:{}};},
   ioExport:d=>{ioExport(d.id);return false;},
   rollAnim:d=>{S.rollAnim=d.v;},
-  spToggle:()=>{const off=lsGet('ct-nosplash')==='1';lsSet('ct-nosplash',off?'0':'1');showMsg('Animation d’ouverture',off?'Réactivée : tu la verras à la prochaine ouverture.':'Désactivée.');},
+  splashT:()=>{const off=lsGet('ct-nosplash')==='1';lsSet('ct-nosplash',off?'0':'1');showMsg('Animation d’ouverture',off?'Réactivée : tu la verras à la prochaine ouverture.':'Désactivée.');},
   fbAcct:()=>{ui.ov={type:'acct',fresh:1,mode:'in'};},
+  fsSet:d=>{S.fs=+d.v;},
+  playT:()=>{S.play=!S.play;ui.edit=false;window.scrollTo(0,0);},
+  gsOpen:()=>{ui.ov={type:'search',q:'',fresh:1,focus:1};},
+  gsGo:d=>{const back=ui.ov;if(d.t==='char'){ui.ov=null;return A.open({id:d.id});}ui.ov={type:d.t,id:d.id,fresh:1,back};},
+  campLink:()=>{const u=campUrl();const ok=()=>showToast('Lien d’invitation copié');if(navigator.share){navigator.share({title:'Tasha’s Friends',text:'Rejoins ma campagne « '+(S.camp.name||'')+' » (code '+S.camp.id+')',url:u}).catch(()=>{});}else if(navigator.clipboard){navigator.clipboard.writeText(u).then(ok,()=>showMsg('Lien d’invitation',u));}else showMsg('Lien d’invitation',u);return false;},
   fbMode:d=>{ui.ov.mode=d.m;ui.ov.err='';ui.ov.msg='';},
   fbGo:()=>{fbGo();return false;},
   fbReset:()=>{fbReset();return false;},
@@ -2993,6 +3059,7 @@ document.addEventListener('click',e=>{
   if(res!==false)render();
 });
 function setPath(obj,path,val){const p=path.split('.');let o=obj;for(let i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=val;}
+document.addEventListener('toggle',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.fold)(ui.fold||(ui.fold={}))[t.dataset.fold]=t.open;},true);
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.f&&cur()){
@@ -3013,6 +3080,7 @@ document.addEventListener('input',e=>{
   else if(t.dataset.cp&&ui.ov&&ui.ov.type==='camp'){ui.ov[t.dataset.cp]=t.value;}
   else if(t.id==='cbq'&&ui.ov&&ui.ov.type==='cbAdd'){ui.ov.q=t.value;const l=$('#cblist');if(l)l.innerHTML=cbAddList();}
   else if(t.dataset.cbn&&ui.ov&&ui.ov.type==='cbPc'){ui.ov[t.dataset.cbn]=t.value;}
+  else if(t.id==='gsq'&&ui.ov&&ui.ov.type==='search'){ui.ov.q=t.value;const l=$('#gslist');if(l)l.innerHTML=gsListHtml();}
   else if(t.id==='cdq'){cdx().q=t.value;const l=$('#cdxlist');if(l)l.innerHTML=cdxListHtml();}
   else if(t.id==='shq'){(ui.shf||(ui.shf={q:'',cat:''})).q=t.value;const l=$('#shoplist');if(l)l.innerHTML=shopListHtml();}
   else if(t.id==='it-note'&&ui.ov&&ui.ov.type==='item'){const c=cur();const it=c&&c.items.find(i=>i.k===ui.ov.k);if(it){it.note=t.value;save();}}
@@ -3110,6 +3178,7 @@ A.undoSpell=()=>{const u=ui.undo;if(!u)return;const c=S.chars.find(x=>x.id===u.c
   else if(c){if(u.t==='add'){c.spells=c.spells.filter(x=>x!==u.id);delete c.prep[u.id];}else if(!c.spells.includes(u.id)){c.spells.push(u.id);if(u.prep)c.prep[u.id]=1;}}
   ui.undo=null;$('#toast').classList.remove('show');if(S.tab==='items'){const l=$('#shoplist');if(l)l.innerHTML=shopListHtml();}};
 if(S.v<4){S.chars.forEach(c=>{if(!c.acAuto&&(c.ac===acCalc(c).ac||c.items.some(i=>i.eq&&['armure','bouclier'].includes((itemDef(i)||{}).cat))))c.acAuto=true;});S.v=4;}
+{const jm=/[#&]join=([A-Za-z0-9]{4,8})/.exec(location.hash);if(jm){ui.joinCode=jm[1].toUpperCase();try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}if(!S.camp||S.camp.id!==ui.joinCode){if(S.camp)ui.joinCode='';else{S.tab='list';ui.ov={type:'camp',fresh:1,code:ui.joinCode};}}}}
 save();
 if(S.hb)Object.values(S.hb.cls).forEach(c=>{if(c.asi&&c.asi.length)ASI_LV[c.key]=c.asi;});
 render();
