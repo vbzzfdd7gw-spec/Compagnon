@@ -526,6 +526,10 @@ details.fold>.stack{padding:0 10px 12px}
 .lvr.on{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass) inset}.lvr.dead{opacity:.5}.lvr.dead b{text-decoration:line-through}
 .lv-i{font-family:var(--f-mono);font-weight:700;font-size:1.15rem;width:2.2em;text-align:center;flex:none;color:var(--brass)}.lv-n{display:flex;flex-direction:column;min-width:0}.lv-n small{color:var(--muted)}.lv-n .tag{align-self:flex-start}
 .jr-x{white-space:pre-wrap;margin:6px 0 0}.jr-b{border-top:1px solid var(--line);margin-top:10px;padding-top:8px}.h-w{color:var(--brass)}
+.critbar{position:sticky;bottom:0;padding:18px 16px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,var(--bg) 40%);display:flex;justify-content:center}
+.pk.critb{letter-spacing:0;font-size:.9rem;border-color:#e6bd6270;color:var(--gold);background:#1a1f3d;width:100%;max-width:420px}
+.pk.critb.on{background:var(--gold);color:#201400;border-color:var(--gold)}
+.seg button:disabled{opacity:.75}
 .qrw{display:inline-block;background:#fff;padding:6px;border-radius:12px;line-height:0;margin:0 auto}.qr{display:block}
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){details.fold>summary::after{transition:none}}
@@ -1100,18 +1104,25 @@ function parseFormula(str){
   }
   return terms.some(t=>t.f)?terms:null;
 }
+const critLocked=()=>!!(S.camp&&FB.user&&!isGmCamp()&&S.camp.cm!=null);
+const critMaxOn=()=>critLocked()?!!S.camp.cm:!!S.critMax;
+const critBtn=()=>`<button class="pk critb ${ui.critNext?'on':''}" data-a="critT" aria-pressed="${ui.critNext?'true':'false'}">${ui.critNext?'✓ Critique armé : prochain jet de dégâts':'Coup critique sur le prochain jet de dégâts'}</button>`;
+function critSync(){document.querySelectorAll('[data-a="critT"]').forEach(b=>{b.outerHTML=critBtn();});}
+function critCard(){const lock=critLocked();const on=critMaxOn();return `<div class="between" style="align-items:center"><span class="hint" style="margin:0">Coups critiques${lock?' <br><small>imposé par le MJ</small>':isGmCamp()&&S.camp?' <br><small>s’applique à toute la table</small>':''}</span><div class="seg" style="min-width:210px">${[[0,'Dés doublés'],[1,'Critique max.']].map(([k,n])=>`<button class="${(on?1:0)===k?'on':''}" data-a="critMode" data-v="${k}" ${lock?'disabled':''} style="padding:7px 4px;font-size:.85rem">${n}</button>`).join('')}</div></div>
+  <p class="hint" style="margin:0">${on?'Critique maximum : on lance les dés normaux et on ajoute le maximum des dés (1d8+3 devient 1d8 + 8 + 3).':'Règle officielle : les dés de dégâts sont doublés (1d8+3 devient 2d8+3).'}</p>${critBtn()}`;}
 function rollFormula(str,label,crit){
   const t=parseFormula(str);
   if(!t){showMsg('Formule non reconnue','Écris par exemple 2d6+3, 1d8+1d6+2 ou d20-1.');return null;}
+  if(!crit&&ui.critNext&&t.some(x=>x.k==null&&x.f!==20)){crit=true;}if(crit&&ui.critNext){ui.critNext=false;critSync();}const cmax=critMaxOn();
   let total=0;const bits=[];const fxd=[];
   for(const x of t){
     if(x.k!=null){total+=x.sign*x.k;bits.push(`${x.sign<0?'−':'+'} ${x.k}`);continue;}
-    const n=crit?x.n*2:x.n;const rs=[];for(let i=0;i<n;i++)rs.push(rnd(x.f));rs.forEach(v=>fxd.push({f:x.f,v}));
-    total+=x.sign*rs.reduce((a,b)=>a+b,0);
-    bits.push(`${x.sign<0?'−':'+'} ${n}d${x.f} [<b>${rs.join(', ')}</b>]`);
+    const n=crit&&!cmax?x.n*2:x.n;const rs=[];for(let i=0;i<n;i++)rs.push(rnd(x.f));rs.forEach(v=>fxd.push({f:x.f,v}));
+    total+=x.sign*(rs.reduce((a,b)=>a+b,0)+(crit&&cmax?x.n*x.f:0));
+    bits.push(`${x.sign<0?'−':'+'} ${n}d${x.f} [<b>${rs.join(', ')}</b>]${crit&&cmax?` + ${x.n*x.f} <small>(max)</small>`:''}`);
   }
   const detail=bits.join(' ').replace(/^\+ /,'');
-  return pushRoll({label,total,detail,kind:crit?'crit':'',flag:crit?'Critique : dés doublés':'',dice:fxd});
+  return pushRoll({label,total,detail,kind:crit?'crit':'',flag:crit?(cmax?'Critique maximum : dés + maximum des dés':'Critique : dés doublés'):'',dice:fxd});
 }
 let tt;
 function showToast(r){
@@ -1395,7 +1406,7 @@ async function campStart(){if(!S.camp||!FB.user||!FB.db)return;const cid=S.camp.
   try{const d=await ref.get();if(!d.exists){showMsg('Campagne introuvable','La campagne '+cid+' n’existe plus.');S.camp=null;save();render();return;}S.camp=Object.assign(S.camp,{name:d.data().name,gm:d.data().gm});
     await ref.collection('members').doc(FB.user.uid).set({name:campMyName(),at:Date.now()},{merge:true});}catch(e){return;}
   campPushSheets();liveStart();
-  if(isGmCamp()){liveTouch();FB.unsub.push(ref.collection('sheets').onSnapshot(qs=>{let ch=0;S.grp=S.grp||[];
+  if(isGmCamp()){liveTouch();liveRules();FB.unsub.push(ref.collection('sheets').onSnapshot(qs=>{let ch=0;S.grp=S.grp||[];
       qs.docChanges().forEach(x=>{const d=x.doc.data();if(d.owner===FB.user.uid)return;let c;try{c=JSON.parse(d.c);}catch(e){return;}
         const i=S.grp.findIndex(g=>g.c.id===c.id);if(x.type==='removed'){if(i>=0&&S.grp[i].live){S.grp.splice(i,1);ch=1;}return;}
         fixChar(c);const g={c,at:new Date(d.at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}),live:1,owner:d.owner};if(i>=0)S.grp[i]=g;else S.grp.push(g);ch=1;});
@@ -1414,10 +1425,11 @@ let liveT=0;function liveTouch(){if(!S.camp||!FB.user||!FB.db||!isGmCamp())retur
 function liveShareRoll(r){if(!S.camp||!FB.user||!FB.db||!rollShareOn())return;const c=S.tab==='sheet'&&cur();const who=c?c.name:(isGmCamp()?'MJ':campMyName());
   const mine=(LV.mine||(LV.mine=[]));mine.unshift({w:String(who).slice(0,40),l:String(r.label||'').replace(new RegExp('^'+String(who).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*[·:—-]\\s*'),'').slice(0,80),t:String(r.total),k:r.kind||'',d:plain(r.detail),f:String(r.flag||'').slice(0,60),at:r.time||Date.now()});LV.mine=mine.slice(0,8);
   campRef().collection('rolls').doc(FB.user.uid).set({uid:FB.user.uid,at:Date.now(),list:JSON.stringify(LV.mine)}).catch(()=>{});}
+function liveRules(){if(!S.camp||!FB.user||!FB.db||!isGmCamp())return;campRef().collection('live').doc('rules').set({critMax:S.critMax?1:0,at:Date.now()}).catch(()=>{});}
 function liveQuiet(){return !(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));}
 function liveRefresh(){if(ui.ov){if(['liveCb','journal'].includes(ui.ov.type)&&liveQuiet())renderOv();return;}if(liveQuiet()&&['list','sheet','dice'].includes(S.tab))render();}
 function liveStart(){const ref=campRef();LV.cb=null;LV.rolls={};LV.journal=[];LV.seen=Date.now();LV.sent='';
-  FB.unsub.push(ref.collection('live').onSnapshot(qs=>{qs.docs.forEach(d=>{if(d.id!=='combat')return;const x=d.data()||{};let list=[];try{list=JSON.parse(x.list||'[]');}catch(e){}LV.cb={on:x.on?1:0,round:x.round||0,cur:x.cur||'',list};
+  FB.unsub.push(ref.collection('live').onSnapshot(qs=>{qs.docs.forEach(d=>{if(d.id==='rules'){const cm=(d.data()||{}).critMax?1:0;if(!isGmCamp()&&S.camp&&S.camp.cm!==cm){const first=S.camp.cm==null;S.camp.cm=cm;save();if(!first||cm)showMsg('Règle de la table',cm?'Le MJ applique les critiques maximum.':'Le MJ applique les critiques officiels (dés doublés).');}return;}if(d.id!=='combat')return;const x=d.data()||{};let list=[];try{list=JSON.parse(x.list||'[]');}catch(e){}LV.cb={on:x.on?1:0,round:x.round||0,cur:x.cur||'',list};
       if(!isGmCamp()&&LV.cb.on){const me=list.find(z=>z.k===LV.cb.cur);const key=LV.cb.round+':'+LV.cb.cur;if(me&&me.pc&&S.chars.some(c=>c.id===me.cid)&&LV.turn!==key){LV.turn=key;showMsg('C’est ton tour !',me.n+' · round '+LV.cb.round);try{navigator.vibrate&&navigator.vibrate(200);}catch(e){}}else if(!me||!me.pc)LV.turn=key;}});liveRefresh();},()=>{}));
   FB.unsub.push(ref.collection('rolls').onSnapshot(qs=>{let fresh=null;qs.docs.forEach(d=>{const x=d.data()||{};let l=[];try{l=JSON.parse(x.list||'[]');}catch(e){}LV.rolls[d.id]=l;if(d.id!==FB.user.uid&&l[0]&&l[0].at>LV.seen&&(!fresh||l[0].at>fresh.at))fresh=l[0];});
       if(fresh){LV.seen=fresh.at;if(!document.querySelector('.fxo'))showToast({label:fresh.w+' · '+fresh.l,total:esc(fresh.t),detail:esc(fresh.d),kind:fresh.k,flag:fresh.f});}if(S.tab==='dice'&&!ui.ov&&liveQuiet()){const el=$('#tablerolls');if(el)el.innerHTML=tableRollsHtml();}},()=>{}));
@@ -1611,6 +1623,7 @@ function diceView(){
   return `<header class="vh"><div class="vh-row"><div><span class="lbl">Lanceur</span><h1>Dés</h1></div></div>${modeSeg()}</header>
   <div class="stack">
   <div class="between" style="align-items:center"><span class="hint" style="margin:0">Animation des jets</span><div class="seg" style="min-width:210px">${[['full','Normale'],['fast','Rapide'],['off','Aucune']].map(([k,n])=>`<button class="${rollAnimMode()===k?'on':''}" data-a="rollAnim" data-v="${k}" style="padding:7px 4px;font-size:.85rem">${n}</button>`).join('')}</div></div>
+  ${critCard()}
   <section class="card"><div class="dgrid">${[4,6,8,10,12,20,100].map(x=>`<button class="die" data-a="addDie" data-f="${x}" aria-label="Ajouter un d${x}">${dieSvg(x)}<span>d${x}</span>${ui.pool[x]?`<em>${ui.pool[x]}</em>`:''}</button>`).join('')}
     <button class="die" data-a="quickD20" aria-label="Lancer 1d20 directement"><span style="font-family:var(--f-display);font-size:1.5rem;line-height:34px">1d20</span><span>direct</span></button></div>
     <div class="pool-f ${f?'':'ph'}">${f||'Touche des dés pour composer ton jet'}</div>
@@ -1788,6 +1801,7 @@ function renderOv(){
   else if(ui.ov.type==='lvldown'){if(!cur()||cur().level<=1){ui.ov=null;return renderOv();}html=lvlDownView();}
   else if(ui.ov.type==='feat'){const f=getFeat(ui.ov.id);if(!f){ui.ov=null;return renderOv();}html=featDetail(f);}
   else html=newSpellForm();
+  if(['spell','mon'].includes(ui.ov.type))html+=`<div class="critbar">${critBtn()}</div>`;
   el.innerHTML=html;el.hidden=false;document.documentElement.classList.add('lock');if(ui.ov.fresh){el.scrollTop=0;ui.ov.fresh=0;}if(ui.ov.focus){ui.ov.focus=0;const q=$('#gsq');if(q)q.focus();}
 }
 
@@ -2932,6 +2946,8 @@ const A={
   splashT:()=>{const off=lsGet('ct-nosplash')==='1';lsSet('ct-nosplash',off?'0':'1');showMsg('Animation d’ouverture',off?'Réactivée : tu la verras à la prochaine ouverture.':'Désactivée.');},
   fbAcct:()=>{ui.ov={type:'acct',fresh:1,mode:'in'};},
   fsSet:d=>{S.fs=+d.v;},
+  critT:()=>{ui.critNext=!ui.critNext;critSync();return false;},
+  critMode:d=>{if(critLocked())return;S.critMax=+d.v?1:0;liveRules();},
   liveOpen:()=>{ui.ov={type:'liveCb',fresh:1,back:ui.ov&&ui.ov.type==='camp'?ui.ov:null};},
   rollShareT:()=>{S.rollShare=!rollShareOn();if(ui.ov)ui.ov.keepScroll=1;},
   jrOpen:()=>{ui.ov={type:'journal',fresh:1,back:ui.ov};},
@@ -3025,7 +3041,7 @@ const A={
   slot:d=>{const c=cur();const l=+d.l;const lv=slotLevels(c).find(x=>x.l===l);if(!lv)return;const a=slotAvail(c,l,lv.max);const used=c.slotsUsed[l]||0;
     c.slotsUsed[l]=+d.i<a?Math.min(lv.max,used+1):Math.max(0,used-1);},
   prep:d=>{const c=cur();if(c.prep[d.id])delete c.prep[d.id];else c.prep[d.id]=1;},
-  rollSpellAtk:()=>{const c=cur();const st=castStatOf(c);cd20(c,prof(c.level)+(st?mod(c.stats[st]):0)+mfx(c).sa,`${c.name} · Attaque de sort`,'atk');},
+  rollSpellAtk:()=>{const c=cur();const st=castStatOf(c);const r=cd20(c,prof(c.level)+(st?mod(c.stats[st]):0)+mfx(c).sa,`${c.name} · Attaque de sort`,'atk');if(r&&r.kind==='crit')ui.critNext=true;},
   goSpells:()=>{const c=cur();ui.spf=null;initSpf();if(c&&!CASTER_CLASSES.includes(c.cls))ui.spf.cls='';S.tab='spells';window.scrollTo(0,0);},
   spOpen:d=>{ui.ov={type:'spell',id:d.id,fresh:1,back:ui.ov&&ui.ov.type!=='spell'?ui.ov:null};ui.pendingSpDel=null;},
   ovClose:()=>{ui.ov=ui.ov&&ui.ov.back?Object.assign(ui.ov.back,{fresh:0}):null;},
