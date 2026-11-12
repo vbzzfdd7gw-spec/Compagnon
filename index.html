@@ -558,6 +558,9 @@ details.fold>.stack{padding:0 10px 12px}
 .mp-tabs button.on{background:var(--brass);color:var(--brass-ink);border-color:var(--brass)}
 .mp-b i.ic{background:#1a1f3d;display:grid;place-items:center;overflow:hidden}.mp-b i.ic svg{width:24px;height:24px;fill:none;stroke:var(--gold);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.mp-b i.ic canvas{width:36px;height:36px}
 .mp-cols{display:flex;gap:10px}.mp-c{width:34px;height:34px;border-radius:50%;border:2px solid #4d5486}.mp-c.on{border-color:var(--gold);box-shadow:0 0 0 3px #e6bd6255}.stepper{display:flex;align-items:center;gap:12px}.stepper b{min-width:2ch;text-align:center;font-family:var(--f-mono)}
+.resrow{display:grid;gap:8px;padding:10px 0;border-top:1px solid var(--line)}.card>.between+.resrow{border-top:0}
+.res-n{display:flex;flex-direction:column;min-width:0}.res-n small{color:var(--muted);font-size:.8rem}
+.pk.insp{border-color:#e6bd6270;color:var(--gold)}.pk.insp.on{background:var(--gold);color:#201400;border-color:var(--gold)}
 .qrw{display:inline-block;background:#fff;padding:6px;border-radius:12px;line-height:0;margin:0 auto}.qr{display:block}
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){details.fold>summary::after{transition:none}}
@@ -1415,7 +1418,7 @@ function grpView(){const M=grpMembers();const rows=M.map(m=>({m,s:grpStats(m.c)}
      ${ex?`<div class="cb-p"><div><span class="lbl">Sauvegardes</span><div class="gsv">${s.sv.map(v=>`<span class="${v.p?'pf':''}"><small>${v.k}</small><b>${fmt(v.v)}</b></span>`).join('')}</div></div>
       <div class="gline" style="justify-content:flex-start;gap:16px"><span><small>Investigation passive</small><b>${s.pinv}</b></span><span><small>Intuition passive</small><b>${s.pins}</b></span><span><small>Maîtrise</small><b>${fmt(s.pb)}</b></span></div>
       ${m.ext?`<p class="hint" style="margin:0">Fiche en lecture seule, telle que le joueur l’a envoyée. Pour la mettre à jour, importe sa nouvelle fiche : elle remplace l’ancienne.</p>`:''}
-      <div class="row2"><button class="btn sm" data-a="gCombat" data-i="${i}">Ajouter au combat</button>${m.ext?`<button class="btn sm danger" data-a="gDel" data-i="${i}">${ui.gDel===i?'Confirmer':'Retirer du groupe'}</button>`:`<button class="btn sm" data-a="open" data-id="${c.id}">Ouvrir la fiche</button>`}</div></div>`:''}</article>`;}).join('')||'<p class="empty">Aucun PJ dans le groupe. Ajoute la fiche de tes joueurs, ou coche les personnages de cet appareil ci-dessous.</p>'}</div>
+      <div class="row2"><button class="btn sm" data-a="gCombat" data-i="${i}">Ajouter au combat</button>${m.live||!m.ext?`<button class="btn sm" data-a="gInsp" data-i="${i}">Donner l’inspiration</button>`:''}${m.ext?`<button class="btn sm danger" data-a="gDel" data-i="${i}">${ui.gDel===i?'Confirmer':'Retirer du groupe'}</button>`:`<button class="btn sm" data-a="open" data-id="${c.id}">Ouvrir la fiche</button>`}</div></div>`:''}</article>`;}).join('')||'<p class="empty">Aucun PJ dans le groupe. Ajoute la fiche de tes joueurs, ou coche les personnages de cet appareil ci-dessous.</p>'}</div>
    <section class="card"><h2>Ajouter la fiche d’un joueur</h2><p class="hint" style="margin:0">Sur son téléphone, le joueur ouvre « Import et export » et touche « Exporter » à côté de son personnage, puis t’envoie le fichier (WhatsApp, mail, AirDrop…). Ici, choisis ce fichier. Une nouvelle version de sa fiche remplace l’ancienne.</p>
     <label class="btn primary" style="display:grid;place-items:center;cursor:pointer">Choisir une ou plusieurs fiches<input id="grp-file" type="file" accept=".json,application/json,text/plain" multiple hidden></label>
     <details><summary class="hint">Ou coller le texte de la fiche</summary><textarea id="grp-ta" class="io-ta" placeholder="{ … }"></textarea><button class="btn" style="width:100%;margin-top:8px" data-a="gPaste">Ajouter la fiche collée</button></details>
@@ -1520,7 +1523,7 @@ function liveRules(){if(!S.camp||!FB.user||!FB.db||!isGmCamp())return;campRef().
 function liveQuiet(){return !(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));}
 function liveRefresh(){if(ui.ov){if(['liveCb','journal'].includes(ui.ov.type)&&liveQuiet())renderOv();return;}if(liveQuiet()&&['list','sheet','dice'].includes(S.tab))render();}
 function liveStart(){const ref=campRef();LV.cb=null;LV.rolls={};LV.journal=[];LV.seen=Date.now();LV.sent='';LV.map=null;LV.mapImg=null;LV.mapImgKey='';LV.t0=Date.now();MP.sent=null;MP.pubImg='';
-  FB.unsub.push(ref.collection('live').onSnapshot(qs=>{qs.docs.forEach(d=>{if(d.id==='map'){if(!isGmCamp())mapLiveIn(d.data()||{});return;}if(d.id==='mapimg'){if(!isGmCamp())mapLiveImg(d.data());return;}if(d.id==='rules'){const cm=(d.data()||{}).critMax?1:0;if(!isGmCamp()&&S.camp&&S.camp.cm!==cm){const first=S.camp.cm==null;S.camp.cm=cm;save();if(!first||cm)showMsg('Règle de la table',cm?'Le MJ applique les critiques maximum.':'Le MJ applique les critiques officiels (dés doublés).');}return;}if(d.id!=='combat')return;const x=d.data()||{};let list=[];try{list=JSON.parse(x.list||'[]');}catch(e){}LV.cb={on:x.on?1:0,round:x.round||0,cur:x.cur||'',list};
+  FB.unsub.push(ref.collection('live').onSnapshot(qs=>{qs.docs.forEach(d=>{if(d.id==='gift'){const x=d.data()||{};if(x.at>LV.t0&&x.at!==LV.giftAt&&x.k==='insp'){LV.giftAt=x.at;const ch=S.chars.find(c=>c.id===x.cid);if(ch&&!isGmCamp()){ch.insp=true;save();showMsg('Inspiration !','Le MJ donne l’inspiration à '+ch.name+'.');}}return;}if(d.id==='map'){if(!isGmCamp())mapLiveIn(d.data()||{});return;}if(d.id==='mapimg'){if(!isGmCamp())mapLiveImg(d.data());return;}if(d.id==='rules'){const cm=(d.data()||{}).critMax?1:0;if(!isGmCamp()&&S.camp&&S.camp.cm!==cm){const first=S.camp.cm==null;S.camp.cm=cm;save();if(!first||cm)showMsg('Règle de la table',cm?'Le MJ applique les critiques maximum.':'Le MJ applique les critiques officiels (dés doublés).');}return;}if(d.id!=='combat')return;const x=d.data()||{};let list=[];try{list=JSON.parse(x.list||'[]');}catch(e){}LV.cb={on:x.on?1:0,round:x.round||0,cur:x.cur||'',list};
       if(!isGmCamp()&&LV.cb.on){const me=list.find(z=>z.k===LV.cb.cur);const key=LV.cb.round+':'+LV.cb.cur;if(me&&me.pc&&S.chars.some(c=>c.id===me.cid)&&LV.turn!==key){LV.turn=key;showMsg('C’est ton tour !',me.n+' · round '+LV.cb.round);try{navigator.vibrate&&navigator.vibrate(200);}catch(e){}}else if(!me||!me.pc)LV.turn=key;}});liveRefresh();},()=>{}));
   FB.unsub.push(ref.collection('rolls').onSnapshot(qs=>{let fresh=null;qs.docs.forEach(d=>{const x=d.data()||{};let l=[];try{l=JSON.parse(x.list||'[]');}catch(e){}LV.rolls[d.id]=l;try{mapMvIn(d.id,x.mv);}catch(e){}if(d.id!==FB.user.uid&&l[0]&&l[0].at>LV.seen&&(!fresh||l[0].at>fresh.at))fresh=l[0];});
       if(fresh){LV.seen=fresh.at;if(!document.querySelector('.fxo'))showToast({label:fresh.w+' · '+fresh.l,total:esc(fresh.t),detail:esc(fresh.d),kind:fresh.k,flag:fresh.f});}if(S.tab==='dice'&&!ui.ov&&liveQuiet()){const el=$('#tablerolls');if(el)el.innerHTML=tableRollsHtml();}},()=>{}));
@@ -1581,6 +1584,38 @@ const secT=t=>`<h3 class="sect">${t}</h3>`;
 function syncCard(){if(!FB.on)return tile('cloud','#bb9bff','Sauvegarde en ligne',inClaude()?'Sur ton compte Claude, à chaque modification.':'Indisponible ici : pense au fichier.','',cloudLine());const u=FB.user;
   return tile('cloud','#bb9bff',u?'Compte':'Sauvegarde en ligne',u?esc(u.email):'Crée un compte pour sauvegarder tes fiches.',`<button class="btn sm ${u?'':'primary'}" data-a="fbAcct">${u?'Gérer':'Se connecter'}</button>`,u?cloudLine():'');}
 function campTile(){if(!FB.on)return '';return tile('users','#e9c46a','Campagne',S.camp?esc(S.camp.name||'')+' · code '+esc(S.camp.id)+(isGmCamp()?' · MJ':''):'Rejoins celle de ton MJ ou crée la tienne.',`<button class="btn sm" data-a="campOpen">${S.camp?'Ouvrir':'Rejoindre'}</button>`);}
+/* ---------- Dés de vie, inspiration, ressources de classe ---------- */
+function hdList(c){const o={};for(let l=1;l<=c.level;l++){const d=(CLASSES[clsAt(c,l)]||CLASSES[c.cls]).hd;o[d]=(o[d]||0)+1;}return Object.keys(o).map(Number).sort((a,b)=>b-a).map(d=>({d,max:o[d],used:Math.min(o[d],(c.hdU||{})[d]||0)}));}
+const stepT=(L,arr)=>{let v=0;arr.forEach(([l,n])=>{if(L>=l)v=n;});return v;};
+function resDefs(c){const e14=edOf(c)==='2014';const D=[];mcList(c).forEach(x=>{const v=cv(c,x);const L=v.level;const add=(k,n,max,r,note)=>{if(max>0)D.push({k:x+'-'+k,n,max,r,note,cl:mcOn(c)?CLASSES[x].n:''});};const cha=Math.max(1,mod(c.stats.CHA));
+  if(x==='barbare')add('rage','Rage',L>=20&&e14?6:stepT(L,[[1,2],[3,3],[6,4],[12,5],[17,6]]),e14?'long':'short1',L>=20&&e14?'Illimitée au niveau 20':'');
+  if(x==='barde')add('insp','Inspiration bardique',cha,L>=5?'short':'long','Modificateur de Charisme');
+  if(x==='clerc')add('cd','Conduit divin',e14?stepT(L,[[2,1],[6,2],[18,3]]):stepT(L,[[2,2],[6,3],[18,4]]),e14?'short':'short1');
+  if(x==='druide')add('ws','Forme sauvage',e14?(L>=2?2:0):stepT(L,[[2,2],[6,3],[17,4]]),e14?'short':'short1');
+  if(x==='guerrier'){add('sw','Second souffle',e14?1:stepT(L,[[1,2],[4,3],[10,4]]),e14?'short':'short1');add('as','Fougue',stepT(L,[[2,1],[17,2]]),'short');add('ind','Inflexible',stepT(L,[[9,1],[13,2],[17,3]]),'long');}
+  if(x==='moine')add('ki',e14?'Points de ki':'Points de crédo',L>=2?L:0,'short');
+  if(x==='paladin'){add('loh','Imposition des mains (PV)',5*L,'long','Réserve de 5 PV par niveau de paladin');add('cd','Conduit divin',e14?(L>=3?1:0):stepT(L,[[3,2],[11,3]]),e14?'short':'short1');}
+  if(x==='ensorceleur')add('sp','Points de sorcellerie',L>=2?L:0,'long');
+  if(x==='magicien')add('ar','Restauration arcanique',1,'long');});
+  (c.resC||[]).forEach(r=>D.push({k:'c-'+r.id,n:r.n,max:r.max,r:r.r,custom:r.id}));return D;}
+const RESR={long:'Repos long',short:'Repos court ou long',short1:'1 par repos court, tout au repos long'};
+function resCard(c){const D=resDefs(c);const U=c.resU||{};const hd=hdList(c);const e=ui.edit;
+  const row=d=>{const used=Math.min(d.max,U[d.k]||0);const left=d.max-used;const big=d.max>10;
+    return `<div class="resrow"><div class="between" style="align-items:center;gap:8px"><span class="res-n"><b>${esc(d.n)}</b><small>${d.cl?esc(d.cl)+' · ':''}${RESR[d.r]}${d.note?' · '+esc(d.note):''}</small></span>${d.custom&&e?`<button class="btn sm danger" data-a="resDel" data-id="${d.custom}">Retirer</button>`:`<span class="lbl">${left}/${d.max}</span>`}</div>
+      ${big?`<div class="stepper" style="justify-content:flex-end"><button class="btn sm" data-a="resStep" data-k="${d.k}" data-d="5" aria-label="Dépenser 5">−5</button><button class="btn sm" data-a="resStep" data-k="${d.k}" data-d="1" aria-label="Dépenser 1">−1</button><b>${left}</b><button class="btn sm" data-a="resStep" data-k="${d.k}" data-d="-1" aria-label="Rendre 1">+1</button></div>`
+      :`<div class="dots">${Array.from({length:d.max},(_,i)=>`<button class="sbox ${i<left?'on':''}" data-a="resBox" data-k="${d.k}" data-i="${i}" aria-label="${esc(d.n)} ${i+1}"></button>`).join('')}</div>`}</div>`;};
+  return `<section class="card"><div class="between" style="align-items:center"><h2>Ressources</h2><button class="pk insp ${c.insp?'on':''}" data-a="inspT" aria-pressed="${c.insp?'true':'false'}">${c.insp?'✦ Inspiré':'Inspiration'}</button></div>
+    <div class="resrow"><div class="between" style="align-items:center"><span class="res-n"><b>Dés de vie</b><small>${edOf(c)==='2014'?'La moitié revient au repos long':'Tous reviennent au repos long'}</small></span><span class="lbl">${hd.map(h=>`d${h.d} ${h.max-h.used}/${h.max}`).join(' · ')}</span></div></div>
+    ${D.map(row).join('')}
+    <div class="row2"><button class="btn sm" data-a="sRestOpen">Repos court</button><button class="btn sm" data-a="rest">Repos long</button></div>
+    <details class="add"><summary>+ Ajouter un compteur perso</summary><div class="stack" style="gap:8px;margin-top:8px"><input id="res-n" placeholder="Nom : Chanceux, charges du bâton…" maxlength="40"><div class="row2"><input id="res-max" type="number" inputmode="numeric" min="1" max="99" placeholder="Nombre d’utilisations"><select id="res-r"><option value="long">Revient au repos long</option><option value="short">Revient au repos court</option></select></div><button class="btn sm" data-a="resAdd">Ajouter le compteur</button></div></details></section>`;}
+function sRestView(){const c=cur();const o=ui.ov;const hd=hdList(c);const con=mod(c.stats.CON);
+  return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Repos court</span><h1>${esc(c.name)}</h1><span class="sub">PV ${c.hp} / ${c.hpMax}</span></div><button class="btn sm" data-a="ovClose">Annuler</button></div><div class="stack">
+   <section class="card"><h2>Dés de vie</h2><p class="hint" style="margin:0">Chaque dé dépensé rend son résultat ${fmt(con)} (Constitution).</p>
+    ${hd.map(h=>`<div class="between" style="align-items:center"><span><b>d${h.d}</b> <span class="lbl">${h.max-h.used}/${h.max} restant${h.max-h.used>1?'s':''}</span></span><button class="btn sm" data-a="hdRoll" data-d="${h.d}" ${h.max-h.used<1||c.hp>=c.hpMax?'disabled':''}>Dépenser un d${h.d}</button></div>`).join('')}
+    ${o.log&&o.log.length?`<p class="hint" style="margin:0">${o.log.map(esc).join(' · ')}</p>`:''}${c.hp>=c.hpMax?'<p class="hint" style="margin:0">PV au maximum.</p>':''}</section>
+   <button class="btn primary big" data-a="sRestDo">Terminer le repos court</button><p class="hint">Recharge les ressources de repos court et les emplacements de pacte.</p></div></div>`;}
+
 /* ---------- Carte de combat ---------- */
 const MTER={g:['Herbe','#5f7f3c'],f:['Forêt','#2f5a34'],d:['Terre','#7b5b3d'],a:['Sable','#c8b078'],s:['Pierre','#7c7f88'],p:['Plancher','#8b6a43'],w:['Eau','#2f6f9f'],l:['Lave','#c2491d'],m:['Mur','#23263a']};
 const MSIZE={s:[10,14,'Petite'],m:[16,22,'Moyenne'],l:[24,32,'Grande']};
@@ -1794,7 +1829,7 @@ function sheetView(){
     <div class="bar ${e?'':'big'}"><i style="width:${pct}%;background:${barCol}"></i>${e?'':`<span class="bar-t"><b>${c.hp}</b><small> / ${c.hpMax}</small></span>`}</div>
     <div class="hp-ctrl"><button class="sq" data-a="hpStep" data-d="-1" aria-label="Retirer 1 PV">−</button><input id="hpAmt" type="number" inputmode="numeric" min="0" placeholder="Montant" aria-label="Montant"><button class="sq" data-a="hpStep" data-d="1" aria-label="Ajouter 1 PV">+</button></div>
     <div class="row3"><button class="btn danger" data-a="hpDmg">Dégâts</button><button class="btn good" data-a="hpHeal">Soins</button><button class="btn" data-a="hpTemp">PV temp.</button></div>
-    <button class="btn sm" data-a="rest">Repos long</button></section>`;
+    </section>`;
   const vitals=`<div class="vitals">
     <div class="vit"><span class="lbl">CA${c.acAuto?' auto':''}</span>${e?`<input type="number" inputmode="numeric" id="c-ac" data-f="ac" value="${acOf(c)}">`:`<b>${acOf(c)}</b>`}</div>
     <button class="vit" data-a="rollInit"><span class="lbl">Initiative</span><b>${fmt(initOf(c))}</b></button>
@@ -1809,7 +1844,7 @@ function sheetView(){
   const pbtn=`<button class="btn sm ${S.play&&!e?'primary':''}" data-a="playT" aria-pressed="${S.play&&!e?'true':'false'}">Mode jeu</button>`;
   if(S.play&&!e){const fold=(id,t,h)=>h.trim()?`<details class="fold" data-fold="${id}" ${ui.fold&&ui.fold[id]?'open':''}><summary>${t}</summary><div class="stack">${h}</div></details>`:'';
     return `<header class="vh"><div class="vh-row"><div><h1>${esc(c.name)}</h1><span class="sub">${esc(speciesName(c))} · ${esc(clsLabel(c))}</span>${subLine(c)}</div><div class="vh-b">${pbtn}</div></div>${modeSeg()}</header>
-  <div class="stack">${liveBanner()}${hpCard}${vitals}<div class="stats">${statCards}</div>${c.hp<=0?deathCard:''}${condCard(c)}${atkCard}${spellCard(c)}
+  <div class="stack">${liveBanner()}${hpCard}${vitals}<div class="stats">${statCards}</div>${c.hp<=0?deathCard:''}${condCard(c)}${resCard(c)}${atkCard}${spellCard(c)}
   ${fold('sv','Sauvegardes et compétences',`<div class="cols"><section class="card"><h2>Jets de sauvegarde</h2><div class="list">${saves}</div></section><section class="card"><div class="between"><h2>Compétences</h2><span class="lbl">Perception passive ${10+perc}</span></div><div class="list">${skills}</div></section></div>`)}
   ${fold('ft','Aptitudes, traits et dons',raceCard(c)+featCard(c)+classCard(c)+choicesCard(c))}
   ${fold('inv','Inventaire',invCard(c))}
@@ -1843,7 +1878,7 @@ function sheetView(){
 
   ${deathCard}
 
-  ${condCard(c)}
+  ${condCard(c)}${resCard(c)}
   ${raceCard(c)}
   ${featCard(c)}
   ${classCard(c)}${choicesCard(c)}
@@ -2032,6 +2067,7 @@ function renderOv(){
   else if(ui.ov.type==='item'){const c=cur();const it=c&&c.items.find(i=>i.k===ui.ov.k);if(!it){ui.ov=null;return renderOv();}html=itemDetail(c,it);}
   else if(ui.ov.type==='shop')html=shopView();
   else if(ui.ov.type==='search')html=searchView();
+  else if(ui.ov.type==='srest')html=sRestView();
   else if(ui.ov.type==='map')html=mapView();
   else if(ui.ov.type==='liveCb')html=liveCbView();
   else if(ui.ov.type==='journal'){if(!S.camp){ui.ov=null;return renderOv();}html=journalView();}
@@ -3317,7 +3353,19 @@ const A={
   newItem:()=>{ui.ov={type:'newItem',fresh:1,draft:{n:'',q:1,w:'',d:''}};},
   saveItem:()=>{const c=cur();const d=ui.ov.draft;if(!d.n.trim()){showMsg('Nom manquant','Donne un nom à l’objet.');return false;}
     c.items.push({k:uid(),id:null,n:d.n.trim(),q:Math.max(1,Math.round(+d.q||1)),w:Math.max(0,+String(d.w).replace(',','.')||0),d:d.d.trim(),eq:0,b:0});ui.ov=null;showMsg(d.n.trim(),'Ajouté à l’inventaire.');},
-  rest:()=>{const c=cur();c.hp=c.hpMax;c.hpTemp=0;c.death={s:0,f:0};c.slotsUsed={};showMsg('Repos long','PV au maximum, emplacements de sorts récupérés, PV temporaires et jets contre la mort remis à zéro.');},
+  rest:()=>{const c=cur();c.hp=c.hpMax;c.hpTemp=0;c.death={s:0,f:0};c.slotsUsed={};c.resU={};
+    const hd=hdList(c);if(edOf(c)==='2014'){let back=Math.max(1,Math.floor(c.level/2));c.hdU=c.hdU||{};hd.forEach(h=>{const r=Math.min(back,h.used);c.hdU[h.d]=h.used-r;back-=r;});}else c.hdU={};
+    showMsg('Repos long','PV au maximum, emplacements de sorts, ressources et dés de vie récupérés.');},
+  inspT:()=>{const c=cur();c.insp=!c.insp;},
+  gInsp:d=>{const m=grpMembers()[+d.i];if(!m)return;const own=S.chars.find(c=>c.id===m.c.id);if(own&&!m.live){own.insp=true;showMsg('Inspiration',own.name+' est inspiré.');return;}
+    if(S.camp&&FB.user&&isGmCamp()){campRef().collection('live').doc('gift').set({at:Date.now(),cid:m.c.id,k:'insp'}).then(()=>showMsg('Inspiration envoyée',m.c.name+' reçoit l’inspiration.'),()=>showMsg('Inspiration','Envoi impossible : vérifie la connexion.'));return false;}},
+  resBox:d=>{const c=cur();const def=resDefs(c).find(x=>x.k===d.k);if(!def)return;c.resU=c.resU||{};const used=Math.min(def.max,c.resU[d.k]||0);const left=def.max-used;c.resU[d.k]=+d.i<left?used+1:Math.max(0,used-1);},
+  resStep:d=>{const c=cur();const def=resDefs(c).find(x=>x.k===d.k);if(!def)return;c.resU=c.resU||{};c.resU[d.k]=Math.max(0,Math.min(def.max,(c.resU[d.k]||0)+ +d.d));},
+  resAdd:()=>{const c=cur();const n=($('#res-n').value||'').trim();const max=Math.max(1,Math.min(99,+$('#res-max').value||0));if(!n||!max){showMsg('Compteur','Donne un nom et un nombre d’utilisations.');return;}c.resC=c.resC||[];c.resC.push({id:uid(),n:n.slice(0,40),max,r:$('#res-r').value==='short'?'short':'long'});},
+  resDel:d=>{const c=cur();c.resC=(c.resC||[]).filter(r=>r.id!==d.id);if(c.resU)delete c.resU['c-'+d.id];},
+  sRestOpen:()=>{ui.ov={type:'srest',fresh:1,log:[]};},
+  hdRoll:d=>{const c=cur();const o=ui.ov;const h=hdList(c).find(x=>x.d===+d.d);if(!h||h.max-h.used<1||c.hp>=c.hpMax)return;const r=rnd(h.d);const g=Math.max(0,r+mod(c.stats.CON));c.hdU=c.hdU||{};c.hdU[h.d]=h.used+1;const b=c.hp;c.hp=Math.min(c.hpMax,c.hp+g);o.log.push(`d${h.d} : ${r} ${fmt(mod(c.stats.CON))} = +${c.hp-b} PV`);},
+  sRestDo:()=>{const c=cur();const sl=slotsOf(c);if(sl&&sl.pp)delete c.slotsUsed.p;else if(sl&&sl.pact)c.slotsUsed={};const U=c.resU||{};resDefs(c).forEach(d=>{if(d.r==='short')delete U[d.k];else if(d.r==='short1'&&U[d.k]>0)U[d.k]--;});c.resU=U;ui.ov=null;showMsg('Repos court terminé','Ressources de repos court et emplacements de pacte récupérés.');},
   shortRest:()=>{const c=cur();const sl=slotsOf(c);if(sl&&sl.pp)delete c.slotsUsed.p;else c.slotsUsed={};showMsg('Repos court','Emplacements de pacte récupérés.');},
   slot:d=>{const c=cur();const k=d.k||d.l;const lv=slotLevels(c).find(x=>String(x.k)===String(k));if(!lv)return;const a=slotAvail(c,lv.k,lv.max);const used=c.slotsUsed[lv.k]||0;
     c.slotsUsed[lv.k]=+d.i<a?Math.min(lv.max,used+1):Math.max(0,used-1);},
