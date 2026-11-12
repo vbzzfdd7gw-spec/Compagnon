@@ -552,6 +552,7 @@ details.fold>.stack{padding:0 10px 12px}
 .mp-b i.gom{background:repeating-linear-gradient(45deg,#2a2f55 0 6px,#161a30 6px 12px)}
 .mp-list{display:flex;flex-wrap:wrap;gap:8px}
 .mp-tools.ro{min-height:0}
+.mp-del{display:grid;gap:8px;border:1px solid var(--bad);border-radius:12px;padding:10px 12px}
 .mp-tabs{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;scrollbar-width:none}.mp-tabs::-webkit-scrollbar{display:none}
 .mp-tabs button{flex:none;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid #3d4470;background:#12162b;color:var(--muted);font-weight:700;font-size:.95rem}
 .mp-tabs button.on{background:var(--brass);color:var(--brass-ink);border-color:var(--brass)}
@@ -1706,7 +1707,8 @@ function mapView(){const src=mapSrc();const ro=mapRo();const v=ui.mp=ui.mp||{};i
       +`<div class="between" style="align-items:center"><div class="stepper"><button class="btn sm" data-a="mapZr" data-d="-1.5" aria-label="Plus petit">−</button><b>${String(v.zr||6).replace('.',',')} m</b><button class="btn sm" data-a="mapZr" data-d="1.5" aria-label="Plus grand">+</button></div><button class="btn sm" data-a="mapClr" data-v="zones">Effacer les zones</button></div><p class="hint" style="margin:0">Pose le doigt à l’origine du sort, puis glisse pour l’orienter.</p>`
    :tab==='bg'?`<div class="row2"><label class="btn" style="text-align:center">Importer une image<input type="file" accept="image/*" id="mapfile" hidden></label><button class="btn" data-a="mapNoImg" ${m.img?'':'disabled'}>Retirer l’image</button></div><div class="between" style="align-items:center"><span class="hint" style="margin:0">Cases en largeur</span><div class="stepper"><button class="btn sm" data-a="mapCols" data-d="-1" aria-label="Moins de cases">−</button><b>${m.w}</b><button class="btn sm" data-a="mapCols" data-d="1" aria-label="Plus de cases">+</button></div></div><p class="hint" style="margin:0">${m.img?'Règle le nombre de cases pour que la grille tombe sur celle de ton image.':'Importe ta propre carte de combat (JPG ou PNG).'}</p>`
    :tab==='map'?`<input data-mp="n" value="${esc(m.n)}" aria-label="Nom de la carte" placeholder="Nom de la carte"><div class="seg">${Object.keys(MSIZE).map(k=>`<button class="${m.w===MSIZE[k][0]&&m.h===MSIZE[k][1]?'on':''}" data-a="mapSize" data-v="${k}" ${m.img?'disabled':''} style="padding:6px 4px">${MSIZE[k][2]} <small>${MSIZE[k][0]}×${MSIZE[k][1]}</small></button>`).join('')}</div>
-      <div class="mp-list">${S.maps.map(x=>`<button class="pk ${x.id===m.id?'on':''}" data-a="mapPick" data-id="${x.id}">${esc(x.n)}</button>`).join('')}<button class="pk" data-a="mapNew">+ Nouvelle</button>${S.maps.length>1?`<button class="pk" data-a="mapDel" style="color:var(--bad)">${v.del?'Confirmer ?':'Supprimer'}</button>`:''}</div>
+      <div class="mp-list">${S.maps.map(x=>`<button class="pk ${x.id===m.id?'on':''}" data-a="mapPick" data-id="${x.id}">${esc(x.n)}</button>`).join('')}<button class="pk" data-a="mapNew">+ Nouvelle</button></div>
+      ${v.del?`<div class="mp-del"><b>Es-tu sûr de vouloir supprimer « ${esc(m.n)} » ?</b><span class="hint" style="margin:0">Terrain, décor, dessins, zones et image seront effacés. C’est définitif.</span><div class="row2"><button class="btn danger" data-a="mapDel">Oui, supprimer</button><button class="btn" data-a="mapDelNo">Annuler</button></div></div>`:`<button class="btn sm danger" data-a="mapDelAsk">Supprimer cette carte</button>`}
       ${S.camp&&FB.user&&isGmCamp()?`<div class="between" style="align-items:center"><span class="hint" style="margin:0">Montrer cette carte aux joueurs</span><button class="pk ${S.mapShare!==0?'on':''}" data-a="mapShareT">${S.mapShare!==0?'✓ Partagée':'Privée'}</button></div>`:''}`
    :`<div id="mapinfo" class="mp-info">${mapInfoHtml()}</div>`;
   return `<div class="mapv"><div class="mp-top"><div><span class="lbl">${ro?'Carte du MJ':'1 case = 1,5 m'}</span><b>${esc(m.n)}</b></div><button class="btn sm" data-a="mapFitB">Recentrer</button><button class="btn sm" data-a="ovClose">Fermer</button></div>
@@ -3212,7 +3214,8 @@ const A={
   mapNoImg:()=>{const m=mapCur();m.img=0;delete MP.img[m.id];mapImgPut(m.id,null).catch(()=>{});},
   mapNew:()=>{const m={id:uid(),n:'Carte '+(S.maps.length+1),w:10,h:14,t:'',tok:{},img:0};S.maps.push(m);S.mapCur=m.id;MP.fit=1;},
   mapPick:d=>{S.mapCur=d.id;MP.fit=1;MP.sel=null;mapPubImg();},
-  mapDel:()=>{const v=ui.mp;if(!v.del){v.del=1;return;}v.del=0;const m=mapCur();if(S.maps.length<2)return;mapImgPut(m.id,null).catch(()=>{});S.maps=S.maps.filter(x=>x.id!==m.id);S.mapCur=S.maps[0].id;MP.fit=1;},
+  mapDelAsk:()=>{ui.mp.del=1;},mapDelNo:()=>{ui.mp.del=0;},
+  mapDel:()=>{const v=ui.mp;if(!v.del)return;v.del=0;const m=mapCur();mapImgPut(m.id,null).catch(()=>{});delete MP.img[m.id];S.maps=S.maps.filter(x=>x.id!==m.id);if(!S.maps.length)S.maps.push({id:uid(),n:'Carte 1',w:10,h:14,t:'',tok:{},img:0});S.mapCur=S.maps[0].id;MP.fit=1;MP.sel=null;},
   dice3d:d=>{S.dice3d=+d.v?1:0;if(S.dice3d&&rollAnimMode()==='off')S.rollAnim='full';},
   critT:()=>{ui.critNext=!ui.critNext;critSync();return false;},
   critMode:d=>{if(critLocked())return;S.critMax=+d.v?1:0;liveRules();},
