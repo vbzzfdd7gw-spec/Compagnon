@@ -562,6 +562,7 @@ details.fold>.stack{padding:0 10px 12px}
 .resrow{display:grid;gap:8px;padding:10px 0;border-top:1px solid var(--line)}.card>.between+.resrow{border-top:0}
 .res-n{display:flex;flex-direction:column;min-width:0}.res-n small{color:var(--muted);font-size:.8rem}
 .pk.insp{border-color:#e6bd6270;color:var(--gold)}.pk.insp.on{background:var(--gold);color:#201400;border-color:var(--gold)}
+.sr-only{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .qrw{display:inline-block;background:#fff;padding:6px;border-radius:12px;line-height:0;margin:0 auto}.qr{display:block}
 :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){details.fold>summary::after{transition:none}}
@@ -661,7 +662,8 @@ details.fold>summary{font-family:var(--f-display);color:var(--gold);letter-spaci
   <button data-a="tab" data-tab="dice"><svg viewBox="0 0 24 24"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7"/><polygon points="12,6.5 17.5,15.5 6.5,15.5"/></svg>Dés</button>
   <button data-a="tab" data-tab="combat" id="navCombat" hidden><svg viewBox="0 0 24 24"><path d="M5 19L15.5 8.5M15.5 8.5l2-4.5 2.5 2.5-4.5 2z"/><path d="M19 19L8.5 8.5M8.5 8.5l-2-4.5L4 6.5l4.5 2z"/><path d="M4 16l4 4M20 16l-4 4"/></svg>Combat</button>
 </nav>
-<div class="ov" id="ov" hidden></div>
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="Fenêtre" hidden></div>
+<div id="srlive" class="sr-only" role="status" aria-live="assertive"></div>
 
 <script>
 /* ---------- Données de règles (SRD 5.2, règles 2024) ---------- */
@@ -1003,6 +1005,7 @@ function cv(c,cls,pend){if(!c)return c;if(c._real)c=c._real;if(!mcOn(c)&&!pend)r
 function mcClean(c){if(!c)return;if(c.lvc){Object.keys(c.lvc).forEach(l=>{if(+l>c.level||+l<2||c.lvc[l]===c.cls||!(c.mc||[]).some(m=>m.cls===c.lvc[l]))delete c.lvc[l];});}
   if(c.mc){c.mc=c.mc.filter(m=>m&&m.cls&&m.cls!==c.cls&&clvl(Object.assign({},c,{mc:[m]}),m.cls)>0);if(!c.mc.length){delete c.mc;delete c.lvc;}}}
 const clsLabel=c=>mcOn(c)?mcList(c).map(x=>`${(CLASSES[x]||{n:x}).n} ${clvl(c,x)}`).join(' / ')+` · niv. ${c.level}`:`${(CLASSES[c.cls]||{n:c.cls}).n} niv. ${c.level}`;
+const MC_SK={barde:1,rodeur:1,roublard:1};
 const MC_REQ={barbare:[['FOR']],barde:[['CHA']],clerc:[['SAG']],druide:[['SAG']],guerrier:[['FOR','DEX']],moine:[['DEX'],['SAG']],paladin:[['FOR'],['CHA']],rodeur:[['DEX'],['SAG']],roublard:[['DEX']],ensorceleur:[['CHA']],occultiste:[['CHA']],magicien:[['INT']]};
 const MC_PROF={barbare:'boucliers, armes courantes, armes de guerre',barde:'armures légères, une compétence au choix, un instrument de musique',clerc:'armures légères, armures intermédiaires, boucliers',druide:'armures légères, armures intermédiaires, boucliers',guerrier:'armures légères, armures intermédiaires, boucliers, armes courantes, armes de guerre',moine:'armes courantes, épées courtes',paladin:'armures légères, armures intermédiaires, boucliers, armes courantes, armes de guerre',rodeur:'armures légères, armures intermédiaires, boucliers, armes courantes, armes de guerre, une compétence de la liste du rôdeur',roublard:'armures légères, une compétence de la liste du roublard, outils de voleur',ensorceleur:'aucune',occultiste:'armures légères, armes courantes',magicien:'aucune'};
 function mcReqMiss(c,cls){const out=[];[c.cls,cls].forEach(x=>{(MC_REQ[x]||[]).forEach(g=>{if(!g.some(k=>c.stats[k]>=13))out.push(`${(CLASSES[x]||{n:x}).n} : ${g.join(' ou ')} 13`);});});return out;}
@@ -1092,7 +1095,8 @@ function txt(s){
 }
 
 /* ---------- Moteur de dés ---------- */
-function pushRoll(r){r.time=Date.now();const dice=r.dice;delete r.dice;try{liveShareRoll(r);}catch(e){}S.history.unshift(r);S.history=S.history.slice(0,40);save();if(rollAnimMode()!=='off'&&dice&&dice.length)rollFx(Object.assign({},r,{dice}));else showToast(r);return r;}
+const srSay=t=>{const el=$('#srlive');if(el){el.textContent='';setTimeout(()=>{el.textContent=t;},60);}};
+function pushRoll(r){r.time=Date.now();try{srSay(`${plain(r.label||'Jet')} : ${r.total}. ${r.flag?plain(r.flag)+'. ':''}${plain(r.detail)}`);}catch(e){}const dice=r.dice;delete r.dice;try{liveShareRoll(r);}catch(e){}S.history.unshift(r);S.history=S.history.slice(0,40);save();if(rollAnimMode()!=='off'&&dice&&dice.length)rollFx(Object.assign({},r,{dice}));else showToast(r);return r;}
 /* ---------- Animation des jets ---------- */
 const FXSH={4:'<polygon points="50,6 96,90 4,90"/>',6:'<rect x="8" y="8" width="84" height="84" rx="12"/>',8:'<polygon points="50,3 96,50 50,97 4,50"/>',10:'<polygon points="50,3 96,42 50,97 4,42"/>',12:'<polygon points="50,4 96,37 79,93 21,93 4,37"/>',20:'<polygon points="50,3 93,27 93,73 50,97 7,73 7,27"/><polygon class="in" points="50,22 74,64 26,64"/>',100:'<polygon points="50,3 96,42 50,97 4,42"/>'};
 const rollAnimMode=()=>S.rollAnim||(navigator.webdriver&&!/rollfx/.test(location.hash)?'off':'full');
@@ -1332,7 +1336,7 @@ function combatView(){const E=enc();const order=E.list;const onK=E.round?E.cur:n
   return `<header class="vh"><div class="vh-row"><div><span class="lbl">Mode MJ ${S.mjv==='grp'?'':edBadge(E.ed)}</span><h1>${S.mjv==='grp'?'Groupe':'Combat'}</h1><span class="sub">${S.mjv==='grp'?grpMembers().length+' PJ':E.round?'Round '+E.round:E.list.length?'Prêt à commencer':'Aucune rencontre en cours'}</span></div></div></header>
   <div class="seg" style="margin-bottom:12px"><button class="${S.mjv!=='grp'?'on':''}" data-a="mjv" data-v="cb">Combat</button><button class="${S.mjv==='grp'?'on':''}" data-a="mjv" data-v="grp">Groupe (${grpMembers().length})</button></div>
   ${S.mjv==='grp'?grpView():`<div class="seg" style="margin-bottom:12px"><button class="${E.ed==='2014'?'on':''}" data-a="cbEd" data-e="2014">Bestiaire 2014</button><button class="${E.ed==='2024'?'on':''}" data-a="cbEd" data-e="2024">Bestiaire 2024</button></div>
-  <div class="row2"><button class="btn" data-a="cbAddM">+ Monstres</button><button class="btn" data-a="cbAddP">+ PJ / PNJ</button></div><button class="btn" style="margin-top:10px;width:100%" data-a="mapOpen">Carte de combat</button>
+  <div class="row2"><button class="btn" data-a="cbAddM">+ Monstres</button><button class="btn" data-a="cbAddP">+ PJ / PNJ</button></div><div class="row2" style="margin-top:10px"><button class="btn" data-a="mapOpen">Carte de combat</button><button class="btn" data-a="gnOpen">Notes du MJ</button></div>
   ${mons.length?`<div style="margin-top:10px">${diffBox(encDiff(mons.map(x=>x.xp||0),E.ed))}</div>`:''}
   ${E.list.length?`<div class="row2" style="margin-top:10px">${E.round?`<button class="btn primary big" data-a="cbNext">Tour suivant</button><button class="btn big" data-a="cbStop">■ Arrêter le combat</button>`:`<button class="btn primary big" data-a="cbStart">▶ Démarrer le combat</button><button class="btn big" data-a="cbRoll">Lancer l’initiative seulement</button>`}</div>
    <div class="row2" style="margin-top:10px"><button class="btn sm" data-a="cbRstAsk">Réinitialiser la rencontre</button><button class="btn sm" data-a="cbEnd">${ui.cbEnd?'Confirmer : retirer les monstres':'Finir et retirer les monstres'}</button></div>
@@ -1541,9 +1545,17 @@ function liveCbView(){const L=LV.cb;const h=`<div class="ov-h"><div><span class=
   if(!L||!L.on)return `<div class="ov-in">${h}<p class="empty">Le MJ n’a pas de combat en cours.</p></div>`;
   return `<div class="ov-in">${h}<div class="stack"><div class="lvl">${L.list.map(x=>{const on=x.k===L.cur;const mine=x.pc&&S.chars.some(c=>c.id===x.cid);return `<div class="lvr ${on?'on':''} ${x.dead?'dead':''}"><span class="lv-i">${x.init==null?'–':x.init}</span><span class="lv-n"><b>${esc(x.n)}</b>${mine?' <span class="tag">toi</span>':''}<small>${[on?'Joue maintenant':'',x.dead?(x.pc?'À terre':'Vaincu'):'',x.conc?'Concentration':''].concat((x.cond||[]).map(cdName)).filter(Boolean).map(esc).join(' · ')}</small></span></div>`;}).join('')}</div>
   <p class="hint">Mis à jour en direct par le MJ. Les points de vie des créatures restent cachés.</p></div></div>`;}
-function journalView(){const o=ui.ov;const gm=isGmCamp();const fr=t=>new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+function gmNotesView(){const o=ui.ov;const N=(S.gmNotes||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));const fr=t=>new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  return `<section class="card"><h2>${o.nid?'Modifier la note':'Nouvelle note privée'}</h2><input data-jr="nt" value="${esc(o.nt||'')}" placeholder="Titre : secrets du baron, pistes à venir…"><textarea data-jr="nx" placeholder="Visible par toi seul." style="min-height:120px">${esc(o.nx||'')}</textarea>
+    <div class="row2"><button class="btn primary" data-a="gnSave">${o.nid?'Enregistrer':'Ajouter la note'}</button>${o.nid?'<button class="btn" data-a="gnCancel">Annuler</button>':''}</div>${o.err?`<p class="err">${esc(o.err)}</p>`:''}</section>
+  ${N.length?N.map(j=>`<section class="card jr"><div class="between"><h2>${esc(j.t||'Note')}</h2><span class="lbl">${j.at?fr(j.at):''}</span></div>${j.x?`<p class="jr-x">${esc(j.x)}</p>`:''}<div class="row2"><button class="btn sm" data-a="gnEdit" data-id="${esc(j.id)}">Modifier</button><button class="btn sm danger" data-a="gnDel" data-id="${esc(j.id)}">${o.del===j.id?'Confirmer':'Supprimer'}</button></div></section>`).join(''):'<p class="empty">Aucune note. Elles restent sur ton compte et ne sont jamais envoyées aux joueurs.</p>'}`;}
+function journalView(){const o=ui.ov;const gm=isGmCamp()||!S.camp;if(!S.camp)o.tab='notes';
+  if(gm&&o.tab==='notes')return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">Privé · jamais partagé</span><h1>Notes du MJ</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">${S.camp?`<div class="seg"><button data-a="jrTab" data-v="pub">Journal partagé</button><button class="on" data-a="jrTab" data-v="notes">Notes du MJ</button></div>`:''}${gmNotesView()}</div></div>`;
+  return journalView1();}
+function journalView1(){const o=ui.ov;const gm=isGmCamp();const fr=t=>new Date(t).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
   return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">${esc(S.camp.name||'Campagne')}</span><h1>Journal</h1></div><button class="btn sm" data-a="ovClose">Fermer</button></div><div class="stack">
-  ${gm?`<section class="card"><h2>${o.eid?'Modifier l’entrée':'Nouvelle entrée'}</h2><input data-jr="t" value="${esc(o.t||'')}" placeholder="Titre : Séance 4, La crypte…"><textarea data-jr="x" placeholder="Résumé de la séance, pistes ouvertes…" style="min-height:110px">${esc(o.x||'')}</textarea><textarea data-jr="l" placeholder="Butin distribué (facultatif)" style="min-height:60px">${esc(o.l||'')}</textarea><input data-jr="xp" inputmode="numeric" value="${esc(o.xp||'')}" placeholder="PX par personnage (facultatif)">
+  ${gm?`<div class="seg"><button class="on" data-a="jrTab" data-v="pub">Journal partagé</button><button data-a="jrTab" data-v="notes">Notes du MJ</button></div>`:''}
+  ${gm?`<section class="card"><h2>${o.eid?'Modifier l’entrée':'Nouvelle entrée'}</h2><input data-jr="t" value="${esc(o.t||'')}" placeholder="Titre : Séance 4, La crypte…"><textarea data-jr="x" placeholder="Résumé de la séance, pistes ouvertes…" style="min-height:110px">${esc(o.x||'')}</textarea><textarea data-jr="l" placeholder="Butin distribué (facultatif)" style="min-height:60px">${esc(o.l||'')}</textarea>
     <div class="row2"><button class="btn primary" data-a="jrSave">${o.eid?'Enregistrer':'Publier pour la table'}</button>${o.eid?'<button class="btn" data-a="jrCancel">Annuler</button>':''}</div>${o.err?`<p class="err">${esc(o.err)}</p>`:''}</section>`:''}
   ${LV.journal.length?LV.journal.map(j=>`<section class="card jr"><div class="between"><h2>${esc(j.t||'Séance')}</h2><span class="lbl">${j.at?fr(j.at):''}</span></div>${j.x?`<p class="jr-x">${esc(j.x)}</p>`:''}${j.l?`<div class="jr-b"><span class="lbl">Butin</span><p class="jr-x">${esc(j.l)}</p></div>`:''}${j.xp?`<div class="jr-b"><span class="lbl">Expérience</span><p class="jr-x">${esc(j.xp)} PX par personnage</p></div>`:''}${gm?`<div class="row2"><button class="btn sm" data-a="jrEdit" data-id="${esc(j.id)}">Modifier</button><button class="btn sm danger" data-a="jrDel" data-id="${esc(j.id)}">${o.del===j.id?'Confirmer':'Supprimer'}</button></div>`:''}</section>`).join(''):`<p class="empty">${gm?'Aucune entrée. Écris la première ci-dessus : tes joueurs la verront aussitôt.':'Le MJ n’a encore rien écrit dans le journal.'}</p>`}
   </div></div>`;}
@@ -1770,7 +1782,7 @@ function mapView(){const src=mapSrc();const ro=mapRo();const v=ui.mp=ui.mp||{};i
       ${S.camp&&FB.user&&isGmCamp()?`<div class="between" style="align-items:center"><span class="hint" style="margin:0">Montrer cette carte aux joueurs</span><button class="pk ${S.mapShare!==0?'on':''}" data-a="mapShareT">${S.mapShare!==0?'✓ Partagée':'Privée'}</button></div>`:''}`
    :`<div id="mapinfo" class="mp-info">${mapInfoHtml()}</div>`;
   return `<div class="mapv"><div class="mp-top"><div><span class="lbl">${ro?'Carte du MJ':'1 case = 1,5 m'}</span><b>${esc(m.n)}</b></div>${ro?'':`<button class="btn sm" data-a="mapUndoB" aria-label="Annuler la dernière action">↶ Annuler</button>`}<button class="btn sm" data-a="mapFitB" aria-label="Recentrer la carte">⌖</button><button class="btn sm" data-a="ovClose">Fermer</button></div>
-   <canvas id="mapcv" aria-label="Carte de combat"></canvas>
+   <canvas id="mapcv" role="img" aria-label="Carte de combat. La liste des jetons suit." aria-describedby="mapsr"></canvas><ul id="mapsr" class="sr-only">${src?src.toks.map(t=>`<li>${esc(t.n)}, ${t.pc?'personnage':'créature'}, colonne ${t.x+1}, ligne ${t.y+1}${t.dead?', hors de combat':''}${t.on?', joue maintenant':''}${(t.cond||[]).length?', '+t.cond.map(cdName).map(esc).join(', '):''}</li>`).join(''):''}</ul>
    <div class="mp-bot"><div class="mp-tools ${ro?'ro':''}">${tools}</div>${ro?'':`<div class="mp-tabs">${[['tok','Jetons'],['ter','Terrain'],['obj','Décor'],['dr','Dessin'],['zn','Zones'],['fog','Brouillard'],['bg','Image'],['map','Cartes']].map(([k,n])=>`<button class="${tab===k?'on':''}" data-a="mapTab" data-v="${k}">${n}</button>`).join('')}</div>`}</div></div>`;}
 function mapAfter(){document.querySelectorAll('canvas.mp-oc').forEach(cv2=>{const g=cv2.getContext('2d');g.clearRect(0,0,80,80);mapObjDraw(g,cv2.dataset.ob,0,0,80);});const on=document.querySelector('.mp-tabs .on');if(on&&on.scrollIntoView)try{on.scrollIntoView({block:'nearest',inline:'nearest'});}catch(e){}mapDraw();}
 /* copie allégée de l'image dans la sauvegarde en ligne */
@@ -1938,6 +1950,8 @@ function diceView(){
 }
 
 /* ---------- Sorts : fiche ---------- */
+const mcCast=c=>mcOn(c)?mcList(c).filter(x=>castStatOf(cv(c,x))):[];
+const spcOf=(c,id)=>{const L=mcCast(c);if(L.length<2)return L[0]||c.cls;const k=(c.spc||{})[id];return L.includes(k)?k:L[0];};
 function spellRule(c){const e14=edOf(c)==='2014';const cls=c.cls;const hr=hbCastRec(c);
   if(hr)return hr.known?{m:'known',t:'Ta classe connaît un nombre limité de sorts : tous ceux que tu connais sont utilisables, sans préparation.'}:{m:'prep',t:'Ta classe prépare ses sorts : après un repos long, choisis ceux que tu prépares.'};
   if(e14){if(KNOWN14[cls])return {m:'known',t:'Ta classe connaît un nombre limité de sorts : tous tes sorts connus sont utilisables sans préparation. À chaque niveau gagné, tu peux en remplacer un.'};
@@ -1955,17 +1969,17 @@ function spellCard(c){
   const sl=slotsOf(c);
   const rows=lv.map(({l,max,k,pact})=>{const a=slotAvail(c,k,max);return `<div class="slotrow"><span>${pact?'Pacte':'Niv. '+l}${pact?' <span class="lbl">niv. '+l+'</span>':''}</span><div class="dots">${Array.from({length:max},(_,i)=>`<button class="sbox ${i<a?'on':''}" data-a="slot" data-l="${l}" data-k="${k}" data-i="${i}" aria-label="Emplacement de niveau ${l}"></button>`).join('')}</div><span class="lbl">${a}/${max}</span></div>`;}).join('');
   const list=c.spells.map(getSpell).filter(Boolean).sort((a,b)=>a.l-b.l||a.n.localeCompare(b.n,'fr'));
-  let groups='',last=-1;
+  let groups='',last=-1;const mcTag=mcCast(c).length>1;
   for(const sp of list){
     if(sp.l!==last){groups+=`<div class="lvlh">${lvlLabel(sp.l)}</div>`;last=sp.l;}
     const p=sp.l===0||c.prep[sp.id];
     groups+=`<div class="sprow" data-sw="${sp.id}" data-sk="sheet"><div class="sw-bg" aria-hidden="true"><span class="sw-l">Retirer</span><span class="sw-r">${sp.l===0?'':p?'Ne plus préparer':'Préparer'}</span></div><div class="sw-fg">${sp.l===0?'<span class="pipb"><span class="pip p1"></span></span>':`<button class="pipb" data-a="prep" data-id="${sp.id}" aria-label="${p?'Préparé':'Non préparé'}"><span class="pip ${p?'p1':''}"></span></button>`}
-      <button class="sp-n" data-a="spOpen" data-id="${sp.id}"><span>${esc(sp.n)}${sp.en?`<em class="en">${esc(sp.en)}</em>`:''}</span><span class="tg">${sp.cc?'<span class="mk">C</span>':''}${sp.ri?'<span class="mk">R</span>':''}</span></button></div></div>`;
+      <button class="sp-n" data-a="spOpen" data-id="${sp.id}"><span>${esc(sp.n)}${sp.en?`<em class="en">${esc(sp.en)}</em>`:''}</span><span class="tg">${mcTag?`<span class="mk">${esc(CLASSES[spcOf(c,sp.id)].n.slice(0,4))}</span>`:''}${sp.cc?'<span class="mk">C</span>':''}${sp.ri?'<span class="mk">R</span>':''}</span></button></div></div>`;
   }
   const nPrep=list.filter(sp=>sp.l>0&&c.prep[sp.id]).length;const unk=c.spells.length-list.length;
   let rule=spellRule(c);let sc=spellCount(c,c.level);const n0=list.filter(sp=>sp.l===0).length;let max0=cantripsOf(c,c.level);const nL=list.filter(sp=>sp.l>0).length;let mcDD='';let bookMax=6+2*(c.level-1);
-  if(mcOn(c)){const V=mcList(c).map(x=>cv(c,x)).filter(v=>castStatOf(v));const parts=[];let tot=0,any=0,allK=true,book=0;max0=0;V.forEach(v=>{max0+=cantripsOf(v,v.level)||0;const r=spellRule(v);const k=spellCount(v,v.level);if(r.book){book=1;bookMax=6+2*(v.level-1);}if(r.m!=='known')allK=false;if(k&&k.n!=null){any=1;tot+=k.n;parts.push(`${CLASSES[v.cls].n} ${k.n} ${r.m==='known'?'connus':'préparés'}`);}});
-    rule={m:allK&&V.length?'known':'prep',book,t:'Multiclassé : chaque classe gère ses sorts à part ('+(parts.join(', ')||'aucun')+'). Les emplacements, eux, sont mis en commun.'};sc=any?{n:tot}:null;
+  if(mcOn(c)){const V=mcList(c).map(x=>cv(c,x)).filter(v=>castStatOf(v));const parts=[];let tot=0,any=0,allK=true,book=0;max0=0;V.forEach(v=>{const m0=cantripsOf(v,v.level)||0;max0+=m0;const r=spellRule(v);const k=spellCount(v,v.level);if(r.book){book=1;bookMax=6+2*(v.level-1);}if(r.m!=='known')allK=false;const mine=list.filter(sp=>spcOf(c,sp.id)===v.cls);const h0=mine.filter(sp=>sp.l===0).length;const hN=r.m==='known'?mine.filter(sp=>sp.l>0).length:mine.filter(sp=>sp.l>0&&c.prep[sp.id]).length;if(k&&k.n!=null){any=1;tot+=k.n;}parts.push(`${CLASSES[v.cls].n} : ${m0?`mineurs ${h0}/${m0}, `:''}${r.m==='known'?'connus':'préparés'} ${hN}${k&&k.n!=null?'/'+k.n:''}`);});
+    rule={m:allK&&V.length?'known':'prep',book,t:'Multiclassé, par classe : '+(parts.join(' · ')||'aucun sort')+'. Les emplacements sont mis en commun.'};sc=any?{n:tot}:null;
     const pbm=prof(c.level);mcDD=V.filter(v=>castStatOf(v)!==st).map(v=>{const k=castStatOf(v);const mm=mod(c.stats[k]);return `${CLASSES[v.cls].n} (${k}) : DD ${8+pbm+mm+mfx(c).dc}, attaque ${fmt(pbm+mm+mfx(c).sa)}`;}).join(' · ');}
   const mainN=rule.m==='known'?nL:nPrep;const mainMax=sc?sc.n:null;
   const cnt=(lab,n,max,sub)=>`<div class="vit cnt ${max!=null?cntCls(n,max):''}"><span class="lbl">${lab}</span><b>${n}${max!=null?`<small>/${max}</small>`:''}</b>${sub?`<span class="cnt-s">${sub}</span>`:''}</div>`;
@@ -2006,6 +2020,7 @@ function spellsView(){
     <label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="spq" type="search" placeholder="Rechercher (VF ou VO)" value="${esc(f.q)}" autocomplete="off" enterkeyhint="search"></label>
     <div class="frow"><select id="spcls" aria-label="Classe"><option value="">Toutes les classes</option>${CASTER_CLASSES.map(k=>`<option value="${k}" ${f.cls===k?'selected':''}>${CLASSES[k].n}</option>`).join('')}</select>
       ${c?`<button class="fc ${f.mine?'on':''}" data-a="spMine">Sur la fiche</button>`:''}</div>
+    ${c&&mcCast(c).length>1?`<div class="between" style="align-items:center;gap:8px;margin-top:8px"><span class="hint" style="margin:0">Ajouter pour</span><div class="seg" style="flex:1">${mcCast(c).map(x=>`<button class="${(mcCast(c).includes(ui.spAddCls)?ui.spAddCls:mcCast(c)[0])===x?'on':''}" data-a="spAddCls" data-v="${x}" style="padding:7px 4px">${esc(CLASSES[x].n)}</button>`).join('')}</div></div>`:''}
     <div class="fscroll">${lvls.map(l=>`<button class="fc ${String(f.lvl)===String(l)?'on':''}" data-a="spLvl" data-l="${l}">${l===''?'Tous':l===0?'Mineurs':'Niv. '+l}</button>`).join('')}
       <button class="fc ${f.cc?'on':''}" data-a="spCc">Concentration</button><button class="fc ${f.ri?'on':''}" data-a="spRi">Rituel</button>${ED.e==='2014'?'':`<button class="fc ${f.ns?'on':''}" data-a="spNs">+ Hors SRD</button>`}</div>
     ${f.ns&&ED.e!=='2014'?'<p class="hint" style="margin:0">Sorts hors SRD (Manuel des joueurs, Xanathar, Tasha…) : nom, niveau et école seulement, avec un lien vers AideDD pour le texte. Ils s’affichent quelle que soit la classe choisie. Noms VF indicatifs.</p>':''}</header>
@@ -2027,7 +2042,7 @@ function spellDetail(sp){
   const c=cur();const has=c&&c.spells.includes(sp.id);
   const clsNames=sp.c.map(k=>CLASSES[k]?CLASSES[k].n:k).join(', ');
   const comps=sp.co.split('').join(', ')+(sp.m?` (${esc(sp.m)})`:'');
-  let cast='';
+  let cast='';const spCls=c&&c.spells.includes(sp.id)&&mcCast(c).length>1?`<section class="card"><h2>Classe du sort</h2><div class="pick">${mcCast(c).map(x=>`<button class="pk ${spcOf(c,sp.id)===x?'on':''}" data-a="spSetCls" data-id="${sp.id}" data-v="${x}">${esc(CLASSES[x].n)}</button>`).join('')}</div><p class="hint" style="margin:0">${(()=>{const k=castStatOf(cv(c,spcOf(c,sp.id)));const mm=mod(c.stats[k]);const pbm=prof(c.level);return `Avec cette classe (${k}) : DD ${8+pbm+mm+mfx(c).dc}, attaque ${fmt(pbm+mm+mfx(c).sa)}.`;})()}</p></section>`:'';
   if(c&&sp.l===0){
     const d=cantripDice(sp,c.level);
     if(d)cast=`<section class="card"><h2>Lancer</h2><div class="castrow"><button class="btn primary" data-a="rollTxt" data-f="${d}" data-n="${esc(sp.n)}">Dégâts ${d} ${esc(sp.dg.t)}</button></div>
@@ -2042,7 +2057,7 @@ function spellDetail(sp){
   return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">${sp.l===0?'Sort mineur':'Niveau '+sp.l} · ${esc(sp.s)}${sp.hb?' · importé ('+esc(sp.src)+')':sp.custom?' · perso':''}</span><h1>${esc(sp.n)}</h1>${sp.en?`<span class="sub">${esc(sp.en)}</span>`:''}</div><button class="btn sm" data-a="ovClose">Fermer</button></div>
   <div class="stack">
     <section class="card"><dl class="meta"><dt>Incantation</dt><dd>${esc(sp.ct)}${sp.ri?' ou rituel':''}</dd><dt>Portée</dt><dd>${esc(sp.r)}</dd><dt>Composantes</dt><dd>${comps}</dd><dt>Durée</dt><dd>${esc(sp.du)}</dd>${clsNames?`<dt>Classes</dt><dd>${esc(clsNames)}</dd>`:''}</dl></section>
-    ${cast}
+    ${spCls}${cast}
     <section class="card desc">${txt(sp.d)}${sp.hl?`<p><b>${sp.l===0?'Amélioration.':'Emplacement de niveau supérieur.'}</b> ${txt(sp.hl).replace(/^<p>|<\/p>$/g,'')}</p>`:''}
       <p class="hint">Touche un jet de dés souligné pour le lancer.</p></section>
     ${c?`<button class="btn ${has?'':'primary'} big" data-a="spToggle" data-id="${sp.id}">${has?'Retirer de la fiche '+deN(c.name):'Ajouter à la fiche '+deN(c.name)}</button>`:''}
@@ -2088,7 +2103,7 @@ function renderOv(){
   else if(ui.ov.type==='srest')html=sRestView();
   else if(ui.ov.type==='map')html=mapView();
   else if(ui.ov.type==='liveCb')html=liveCbView();
-  else if(ui.ov.type==='journal'){if(!S.camp){ui.ov=null;return renderOv();}html=journalView();}
+  else if(ui.ov.type==='journal'){if(!S.camp&&!S.mj){ui.ov=null;return renderOv();}html=journalView();}
   else if(ui.ov.type==='cat'){const d=ITI[ui.ov.id];if(!d){ui.ov=null;return renderOv();}html=catalogInfo(d);}
   else if(ui.ov.type==='mcat'){const m=MI[ui.ov.id];if(!m){ui.ov=null;return renderOv();}html=magicInfo(m);}
   else if(ui.ov.type==='newItem')html=newItemForm();
@@ -2413,12 +2428,13 @@ function luState(){return ui.ov;}
 function featAsi(f){if(!f)return null;if(f.asi)return f.asi;if(f.ns||f.custom)return null;const l=(f.d||'').split('\n').find(x=>/^\*\*Augmentation de caractéristique\.\*\*/.test(x));if(!l)return null;
   const al=STATS.filter(k=>new RegExp(STAT_NAMES[k],'i').test(l));return {al:al.length?al:STATS.slice(),max:/30/.test(l)?30:20};}
 function luC(){const R=cur();const o=ui.ov||{};return cv(R,o.cls||R.cls,o.pend);}
-function luSetCls(id){const R=cur();const o=ui.ov;if(!CLASSES[id])return;o.cls=id;o.pend=mcList(R).includes(id)?null:{cls:id,sub:'',ch:{}};const v=luC();Object.assign(o,{hp:'avg',roll:0,man:'',sub:'',asi:'2',a2:null,a1:null,a1b:null,feat:'',featName:'',fa:null,err:'',ch:JSON.parse(JSON.stringify(v.ch||{})),sk:Object.assign({},R.skills)});}
+function luSetCls(id){const R=cur();const o=ui.ov;if(!CLASSES[id])return;o.cls=id;o.pend=mcList(R).includes(id)?null:{cls:id,sub:'',ch:{}};const v=luC();Object.assign(o,{mcsk:'',hp:'avg',roll:0,man:'',sub:'',asi:'2',a2:null,a1:null,a1b:null,feat:'',featName:'',fa:null,err:'',ch:JSON.parse(JSON.stringify(v.ch||{})),sk:Object.assign({},R.skills)});}
 function luClsCard(R,c,isNew){const have=mcList(R);const e=edOf(R);const others=Object.keys(CLASSES).filter(id=>!have.includes(id)&&(!CLASSES[id].eds||CLASSES[id].eds.includes(e))).sort((a,b)=>CLASSES[a].n.localeCompare(CLASSES[b].n,'fr'));
   const miss=isNew?mcReqMiss(R,c.cls):[];
   return `<section class="card"><h2>Classe de ce niveau</h2><label class="fld"><span>Dans quelle classe prends-tu ce niveau ?</span><select data-lu="cls">${have.map(id=>`<option value="${id}" ${c.cls===id?'selected':''}>${esc(CLASSES[id].n)} (niveau ${clvl(R,id)} → ${clvl(R,id)+1})</option>`).join('')}<optgroup label="Multiclassage : nouvelle classe">${others.map(id=>`<option value="${id}" ${c.cls===id?'selected':''}>${esc(CLASSES[id].n)} (niveau 1)</option>`).join('')}</optgroup></select></label>
     ${isNew?`${miss.length?`<p class="note">Prérequis de multiclassage non remplis : ${esc(miss.join(' ; '))}. Tu peux continuer si ton MJ l’autorise.</p>`:'<p class="hint" style="margin:0">Prérequis de multiclassage remplis (13 dans les caractéristiques clés des deux classes).</p>'}
-      <p class="hint" style="margin:0">Une nouvelle classe ne donne pas ses maîtrises de sauvegarde. ${!MC_PROF[c.cls]?'Pour ses autres maîtrises, vois avec ton MJ.':MC_PROF[c.cls]==='aucune'?'Elle ne donne aucune autre maîtrise.':'Maîtrises gagnées : '+esc(MC_PROF[c.cls])+'. '+(e==='2014'?'':'(Liste des règles 2014 ; vérifie les petites différences en 2024.) ')+'Ajoute-les à la main avec « Modifier ».'}</p>`:''}</section>`;}
+      <p class="hint" style="margin:0">Une nouvelle classe ne donne pas ses maîtrises de sauvegarde. ${!MC_PROF[c.cls]?'Pour ses autres maîtrises, vois avec ton MJ.':MC_PROF[c.cls]==='aucune'?'Elle ne donne aucune autre maîtrise.':'Maîtrises gagnées : '+esc(MC_PROF[c.cls])+'. '+(e==='2014'?'':'(Liste des règles 2014 ; vérifie les petites différences en 2024.) ')+'Elles seront notées dans « Capacités et traits » de la fiche.'}</p>
+      ${MC_SK[c.cls]?`<label class="fld"><span>Compétence gagnée avec cette classe</span><select data-lu="mcsk"><option value="">À choisir</option>${SKILLS.filter(([id])=>!(R.skills[id]>0)).map(([id,n])=>`<option value="${id}" ${ui.ov.mcsk===id?'selected':''}>${esc(n)}</option>`).join('')}</select></label>`:''}`:''}</section>`;}
 function lvlUpView(){
   const R=cur();const c=luC();const o=ui.ov;const nl=c.level+1;const tnl=R.level+1;const isNew=!mcList(R).includes(c.cls);const e14=edOf(c)==='2014';const cl=CLASSES[c.cls];const hd=cl.hd;const con=mod(c.stats.CON);
   const avg=hpGainAvg(c);
@@ -2505,7 +2521,9 @@ function luApply(){
   if(o.hp==='roll'&&!o.roll){o.err='Lance le dé de vie, ou choisis la moyenne.';return false;}
   const old=c.hpMax;const avg=hpGainAvg(c);const con=mod(c.stats.CON);
   const gain=o.hp==='roll'?Math.max(1,o.roll+con):o.hp==='man'&&o.man!==''?Math.max(1,+o.man||1):avg;
-  if(isNew){R.mc=R.mc||[];R.mc.push(o.pend);}
+  if(isNew&&MC_SK[c.cls]&&!o.mcsk){o.err='Choisis la compétence gagnée avec cette classe.';return false;}
+  if(isNew){R.mc=R.mc||[];R.mc.push(o.pend);if(o.mcsk)o.sk[o.mcsk]=Math.max(1,o.sk[o.mcsk]||0);}
+  let mcNote='';if(isNew&&MC_PROF[c.cls]&&MC_PROF[c.cls]!=='aucune'){mcNote=`Maîtrises de multiclassage (${CLASSES[c.cls].n}) : ${MC_PROF[c.cls]}.`;R.notes=R.notes||{};R.notes.traits=(R.notes.traits?R.notes.traits.replace(/\s+$/,'')+'\n':'')+mcNote;}
   R.hpLog=R.hpLog||{};R.hpLog[tnl]=gain-avg;
   const b0={st:Object.assign({},c.stats),sv:c.saves.slice(),ft:c.feats.slice(),sub:c.sub,ch:JSON.parse(JSON.stringify(c.ch||{})),sk:Object.assign({},c.skills),sp:c.spells.slice()};
   const got=[];
@@ -2517,7 +2535,7 @@ function luApply(){
     else{const f=getFeat(o.feat);c.feats.push(o.feat);got.push('don '+(f||{}).n);const fa=featAsi(f);if(fa&&o.fa){c.stats[o.fa]=Math.min(fa.max,c.stats[o.fa]+1);got.push(o.fa+' +1');if(f.svp&&!c.saves.includes(o.fa)){c.saves.push(o.fa);got.push('maîtrise sauvegarde '+o.fa);}}}
   }
   c.ch=o.ch;c.skills=o.sk;
-  const rec={l:tnl,cls:c.cls,st:{},sv:c.saves.filter(k=>!b0.sv.includes(k)),ft:c.feats.slice(b0.ft.length),sub:!b0.sub&&c.sub?c.sub:'',ch0:b0.ch,sk:{},sk0:{},sp0:b0.sp};
+  const rec={l:tnl,cls:c.cls,nt:mcNote,st:{},sv:c.saves.filter(k=>!b0.sv.includes(k)),ft:c.feats.slice(b0.ft.length),sub:!b0.sub&&c.sub?c.sub:'',ch0:b0.ch,sk:{},sk0:{},sp0:b0.sp};
   STATS.forEach(k=>{const d=c.stats[k]-b0.st[k];if(d)rec.st[k]=d;});
   Object.keys(c.skills).forEach(k=>{if((c.skills[k]||0)!==(b0.sk[k]||0)){rec.sk[k]=c.skills[k];rec.sk0[k]=b0.sk[k]||0;}});
   R.lvh=(R.lvh||[]).filter(x=>x.l<tnl);R.lvh.push(rec);
@@ -2527,7 +2545,7 @@ function luApply(){
   if(o.chainTo){const cg=o.chainGot.concat(got);save();if(nl<o.chainTo){ui.ov={chainGot:cg};luOpen(R,o.chainTo);window.scrollTo(0,0);showMsg(`Niveau ${nl} fait`,`Choix du niveau ${nl+1} sur ${o.chainTo}.`);return;}
     ui.ov=null;showMsg(`${c.name} est prêt`,`Niveau ${nl} · PV max ${c.hpMax}${cg.length?' · '+cg.join(', '):''}.${caster?' Ajoute ses sorts depuis l’onglet Sorts.':''}`);return;}
   ui.ov=null;
-  showMsg(isNew?`Multiclassage : ${CLASSES[c.cls].n}`:`Niveau ${tnl} !`,`PV max ${old} → ${c.hpMax}${got.length?' · '+got.join(', '):''}.${caster?' Pense à ajouter tes nouveaux sorts depuis le grimoire.':''}${isNew&&MC_PROF[c.cls]&&MC_PROF[c.cls]!=='aucune'?' Maîtrises gagnées à noter : '+MC_PROF[c.cls]+'.':''}`);
+  showMsg(isNew?`Multiclassage : ${CLASSES[c.cls].n}`:`Niveau ${tnl} !`,`PV max ${old} → ${c.hpMax}${got.length?' · '+got.join(', '):''}.${caster?' Pense à ajouter tes nouveaux sorts depuis le grimoire.':''}${mcNote?' Maîtrises ajoutées dans « Capacités et traits ».':''}`);
 }
 
 /* ---------- Redescendre de niveau ---------- */
@@ -2563,7 +2581,7 @@ function lvlDownApply(){
     STATS.forEach(k=>{if(r.st[k])c.stats[k]=Math.max(1,c.stats[k]-r.st[k]);});
     c.saves=c.saves.filter(k=>!r.sv.includes(k));
     r.ft.forEach(id=>{const i=c.feats.lastIndexOf(id);if(i>=0)c.feats.splice(i,1);});
-    if(r.sub&&V.sub===r.sub)V.sub='';
+    if(r.sub&&V.sub===r.sub)V.sub='';if(r.nt&&c.notes&&c.notes.traits)c.notes.traits=c.notes.traits.split('\n').filter(l=>l.trim()!==r.nt).join('\n');
     Object.entries(r.sk).forEach(([k,v])=>{if(c.skills[k]===v)c.skills[k]=r.sk0[k]||0;});
     V.ch=JSON.parse(JSON.stringify(r.ch0));
     const rm=P.sp.filter(id=>!o.keep.includes(id));c.spells=c.spells.filter(id=>!rm.includes(id));rm.forEach(id=>{delete c.prep[id];});
@@ -3264,6 +3282,8 @@ const A={
   splashT:()=>{const off=lsGet('ct-nosplash')==='1';lsSet('ct-nosplash',off?'0':'1');showMsg('Animation d’ouverture',off?'Réactivée : tu la verras à la prochaine ouverture.':'Désactivée.');},
   fbAcct:()=>{ui.ov={type:'acct',fresh:1,mode:'in'};},
   fsSet:d=>{S.fs=+d.v;},
+  spAddCls:d=>{ui.spAddCls=d.v;},
+  spSetCls:d=>{const c=cur();if(!c)return;c.spc=c.spc||{};c.spc[d.id]=d.v;if(ui.ov)ui.ov.keepScroll=1;},
   mapOpen:()=>{MP.sel=null;MP.fit=1;ui.ov={type:'map',fresh:1};},
   mapOpenRo:()=>{MP.sel=null;MP.fit=1;ui.ov={type:'map',fresh:1,ro:1};},
   mapTab:d=>{const v=ui.mp;v.tab=d.v;v.tool={ter:'paint',obj:'obj',dr:'draw',zn:'zone',fog:'fog'}[d.v]||'move';v.del=0;},
@@ -3291,6 +3311,12 @@ const A={
   liveOpen:()=>{ui.ov={type:'liveCb',fresh:1,back:ui.ov&&ui.ov.type==='camp'?ui.ov:null};},
   rollShareT:()=>{S.rollShare=!rollShareOn();if(ui.ov)ui.ov.keepScroll=1;},
   jrOpen:()=>{ui.ov={type:'journal',fresh:1,back:ui.ov};},
+  gnOpen:()=>{ui.ov={type:'journal',tab:'notes',fresh:1};},
+  jrTab:d=>{ui.ov.tab=d.v;ui.ov.del='';ui.ov.err='';},
+  gnSave:()=>{const o=ui.ov;const t=String(o.nt||'').trim(),x=String(o.nx||'').trim();if(!t&&!x){o.err='Écris au moins un titre ou un texte.';return;}S.gmNotes=S.gmNotes||[];const old=o.nid&&S.gmNotes.find(n=>n.id===o.nid);if(old){old.t=t.slice(0,120);old.x=x.slice(0,8000);}else S.gmNotes.push({id:uid(),t:t.slice(0,120),x:x.slice(0,8000),at:Date.now(),camp:S.camp?S.camp.id:''});Object.assign(o,{nid:'',nt:'',nx:'',err:''});},
+  gnEdit:d=>{const n=(S.gmNotes||[]).find(x=>x.id===d.id);if(n)Object.assign(ui.ov,{nid:n.id,nt:n.t||'',nx:n.x||'',fresh:1,err:''});},
+  gnCancel:()=>{Object.assign(ui.ov,{nid:'',nt:'',nx:'',err:''});},
+  gnDel:d=>{const o=ui.ov;if(o.del!==d.id){o.del=d.id;return;}o.del='';S.gmNotes=(S.gmNotes||[]).filter(n=>n.id!==d.id);},
   jrEdit:d=>{const j=LV.journal.find(x=>x.id===d.id);if(j)Object.assign(ui.ov,{eid:j.id,t:j.t||'',x:j.x||'',l:j.l||'',xp:j.xp||'',fresh:1,err:''});},
   jrCancel:()=>{Object.assign(ui.ov,{eid:'',t:'',x:'',l:'',xp:'',err:''});},
   jrSave:()=>{const o=ui.ov;if(!isGmCamp())return;const t=String(o.t||'').trim(),x=String(o.x||'').trim();if(!t&&!x){o.err='Écris au moins un titre ou un résumé.';return;}
@@ -3626,7 +3652,7 @@ function toastUndo(msg){
 }
 function removeSpell(id){
   const c=cur();if(!c)return;const sp=getSpell(id);
-  ui.undo={t:'rm',cid:c.id,id,prep:!!c.prep[id]};c.spells=c.spells.filter(x=>x!==id);delete c.prep[id];save();render();
+  ui.undo={t:'rm',cid:c.id,id,prep:!!c.prep[id]};c.spells=c.spells.filter(x=>x!==id);delete c.prep[id];if(c.spc)delete c.spc[id];save();render();
   toastUndo(`${sp?sp.n:'Sort'} retiré de la fiche`);
 }
 function togglePrep(id){
@@ -3637,7 +3663,7 @@ function togglePrep(id){
 function addFromGrim(id){
   const c=cur();if(!c)return;const sp=getSpell(id);
   if(c.spells.includes(id)){showMsg(sp?sp.n:'Sort',`Déjà sur la fiche ${deN(c.name,1)}.`);return;}
-  c.spells.push(id);if(sp&&sp.l>0)c.prep[id]=1;ui.undo={t:'add',cid:c.id,id};save();
+  c.spells.push(id);if(sp&&sp.l>0)c.prep[id]=1;{const L=mcCast(c);if(L.length>1){c.spc=c.spc||{};c.spc[id]=L.includes(ui.spAddCls)?ui.spAddCls:L[0];}}ui.undo={t:'add',cid:c.id,id};save();
   const l=$('#splist');if(l)l.innerHTML=spellListHtml();else render();
   toastUndo(`${sp?sp.n:'Sort'} ajouté à la fiche ${deN(c.name,1)}`);
 }
