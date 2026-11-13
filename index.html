@@ -2213,6 +2213,9 @@ function spellDetail(sp){
   const clsNames=sp.c.map(k=>CLASSES[k]?CLASSES[k].n:k).join(', ');
   const comps=sp.co.split('').join(', ')+(sp.m?` (${esc(sp.m)})`:'');
   let cast='';const spCls=c&&c.spells.includes(sp.id)&&mcCast(c).length>1?`<section class="card"><h2>Classe du sort</h2><div class="pick">${mcCast(c).map(x=>`<button class="pk ${spcOf(c,sp.id)===x?'on':''}" data-a="spSetCls" data-id="${sp.id}" data-v="${x}">${esc(CLASSES[x].n)}</button>`).join('')}</div><p class="hint" style="margin:0">${(()=>{const k=castStatOf(cv(c,spcOf(c,sp.id)));const mm=mod(c.stats[k]);const pbm=prof(c.level);return `Avec cette classe (${k}) : DD ${8+pbm+mm+mfx(c).dc}, attaque ${fmt(pbm+mm+mfx(c).sa)}.`;})()}</p></section>`:'';
+  let hitC='';if(c){const kst=castStatOf(cv(c,spcOf(c,sp.id)))||castStatOf(c);const nd=norm(String(sp.d||''));const isAtk=/attaque de sort|spell attack|attaque au corps a corps avec un sort|attaque a distance avec un sort/.test(nd)&&!/^(find-familiar)$/.test(sp.id);const svm=nd.match(/jet de sauvegarde de (force|dexterite|constitution|intelligence|sagesse|charisme)|(strength|dexterity|constitution|intelligence|wisdom|charisma) saving throw/);
+    if(kst&&(isAtk||svm)){const pbm=prof(c.level),mm=mod(c.stats[kst]);const svn=svm?({dexterite:'Dextérité',force:'Force',constitution:'Constitution',intelligence:'Intelligence',sagesse:'Sagesse',charisme:'Charisme',strength:'Force',dexterity:'Dextérité',wisdom:'Sagesse',charisma:'Charisme'}[svm[1]||svm[2]]):'';
+      hitC=`<section class="card"><h2>${isAtk?'Toucher':'Sauvegarde'}</h2><div class="castrow">${isAtk?`<button class="btn primary" data-a="rollSpAtk" data-id="${sp.id}">Jet d’attaque ${fmt(pbm+mm+mfx(c).sa)}</button>`:''}${svm?`<span class="vit" style="flex:1"><span class="lbl">Sauvegarde de ${esc(svn)}</span><b>DD ${8+pbm+mm+mfx(c).dc}</b></span>`:''}</div>${isAtk?'<p class="hint">Un 20 naturel arme le coup critique pour le jet de dégâts.</p>':''}</section>`;}}
   if(c&&sp.l===0){
     const d=cantripDice(sp,c.level);
     if(d)cast=`<section class="card"><h2>Lancer</h2><div class="castrow"><button class="btn primary" data-a="rollTxt" data-f="${d}" data-n="${esc(sp.n)}">Dégâts ${d} ${esc(sp.dg.t)}</button></div>
@@ -2227,7 +2230,7 @@ function spellDetail(sp){
   return `<div class="ov-in"><div class="ov-h"><div><span class="lbl">${sp.l===0?'Sort mineur':'Niveau '+sp.l} · ${esc(sp.s)}${sp.hb?' · importé ('+esc(sp.src)+')':sp.custom?' · perso':''}</span><h1>${esc(sp.n)}</h1>${sp.en?`<span class="sub">${esc(sp.en)}</span>`:''}</div><button class="btn sm" data-a="ovClose">Fermer</button></div>
   <div class="stack">
     <section class="card"><dl class="meta"><dt>Incantation</dt><dd>${esc(sp.ct)}${sp.ri?' ou rituel':''}</dd><dt>Portée</dt><dd>${esc(sp.r)}</dd><dt>Composantes</dt><dd>${comps}</dd><dt>Durée</dt><dd>${esc(sp.du)}</dd>${clsNames?`<dt>Classes</dt><dd>${esc(clsNames)}</dd>`:''}</dl></section>
-    ${spCls}${cast}
+    ${spCls}${hitC}${cast}
     <section class="card desc">${txt(sp.d)}${sp.hl?`<p><b>${sp.l===0?'Amélioration.':'Emplacement de niveau supérieur.'}</b> ${txt(sp.hl).replace(/^<p>|<\/p>$/g,'')}</p>`:''}
       <p class="hint">Touche un jet de dés souligné pour le lancer.</p></section>
     ${c?`<button class="btn ${has?'':'primary'} big" data-a="spToggle" data-id="${sp.id}">${has?'Retirer de la fiche '+deN(c.name):'Ajouter à la fiche '+deN(c.name)}</button>`:''}
@@ -3612,6 +3615,7 @@ const A={
   slot:d=>{const c=cur();const k=d.k||d.l;const lv=slotLevels(c).find(x=>String(x.k)===String(k));if(!lv)return;const a=slotAvail(c,lv.k,lv.max);const used=c.slotsUsed[lv.k]||0;
     c.slotsUsed[lv.k]=+d.i<a?Math.min(lv.max,used+1):Math.max(0,used-1);},
   prep:d=>{const c=cur();if(c.prep[d.id])delete c.prep[d.id];else c.prep[d.id]=1;},
+  rollSpAtk:d=>{const c=cur();const sp=getSpell(d.id);if(!c||!sp)return false;const st=castStatOf(cv(c,spcOf(c,sp.id)))||castStatOf(c);const r=cd20(c,prof(c.level)+(st?mod(c.stats[st]):0)+mfx(c).sa,`${c.name} · ${sp.n} · Toucher`,'atk');if(r&&r.kind==='crit'){ui.critNext=true;critSync();}return false;},
   rollSpellAtk:()=>{const c=cur();const st=castStatOf(c);const r=cd20(c,prof(c.level)+(st?mod(c.stats[st]):0)+mfx(c).sa,`${c.name} · Attaque de sort`,'atk');if(r&&r.kind==='crit')ui.critNext=true;},
   goSpells:()=>{const c=cur();ui.spf=null;initSpf();if(c&&!CASTER_CLASSES.includes(c.cls))ui.spf.cls='';S.tab='spells';window.scrollTo(0,0);},
   spOpen:d=>{ui.ov={type:'spell',id:d.id,fresh:1,back:ui.ov&&ui.ov.type!=='spell'?ui.ov:null};ui.pendingSpDel=null;},
