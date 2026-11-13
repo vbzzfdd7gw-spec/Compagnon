@@ -1614,6 +1614,103 @@ const secT=t=>`<h3 class="sect">${t}</h3>`;
 function syncCard(){if(!FB.on)return tile('cloud','#bb9bff','Sauvegarde en ligne',inClaude()?'Sur ton compte Claude, à chaque modification.':'Indisponible ici : pense au fichier.','',cloudLine());const u=FB.user;
   return tile('cloud','#bb9bff',u?'Compte':'Sauvegarde en ligne',u?esc(u.email):'Crée un compte pour sauvegarder tes fiches.',`<button class="btn sm ${u?'':'primary'}" data-a="fbAcct">${u?'Gérer':'Se connecter'}</button>`,u?cloudLine():'');}
 function campTile(){if(!FB.on)return '';return tile('users','#e9c46a','Campagne',S.camp?esc(S.camp.name||'')+' · code '+esc(S.camp.id)+(isGmCamp()?' · MJ':''):'Rejoins celle de ton MJ ou crée la tienne.',`<button class="btn sm" data-a="campOpen">${S.camp?'Ouvrir':'Rejoindre'}</button>`);}
+/* ---------- Export PDF de la fiche (générateur maison, sans bibliothèque) ---------- */
+const PDFW=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+const PDFX={'’':146,'‘':145,'“':147,'”':148,'–':150,'—':151,'…':133,'•':149,'œ':156,'Œ':140,'€':128,'−':45,'→':62,'×':215,'½':189,'✓':120,'✦':42,'■':149,'▶':62,' ':32,' ':32,'·':183};
+function pdfStr(s){let o='';for(const ch of String(s==null?'':s)){let c=ch.charCodeAt(0);if(PDFX[ch]!=null)c=PDFX[ch];else if(c>255||(c>126&&c<160)){const b=ch.normalize('NFD').charCodeAt(0);c=b<127?b:63;}else if(c<32)c=32;o+=String.fromCharCode(c);}return o;}
+function pdfDoc(){const W=595.28,H=841.89;const pages=[];let cur=null;const n=v=>(Math.round(v*100)/100).toString();const col=c=>c?`${n(c[0])} ${n(c[1])} ${n(c[2])}`:'0 0 0';
+  const D={W,H,
+    page(){cur=[];pages.push(cur);return D;},count:()=>pages.length,
+    wid(str,size,bold){let w=0;for(const ch of pdfStr(str)){const c=ch.charCodeAt(0);let k=c>=32&&c<=126?PDFW[c-32]:556;if(c>126){const b=ch.normalize('NFD').charCodeAt(0);k=b>=32&&b<=126?PDFW[b-32]:556;}w+=k;}return w*size/1000*(bold?1.06:1);},
+    fit(str,maxW,size,bold){let t=String(str);if(D.wid(t,size,bold)<=maxW)return t;while(t.length>1&&D.wid(t+'…',size,bold)>maxW)t=t.slice(0,-1);return t.trimEnd()+'…';},
+    wrap(str,maxW,size,bold){const out=[];String(str).split('\n').forEach(par=>{const ws=par.split(/\s+/).filter(Boolean);if(!ws.length){out.push('');return;}let l='';ws.forEach(w=>{const t=l?l+' '+w:w;if(D.wid(t,size,bold)<=maxW)l=t;else{if(l)out.push(l);l=w;while(D.wid(l,size,bold)>maxW&&l.length>1){let k=l.length-1;while(k>1&&D.wid(l.slice(0,k),size,bold)>maxW)k--;out.push(l.slice(0,k));l=l.slice(k);}}});if(l)out.push(l);});return out;},
+    text(x,y,str,size,font,color,align,maxW){let s=String(str==null?'':str);const bold=font===2;if(maxW)s=D.fit(s,maxW,size,bold);let tx=x;if(align==='c')tx=x-D.wid(s,size,bold)/2;else if(align==='r')tx=x-D.wid(s,size,bold);
+      cur.push(`BT /F${font||1} ${n(size)} Tf ${col(color)} rg ${n(tx)} ${n(H-y)} Td (${pdfStr(s).replace(/([\\()])/g,'\\$1')}) Tj ET`);},
+    line(x1,y1,x2,y2,w,color){cur.push(`${n(w||.6)} w ${col(color)} RG ${n(x1)} ${n(H-y1)} m ${n(x2)} ${n(H-y2)} l S`);},
+    rect(x,y,w,h,o){o=o||{};const r=Math.min(o.r||0,w/2,h/2);const Y=H-y;let p;if(r){const k=r*.5523;p=`${n(x+r)} ${n(Y)} m ${n(x+w-r)} ${n(Y)} l ${n(x+w-r+k)} ${n(Y)} ${n(x+w)} ${n(Y-r+k)} ${n(x+w)} ${n(Y-r)} c ${n(x+w)} ${n(Y-h+r)} l ${n(x+w)} ${n(Y-h+r-k)} ${n(x+w-r+k)} ${n(Y-h)} ${n(x+w-r)} ${n(Y-h)} c ${n(x+r)} ${n(Y-h)} l ${n(x+r-k)} ${n(Y-h)} ${n(x)} ${n(Y-h+r-k)} ${n(x)} ${n(Y-h+r)} c ${n(x)} ${n(Y-r)} l ${n(x)} ${n(Y-r+k)} ${n(x+r-k)} ${n(Y)} ${n(x+r)} ${n(Y)} c h`;}else p=`${n(x)} ${n(Y-h)} ${n(w)} ${n(h)} re`;
+      cur.push(`${n(o.lw||.8)} w ${col(o.stroke||[.2,.2,.25])} RG ${o.fill?col(o.fill)+' rg':''} ${p} ${o.fill?(o.stroke===0?'f':'B'):'S'}`);},
+    circle(x,y,r,fill,stroke){const Y=H-y,k=r*.5523;cur.push(`.8 w ${col(stroke||[.2,.2,.25])} RG ${fill?col(fill)+' rg':''} ${n(x+r)} ${n(Y)} m ${n(x+r)} ${n(Y+k)} ${n(x+k)} ${n(Y+r)} ${n(x)} ${n(Y+r)} c ${n(x-k)} ${n(Y+r)} ${n(x-r)} ${n(Y+k)} ${n(x-r)} ${n(Y)} c ${n(x-r)} ${n(Y-k)} ${n(x-k)} ${n(Y-r)} ${n(x)} ${n(Y-r)} c ${n(x+k)} ${n(Y-r)} ${n(x+r)} ${n(Y-k)} ${n(x+r)} ${n(Y)} c ${fill?'B':'S'}`);},
+    build(){const objs=[];const add=s=>{objs.push(s);return objs.length;};add('');add('');const f=nm=>add(`<< /Type /Font /Subtype /Type1 /BaseFont /${nm} /Encoding /WinAnsiEncoding >>`);f('Helvetica');f('Helvetica-Bold');f('Helvetica-Oblique');const kids=[];
+      pages.forEach(pg=>{const st=pg.join('\n');const c=add(`<< /Length ${st.length} >>\nstream\n${st}\nendstream`);kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${n(W)} ${n(H)}] /Contents ${c} 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>`));});
+      objs[0]='<< /Type /Catalog /Pages 2 0 R >>';objs[1]=`<< /Type /Pages /Kids [${kids.map(k=>k+' 0 R').join(' ')}] /Count ${kids.length} >>`;
+      let out='%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';const off=[];objs.forEach((o,i)=>{off.push(out.length);out+=`${i+1} 0 obj\n${o}\nendobj\n`;});const xr=out.length;out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+`trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;
+      const u=new Uint8Array(out.length);for(let i=0;i<out.length;i++)u[i]=out.charCodeAt(i)&255;return u;}};
+  return D;}
+const pdfPlain=d=>String(d==null?'':d).replace(/<[^>]*>/g,'').replace(/\{@\w+ ([^}|]+)[^}]*\}/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/^\s*[-•]\s+/gm,'• ').replace(/\n{2,}/g,'\n').trim();
+function raceTraitsOf(c){const e14=edOf(c)==='2014';const r=e14?RACES14[c.species]:(SPECIES[c.species]&&SPECIES[c.species].hb?SPECIES[c.species]:null);const sb=r&&r.subs&&r.subs[c.subrace];const L=r?[...(r.tr||[]),...(sb?sb.tr||[]:[])].map(t=>typeof t==='object'?t:TRAITS14[t]).filter(Boolean):[];const bg=bgSet(edOf(c))[c.bg];if(bg&&bg.ft)L.push({n:bg.ft[0]+' (historique)',d:bg.ft[1]});return L;}
+function pdfSheet(c){const D=pdfDoc();const INK=[.1,.1,.14],MUT=[.38,.38,.45],ACC=[.29,.2,.52],GOLD=[.62,.45,.1],PALE=[.95,.94,.98];const M=28,W=D.W,H=D.H;const pb=prof(c.level);const bg=bgSet(edOf(c))[c.bg];
+  const lab=(x,y,t,al)=>D.text(x,y,String(t).toUpperCase(),5.6,2,MUT,al);
+  const box=(x,y,w,h,title)=>{D.rect(x,y,w,h,{r:5,stroke:ACC,lw:.9});if(title){const tw=D.wid(title.toUpperCase(),6,true)+8;D.rect(x+(w-tw)/2,y+h-5,tw,10,{fill:[1,1,1],stroke:0});D.text(x+w/2,y+h+2.5,title.toUpperCase(),6,2,ACC,'c');}};
+  const foot=()=>{D.text(M,H-14,`${c.name} · ${clsLabel(c)} · Tasha’s Friends · règles ${edOf(c)}`,6.5,1,MUT);D.text(W-M,H-14,'Page '+D.count(),6.5,1,MUT,'r');};
+  /* ===== page 1 : la fiche ===== */
+  D.page();
+  D.rect(M,M,250,52,{r:6,stroke:ACC,lw:1.2,fill:PALE});D.text(M+10,M+31,c.name,D.wid(c.name,19,true)>228?13:19,2,INK,'',230);lab(M+10,M+44,'Nom du personnage');
+  const hx=M+258,hw=W-M-hx;D.rect(hx,M,hw,52,{r:6,stroke:ACC,lw:1.2});const cw=hw/3;
+  [[clsLabel(c),'Classe et niveau'],[bg?bg.n:'','Historique'],['','Nom du joueur'],[speciesName(c),edOf(c)==='2014'?'Race':'Espèce'],[mcList(c).map(x=>{const v=cv(c,x);return v.sub&&SUBN[v.sub]?SUBN[v.sub]:'';}).filter(Boolean).join(', '),'Sous-classe'],['Règles '+edOf(c),'Édition']].forEach((f,i)=>{const x=hx+8+(i%3)*cw,y=M+15+Math.floor(i/3)*23;D.text(x,y,f[0],8.5,2,INK,'',cw-12);D.line(x,y+2.5,x+cw-12,y+2.5,.4,MUT);lab(x,y+9,f[1]);});
+  const top=M+64;
+  // caractéristiques
+  const LB0=top+25+27+(6*11.5+12)+12+(SKILLS.length*11.2+12)+12+20;const sx=M,sw=62,sh=(LB0-top-5*7)/6;STATS.forEach((k,i)=>{const y=top+i*(sh+7);D.rect(sx,y,sw,sh,{r:8,stroke:ACC,lw:1});lab(sx+sw/2,y+10,STAT_NAMES[k],'c');D.text(sx+sw/2,y+36,fmt(mod(c.stats[k])),21,2,INK,'c');D.rect(sx+sw/2-15,y+sh-13,30,16,{r:8,stroke:ACC,fill:[1,1,1]});D.text(sx+sw/2,y+sh-1.5,String(c.stats[k]),9.5,2,INK,'c');});
+  // colonne 2 : inspiration, maîtrise, sauvegardes, compétences
+  const x2=M+sw+8,w2=148;let y=top;
+  D.rect(x2,y,w2,20,{r:5,stroke:ACC});D.circle(x2+13,y+10,6,c.insp?ACC:null,ACC);lab(x2+26,y+12.5,'Inspiration');y+=25;
+  D.rect(x2,y,w2,20,{r:5,stroke:ACC});D.text(x2+13,y+14,fmt(pb),11,2,INK,'c');lab(x2+26,y+12.5,'Bonus de maîtrise');y+=27;
+  const svb=mfx(c).sv;box(x2,y,w2,6*11.5+12,'Jets de sauvegarde');STATS.forEach((k,i)=>{const p=c.saves.includes(k);const yy=y+13+i*11.5;D.circle(x2+10,yy-2.6,3,p?INK:null);D.text(x2+30,yy,fmt(mod(c.stats[k])+(p?pb:0)+svb),8,2,INK,'r');D.text(x2+35,yy,STAT_NAMES[k],8,1,INK);});y+=6*11.5+12+12;
+  const skH=SKILLS.length*11.2+12;box(x2,y,w2,skH,'Compétences');SKILLS.forEach(([id,nm,k],i)=>{const p=c.skills[id]||0;const yy=y+13+i*11.2;D.circle(x2+10,yy-2.6,3,p?INK:null);if(p>1)D.circle(x2+10,yy-2.6,4.6,null,INK);D.text(x2+30,yy,fmt(mod(c.stats[k])+p*pb),8,2,INK,'r');D.text(x2+35,yy,nm,8,1,INK,'',w2-62);D.text(x2+w2-6,yy,k,5.5,1,MUT,'r');});y+=skH+12;
+  D.rect(x2,y,w2,20,{r:5,stroke:ACC});D.text(x2+13,y+14,String(10+mod(c.stats.SAG)+(c.skills.perception||0)*pb),11,2,INK,'c');lab(x2+26,y+12.5,'Perception passive (Sagesse)');const leftBottom=y+20;
+  // colonne 3 : combat
+  const x3=x2+w2+8,w3=178;y=top;const b3=(w3-12)/3;
+  [[String(acOf(c)),'CA'],[fmt(initOf(c)),'Initiative'],[String(c.speed).replace('.',',')+' m','Vitesse']].forEach((f,i)=>{const x=x3+i*(b3+6);D.rect(x,y,b3,42,{r:7,stroke:ACC,lw:1});D.text(x+b3/2,y+24,f[0],15,2,INK,'c');lab(x+b3/2,y+36,f[1],'c');});y+=48;
+  D.rect(x3,y,w3,48,{r:6,stroke:ACC});lab(x3+8,y+10,'Points de vie maximum');D.text(x3+w3-8,y+11,String(c.hpMax),10,2,INK,'r');D.line(x3+8,y+15,x3+w3-8,y+15,.4,MUT);lab(x3+w3/2,y+44,'Points de vie actuels','c');y+=54;
+  D.rect(x3,y,w3,30,{r:6,stroke:ACC});lab(x3+w3/2,y+26,'Points de vie temporaires','c');y+=36;
+  const hw3=(w3-6)/2;D.rect(x3,y,hw3,44,{r:6,stroke:ACC});D.text(x3+hw3/2,y+20,hdList(c).map(h=>h.max+'d'+h.d).join(' + '),10,2,INK,'c',hw3-8);lab(x3+hw3/2,y+40,'Dés de vie','c');
+  D.rect(x3+hw3+6,y,hw3,44,{r:6,stroke:ACC});['Succès','Échecs'].forEach((t,i)=>{const yy=y+14+i*13;D.text(x3+hw3+12,yy,t,6.5,1,INK);[0,1,2].forEach(j=>D.circle(x3+hw3+52+j*11,yy-2.4,3.4));});lab(x3+hw3+6+hw3/2,y+40,'Jets contre la mort','c');y+=50;
+  const atk=weaponAttacks(c).map(a=>[a.name,fmt(a.hit),a.dmg+' '+(a.t||'')]).concat(c.attacks.map(a=>[a.name,fmt(+a.hit||0),a.dmg||'']));const st=castStatOf(c);if(st)atk.push(['Attaque de sort',fmt(pb+mod(c.stats[st])+mfx(c).sa),'DD '+(8+pb+mod(c.stats[st])+mfx(c).dc)]);
+  const rows=Math.max(5,Math.min(9,atk.length));const aH=16+rows*14+8;box(x3,y,w3,aH,'Attaques et incantation');lab(x3+8,y+10,'Nom');lab(x3+92,y+10,'Bonus','c');lab(x3+108,y+10,'Dégâts / type');for(let i=0;i<rows;i++){const yy=y+15+i*14;D.rect(x3+6,yy,78,11,{r:3,fill:PALE,stroke:0});D.rect(x3+80,yy,24,11,{r:3,fill:PALE,stroke:0});D.rect(x3+106,yy,w3-112,11,{r:3,fill:PALE,stroke:0});const a=atk[i];if(a){D.text(x3+9,yy+8,a[0],7,2,INK,'',72);D.text(x3+92,yy+8,a[1],7.5,2,INK,'c');D.text(x3+109,yy+8,a[2],7,1,INK,'',w3-118);}}y+=aH+12;
+  const res=resDefs(c);const sl=slotLevels(c);const rl=[];res.forEach(d=>rl.push([d.n+(d.cl?' ('+d.cl+')':''),d.max,RESR[d.r]]));
+  const rH=Math.max(60,leftBottom-y);box(x3,y,w3,rH,'Ressources et emplacements');let ry=y+13;const maxRy=y+rH-8;
+  if(sl.length){D.text(x3+8,ry,'Emplacements de sorts',7,2,ACC);ry+=10;sl.forEach(s2=>{if(ry>maxRy)return;D.text(x3+8,ry,(s2.pact?'Pacte niv. ':'Niveau ')+s2.l,7,1,INK);for(let j=0;j<Math.min(s2.max,9);j++)D.rect(x3+62+j*11,ry-6.5,8,8,{r:2,stroke:INK,lw:.6});ry+=11;});ry+=3;}
+  rl.forEach(r=>{if(ry>maxRy)return;D.text(x3+8,ry,r[0],7,2,INK,'',w3-70);if(r[1]<=10){for(let j=0;j<r[1];j++)D.rect(x3+w3-8-(r[1]-j)*10,ry-6.5,8,8,{r:2,stroke:INK,lw:.6});}else D.text(x3+w3-8,ry,'/ '+r[1],7.5,2,INK,'r');ry+=8;if(ry<=maxRy){D.text(x3+8,ry,r[2],5.6,3,MUT);ry+=9;}});
+  // colonne 4 : aptitudes et traits
+  const x4=x3+w3+8,w4=W-M-x4;const fH=leftBottom-top;box(x4,top,w4,fH,'Aptitudes et traits');let fy=top+13;const fmax=top+fH-8;const fl=[];
+  mcList(c).forEach(x=>{const v=cv(c,x);fl.push(['h',CLASSES[x].n+' '+v.level]);CFEATS.filter(f=>f.c===x&&f.l<=v.level&&(!f.s||f.s===v.sub)).sort((a,b)=>a.l-b.l).forEach(f=>fl.push(['i',f.n,f.l]));});
+  const rt=raceTraitsOf(c);if(rt.length){fl.push(['h',speciesName(c)]);rt.forEach(t=>fl.push(['i',t.n]));}
+  const fts=c.feats.map(getFeat).filter(Boolean);if(fts.length){fl.push(['h','Dons']);fts.forEach(f=>fl.push(['i',f.n]));}
+  let cut=0;fl.forEach(f=>{if(cut)return;if(fy>fmax-(f[0]==='h'?10:0)){cut=1;D.text(x4+w4/2,fmax+2,'suite page suivante',5.6,3,MUT,'c');return;}if(f[0]==='h'){fy+=2;D.text(x4+6,fy,f[1],7,2,ACC,'',w4-12);D.line(x4+6,fy+2,x4+w4-6,fy+2,.4,ACC);fy+=10;}else{D.wrap('• '+f[1],w4-12,6.6).forEach(l=>{if(fy<=fmax){D.text(x4+6,fy,l,6.6,1,INK);fy+=8;}});}});
+  // bas de page : équipement
+  const by=leftBottom+14,bh=H-30-by;const eq=c.items.filter(i=>i.eq||i.att);const half=(W-2*M-8)/2;
+  box(M,by,half,bh,'Équipement porté et pièces');let ey=by+13;const co=c.coins||{};[['PP',co.pp],['PO',co.po],['PE',co.pe],['PA',co.pa],['PC',co.pc]].forEach((q,i)=>{const x=M+8+i*((half-16)/5);D.rect(x,ey-8,(half-16)/5-4,16,{r:4,stroke:GOLD});D.text(x+4,ey+3,q[0],6,2,GOLD);D.text(x+(half-16)/5-8,ey+3,String(q[1]||0),8,2,INK,'r');});ey+=20;
+  const items=c.items.slice().sort((a,b)=>(b.eq?1:0)-(a.eq?1:0));const perCol=Math.floor((by+bh-8-ey)/9.2);items.slice(0,perCol*2).forEach((it,i)=>{const x=M+8+Math.floor(i/perCol)*((half-12)/2);const yy=ey+(i%perCol)*9.2;D.text(x,yy,(it.q>1?it.q+' × ':'')+itemName(it)+(it.eq?' (équipé)':it.att?' (lié)':''),6.6,it.eq?2:1,INK,'',(half-12)/2-6);});if(items.length>perCol*2)D.text(M+half-8,by+bh-4,'… suite page suivante',5.6,3,MUT,'r');
+  box(M+half+8,by,half,bh,'Capacités, maîtrises et langues');let ny=by+13;D.wrap(pdfPlain((c.notes&&c.notes.traits)||''),half-16,6.8).forEach(l=>{if(ny<by+bh-6){D.text(M+half+16,ny,l,6.8,1,INK);ny+=8.4;}});
+  foot();
+  /* ===== pages suivantes : texte au fil de l'eau sur 2 colonnes ===== */
+  let colX=M,colW=(W-2*M-14)/2,cy=0,colI=0;const topY=M+26;const newPg=title=>{D.page();D.rect(M,M,W-2*M,18,{r:5,fill:ACC,stroke:0});D.text(M+8,M+12.5,title,9.5,2,[1,1,1]);D.text(W-M-8,M+12.5,c.name,8,1,[1,1,1],'r');foot();colI=0;colX=M;cy=topY;};let pgTitle='';
+  const need=h=>{if(cy+h>H-34){if(colI===0){colI=1;colX=M+colW+14;cy=topY;}else newPg(pgTitle+' (suite)');}};
+  const head=t=>{need(26);cy+=6;D.text(colX,cy,t.toUpperCase(),8,2,ACC,'',colW);D.line(colX,cy+3,colX+colW,cy+3,.7,ACC);cy+=13;};
+  const item=(t,sub,body)=>{const lines=body?D.wrap(pdfPlain(body),colW,7.2):[];need(10+(sub?9:0)+Math.min(lines.length,3)*8.8);D.text(colX,cy,t,8,2,INK,'',colW);cy+=9.5;if(sub){D.wrap(sub,colW,6.6).forEach(l=>{need(8.2);D.text(colX,cy,l,6.6,3,MUT);cy+=8.2;});}lines.forEach(l=>{need(8.8);D.text(colX,cy,l,7.2,1,INK);cy+=8.8;});cy+=5;};
+  pgTitle='Aptitudes, traits et équipement';newPg(pgTitle);
+  mcList(c).forEach(x=>{const v=cv(c,x);const L=CFEATS.filter(f=>f.c===x&&f.l<=v.level&&(!f.s||f.s===v.sub)).sort((a,b)=>a.l-b.l);if(!L.length)return;head('Aptitudes de '+CLASSES[x].n+' (niveau '+v.level+')');L.forEach(f=>item(f.n,'Niveau '+f.l+(f.s&&SUBN[f.s]?' · '+SUBN[f.s]:''),f.d));});
+  if(rt.length){head(speciesName(c)+' et historique');rt.forEach(t=>item(t.n,'',t.d));}
+  if(fts.length){head('Dons');fts.forEach(f=>item(f.n,f.pr?'Prérequis : '+f.pr:'',f.d));}
+  if(c.items.length){head('Inventaire complet');c.items.forEach(it=>{const meta=(()=>{try{return pdfPlain(itemMeta(it));}catch(e){return '';}})();need(9.5);D.text(colX,cy,(it.q>1?it.q+' × ':'')+itemName(it)+(it.eq?' (équipé)':it.att?' (lié)':''),7.4,2,INK,'',colW*.56);if(meta)D.text(colX+colW,cy,meta,6.4,1,MUT,'r',colW*.42);cy+=9.5;});cy+=5;}
+  [['Notes d’inventaire',c.notes&&c.notes.inv],['Capacités et traits (notes)',c.notes&&c.notes.traits],['Notes de sorts',c.notes&&c.notes.spells]].forEach(([t,v])=>{if(v&&String(v).trim()){head(t);D.wrap(pdfPlain(v),colW,7.2).forEach(l=>{need(8.8);D.text(colX,cy,l,7.2,1,INK);cy+=8.8;});cy+=5;}});
+  /* ===== sorts ===== */
+  const spells=c.spells.map(getSpell).filter(Boolean).sort((a,b)=>a.l-b.l||a.n.localeCompare(b.n,'fr'));
+  if(spells.length||st){D.page();foot();D.rect(M,M,W-2*M,18,{r:5,fill:ACC,stroke:0});D.text(M+8,M+12.5,'Fiche de sorts',9.5,2,[1,1,1]);D.text(W-M-8,M+12.5,c.name,8,1,[1,1,1],'r');
+    const V=mcOn(c)?mcList(c).map(x=>cv(c,x)).filter(v=>castStatOf(v)):[c];let yy=M+26;const q=(W-2*M-18)/4;
+    (V.length?V:[c]).forEach(v=>{const k=castStatOf(v);if(!k)return;const mm=mod(c.stats[k]);[[CLASSES[v.cls].n,'Classe d’incantation'],[STAT_NAMES[k],'Caractéristique'],[String(8+pb+mm+mfx(c).dc),'DD de sauvegarde'],[fmt(pb+mm+mfx(c).sa),'Bonus d’attaque']].forEach((f,i)=>{const x=M+i*(q+6);D.rect(x,yy,q,32,{r:6,stroke:ACC});D.text(x+q/2,yy+17,f[0],11,2,INK,'c',q-8);lab(x+q/2,yy+27,f[1],'c');});yy+=38;});
+    const lvls=[...new Set(spells.map(s2=>s2.l))];const mcT=mcCast(c).length>1;const cw3=(W-2*M-16)/3;const colY=[yy+4,yy+4,yy+4];
+    const maxL=Math.max(0,...sl.filter(z=>!z.pact).map(z=>z.l),...sl.filter(z=>z.pact).map(z=>z.l),...spells.map(s2=>s2.l));const allL=[];for(let l=0;l<=maxL;l++)allL.push(l);
+    allL.forEach(l=>{const L=spells.filter(s2=>s2.l===l);const rowsN=Math.max(L.length+2,l===0?5:6);const ci=colY.indexOf(Math.min(...colY));const x=M+ci*(cw3+8);let y0=colY[ci];if(y0+40>H-40)return;const sLv=sl.find(z=>z.l===l&&!z.pact);const pLv=sl.find(z=>z.l===l&&z.pact);
+      D.rect(x,y0,cw3,16,{r:5,fill:PALE,stroke:ACC});D.text(x+8,y0+11,l===0?'Sorts mineurs':'Niveau '+l+(pLv&&!sLv?' (pacte)':''),8,2,ACC);const nb=sLv?sLv.max:pLv?pLv.max:0;for(let j=0;j<Math.min(nb,6);j++)D.rect(x+cw3-10-(Math.min(nb,6)-j)*10,y0+4,7.5,7.5,{r:2,stroke:INK,lw:.6});y0+=25;
+      for(let i=0;i<rowsN;i++){if(y0>H-42)break;const sp=L[i];if(l>0)D.circle(x+7,y0-2.4,3,sp&&c.prep[sp.id]?INK:null);if(sp)D.text(x+(l>0?14:6),y0,sp.n+(sp.cc?' (C)':'')+(sp.ri?' (R)':'')+(mcT?' · '+CLASSES[spcOf(c,sp.id)].n.slice(0,4):''),7.2,1,INK,'',cw3-(l>0?18:10));D.line(x+(l>0?14:6),y0+2.2,x+cw3-4,y0+2.2,.3,[.75,.75,.8]);y0+=11.5;}colY[ci]=y0+6;});
+    D.text(M,H-24,'Rond plein : sort préparé. (C) concentration, (R) rituel. Les cases servent à cocher les emplacements dépensés.',6,3,MUT);
+    if(spells.length){pgTitle='Description des sorts';newPg(pgTitle);lvls.forEach(l=>{head(l===0?'Sorts mineurs':'Sorts de niveau '+l);spells.filter(s2=>s2.l===l).forEach(sp=>{const co=Array.isArray(sp.co)?sp.co.join(', '):String(sp.co||'');item(sp.n+(sp.en?'  ('+sp.en+')':''),[sp.s,sp.ct,'Portée : '+(sp.r||'—'),'Composantes : '+co+(sp.m?' ('+sp.m+')':''),'Durée : '+(sp.cc?'concentration, ':'')+(sp.du||'—')+(sp.ri?' · rituel':'')].filter(Boolean).join(' · '),sp.d+(sp.hl?'\nAux niveaux supérieurs. '+sp.hl:''));});});}}
+  return D.build();}
+async function fileOut(name,bytes,mime){
+  try{const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null;if(dl){try{await dl.save({filename:name,data:bytes});showMsg('Export',`Fichier « ${name} » enregistré.`);}catch(e){if(e&&e.code==='declined')return;showMsg('Export impossible','Le fichier n’a pas pu être enregistré ici. Essaie depuis l’application installée.');}return;}}catch(e){}
+  try{const f=new File([bytes],name,{type:mime});if(navigator.canShare&&navigator.canShare({files:[f]})&&/iPhone|iPad|Android/i.test(navigator.userAgent)){await navigator.share({files:[f],title:name});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+  try{const url=URL.createObjectURL(new Blob([bytes],{type:mime}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),8000);showMsg('Export',`Fichier « ${name} » créé.`);}catch(e){showMsg('Export impossible','Ton navigateur a refusé le téléchargement.');}}
+
 /* ---------- Résistances, immunités, vulnérabilités ---------- */
 const DTYPES=['acide','contondant','feu','force','foudre','froid','nécrotique','perforant','poison','psychique','radiant','tonnerre','tranchant'];
 const dtypeIn=t=>{const m=norm(String(t||'')).match(/tranchant|perforant|contondant|feu|froid|foudre|acide|poison|necrotique|radiant|psychique|force|tonnerre/);return m?(m[0]==='necrotique'?'nécrotique':m[0]):'';};
@@ -1950,6 +2047,7 @@ function sheetView(){
   ${fold('ft','Aptitudes, traits et dons',raceCard(c)+featCard(c)+classCard(c)+choicesCard(c))}
   ${fold('inv','Inventaire',invCard(c))}
   ${fold('dm',c.hp>0?'Jets contre la mort':'',c.hp>0?deathCard:'')}
+  <button class="btn" data-a="pdfExport">Exporter la fiche en PDF</button>
   <p class="hint">Mode jeu : l’essentiel pour la partie. Le reste est replié ; touche « Mode jeu » pour retrouver la fiche complète.</p></div>`;}
   return `<header class="vh"><div class="vh-row"><div>${e?`<input id="c-name" data-f="name" value="${esc(c.name)}" aria-label="Nom du personnage">`:`<h1>${esc(c.name)}</h1>`}
     <span class="sub">${esc(speciesName(c))} · ${esc(clsLabel(c))}${bg?' · '+bg.n.replace(' (homebrew)',''):''} ${edBadge(edOf(c))}</span>${subLine(c)}${!e&&c.level<20?`<button class="lvb" data-a="lvlUp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>Monter au niveau ${c.level+1}</button>`:''}${!e&&c.level>1?`<button class="lvb dn" data-a="lvlDown" aria-label="Redescendre au niveau ${c.level-1}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5.5 12.5L12 19l6.5-6.5"/></svg>${c.level<20?'':'Redescendre au niveau '+(c.level-1)}</button>`:''}</div>
@@ -1989,6 +2087,7 @@ function sheetView(){
   <section class="card"><h2>Notes de sorts</h2><textarea id="n-spells" data-f="notes.spells" placeholder="Rituels, sorts de sous-classe, rappels…">${esc(c.notes.spells)}</textarea></section>
   <section class="card"><h2>Capacités et traits</h2><textarea id="n-traits" data-f="notes.traits" placeholder="Traits d’espèce, capacités de classe, dons…">${esc(c.notes.traits)}</textarea></section>
   <button class="btn" style="width:100%" data-a="ioExport" data-id="${c.id}">Envoyer ma fiche au MJ (fichier)</button>
+    <button class="btn" data-a="pdfExport">Exporter la fiche en PDF</button>
   </div>`;
 }
 
@@ -3361,6 +3460,7 @@ const A={
   mapTab:d=>{const v=ui.mp;v.tab=d.v;v.tool={ter:'paint',obj:'obj',dr:'draw',zn:'zone',fog:'fog'}[d.v]||'move';v.del=0;},
   tgtSet:d=>{if(ui.tgt&&ui.tgt.k===d.k){ui.tgt=null;return;}ui.tgt={k:d.k,n:d.n};showMsg('Cible : '+d.n,isGmCamp()||S.mj&&!S.camp?'Le prochain jet d’attaque d’une créature sera comparé à sa CA.':'Tes jets d’attaque et de dégâts sont envoyés au MJ pour cette cible.');},
   tgtClr:()=>{ui.tgt=null;},
+  pdfExport:()=>{const c=cur();if(!c)return false;try{const bytes=pdfSheet(c);fileOut(norm(c.name).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'-fiche.pdf',bytes,'application/pdf');}catch(e){showMsg('Export PDF impossible',String(e&&e.message||e).slice(0,120));}return false;},
   cbUndoDel:()=>{const u=ui.cbUndo;if(!u)return;ui.cbUndo=null;const E=enc();E.list.splice(Math.min(u.i,E.list.length),0,u.x);$('#toast').classList.remove('show');},
   atkApply:d=>{const e=(LV.atk||[]).find(q=>q.id===d.id);if(!e)return;const x=enc().list.find(q=>q.k===e.tk);LV.atk=LV.atk.filter(q=>q.id!==d.id);if(x)cbDamage(x,resApply(e.dmg,x,e.dt,e.mo).fin,false);},
   atkMul:d=>{const e=(LV.atk||[]).find(q=>q.id===d.id);if(!e)return;const x=enc().list.find(q=>q.k===e.tk);const cur0=resApply(e.dmg,x,e.dt,e.mo).m;e.mo=RMUL[(RMUL.indexOf(cur0)+1)%RMUL.length];if(ui.ov)ui.ov.keepScroll=1;},
