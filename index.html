@@ -2132,20 +2132,28 @@ function spellRule(c){const e14=edOf(c)==='2014';const cls=c.cls;const hr=hbCast
   if(cls==='magicien')return {m:'prep',book:1,t:'Tu prépares tes sorts depuis ton grimoire (6 sorts au niveau 1, puis 2 de plus par niveau). Après un repos long, tu peux changer tes sorts préparés.'};
   return {m:'prep',t:'Ta liste de sorts préparés est fixe : tu peux en remplacer un quand tu gagnes un niveau.'};}
 const cntCls=(n,max)=>n>max?'over':n===max?'ok':'';
-function spellCard(c){
+/* classes qui connaissent toute leur liste et préparent : la liste est ajoutée d'office */
+const AUTOCLS=['clerc','druide','paladin'];
+const autoCls=c=>c.noAuto?[]:mcList(c).filter(x=>AUTOCLS.includes(x)&&slotsOf(cv(c,x)));
+function autoSpells(c){if(!c||!c.spells)return;const A=autoCls(c);const key=A.map(x=>x+cv(c,x).level).join(',')+'|'+ED.e+'|'+SPELLS.length+'|'+S.custom.length+'|'+(c.noAuto?1:0);if(c.spAutoK===key)return;c.spAuto=c.spAuto||{};const want={};
+  A.forEach(x=>{const v=cv(c,x);const mx=maxSlotLv(v,v.level);SPELLS.concat(S.custom.filter(sp=>!hbHidden(sp,ED.e))).forEach(sp=>{if(sp.l>=1&&sp.l<=mx&&(sp.c||[]).includes(x)&&!want[sp.id])want[sp.id]=x;});});
+  Object.keys(c.spAuto).forEach(id=>{if(!want[id]&&!c.prep[id]){c.spells=c.spells.filter(z=>z!==id);delete c.spAuto[id];if(c.spc)delete c.spc[id];}});
+  Object.keys(want).forEach(id=>{if(!c.spells.includes(id)){c.spells.push(id);c.spAuto[id]=1;if(mcCast(c).length>1){c.spc=c.spc||{};c.spc[id]=want[id];}}else if(c.spAuto[id]==null&&!c.prep[id])c.spAuto[id]=1;});
+  c.spAutoK=key;}
+function spellCard(c){try{autoSpells(c);}catch(e){}
   const st=castStatOf(c);const lv=slotLevels(c);
   if(!st&&!c.spells.length)return '';
   const pb=prof(c.level);const m=st?mod(c.stats[st]):0;
   const sl=slotsOf(c);
   const rows=lv.map(({l,max,k,pact})=>{const a=slotAvail(c,k,max);return `<div class="slotrow"><span>${pact?'Pacte':'Niv. '+l}${pact?' <span class="lbl">niv. '+l+'</span>':''}</span><div class="dots">${Array.from({length:max},(_,i)=>`<button class="sbox ${i<a?'on':''}" data-a="slot" data-l="${l}" data-k="${k}" data-i="${i}" aria-label="Emplacement de niveau ${l}"></button>`).join('')}</div><span class="lbl">${a}/${max}</span></div>`;}).join('');
   const list=c.spells.map(getSpell).filter(Boolean).sort((a,b)=>a.l-b.l||a.n.localeCompare(b.n,'fr'));
-  let groups='',last=-1;const mcTag=mcCast(c).length>1;
-  for(const sp of list){
-    if(sp.l!==last){groups+=`<div class="lvlh">${lvlLabel(sp.l)}</div>`;last=sp.l;}
-    const p=sp.l===0||c.prep[sp.id];
-    groups+=`<div class="sprow" data-sw="${sp.id}" data-sk="sheet"><div class="sw-bg" aria-hidden="true"><span class="sw-l">Retirer</span><span class="sw-r">${sp.l===0?'':p?'Ne plus préparer':'Préparer'}</span></div><div class="sw-fg">${sp.l===0?'<span class="pipb"><span class="pip p1"></span></span>':`<button class="pipb" data-a="prep" data-id="${sp.id}" aria-label="${p?'Préparé':'Non préparé'}"><span class="pip ${p?'p1':''}"></span></button>`}
-      <button class="sp-n" data-a="spOpen" data-id="${sp.id}"><span>${esc(sp.n)}${sp.en?`<em class="en">${esc(sp.en)}</em>`:''}</span><span class="tg">${mcTag?`<span class="mk">${esc(CLASSES[spcOf(c,sp.id)].n.slice(0,4))}</span>`:''}${sp.cc?'<span class="mk">C</span>':''}${sp.ri?'<span class="mk">R</span>':''}</span></button></div></div>`;
-  }
+  const mcTag=mcCast(c).length>1;const autoOn=autoCls(c).length>0;
+  const rowOf=sp=>{const p=sp.l===0||c.prep[sp.id];return `<div class="sprow" data-sw="${sp.id}" data-sk="sheet"><div class="sw-bg" aria-hidden="true"><span class="sw-l">Retirer</span><span class="sw-r">${sp.l===0?'':p?'Ne plus préparer':'Préparer'}</span></div><div class="sw-fg">${sp.l===0?'<span class="pipb"><span class="pip p1"></span></span>':`<button class="pipb" data-a="prep" data-id="${sp.id}" aria-label="${p?'Préparé':'Non préparé'}"><span class="pip ${p?'p1':''}"></span></button>`}
+      <button class="sp-n" data-a="spOpen" data-id="${sp.id}"><span>${esc(sp.n)}${sp.en?`<em class="en">${esc(sp.en)}</em>`:''}</span><span class="tg">${mcTag?`<span class="mk">${esc(CLASSES[spcOf(c,sp.id)].n.slice(0,4))}</span>`:''}${sp.cc?'<span class="mk">C</span>':''}${sp.ri?'<span class="mk">R</span>':''}</span></button></div></div>`;};
+  const grp=L=>{let h='',last=-1;for(const sp of L){if(sp.l!==last){h+=`<div class="lvlh">${lvlLabel(sp.l)}</div>`;last=sp.l;}h+=rowOf(sp);}return h;};
+  const isHid=sp=>autoOn&&sp.l>0&&!c.prep[sp.id]&&(c.spAuto||{})[sp.id];const hidL=list.filter(isHid);
+  let groups=grp(list.filter(sp=>!isHid(sp)));
+  if(hidL.length)groups+=`<details class="fold" data-fold="spu" ${ui.fold&&ui.fold.spu?'open':''} style="margin-top:10px"><summary>Sorts à préparer · ${hidL.length}</summary><div class="stack" style="gap:0"><p class="hint" style="margin:0 0 6px">Toute la liste de ta classe, ajoutée automatiquement. Touche le rond d’un sort pour le préparer : il remonte dans ta liste.</p>${grp(hidL)}</div></details>`;
   const nPrep=list.filter(sp=>sp.l>0&&c.prep[sp.id]).length;const unk=c.spells.length-list.length;
   let rule=spellRule(c);let sc=spellCount(c,c.level);const n0=list.filter(sp=>sp.l===0).length;let max0=cantripsOf(c,c.level);const nL=list.filter(sp=>sp.l>0).length;let mcDD='';let bookMax=6+2*(c.level-1);
   if(mcOn(c)){const V=mcList(c).map(x=>cv(c,x)).filter(v=>castStatOf(v));const parts=[];let tot=0,any=0,allK=true,book=0;max0=0;V.forEach(v=>{const m0=cantripsOf(v,v.level)||0;max0+=m0;const r=spellRule(v);const k=spellCount(v,v.level);if(r.book){book=1;bookMax=6+2*(v.level-1);}if(r.m!=='known')allK=false;const mine=list.filter(sp=>spcOf(c,sp.id)===v.cls);const h0=mine.filter(sp=>sp.l===0).length;const hN=r.m==='known'?mine.filter(sp=>sp.l>0).length:mine.filter(sp=>sp.l>0&&c.prep[sp.id]).length;if(k&&k.n!=null){any=1;tot+=k.n;}parts.push(`${CLASSES[v.cls].n} : ${m0?`mineurs ${h0}/${m0}, `:''}${r.m==='known'?'connus':'préparés'} ${hN}${k&&k.n!=null?'/'+k.n:''}`);});
@@ -2153,7 +2161,7 @@ function spellCard(c){
     const pbm=prof(c.level);mcDD=V.filter(v=>castStatOf(v)!==st).map(v=>{const k=castStatOf(v);const mm=mod(c.stats[k]);return `${CLASSES[v.cls].n} (${k}) : DD ${8+pbm+mm+mfx(c).dc}, attaque ${fmt(pbm+mm+mfx(c).sa)}`;}).join(' · ');}
   const mainN=rule.m==='known'?nL:nPrep;const mainMax=sc?sc.n:null;
   const cnt=(lab,n,max,sub)=>`<div class="vit cnt ${max!=null?cntCls(n,max):''}"><span class="lbl">${lab}</span><b>${n}${max!=null?`<small>/${max}</small>`:''}</b>${sub?`<span class="cnt-s">${sub}</span>`:''}</div>`;
-  const counters=st?`<div class="row${rule.book?3:2}">${cnt('Sorts mineurs',n0,max0||null)}${cnt(rule.m==='known'?'Sorts connus':'Sorts préparés',mainN,mainMax,sc&&sc.f?sc.f:'')}${rule.book?cnt('Grimoire',nL,bookMax,'6 + 2 par niveau'):''}</div>${mcDD?`<p class="hint" style="margin:0">${esc(mcDD)}</p>`:''}<p class="hint" style="margin:0">${rule.t}${mainMax!=null&&mainN>mainMax?` <b style="color:var(--bad)">Tu en as ${mainN-mainMax} de trop.</b>`:''}</p>`:'';
+  const counters=st?`<div class="row${rule.book?3:2}">${cnt('Sorts mineurs',n0,max0||null)}${cnt(rule.m==='known'?'Sorts connus':'Sorts préparés',mainN,mainMax,sc&&sc.f?sc.f:'')}${rule.book?cnt('Grimoire',nL,bookMax,'6 + 2 par niveau'):''}</div>${mcDD?`<p class="hint" style="margin:0">${esc(mcDD)}</p>`:''}${AUTOCLS.some(x=>hasCls(c,x))?`<div class="between" style="align-items:center"><span class="hint" style="margin:0">Liste de classe ajoutée d’office</span><button class="pk ${c.noAuto?'':'on'}" data-a="autoSpT">${c.noAuto?'Non':'✓ Oui'}</button></div>`:''}<p class="hint" style="margin:0">${rule.t}${mainMax!=null&&mainN>mainMax?` <b style="color:var(--bad)">Tu en as ${mainN-mainMax} de trop.</b>`:''}</p>`:'';
   return `<section class="card"><div class="between"><h2>Incantation</h2>${st?`<span class="lbl">${STAT_NAMES[st]}</span>`:''}</div>
     ${st?`<div class="row3"><div class="vit"><span class="lbl">DD des sorts</span><b>${8+pb+m+mfx(c).dc}</b></div><button class="vit" data-a="rollSpellAtk"><span class="lbl">Attaque de sort</span><b>${fmt(pb+m+mfx(c).sa)}</b></button><div class="vit"><span class="lbl">Mod. ${st}</span><b>${fmt(m)}</b></div></div>${counters}`:''}
     ${rows?`<div class="stack" style="gap:10px">${rows}</div>${sl.pact||sl.pp?'<button class="btn sm" data-a="shortRest">Repos court : récupérer les emplacements de pacte</button>':''}`:''}
@@ -3457,6 +3465,7 @@ const A={
   fbAcct:()=>{ui.ov={type:'acct',fresh:1,mode:'in'};},
   fsSet:d=>{S.fs=+d.v;},
   spAddCls:d=>{ui.spAddCls=d.v;},
+  autoSpT:()=>{const c=cur();c.noAuto=c.noAuto?0:1;c.spAutoK='';if(c.noAuto){Object.keys(c.spAuto||{}).forEach(id=>{if(!c.prep[id]){c.spells=c.spells.filter(z=>z!==id);if(c.spc)delete c.spc[id];}});c.spAuto={};}},
   spSetCls:d=>{const c=cur();if(!c)return;c.spc=c.spc||{};c.spc[d.id]=d.v;if(ui.ov)ui.ov.keepScroll=1;},
   mapOpen:()=>{MP.sel=null;MP.fit=1;ui.ov={type:'map',fresh:1};},
   mapOpenRo:()=>{MP.sel=null;MP.fit=1;ui.ov={type:'map',fresh:1,ro:1};},
