@@ -173,7 +173,8 @@ function load(){
 }
 let S=load();
 const svcList=()=>S.settings.services;
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Impossible d’enregistrer sur ce téléphone');}}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Impossible d’enregistrer sur ce téléphone');}}
+function save(){saveLocal();syncPush();}
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 
 /* ---------- Outils ---------- */
@@ -348,6 +349,9 @@ function renderSettings(){
     <p class="muted" style="font-size:.82rem;margin-top:4px">Mots remplacés automatiquement : {chien} {client} {jour} {date} {heure} {salon}</p>
     <div class="actions" style="margin-top:8px"><button class="btn small" id="sms-reset">Message par défaut</button></div>
 
+    <h2>Synchronisation entre téléphones</h2>
+    ${syncSection()}
+
     <h2>Lecture avancée par IA (facultatif)</h2>
     <p class="muted" style="font-size:.9rem"><b>Facultatif.</b> Sans clé, tout fonctionne : les photos sont lues directement sur le téléphone (gratuit, hors connexion) et la dictée est analysée sur le téléphone. Une clé API Anthropic (payante à l’usage, sur console.anthropic.com) permet seulement une lecture plus fiable de l’écriture à la main.</p>
     <label for="set-key">Clé API Anthropic</label>
@@ -362,6 +366,7 @@ function renderSettings(){
     <h2>Installer sur le téléphone</h2>
     <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
   $('#exp').onclick=exportData;
+  bindSyncSection();
   $('#set-key').onchange=e=>{setKey(e.target.value.trim());toast(e.target.value.trim()?'Clé enregistrée':'Clé supprimée');};
   $('#imp-photo').onclick=()=>openPhotoImport();
   $('#key-test').onclick=async e=>{setKey($('#set-key').value.trim());if(!getKey()){toast('Saisissez d’abord la clé');return;}
@@ -686,14 +691,170 @@ function openClientForm(init,opts={}){
   if(isNew&&!r.name)setTimeout(()=>{const n=$('#cf-name');if(n)n.focus();},250);
 }
 
+
+/* ---------- Synchronisation entre téléphones (Firebase) ---------- */
+const FBCFG={apiKey:'AIzaSyAtrz4Grulg6sjcwXne6FodbrnSNzws7fU',authDomain:'compagnon-table.firebaseapp.com',projectId:'compagnon-table',storageBucket:'compagnon-table.firebasestorage.app',messagingSenderId:'488935881241',appId:'1:488935881241:web:65917f5182e02d13b58888'};
+const SYNC_KEY='toilettage.sync';
+let SY=(()=>{try{return JSON.parse(localStorage.getItem(SYNC_KEY))||{};}catch(e){return {};}})();
+// SY = {uid,email,t:{appts,clients,photos,meta}, a:{id:hash}, c:{id:hash}, s:hash, p:{id:1}}
+const saveSY=()=>{try{localStorage.setItem(SYNC_KEY,JSON.stringify(SY));}catch(e){}};
+let fbApp=null,fauth=null,fdb=null,fuser=null,syncLive=false,unsubs=[],pushTimer=null,pushing=false,pushAgain=false,syncMsg='',renderTimer=null;
+const hashStr=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)+':'+s.length;};
+function loadJs(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('chargement impossible'));document.head.appendChild(s);});}
+function setSync(msg){syncMsg=msg;const el=$('#sync-status');if(el)el.textContent=msg;}
+async function syncInit(){
+  if(fauth)return true;
+  try{if(!window.firebase||!firebase.firestore)for(const m of ['app','auth','firestore'])await loadJs('lib/firebase/firebase-'+m+'-compat.js');}
+  catch(e){setSync('Synchronisation indisponible (hors connexion ?)');return false;}
+  fbApp=firebase.apps.find(a=>a.name==='toilettage')||firebase.initializeApp(FBCFG,'toilettage');
+  fauth=fbApp.auth();fdb=fbApp.firestore();
+  try{const emu=localStorage.getItem('toilettage.emu');if(emu){fauth.useEmulator('http://'+emu+':9099',{disableWarnings:true});fdb.useEmulator(emu,8080);}}catch(e){}
+  try{await fdb.enablePersistence({synchronizeTabs:true});}catch(e){}
+  fauth.onAuthStateChanged(u=>{fuser=u;if(u)startSync();else stopSync();if(tab==='settings')render();});
+  return true;
+}
+const base=()=>fdb.collection('toilettage').doc(fuser.uid);
+const TS=()=>firebase.firestore.FieldValue.serverTimestamp();
+function syncErr(e){
+  const code=(e&&e.code)||'';
+  if(code.includes('permission-denied'))setSync('⚠ Accès refusé par Firebase : les règles de sécurité ne sont pas encore en place.');
+  else if(code.includes('unavailable'))setSync('Hors connexion : les changements seront envoyés au retour du réseau.');
+  else setSync('⚠ Erreur de synchronisation : '+(e&&e.message||e));
+}
+/* Applique un document reçu de l'autre téléphone */
+function applyRemote(kind,doc){
+  const id=doc.id,d=doc.data();
+  if(kind==='photos'){
+    if(d.deleted){if(PH[id])delPhoto(id,true);delete SY.p[id];}
+    else if(d.data&&PH[id]!==d.data){putPhoto(id,d.data,true);SY.p[id]=1;return true;}
+    else SY.p[id]=1;
+    return !!d.deleted;
+  }
+  if(kind==='meta'){if(!d.json)return false;const h=hashStr(d.json);if(SY.s===h)return false;S.settings=Object.assign(S.settings,JSON.parse(d.json));SY.s=h;return true;}
+  const arr=kind==='appts'?S.appts:S.clients,map=kind==='appts'?SY.a:SY.c;
+  const i=arr.findIndex(x=>x.id===id);
+  if(d.deleted){delete map[id];if(i>=0){arr.splice(i,1);return true;}return false;}
+  if(!d.json)return false;
+  const h=hashStr(d.json);
+  if(i>=0&&hashStr(JSON.stringify(arr[i]))===h){map[id]=h;return false;}
+  const rec=JSON.parse(d.json);
+  if(i>=0)arr[i]=rec;else arr.push(rec);
+  map[id]=h;return true;
+}
+function laterRender(){clearTimeout(renderTimer);renderTimer=setTimeout(()=>{const a=document.activeElement;if(a&&$('#app').contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)){laterRender();return;}render();},300);}
+async function startSync(){
+  if(syncLive)return;syncLive=true;
+  setSync('Synchronisation…');
+  try{
+    if(SY.uid!==fuser.uid){
+      // Première connexion de ce téléphone à ce compte : on fusionne tout
+      SY={uid:fuser.uid,email:fuser.email,t:{},a:{},c:{},s:'',p:{}};
+      const b=base();
+      const [ra,rc,rp,rm]=await Promise.all([b.collection('appts').get(),b.collection('clients').get(),b.collection('photos').get(),b.collection('meta').get()]);
+      const keepNewer=(arr,doc)=>{const d=doc.data();if(d.deleted||!d.json)return false;const loc=arr.find(x=>x.id===doc.id);if(!loc)return false;
+        const r=JSON.parse(d.json);return (loc.updated||'')>(r.updated||'');};
+      ra.forEach(doc=>{if(!keepNewer(S.appts,doc))applyRemote('appts',doc);});
+      rc.forEach(doc=>{if(!keepNewer(S.clients,doc))applyRemote('clients',doc);});
+      rp.forEach(doc=>applyRemote('photos',doc));
+      if(rm.size)rm.forEach(doc=>applyRemote('meta',doc));
+      for(const [k,snap] of [['appts',ra],['clients',rc],['photos',rp],['meta',rm]]){let mx=0;snap.forEach(doc=>{const t=doc.data()._t;if(t&&t.toMillis()>mx)mx=t.toMillis();});SY.t[k]=mx;}
+      saveSY();saveLocal();render();
+      // Envoie ce qui n'existe que sur ce téléphone (rendez-vous, fiches, photos)
+      for(const id of Object.keys(PH))if(!SY.p[id])photoPush(id,PH[id]);
+    }
+    SY.email=fuser.email;saveSY();
+    await doPush();
+    // Écoute les changements de l'autre téléphone
+    for(const kind of ['appts','clients','photos','meta']){
+      const since=firebase.firestore.Timestamp.fromMillis(SY.t[kind]||0);
+      unsubs.push(base().collection(kind).where('_t','>',since).onSnapshot({includeMetadataChanges:false},qs=>{
+        let changed=false,mx=SY.t[kind]||0;
+        qs.docChanges().forEach(ch=>{if(ch.doc.metadata.hasPendingWrites)return;const t=ch.doc.data()._t;if(t&&t.toMillis()>mx)mx=t.toMillis();
+          if(applyRemote(kind,ch.doc))changed=true;});
+        SY.t[kind]=mx;saveSY();
+        if(changed){saveLocal();laterRender();}
+        if(!qs.metadata.fromCache)setSync('À jour ✓ '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+      },syncErr));
+    }
+  }catch(e){syncLive=false;syncErr(e);}
+}
+function stopSync(){unsubs.forEach(u=>{try{u();}catch(e){}});unsubs=[];syncLive=false;}
+function syncPush(){if(!fuser||!syncLive)return;clearTimeout(pushTimer);pushTimer=setTimeout(doPush,600);}
+async function doPush(){
+  if(!fuser)return;
+  if(pushing){pushAgain=true;return;}
+  pushing=true;
+  try{
+    const b=base();const ops=[];const after=[];
+    for(const [kind,arr,map] of [['appts',S.appts,SY.a],['clients',S.clients,SY.c]]){
+      const seen=new Set();
+      for(const r of arr){seen.add(r.id);const j=JSON.stringify(r);const h=hashStr(j);
+        if(map[r.id]!==h){ops.push([b.collection(kind).doc(r.id),{json:j,deleted:false,_t:TS()}]);after.push(()=>map[r.id]=h);}}
+      for(const id of Object.keys(map))if(!seen.has(id)){ops.push([b.collection(kind).doc(id),{json:'',deleted:true,_t:TS()}]);after.push(()=>delete map[id]);}
+    }
+    const sj=JSON.stringify(S.settings);const sh=hashStr(sj);
+    if(SY.s!==sh){ops.push([b.collection('meta').doc('settings'),{json:sj,_t:TS()}]);after.push(()=>SY.s=sh);}
+    if(ops.length){
+      setSync('Envoi des changements…');
+      for(let i=0;i<ops.length;i+=400){const batch=fdb.batch();ops.slice(i,i+400).forEach(([ref,data])=>batch.set(ref,data));await batch.commit();}
+      after.forEach(f=>f());saveSY();
+      setSync('À jour ✓ '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+    }
+  }catch(e){syncErr(e);}
+  finally{pushing=false;if(pushAgain){pushAgain=false;syncPush();}}
+}
+async function photoPush(id,data){
+  if(!fuser||!syncLive||!fdb)return;
+  try{
+    if(data&&data.length>950000){toast('Photo trop grande pour être partagée');return;}
+    await base().collection('photos').doc(id).set(data?{data,deleted:false,_t:TS()}:{data:'',deleted:true,_t:TS()});
+    if(data)SY.p[id]=1;else delete SY.p[id];saveSY();
+  }catch(e){syncErr(e);}
+}
+function authMsg(e){
+  const c=(e&&e.code)||'';
+  return {'auth/invalid-credential':'E-mail ou mot de passe incorrect.','auth/wrong-password':'Mot de passe incorrect.','auth/user-not-found':'Aucun compte avec cet e-mail.',
+    'auth/invalid-email':'Adresse e-mail invalide.','auth/email-already-in-use':'Un compte existe déjà avec cet e-mail : utilisez « Se connecter ».',
+    'auth/weak-password':'Mot de passe trop court (6 caractères minimum).','auth/network-request-failed':'Pas de connexion internet.',
+    'auth/too-many-requests':'Trop d’essais, réessayez dans quelques minutes.','auth/operation-not-allowed':'La connexion par e-mail n’est pas activée dans Firebase.'}[c]||('Erreur : '+(e&&e.message||e));
+}
+function syncSection(){
+  if(fuser)return `
+    <div class="card" style="padding:12px 14px">
+      <div>☁ Connectée : <b>${esc(fuser.email||'')}</b></div>
+      <div class="muted" id="sync-status" style="font-size:.88rem;margin-top:4px">${esc(syncMsg||'…')}</div>
+    </div>
+    <p class="muted" style="font-size:.85rem;margin-top:8px">Sur l’autre téléphone, ouvrez l’application et connectez-vous avec le même e-mail et le même mot de passe : les rendez-vous, fiches clients et photos y apparaîtront.</p>
+    <div class="actions" style="margin-top:8px"><button class="btn small" id="sy-now">↻ Synchroniser maintenant</button><button class="btn small danger" id="sy-out">Se déconnecter</button></div>`;
+  return `
+    <p class="muted" style="font-size:.9rem">Pour utiliser l’application sur plusieurs téléphones avec les mêmes données, connectez-vous avec le même compte sur chacun. Les données sont alors aussi enregistrées en ligne (Firebase, Google), accessibles uniquement avec ce compte.</p>
+    <label for="sy-email">E-mail</label><input id="sy-email" type="email" autocomplete="username" autocapitalize="off" value="${esc(SY.email||'')}">
+    <label for="sy-pass">Mot de passe</label><input id="sy-pass" type="password" autocomplete="current-password">
+    <div class="actions" style="margin-top:10px"><button class="btn primary small" id="sy-in">Se connecter</button><button class="btn small" id="sy-new">Créer le compte</button><button class="btn small" id="sy-reset">Mot de passe oublié</button></div>
+    <div class="muted" id="sync-status" style="font-size:.88rem;margin-top:8px">${esc(syncMsg)}</div>`;
+}
+function bindSyncSection(){
+  const g=id=>$(id);
+  if(g('#sy-out'))g('#sy-out').onclick=async()=>{if(!confirm('Se déconnecter ? Les données restent sur ce téléphone mais ne seront plus partagées.'))return;stopSync();await fauth.signOut();SY={email:SY.email};saveSY();setSync('');render();};
+  if(g('#sy-now'))g('#sy-now').onclick=()=>{stopSync();startSync();};
+  const creds=()=>[g('#sy-email').value.trim(),g('#sy-pass').value];
+  const go=async(fn,label)=>{const[e,p]=creds();if(!e||!p){toast('E-mail et mot de passe requis');return;}
+    setSync(label);if(!(await syncInit()))return;
+    try{await fn(e,p);}catch(err){setSync(authMsg(err));}};
+  if(g('#sy-in'))g('#sy-in').onclick=()=>go((e,p)=>fauth.signInWithEmailAndPassword(e,p),'Connexion…');
+  if(g('#sy-new'))g('#sy-new').onclick=()=>go((e,p)=>fauth.createUserWithEmailAndPassword(e,p),'Création du compte…');
+  if(g('#sy-reset'))g('#sy-reset').onclick=async()=>{const e=g('#sy-email').value.trim();if(!e){toast('Saisissez l’e-mail');return;}
+    if(!(await syncInit()))return;try{await fauth.sendPasswordResetEmail(e);setSync('E-mail de réinitialisation envoyé à '+e);}catch(err){setSync(authMsg(err));}};
+}
+
 /* ---------- Photos des chiens (IndexedDB) ---------- */
 const PH={};let phDB=null;
 function idb(){return new Promise((res,rej)=>{if(phDB)return res(phDB);if(!window.indexedDB)return rej(new Error('indisponible'));
   const r=indexedDB.open('toilettage-photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>{phDB=r.result;res(phDB);};r.onerror=()=>rej(r.error);});}
 async function loadPhotos(){try{const db=await idb();await new Promise(res=>{const rq=db.transaction('p').objectStore('p').openCursor();
   rq.onsuccess=()=>{const c=rq.result;if(c){PH[c.key]=c.value;c.continue();}else res();};rq.onerror=()=>res();});}catch(e){}}
-async function putPhoto(id,data){PH[id]=data;try{const db=await idb();db.transaction('p','readwrite').objectStore('p').put(data,id);}catch(e){toast('Photo non enregistrée : stockage indisponible');}}
-async function delPhoto(id){if(!id)return;delete PH[id];try{const db=await idb();db.transaction('p','readwrite').objectStore('p').delete(id);}catch(e){}}
+async function putPhoto(id,data,fromRemote){PH[id]=data;if(!fromRemote)photoPush(id,data);try{const db=await idb();db.transaction('p','readwrite').objectStore('p').put(data,id);}catch(e){toast('Photo non enregistrée : stockage indisponible');}}
+async function delPhoto(id,fromRemote){if(!id)return;delete PH[id];if(!fromRemote)photoPush(id,null);try{const db=await idb();db.transaction('p','readwrite').objectStore('p').delete(id);}catch(e){}}
 function dogImg(id,size){return id&&PH[id]?`<img class="dogpic" src="${PH[id]}" alt="" style="width:${size}px;height:${size}px">`:'';}
 function dogPhotoId(client,dog){const r=S.clients.find(x=>norm(x.name)===norm(client));const d=r&&(r.dogs||[]).find(x=>norm(x.name)===norm(dog));return d?d.photo:'';}
 function clientAvatar(c){
@@ -1282,7 +1443,7 @@ document.addEventListener('click',e=>{
 $('#fab').onclick=()=>openForm({date:tab==='agenda'?sel:today()});
 
 render();
-loadPhotos().then(()=>{if(Object.keys(PH).length)render();});
+loadPhotos().then(()=>{if(Object.keys(PH).length)render();if(SY.uid)syncInit();});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body></html>
