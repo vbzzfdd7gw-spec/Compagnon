@@ -118,6 +118,7 @@ label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
 .stat:last-child{border-bottom:0}
 .list-pad{padding:4px 0}
 .hidden{display:none!important}
+input[type=checkbox]{accent-color:var(--accent)}
 .viewseg{width:auto;margin-bottom:8px}
 .month{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:6px 0 4px;touch-action:pan-y}
 .month .wd{text-align:center;font-size:.72rem;color:var(--muted);padding:4px 0}
@@ -256,7 +257,7 @@ function renderAgenda(){
         <span class="monthlabel">${d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})} ▾<input type="date" id="pick" value="${sel}" aria-label="Choisir une date"></span>
         <button class="iconbtn" data-nav="1" aria-label="Suivant">›</button>
       </div>
-      ${sel!==today()?'<button class="btn small" id="gotoday">Aujourd’hui</button>':''}
+      <div style="display:flex;gap:6px;align-items:center">${sel!==today()?'<button class="btn small" id="gotoday">Aujourd’hui</button>':''}<button class="iconbtn" id="photo-btn" aria-label="Importer un agenda papier en photo">📷</button></div>
     </div>
     <div class="seg viewseg" id="mode"><button data-mode="week" class="${mode==='week'?'on':''}">Semaine</button><button data-mode="month" class="${mode==='month'?'on':''}">Mois</button></div>
     <div class="${mode==='month'?'month':'week'}" id="week">${week}</div>
@@ -265,6 +266,7 @@ function renderAgenda(){
   $('#pick').onchange=e=>{if(e.target.value){sel=e.target.value;render();}};
   const gt=$('#gotoday');if(gt)gt.onclick=()=>{sel=today();render();};
   const ad=$('#addday');if(ad)ad.onclick=()=>openForm({date:sel});
+  $('#photo-btn').onclick=()=>openPhotoImport();
   $('#mode').onclick=e=>{const b=e.target.closest('[data-mode]');if(!b)return;mode=b.dataset.mode;try{localStorage.setItem('toilettage.mode',mode);}catch(_){}render();};
   // Glisser pour changer de semaine
   const w=$('#week');let x0=null;
@@ -329,6 +331,13 @@ function renderSettings(){
     <p class="muted" style="font-size:.82rem;margin-top:4px">Mots remplacés automatiquement : {chien} {client} {jour} {date} {heure} {salon}</p>
     <div class="actions" style="margin-top:8px"><button class="btn small" id="sms-reset">Message par défaut</button></div>
 
+    <h2>Lecture des photos et dictée (IA)</h2>
+    <p class="muted" style="font-size:.9rem">Pour lire un agenda papier en photo (écriture à la main) et mieux comprendre les dictées, l’application utilise Claude, l’intelligence artificielle d’Anthropic. Il faut une clé API, à créer sur <b>console.anthropic.com</b> (compte payant à l’usage : quelques centimes par page photographiée). Sans clé, la dictée fonctionne quand même, de façon plus simple.</p>
+    <label for="set-key">Clé API Anthropic</label>
+    <input id="set-key" type="password" autocomplete="off" value="${esc(getKey())}" placeholder="sk-ant-…">
+    <p class="muted" style="font-size:.82rem;margin-top:4px">La clé reste sur ce téléphone et n’est pas incluse dans les sauvegardes. Les photos et dictées sont envoyées à Anthropic pour être lues.</p>
+    <div class="actions" style="margin-top:8px"><button class="btn small" id="key-test">Tester la clé</button><button class="btn small" id="imp-photo">📷 Importer un agenda papier</button></div>
+
     <h2>Sauvegarder les données</h2>
     <p class="muted" style="font-size:.9rem">Les données restent uniquement sur ce téléphone. Pensez à faire une sauvegarde de temps en temps (par exemple l’envoyer par mail ou dans vos fichiers) : elle permet de tout récupérer si le téléphone est changé ou perdu.</p>
     <div class="actions"><button class="btn primary" id="exp">⬇ Exporter une sauvegarde</button><button class="btn" id="imp">⬆ Restaurer une sauvegarde</button></div>
@@ -336,6 +345,12 @@ function renderSettings(){
     <h2>Installer sur le téléphone</h2>
     <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
   $('#exp').onclick=exportData;
+  $('#set-key').onchange=e=>{setKey(e.target.value.trim());toast(e.target.value.trim()?'Clé enregistrée':'Clé supprimée');};
+  $('#imp-photo').onclick=()=>openPhotoImport();
+  $('#key-test').onclick=async e=>{setKey($('#set-key').value.trim());if(!getKey()){toast('Saisissez d’abord la clé');return;}
+    const b=e.target;b.disabled=true;b.textContent='Test en cours…';
+    try{await askClaude([{type:'text',text:'Réponds par une liste vide : aucun rendez-vous.'}],'low');toast('La clé fonctionne ✓');}
+    catch(err){alert(err.message);}finally{b.disabled=false;b.textContent='Tester la clé';}};
   const st=S.settings;
   $('#svc-list').onclick=e=>{const up=e.target.closest('[data-up]'),rm=e.target.closest('[data-rm]');
     if(up){const i=+up.dataset.up;if(i>0){[st.services[i-1],st.services[i]]=[st.services[i],st.services[i-1]];save();renderSettings();}}
@@ -390,7 +405,7 @@ function closeSheet(){const s=$('#sheet');if(s)s.remove();document.body.style.ov
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
 
 /* ---------- Formulaire de rendez-vous ---------- */
-function openForm(init={}){
+function openForm(init={},opts={}){
   const editing=!!init.id;
   const a=Object.assign({date:sel,time:'',duration:60,client:'',phone:'',dog:'',breed:'',services:[],details:'',price:'',notes:'',done:false},init);
   let services=new Set(a.services||[]);
@@ -399,6 +414,8 @@ function openForm(init={}){
   const durOpts=DURATIONS.some(([v])=>v==a.duration)?DURATIONS:[...DURATIONS,[+a.duration,fmtDur(a.duration)]].sort((x,y)=>x[0]-y[0]);
   const breeds=[...new Set([...BREEDS,...S.appts.map(x=>x.breed).filter(Boolean)])].sort((x,y)=>x.localeCompare(y,'fr'));
   const html=`
+    ${!editing&&!opts.fromImport?`<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="f-voice" style="flex:1">🎤 Remplir à la voix</button></div>`:''}
+    ${opts.banner?`<p class="muted" style="font-size:.85rem;margin-top:12px">${esc(opts.banner)}</p>`:''}
     <div class="row">
       <div><label for="f-date">Date</label><input type="date" id="f-date" value="${esc(a.date)}" required></div>
       <div><label for="f-time">Heure</label><input type="time" id="f-time" value="${esc(a.time)}" step="300"></div>
@@ -441,7 +458,8 @@ function openForm(init={}){
       <button class="btn" id="f-again">↻ Reprendre RDV</button>
       <button class="btn danger" id="f-del">Supprimer</button>
     </div>`:''}`;
-  openSheet(editing?'Rendez-vous':'Nouveau rendez-vous',html,{right:'OK',onRight:submit});
+  openSheet(editing?'Rendez-vous':'Nouveau rendez-vous',html,{right:'OK',onRight:submit,onClose:opts.onCancel});
+  const fv=$('#f-voice');if(fv)fv.onclick=()=>openVoice($('#f-date').value||a.date);
   let done=!!a.done;
 
   // Prestations
@@ -501,7 +519,7 @@ function openForm(init={}){
   fDog.addEventListener('input',suggestDogs);
   fDog.addEventListener('blur',()=>{const c=currentClient();const d=c&&c.dogs.get(norm(fDog.value));if(d&&!$('#f-breed').value&&d.breed)$('#f-breed').value=d.breed;});
   suggestDogs();
-  if(!editing&&!a.client)setTimeout(()=>{if(!a.time)$('#f-time').focus();},250);
+  if(!editing&&!a.client)setTimeout(()=>{const ft=$('#f-time');if(!a.time&&ft)ft.focus();},250);
 
   function submit(){
     const v=id=>$(id).value.trim();
@@ -516,6 +534,7 @@ function openForm(init={}){
     const i=S.appts.findIndex(x=>x.id===rec.id);
     if(i>=0)S.appts[i]=rec;else S.appts.push(rec);
     save();closeSheet();
+    if(opts.onSaved){opts.onSaved(rec);return;}
     if(tab==='agenda')sel=rec.date;
     toast(editing?'Rendez-vous modifié':'Rendez-vous ajouté');render();
   }
@@ -569,6 +588,288 @@ function openClient(key){
 }
 
 function step(n){sel=mode==='month'?monthShift(sel,n):addDays(sel,7*n);render();}
+
+/* ---------- IA : lecture de photos d'agenda et dictée ---------- */
+const KEY_API='toilettage.apikey';
+const getKey=()=>{try{return localStorage.getItem(KEY_API)||'';}catch(e){return '';}};
+const setKey=k=>{try{k?localStorage.setItem(KEY_API,k):localStorage.removeItem(KEY_API);}catch(e){}};
+
+const APPT_SCHEMA={type:'object',additionalProperties:false,required:['appointments'],properties:{appointments:{type:'array',items:{
+  type:'object',additionalProperties:false,
+  required:['date','time','duration_min','client','phone','dog','breed','services','details','price','notes','uncertain'],
+  properties:{
+    date:{type:'string',description:'Date au format AAAA-MM-JJ, chaîne vide si inconnue'},
+    time:{type:'string',description:'Heure de début HH:MM sur 24 h, chaîne vide si inconnue'},
+    duration_min:{type:'integer',description:'Durée en minutes, 0 si inconnue'},
+    client:{type:'string'},phone:{type:'string'},dog:{type:'string'},breed:{type:'string'},
+    services:{type:'array',items:{type:'string'}},
+    details:{type:'string',description:'Précisions sur la prestation'},
+    price:{anyOf:[{type:'number'},{type:'null'}]},
+    notes:{type:'string',description:'Remarques (comportement, santé…)'},
+    uncertain:{type:'string',description:'Ce qui était difficile à lire ou ambigu, chaîne vide sinon'}
+  }}}}};
+
+function aiContext(){
+  const t=today();
+  const dir=directory().slice(0,300).map(c=>`- ${c.name}${c.phone?' ('+c.phone+')':''} : ${[...c.dogs.values()].map(d=>d.name+(d.breed?' ['+d.breed+']':'')).join(', ')}`).join('\n');
+  return `Nous sommes le ${fmtDay(t)} (${t}). Salon de toilettage canin en France.
+Prestations habituelles (utilise ces libellés exacts quand ça correspond) : ${svcList().join(', ')}.
+${dir?'Clients déjà connus (corrige l’orthographe d’un nom mal lu s’il correspond clairement à l’un d’eux, et reprends son téléphone) :\n'+dir:''}`;
+}
+
+async function askClaude(content,effort){
+  const key=getKey();if(!key)throw new Error('Aucune clé API : ajoutez-la dans Réglages.');
+  if(!navigator.onLine)throw new Error('Pas de connexion internet.');
+  let res;
+  try{
+    res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{
+      'content-type':'application/json','x-api-key':key,'anthropic-version':'2026-10-21',
+      'anthropic-beta':'server-side-fallback-2026-07-01',
+      'anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-opus-5-5',max_tokens:16000,fallbacks:'default',
+        output_config:{effort,format:{type:'json_schema',schema:APPT_SCHEMA}},
+        system:'Tu aides une toiletteuse à saisir ses rendez-vous. Tu extrais des rendez-vous structurés, sans rien inventer : laisse vide ce qui n’est pas indiqué.',
+        messages:[{role:'user',content}]})});
+  }catch(e){throw new Error('Impossible de joindre le service (connexion ?).');}
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){
+    if(res.status===401)throw new Error('Clé API refusée : vérifiez-la dans Réglages.');
+    if(res.status===429)throw new Error('Trop de demandes, réessayez dans une minute.');
+    if(res.status===400&&/credit/i.test(data?.error?.message||''))throw new Error('Crédit Anthropic épuisé : rechargez le compte sur console.anthropic.com.');
+    throw new Error('Erreur du service ('+res.status+') : '+(data?.error?.message||''));
+  }
+  if(data.stop_reason==='refusal')throw new Error('La demande a été refusée par le service.');
+  if(data.stop_reason==='max_tokens')throw new Error('Réponse trop longue : essayez avec moins de pages à la fois.');
+  const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+  try{return JSON.parse(txt).appointments||[];}catch(e){throw new Error('Réponse illisible, réessayez.');}
+}
+
+/* Convertit une proposition de l'IA (ou du lecteur local) en rendez-vous de l'appli */
+function fromAI(x,fallbackDate){
+  const ok=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||'');
+  const tm=/^\d{1,2}:\d{2}$/.test(x.time||'')?x.time.padStart(5,'0'):'';
+  const known=new Map(svcList().map(s=>[norm(s),s]));
+  return {date:ok(x.date)?x.date:fallbackDate,time:tm,duration:x.duration_min>0?x.duration_min:60,
+    client:(x.client||'').trim(),phone:(x.phone||'').trim(),dog:(x.dog||'').trim(),breed:(x.breed||'').trim(),
+    services:[...new Set((x.services||[]).map(s=>known.get(norm(s))||s.trim()).filter(Boolean))],
+    details:(x.details||'').trim(),price:(x.price==null||isNaN(x.price))?'':+x.price,notes:(x.notes||'').trim(),
+    uncertain:(x.uncertain||'').trim(),dateGuessed:!ok(x.date)};
+}
+
+/* Image → JPEG base64 redimensionné (≤1568 px) */
+function shrinkImage(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);const img=new Image();
+    img.onload=()=>{const max=1568;let w=img.naturalWidth,h=img.naturalHeight;const r=Math.min(1,max/Math.max(w,h));w=Math.round(w*r);h=Math.round(h*r);
+      const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg',0.85));};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Image illisible'));};
+    img.src=url;
+  });
+}
+
+let photoFiles=[];
+function openPhotoImport(){
+  photoFiles=[];
+  const hasKey=!!getKey();
+  const html=`
+    <p style="margin-top:14px">Prenez en photo une ou plusieurs pages de l’agenda papier. L’application lit les rendez-vous, puis vous les montre pour vérification avant de les ajouter.</p>
+    ${hasKey?'':`<div class="card" style="padding:12px 14px;margin-top:12px">⚠ Il faut d’abord ajouter une clé API dans <b>Réglages</b> pour la lecture des photos.<div class="actions" style="margin-top:10px"><button class="btn small primary" id="ph-settings">Aller aux réglages</button></div></div>`}
+    <label for="ph-date">Date de la page ou de la semaine (si elle n’est pas écrite)</label>
+    <input type="date" id="ph-date" value="">
+    <div class="actions">
+      <button class="btn primary" id="ph-cam" style="flex:1">📷 Prendre une photo</button>
+      <button class="btn" id="ph-gal" style="flex:1">🖼 Choisir des photos</button>
+    </div>
+    <input type="file" id="ph-cam-in" accept="image/*" capture="environment" class="hidden">
+    <input type="file" id="ph-gal-in" accept="image/*" multiple class="hidden">
+    <div id="ph-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px"></div>
+    <p class="muted" style="font-size:.85rem;margin-top:10px">Conseils : page bien à plat, bonne lumière, une page par photo, texte net.</p>
+    <div class="actions"><button class="btn primary" id="ph-go" style="flex:1" disabled>Lire les rendez-vous</button></div>
+    <div id="ph-status" class="muted" style="margin-top:10px;text-align:center"></div>`;
+  openSheet('Agenda papier',html,{left:'Fermer'});
+  const st=$('#ph-settings');if(st)st.onclick=()=>{closeSheet();tab='settings';render();setTimeout(()=>$('#set-key')&&$('#set-key').focus(),100);};
+  const add=e=>{photoFiles.push(...e.target.files);e.target.value='';thumbs();};
+  $('#ph-cam').onclick=()=>$('#ph-cam-in').click();$('#ph-gal').onclick=()=>$('#ph-gal-in').click();
+  $('#ph-cam-in').onchange=add;$('#ph-gal-in').onchange=add;
+  function thumbs(){
+    const box=$('#ph-thumbs');box.innerHTML='';
+    photoFiles.forEach((f,i)=>{const d=document.createElement('div');d.style.cssText='position:relative';
+      const im=document.createElement('img');im.src=URL.createObjectURL(f);im.style.cssText='width:84px;height:110px;object-fit:cover;border-radius:10px;border:1px solid var(--line)';
+      const x=document.createElement('button');x.textContent='✕';x.setAttribute('aria-label','Retirer');x.style.cssText='position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;text-align:center';
+      x.onclick=()=>{photoFiles.splice(i,1);thumbs();};d.append(im,x);box.append(d);});
+    $('#ph-go').disabled=!photoFiles.length||!getKey();
+    $('#ph-go').textContent=photoFiles.length>1?`Lire les ${photoFiles.length} pages`:'Lire les rendez-vous';
+  }
+  $('#ph-go').onclick=async()=>{
+    const hint=$('#ph-date').value;const go=$('#ph-go');go.disabled=true;
+    const status=$('#ph-status');const found=[];const errors=[];
+    for(let i=0;i<photoFiles.length;i++){
+      status.textContent=`Lecture de la page ${i+1} sur ${photoFiles.length}… (environ 30 secondes)`;
+      try{
+        const data=await shrinkImage(photoFiles[i]);
+        const content=[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:data.split(',')[1]}},
+          {type:'text',text:aiContext()+`\n${hint?'La page photographiée correspond au '+fmtDay(hint)+' ('+hint+') ou à la semaine qui contient ce jour.':'Si l’année ou le mois ne sont pas écrits, déduis-les : la page concerne très probablement des dates proches d’aujourd’hui.'}
+Voici la photo d’une page d’agenda papier écrite à la main. Relève chaque rendez-vous : date, heure, client, téléphone, nom du chien, race, prestations, détails, prix, remarques. Les noms de jours ou les numéros en haut des colonnes donnent les dates. Ignore ce qui n’est pas un rendez-vous de toilettage. Signale dans « uncertain » ce qui est difficile à lire.`}];
+        found.push(...(await askClaude(content,'high')).map(x=>fromAI(x,hint||today())));
+      }catch(err){errors.push(`Page ${i+1} : ${err.message}`);}
+    }
+    status.textContent='';go.disabled=false;
+    if(errors.length)alert(errors.join('\n'));
+    if(found.length)openReview(found,'Agenda papier');
+    else if(!errors.length)alert('Aucun rendez-vous trouvé sur ces photos.');
+  };
+}
+
+/* Écran de vérification avant import */
+let reviewItems=[],reviewTitle='';
+function openReview(items,title){
+  if(items){reviewItems=items.map(x=>({...x,_id:uid(),_on:true,_saved:false}));reviewTitle=title;
+    for(const r of reviewItems){if(S.appts.some(a=>a.date===r.date&&a.time===r.time&&norm(a.dog)===norm(r.dog)&&norm(a.client)===norm(r.client))){r._on=false;r._dup=true;}}}
+  const left=reviewItems.filter(r=>!r._saved);
+  if(!left.length){closeSheet();render();toast('Import terminé');return;}
+  const html=`
+    <p class="muted" style="font-size:.9rem;margin-top:12px">${left.length} rendez-vous trouvés. Vérifiez-les : touchez « Corriger » pour modifier, décochez ceux à ne pas ajouter.</p>
+    ${left.map(r=>`<div class="card" style="padding:12px 14px;margin-top:10px;display:flex;gap:12px;align-items:flex-start">
+      <input type="checkbox" data-rv="${r._id}" ${r._on?'checked':''} style="width:22px;height:22px;flex:none;margin-top:2px" aria-label="Ajouter ce rendez-vous">
+      <div style="flex:1;min-width:0">
+        <div class="cap" style="font-weight:600">${esc(fmtDay(r.date))}${r.time?' · '+esc(r.time):''}${r.dateGuessed?' <span class="muted" style="font-weight:400">(date à vérifier)</span>':''}</div>
+        <div><b>${esc(r.dog||'Chien ?')}</b>${r.breed?' <span class="muted">· '+esc(r.breed)+'</span>':''} — ${esc(r.client||'Client ?')}${r.phone?' <span class="muted">· '+esc(r.phone)+'</span>':''}</div>
+        ${r.services.length?`<div class="chips">${r.services.map(s=>`<span class="chip">${esc(s)}</span>`).join('')}</div>`:''}
+        ${r.details?`<div class="note">${esc(r.details)}</div>`:''}${r.notes?`<div class="note warn">${esc(r.notes)}</div>`:''}
+        ${r.price!==''?`<div class="price" style="margin-top:4px">${fmtPrice(r.price)}</div>`:''}
+        ${r._dup?'<div class="muted" style="font-size:.82rem;margin-top:4px">Déjà présent dans l’agenda</div>':''}
+        ${r.uncertain?`<div style="font-size:.82rem;margin-top:4px;color:var(--bad)">À vérifier : ${esc(r.uncertain)}</div>`:''}
+        <button class="btn small" data-rvedit="${r._id}" style="margin-top:8px">✎ Corriger</button>
+      </div></div>`).join('')}
+    <div class="actions"><button class="btn primary" id="rv-go" style="flex:1"></button></div>`;
+  openSheet(reviewTitle,html,{left:'Annuler',onClose:()=>{reviewItems=[];}});
+  const upd=()=>{const n=reviewItems.filter(r=>!r._saved&&r._on).length;$('#rv-go').textContent=n?`Ajouter ${n} rendez-vous`:'Rien à ajouter';$('#rv-go').disabled=!n;};
+  document.querySelectorAll('[data-rv]').forEach(c=>c.onchange=()=>{reviewItems.find(r=>r._id===c.dataset.rv)._on=c.checked;upd();});
+  document.querySelectorAll('[data-rvedit]').forEach(b=>b.onclick=()=>{
+    const r=reviewItems.find(x=>x._id===b.dataset.rvedit);
+    const{_id,_on,_saved,_dup,uncertain,dateGuessed,...init}=r;
+    openForm(init,{fromImport:true,banner:uncertain?'À vérifier : '+uncertain:'',
+      onSaved:()=>{r._saved=true;openReview();toast('Rendez-vous ajouté');},onCancel:()=>openReview()});
+  });
+  $('#rv-go').onclick=()=>{
+    const now=new Date().toISOString();let n=0;
+    for(const r of reviewItems){if(r._saved||!r._on)continue;
+      const{_id,_on,_saved,_dup,uncertain,dateGuessed,...rec}=r;
+      S.appts.push({...rec,id:uid(),done:false,created:now,updated:now});n++;}
+    save();reviewItems=[];closeSheet();
+    render();toast(n+' rendez-vous ajoutés');
+  };
+  upd();
+}
+
+/* ---------- Dictée vocale ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recog=null;
+function openVoice(date){
+  const html=`
+    <p style="margin-top:14px">Touchez le micro et parlez naturellement, par exemple :</p>
+    <p class="muted" style="font-size:.9rem;font-style:italic;margin-top:6px">« Demain à 14 h 30, madame Martin, 06 12 34 56 78, son caniche Filou, bain et coupe ciseaux, tête bien ronde, 45 euros. Remarque : a peur du séchoir. »</p>
+    <div style="text-align:center;margin:18px 0 8px">
+      <button id="mic" aria-label="Démarrer la dictée" style="width:92px;height:92px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:2.4rem;display:inline-grid;place-items:center;box-shadow:0 6px 18px rgba(192,96,63,.35)">🎤</button>
+      <div id="mic-state" class="muted" style="margin-top:8px;font-size:.9rem">${SR?'Touchez pour parler':'Dictée intégrée indisponible ici : touchez la zone de texte puis le micro 🎤 du clavier.'}</div>
+    </div>
+    <label for="v-text">Texte dicté (modifiable)</label>
+    <textarea id="v-text" style="min-height:120px" placeholder="Le texte apparaît ici…"></textarea>
+    <div class="actions"><button class="btn primary" id="v-go" style="flex:1">Remplir la fiche</button></div>
+    <p class="muted" style="font-size:.82rem;margin-top:8px">${getKey()?'Le texte sera compris par l’IA (Claude). Vous pourrez tout vérifier avant d’enregistrer.':'Sans clé API, l’application reconnaît les éléments simples (date, heure, prix, prestations, clients déjà connus). Vous pourrez tout vérifier avant d’enregistrer.'} Plusieurs rendez-vous peuvent être dictés à la suite.</p>`;
+  openSheet('Dictée vocale',html,{onClose:stopRecog});
+  const mic=$('#mic'),stateEl=$('#mic-state'),ta=$('#v-text');
+  if(!SR)mic.onclick=()=>ta.focus();
+  else mic.onclick=()=>{
+    if(recog){stopRecog();return;}
+    recog=new SR();recog.lang='fr-FR';recog.continuous=true;recog.interimResults=true;
+    const base=ta.value?ta.value.trim()+' ':'';
+    recog.onresult=e=>{let fin='',tmp='';for(let i=0;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)fin+=r[0].transcript+' ';else tmp+=r[0].transcript;}ta.value=(base+fin+tmp).replace(/\s+/g,' ');};
+    recog.onerror=e=>{stateEl.textContent=e.error==='not-allowed'||e.error==='service-not-allowed'?'Micro refusé : autorisez-le dans les réglages du téléphone, ou utilisez le micro du clavier.':'Erreur de dictée ('+e.error+')';};
+    recog.onend=()=>{recog=null;if($('#mic')){$('#mic').textContent='🎤';$('#mic').style.background='var(--accent)';if(!/Erreur|refusé/.test(stateEl.textContent))stateEl.textContent='Touchez pour reprendre';}};
+    try{recog.start();mic.textContent='■';mic.style.background='var(--bad)';stateEl.textContent='J’écoute… touchez ■ pour terminer';}catch(err){recog=null;stateEl.textContent='Impossible de démarrer la dictée.';}
+  };
+  $('#v-go').onclick=async()=>{
+    stopRecog();const text=ta.value.trim();if(!text){toast('Dictez ou écrivez d’abord');return;}
+    let items;
+    if(getKey()){
+      const b=$('#v-go');b.disabled=true;b.textContent='Analyse en cours…';
+      try{items=(await askClaude([{type:'text',text:aiContext()+`\nDate par défaut si aucune date n’est dite : ${date} (${fmtDay(date)}).\nVoici une dictée vocale (la transcription peut contenir des erreurs, des chiffres écrits en lettres, des mots mal reconnus) décrivant un ou plusieurs rendez-vous. Extrais-les.\n\nDictée : « ${text} »`}],'medium')).map(x=>fromAI(x,date));}
+      catch(err){toast('IA indisponible : lecture simple utilisée');items=[parseDictation(text,date)];}
+    }else items=[parseDictation(text,date)];
+    items=items.filter(x=>x.client||x.dog||x.time||x.services.length);
+    if(!items.length)items=[parseDictation(text,date)];
+    if(items.length===1){const{uncertain,dateGuessed,...init}=items[0];closeSheet();openForm(init,{fromImport:true,banner:'Fiche remplie à partir de la dictée : vérifiez puis enregistrez.'+(uncertain?' À vérifier : '+uncertain:'')});}
+    else openReview(items,'Dictée');
+  };
+}
+function stopRecog(){if(recog){try{recog.stop();}catch(e){}recog=null;}}
+
+/* Lecture simple (sans IA) d'une phrase dictée en français */
+const NUMS={un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,onze:11,douze:12,treize:13,quatorze:14,quinze:15,seize:16,'dix-sept':17,'dix-huit':18,'dix-neuf':19,vingt:20,trente:30,quarante:40,cinquante:50,soixante:60};
+const SYN={'griffe':'Coupe des griffes','ongle':'Coupe des griffes','tondre':'Tonte','tonte':'Tonte','tondu':'Tonte','shampo':'Bain','lavage':'Bain','laver':'Bain','bain':'Bain','ciseau':'Coupe ciseaux','coupe':'Coupe ciseaux','epil':'Épilation','trimming':'Épilation','demel':'Démêlage','noeud':'Démêlage','brush':'Brushing','sech':'Séchage','oreille':'Oreilles','yeux':'Yeux','puce':'Anti-puces','dent':'Dents'};
+function parseDictation(text,defDate){
+  const raw=text.trim();
+  let t=' '+norm(raw).replace(/[’']/g,"'")+' ';
+  for(const[w,n]of Object.entries(NUMS).sort((x,y)=>y[0].length-x[0].length))t=t.replace(new RegExp('\\b'+w+'\\b','g'),String(n));
+  const out={date:defDate,time:'',duration_min:0,client:'',phone:'',dog:'',breed:'',services:[],details:'',price:null,notes:'',uncertain:''};
+  const T=today();
+  // Date
+  if(/apres[- ]demain/.test(t))out.date=addDays(T,2);
+  else if(/\bdemain\b/.test(t))out.date=addDays(T,1);
+  else if(/aujourd'?hui|ce matin|cet apres-midi|ce soir/.test(t))out.date=T;
+  else{
+    const days=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    const months=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+    const m=t.match(new RegExp('\\b(\\d{1,2}|1er|premier)\\s+('+months.join('|')+')(?:\\s+(\\d{4}))?'));
+    const m2=t.match(/\ble\s+(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{2,4}))?/);
+    if(m){const d=/^(1er|premier)$/.test(m[1])?1:+m[1];const mo=months.indexOf(m[2]);let y=m[3]?+m[3]:parse(T).getFullYear();let dt=new Date(y,mo,d);if(!m[3]&&iso(dt)<addDays(T,-60))dt=new Date(y+1,mo,d);out.date=iso(dt);}
+    else if(m2){let y=m2[3]?(+m2[3]<100?2000+ +m2[3]:+m2[3]):parse(T).getFullYear();out.date=iso(new Date(y,+m2[2]-1,+m2[1]));}
+    else{const dm=t.match(new RegExp('\\b('+days.join('|')+')\\b'));
+      if(dm){const target=days.indexOf(dm[1]);const cur=parse(T).getDay();let diff=(target-cur+7)%7;if(diff===0&&!/\bce\s/.test(t))diff=7;if(/prochain|suivant/.test(t))diff=diff||7;out.date=addDays(T,diff);}
+      else{const dd=t.match(/\ble\s+(\d{1,2})\b(?!\s*(?:h|heure|euro|€|min))/);if(dd){const d=+dd[1];const x=parse(T);let dt=new Date(x.getFullYear(),x.getMonth(),d);if(iso(dt)<T)dt=new Date(x.getFullYear(),x.getMonth()+1,d);out.date=iso(dt);}}}
+  }
+  // Durée
+  const du=t.match(/(?:duree|pendant|prevoir)\s*(?:de\s*)?(\d{1,2})\s*(?:h|heures?)\s*(\d{2}|et demie?)?|(?:duree|pendant|prevoir)\s*(?:de\s*)?(\d{2,3})\s*min/);
+  if(du){t=t.replace(du[0],' ');out.duration_min=du[3]?+du[3]:(+du[1]*60+(/demi/.test(du[2]||'')?30:+(du[2]||0)));}
+  // Heure
+  const h=t.match(/\b(\d{1,2})\s*(?:heures?|h|:)\s*(\d{2}|et quart|et demie?|moins le quart)?/);
+  if(h&&+h[1]<24){let H=+h[1],M=0;const x=h[2]||'';if(/^\d+$/.test(x))M=+x;else if(/quart/.test(x)&&/moins/.test(x)){H-=1;M=45;}else if(/quart/.test(x))M=15;else if(/demi/.test(x))M=30;
+    if(H<8&&!/matin/.test(t))H+=12;out.time=pad(H)+':'+pad(M);}
+  else if(/\bmidi\b/.test(t))out.time='12:00';
+  // Prix
+  const pr=t.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|euros?)/);if(pr)out.price=+pr[1].replace(',','.');
+  // Téléphone
+  const ph=raw.replace(/[.\-]/g,' ').match(/(?:\+33\s?|0)\s?[1-9](?:\s?\d{2}){4}/);if(ph)out.phone=ph[0].replace(/\s/g,'').replace(/(\d{2})(?=\d)/g,'$1 ').trim();
+  // Clients et chiens connus
+  const dir=directory();
+  for(const c of dir){for(const d of c.dogs.values()){if(d.name&&new RegExp('\\b'+norm(d.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(t)){out.dog=d.name;if(!out.breed)out.breed=d.breed;if(!out.client){out.client=c.name;if(!out.phone)out.phone=c.phone;}}}}
+  for(const c of dir){const n=norm(c.name).replace(/^(mme|mr|m\.|madame|monsieur)\s+/,'');if(n.length>2&&t.includes(' '+n)){out.client=c.name;if(!out.phone)out.phone=c.phone;}}
+  if(!out.client){const cm=raw.match(/\b(madame|monsieur|mademoiselle|mme|m\.|mr)\s+([A-Za-zÀ-ÿ'-]+(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+)?)/i);
+    if(cm){const tt={madame:'Mme',mme:'Mme',mademoiselle:'Mlle',monsieur:'M.','m.':'M.',mr:'M.'}[cm[1].toLowerCase()]||cm[1];out.client=tt+' '+cap(cm[2]);}
+    else{const cc=raw.match(/\bclient(?:e)?\s*:?\s+([A-Za-zÀ-ÿ'-]+(?:\s+[A-Za-zÀ-ÿ'-]+)?)/i);if(cc)out.client=cap(cc[1]);}}
+  if(!out.dog){const dm=raw.match(/\b(?:chien(?:ne)?|toutou|chiot|il s'appelle|elle s'appelle|nommée?)\s+(?:s'appelle\s+)?([A-Za-zÀ-ÿ'-]+)/i);
+    if(dm&&!/^(de|du|la|le|est|a|qui)$/i.test(dm[1]))out.dog=cap(dm[1]);}
+  // Race
+  const breeds=[...new Set([...BREEDS,...S.appts.map(a=>a.breed).filter(Boolean)])].sort((a,b)=>b.length-a.length);
+  for(const b of breeds){if(t.includes(' '+norm(b))){out.breed=b;break;}}
+  // Prestations
+  const svcs=new Set();
+  for(const s of svcList())if(t.includes(norm(s)))svcs.add(s);
+  for(const[k,v]of Object.entries(SYN))if(t.includes(k)&&svcList().includes(v)&&!(v==='Coupe ciseaux'&&/griffe|ongle/.test(t)&&!/coupe\s+(au\s+)?ciseau|coupe\s+(de\s+)?poil|coupe\s+et/.test(t)))svcs.add(v);
+  out.services=[...svcs];
+  // Remarques / détails
+  const rm=raw.match(/\b(?:remarques?|attention|à noter|note)\s*:?\s*(.+)$/i);
+  if(rm){out.notes=rm[1].trim();}
+  const dt=raw.match(/\b(?:détails?|précisions?)\s*:?\s*(.+?)(?=\b(?:remarques?|attention|à noter)\b|$)/i);
+  if(dt)out.details=dt[1].trim().replace(/[.,;]$/,'');
+  else out.details='Dictée : '+(rm?raw.slice(0,rm.index).trim():raw);
+  out.uncertain='';
+  return fromAI(out,defDate);
+}
+function cap(s){return String(s).replace(/(^|[\s-])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());}
+
 /* ---------- Événements globaux ---------- */
 document.addEventListener('click',e=>{
   const ap=e.target.closest('[data-id]');
