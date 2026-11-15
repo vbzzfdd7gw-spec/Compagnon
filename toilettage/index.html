@@ -18,11 +18,16 @@
   --shadow:0 1px 2px rgba(20,45,70,.05),0 4px 14px rgba(20,45,70,.06);
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root{
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#0f151b;--panel:#17202a;--panel2:#202b37;--line:#2c3a48;--fg:#e8eef4;--muted:#93a3b3;
   --accent:#7cc6f2;--accent-text:#8fd0f6;--accent-soft:#16364d;--accent-ink:#08243a;--good:#6cc48f;--bad:#ec7b70;
   --shadow:none;color-scheme:dark;
 }}
+:root[data-theme="dark"]{
+  --bg:#0f151b;--panel:#17202a;--panel2:#202b37;--line:#2c3a48;--fg:#e8eef4;--muted:#93a3b3;
+  --accent:#7cc6f2;--accent-text:#8fd0f6;--accent-soft:#16364d;--accent-ink:#08243a;--good:#6cc48f;--bad:#ec7b70;
+  --shadow:none;color-scheme:dark;
+}
 *{box-sizing:border-box}
 html{font-size:16px}
 html.fs-1{font-size:18px}
@@ -216,6 +221,15 @@ const KEY='toilettage.v1';
 const FS_KEY='toilettage.fs';
 function applyFs(v){document.documentElement.classList.remove('fs-1','fs-2');if(v==='1'||v==='2')document.documentElement.classList.add('fs-'+v);}
 let fsLevel='0';try{fsLevel=localStorage.getItem(FS_KEY)||'0';}catch(e){}applyFs(fsLevel);
+/* Thème clair / sombre (propre à chaque téléphone) */
+const TH_KEY='toilettage.theme';
+function applyTheme(v){
+  const r=document.documentElement;if(v==='light'||v==='dark')r.setAttribute('data-theme',v);else r.removeAttribute('data-theme');
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.remove());
+  const add=(c,media)=>{const m=document.createElement('meta');m.name='theme-color';m.content=c;if(media)m.media=media;document.head.appendChild(m);};
+  if(v==='light')add('#f4f8fb');else if(v==='dark')add('#0f151b');else{add('#f4f8fb','(prefers-color-scheme: light)');add('#0f151b','(prefers-color-scheme: dark)');}
+}
+let theme='auto';try{theme=localStorage.getItem(TH_KEY)||'auto';}catch(e){}applyTheme(theme);
 const DEFAULT_SMS='Bonjour, petit rappel : rendez-vous toilettage pour {chien} {jour} à {heure}. À bientôt ! {salon}';
 const DEFAULT_SERVICES=['Bain','Séchage','Brushing','Démêlage','Coupe ciseaux','Tonte','Épilation','Coupe des griffes','Oreilles','Yeux','Anti-puces','Dents'];
 const BREEDS=['Bichon','Bichon maltais','Bouledogue français','Berger allemand','Berger australien','Border collie','Cavalier King Charles','Caniche','Caniche toy','Chihuahua','Cocker','Golden retriever','Husky','Jack Russell','Labrador','Lhassa Apso','Shih Tzu','Spitz nain','Teckel','Westie','Yorkshire','Croisé','Chat'];
@@ -543,13 +557,20 @@ function renderSettings(){
   const mTotal=mAppts.reduce((s,a)=>s+(+a.price||0),0);
   $('#app').innerHTML=`
     <div class="top"><h1>Réglages</h1></div>
-    <h2 style="margin-top:4px">Taille du texte</h2>
+    <h2 style="margin-top:4px">Apparence</h2>
+    <div class="seg" id="set-theme" role="radiogroup" aria-label="Apparence">
+      <button data-theme-v="auto" role="radio" aria-checked="${theme==='auto'}" class="${theme==='auto'?'on':''}">Auto</button>
+      <button data-theme-v="light" role="radio" aria-checked="${theme==='light'}" class="${theme==='light'?'on':''}">☀︎ Clair</button>
+      <button data-theme-v="dark" role="radio" aria-checked="${theme==='dark'}" class="${theme==='dark'?'on':''}">☾ Sombre</button>
+    </div>
+    <p class="muted" style="font-size:.82rem;margin-top:6px">« Auto » suit le réglage du téléphone.</p>
+    <h2>Taille du texte</h2>
     <div class="seg" id="set-fs" role="radiogroup" aria-label="Taille du texte">
       <button data-fs="0" role="radio" aria-checked="${fsLevel==='0'}" class="${fsLevel==='0'?'on':''}"><span style="font-size:15px">A</span> Normal</button>
       <button data-fs="1" role="radio" aria-checked="${fsLevel==='1'}" class="${fsLevel==='1'?'on':''}"><span style="font-size:18px">A</span> Grand</button>
       <button data-fs="2" role="radio" aria-checked="${fsLevel==='2'}" class="${fsLevel==='2'?'on':''}"><span style="font-size:22px">A</span> Très grand</button>
     </div>
-    <p class="muted" style="font-size:.82rem;margin-top:6px">Agrandit tout le texte de l’application sur ce téléphone.</p>
+    <p class="muted" style="font-size:.82rem;margin:6px 0 16px">Agrandit tout le texte de l’application sur ce téléphone.</p>
     <div class="card list-pad">
       <div class="stat"><span>Rendez-vous enregistrés</span><b>${S.appts.length}</b></div>
       <div class="stat"><span>Clients</span><b>${dir.length}</b></div>
@@ -596,6 +617,7 @@ function renderSettings(){
     <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
   $('#exp').onclick=exportData;
   bindSyncSection();
+  $('#set-theme').onclick=e=>{const b=e.target.closest('[data-theme-v]');if(!b)return;theme=b.dataset.themeV;try{localStorage.setItem(TH_KEY,theme);}catch(_){}applyTheme(theme);const y=scrollY;render();scrollTo(0,y);};
   $('#set-fs').onclick=e=>{const b=e.target.closest('[data-fs]');if(!b)return;fsLevel=b.dataset.fs;try{localStorage.setItem(FS_KEY,fsLevel);}catch(_){}applyFs(fsLevel);const y=scrollY;render();scrollTo(0,y);};
   $('#set-key').onchange=e=>{setKey(e.target.value.trim());toast(e.target.value.trim()?'Clé enregistrée':'Clé supprimée');};
   $('#imp-photo').onclick=()=>openPhotoImport();
