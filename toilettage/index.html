@@ -190,6 +190,7 @@ const KEY='toilettage.v1';
 const DEFAULT_SMS='Bonjour, petit rappel : rendez-vous toilettage pour {chien} {jour} à {heure}. À bientôt ! {salon}';
 const DEFAULT_SERVICES=['Bain','Séchage','Brushing','Démêlage','Coupe ciseaux','Tonte','Épilation','Coupe des griffes','Oreilles','Yeux','Anti-puces','Dents'];
 const BREEDS=['Bichon','Bichon maltais','Bouledogue français','Berger allemand','Berger australien','Border collie','Cavalier King Charles','Caniche','Caniche toy','Chihuahua','Cocker','Golden retriever','Husky','Jack Russell','Labrador','Lhassa Apso','Shih Tzu','Spitz nain','Teckel','Westie','Yorkshire','Croisé','Chat'];
+const PAY={cash:{icon:'💶',label:'Espèces'},card:{icon:'💳',label:'Carte'}};
 const DURATIONS=[[30,'30 min'],[45,'45 min'],[60,'1 h'],[90,'1 h 30'],[120,'2 h'],[150,'2 h 30'],[180,'3 h'],[240,'4 h']];
 
 function load(){
@@ -271,7 +272,7 @@ function apptCard(a,showDate){
     <div class="time">${esc(a.time||'—')}${a.time&&a.duration?`<small>${endTime(a.time,a.duration)}</small>`:''}</div>
     <div class="body">
       ${showDate?`<div class="muted cap" style="font-size:.8rem">${esc(fmtDay(a.date))}</div>`:''}
-      <div style="display:flex;justify-content:space-between;gap:8px"><span class="dog" style="display:flex;align-items:center;gap:7px">${dogImg(dogPhotoId(a.client,a.dog),28)}<span>${esc(a.dog||'Chien ?')}${a.breed?` <span class="muted" style="font-weight:400;font-size:.88rem">· ${esc(a.breed)}</span>`:''}</span></span><span class="price">${a.done?'✓ ':''}${fmtPrice(a.price)}</span></div>
+      <div style="display:flex;justify-content:space-between;gap:8px"><span class="dog" style="display:flex;align-items:center;gap:7px">${dogImg(dogPhotoId(a.client,a.dog),28)}<span>${esc(a.dog||'Chien ?')}${a.breed?` <span class="muted" style="font-weight:400;font-size:.88rem">· ${esc(a.breed)}</span>`:''}</span></span><span class="price">${PAY[a.pay]?PAY[a.pay].icon+' ':(a.done?'✓ ':'')}${fmtPrice(a.price)}</span></div>
       <div class="client">${esc(a.client||'Client ?')}</div>
       ${svc?`<div class="chips">${svc}</div>`:''}
       ${a.details?`<div class="note">${esc(a.details)}</div>`:''}
@@ -501,6 +502,8 @@ function openForm(init={},opts={}){
       <div><label for="f-price">Prix (€)</label><input id="f-price" type="number" inputmode="decimal" min="0" step="0.5" value="${esc(a.price)}" placeholder="0"></div>
       <div><label>Statut</label><div class="seg" id="f-done"><button type="button" data-v="0" class="${a.done?'':'on'}">Prévu</button><button type="button" data-v="1" class="${a.done?'on':''}">Fait ✓</button></div></div>
     </div>
+    <label>Paiement</label>
+    <div class="seg" id="f-pay"><button type="button" data-v="cash" class="${a.pay==='cash'?'on':''}">💶 Espèces</button><button type="button" data-v="card" class="${a.pay==='card'?'on':''}">💳 Carte</button><button type="button" data-v="" class="${PAY[a.pay]?'':'on'}">Pas encore</button></div>
 
     <h2>Remarques</h2>
     <textarea id="f-notes" placeholder="Comportement, santé, allergies, peur du séchoir, mord…">${esc(a.notes)}</textarea>
@@ -515,7 +518,7 @@ function openForm(init={},opts={}){
     </div>`:''}`;
   openSheet(editing?'Rendez-vous':'Nouveau rendez-vous',html,{right:'OK',onRight:submit,onClose:opts.onCancel});
   const fv=$('#f-voice');if(fv)fv.onclick=()=>openVoice($('#f-date').value||a.date);
-  let done=!!a.done;
+  let done=!!a.done;let pay=PAY[a.pay]?a.pay:'';
 
   // Prestations
   const svcBox=$('#svc');
@@ -528,6 +531,8 @@ function openForm(init={},opts={}){
     }
     const s=b.dataset.s;if(services.has(s)){services.delete(s);b.classList.remove('on');}else{services.add(s);b.classList.add('on');}
   });
+  $('#f-pay').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;pay=b.dataset.v;[...$('#f-pay').children].forEach(x=>x.classList.toggle('on',x===b));
+    if(pay&&!done){done=true;[...$('#f-done').children].forEach(x=>x.classList.toggle('on',x.dataset.v==='1'));}});
   $('#f-done').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;done=b.dataset.v==='1';[...$('#f-done').children].forEach(x=>x.classList.toggle('on',x===b));});
 
   // Suggestions clients / chiens
@@ -582,7 +587,7 @@ function openForm(init={},opts={}){
     const rec={id:a.id||uid(),date:v('#f-date'),time:v('#f-time'),duration:+$('#f-dur').value,
       client:v('#f-client'),phone:v('#f-phone'),dog:v('#f-dog'),breed:v('#f-breed'),
       services:[...svcBox.querySelectorAll('[data-s].on')].map(b=>b.dataset.s),
-      details:v('#f-details'),price:$('#f-price').value===''?'':+$('#f-price').value,notes:v('#f-notes'),done,
+      details:v('#f-details'),price:$('#f-price').value===''?'':+$('#f-price').value,notes:v('#f-notes'),done,pay,
       created:a.created||new Date().toISOString(),updated:new Date().toISOString()};
     const kept=S.appts.find(x=>x.id===rec.id);if(kept&&kept.reminded&&kept.date===rec.date&&kept.time===rec.time)rec.reminded=kept.reminded;
     if(!rec.date){toast('Choisissez une date');return;}
@@ -598,7 +603,7 @@ function openForm(init={},opts={}){
   if(editing){
     $('#f-del').onclick=()=>{if(!confirm('Supprimer ce rendez-vous ?'))return;S.appts=S.appts.filter(x=>x.id!==a.id);save();closeSheet();toast('Rendez-vous supprimé');render();};
     const fs=$('#f-sms');if(fs)fs.addEventListener('click',()=>{markReminded(a.id);a.reminded=true;});
-    $('#f-again').onclick=()=>{const{id,created,updated,date,time,done:_,reminded:__,...rest}=a;openForm({...rest,date:addDays(a.date,42)});toast('Nouveau RDV pré-rempli (dans 6 semaines)');};
+    $('#f-again').onclick=()=>{const{id,created,updated,date,time,done:_,reminded:__,pay:___,...rest}=a;openForm({...rest,date:addDays(a.date,42)});toast('Nouveau RDV pré-rempli (dans 6 semaines)');};
   }
 }
 
@@ -724,8 +729,8 @@ function openClientForm(init,opts={}){
 
 /* ---------- Comptabilité ---------- */
 let CP=(()=>{try{return JSON.parse(localStorage.getItem('toilettage.compta'))||{};}catch(e){return {};}})();
-CP=Object.assign({preset:'month',from:'',to:'',mode:'done'},CP);
-const saveCP=()=>{try{localStorage.setItem('toilettage.compta',JSON.stringify(CP));}catch(e){}};
+CP=Object.assign({preset:'month',from:'',to:'',mode:'done'},CP,{payf:''});
+const saveCP=()=>{try{const{payf,...k}=CP;localStorage.setItem('toilettage.compta',JSON.stringify(k));}catch(e){}};
 function presetRange(k){
   const t=parse(today()),y=t.getFullYear(),m=t.getMonth();
   if(k==='month')return [iso(new Date(y,m,1)),iso(new Date(y,m+1,0))];
@@ -744,6 +749,7 @@ function comptaData(){
   const priced=list.filter(a=>a.price!==''&&a.price!=null&&!isNaN(a.price));
   const total=priced.reduce((s,a)=>s+ +a.price,0);
   const dogs=new Map(),forms=new Map(),svcCount=new Map(),months=new Map();
+  const pays={card:{n:0,total:0},cash:{n:0,total:0},none:{n:0,total:0}};
   for(const a of list){
     const p=priced.includes(a)?+a.price:0;
     const dk=norm(a.client)+'|'+norm(a.dog);
@@ -752,9 +758,10 @@ function comptaData(){
     const fk=sv.length?sv.join(' + '):'Prestation non précisée';
     const f=forms.get(fk)||{label:fk,n:0,total:0,priced:0};f.n++;f.total+=p;if(priced.includes(a))f.priced++;forms.set(fk,f);
     for(const x of sv)svcCount.set(x,(svcCount.get(x)||0)+1);
+    const pk=PAY[a.pay]?a.pay:'none';pays[pk].n++;pays[pk].total+=p;
     const mk=a.date.slice(0,7);const mo=months.get(mk)||{key:mk,n:0,total:0};mo.n++;mo.total+=p;months.set(mk,mo);
   }
-  return {from,to,list,priced,total,count:list.length,noPrice:list.length-priced.length,
+  return {pays,from,to,list,priced,total,count:list.length,noPrice:list.length-priced.length,
     avg:priced.length?total/priced.length:0,dogs:[...dogs.values()].sort((a,b)=>b.total-a.total||b.n-a.n),
     forms:[...forms.values()].sort((a,b)=>b.total-a.total||b.n-a.n),svc:[...svcCount.entries()].sort((a,b)=>b[1]-a[1]),
     months:[...months.values()].sort((a,b)=>a.key.localeCompare(b.key)),planned:S.appts.filter(a=>a.date>=from&&a.date<=to&&!a.done&&a.date>=T).length};
@@ -786,6 +793,12 @@ function renderCompta(){
       <div class="card tile"><div class="v">${D.priced.length?money(Math.round(D.avg*100)/100):'—'}</div><div class="l">en moyenne par RDV</div></div>
     </div>
     ${D.noPrice?`<button class="card" id="cp-noprice" style="display:block;width:100%;padding:10px 14px;margin-top:8px;font-size:.88rem;border-color:var(--bad)">⚠ ${D.noPrice>1?D.noPrice+' RDV sans prix ne sont pas comptés':'1 RDV sans prix n’est pas compté'} dans le total. <u>Voir</u></button>`:''}
+    ${D.count?`<h2>Encaissements</h2>
+    <div class="card list-pad" id="cp-pays">
+      ${[['card','💳 Carte'],['cash','💶 Espèces'],['none','⏳ Non indiqué / pas encore payé']].filter(([k])=>k!=='none'||D.pays.none.n).map(([k,l])=>`<button class="rank" data-payf="${k}" style="display:block;width:100%;${CP.payf===k?'background:var(--accent-soft)':''}"><div class="r1"><span>${l} <span class="muted">· ${D.pays[k].n} RDV</span></span><b>${money(D.pays[k].total)}</b></div><div class="bar"><i style="width:${D.total?Math.max(D.pays[k].total?2:0,Math.round(D.pays[k].total/D.total*100)):0}%"></i></div></button>`).join('')}
+      <div class="rank"><div class="r1"><span><b style="font-weight:700">Total</b> <span class="muted">· ${D.count} RDV</span></span><b>${money(D.total)}</b></div></div>
+    </div>
+    <p class="muted" style="font-size:.8rem;margin-top:6px">Touchez une ligne pour voir les rendez-vous correspondants.</p>`:''}
     ${!D.count?`<div class="empty"><div class="big">🧾</div>Aucun rendez-vous ${CP.mode==='done'?'réalisé ':''}sur cette période.</div>`:`
 
     <h2>Par prestation</h2>
@@ -798,25 +811,34 @@ function renderCompta(){
     <details class="blk" ${D.dogs.length<=12?'open':''}><summary>Par chien (${D.dogs.length})</summary>
     <div class="card list-pad">${D.dogs.map(d=>`<div class="rank"><div class="r1"><span style="display:flex;align-items:center;gap:8px;min-width:0">${dogImg(d.photo,28)}<span style="min-width:0"><b style="font-weight:600">${esc(d.dog)}</b> <span class="muted">· ${esc(d.client)} · ${d.n} visite${d.n>1?'s':''}</span></span></span><b>${money(d.total)}</b></div><div class="bar"><i style="width:${pct(d.total,maxD)}%"></i></div></div>`).join('')}</div></details>
 
-    <details class="blk" open><summary>Détail des rendez-vous (${D.count})</summary>
-    <div class="card list-pad">${D.list.map(a=>`<button class="drow" data-id="${a.id}">
+    <details class="blk" open id="cp-detail"><summary>Détail des rendez-vous${CP.payf?' · '+(CP.payf==='none'?'non indiqué':PAY[CP.payf].label.toLowerCase()):''} (${D.list.filter(a=>!CP.payf||(PAY[a.pay]?a.pay:'none')===CP.payf).length})</summary>
+    ${CP.payf?'<button class="btn small" id="cp-payall" style="margin-bottom:8px">✕ Voir tous les paiements</button>':''}
+    <div class="card list-pad">${D.list.filter(a=>!CP.payf||(PAY[a.pay]?a.pay:'none')===CP.payf).map(a=>`<button class="drow" data-id="${a.id}">
       <span class="dd">${esc(parse(a.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}))}</span>
       ${dogImg(dogPhotoId(a.client,a.dog),30)}
       <span class="mid"><div><b style="font-weight:600">${esc(a.dog||'Chien ?')}</b> <span class="muted">· ${esc(a.client||'')}</span></div><div class="s">${esc((a.services||[]).join(', ')||'Prestation non précisée')}${a.done?' · ✓':''}</div></span>
-      <span class="amt" style="${a.price===''||a.price==null?'color:var(--bad)':''}">${a.price===''||a.price==null?'sans prix':money(a.price)}</span></button>`).join('')}</div></details>`}`;
+      <span class="amt" style="${a.price===''||a.price==null?'color:var(--bad)':''}">${PAY[a.pay]?PAY[a.pay].icon+' ':''}${a.price===''||a.price==null?'sans prix':money(a.price)}</span></button>`).join('')}</div></details>`}`;
   const setRange=()=>{const f=$('#cp-from').value,t=$('#cp-to').value;if(!f||!t)return;CP.preset='custom';CP.from=f<=t?f:t;CP.to=f<=t?t:f;saveCP();renderCompta();};
   $('#cp-from').onchange=setRange;$('#cp-to').onchange=setRange;
   $('#cp-presets').onclick=e=>{const b=e.target.closest('[data-preset]');if(!b)return;CP.preset=b.dataset.preset;if(CP.preset==='custom'){const [f,t]=presetRange('month');CP.from=CP.from||f;CP.to=CP.to||t;}saveCP();renderCompta();};
   $('#cp-mode').onclick=e=>{const b=e.target.closest('[data-mode]');if(!b)return;CP.mode=b.dataset.mode;saveCP();renderCompta();};
   const np=$('#cp-noprice');if(np)np.onclick=()=>{const d=document.querySelectorAll('details.blk');d[d.length-1].open=true;const r=[...document.querySelectorAll('.drow')].find(x=>x.querySelector('.amt').textContent==='sans prix');if(r)r.scrollIntoView({behavior:'smooth',block:'center'});};
   $('#cp-csv').onclick=()=>exportCompta(D);
+  const pb=$('#cp-pays');if(pb)pb.onclick=e=>{const b=e.target.closest('[data-payf]');if(!b)return;CP.payf=CP.payf===b.dataset.payf?'':b.dataset.payf;renderCompta();
+    const d=$('#cp-detail');if(d&&CP.payf){d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'});}};
+  const pa=$('#cp-payall');if(pa)pa.onclick=()=>{CP.payf='';renderCompta();};
 }
 async function exportCompta(D){
   const q=v=>{v=String(v??'');return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const num=n=>n===''||n==null?'':String(n).replace('.',',');
-  const rows=[['Date','Heure','Client','Téléphone','Chien','Race','Prestations','Détails','Montant (€)','Statut']];
-  for(const a of D.list)rows.push([parse(a.date).toLocaleDateString('fr-FR'),a.time||'',a.client||'',a.phone||'',a.dog||'',a.breed||'',(a.services||[]).join(', '),a.details||'',num(a.price),a.done?'Fait':(a.date<today()?'Passé':'Prévu')]);
-  rows.push([]);rows.push(['Total','','','','','','',D.count+' RDV',num(Math.round(D.total*100)/100),'']);
+  const rows=[['Date','Heure','Client','Téléphone','Chien','Race','Prestations','Détails','Montant (€)','Paiement','Statut']];
+  for(const a of D.list)rows.push([parse(a.date).toLocaleDateString('fr-FR'),a.time||'',a.client||'',a.phone||'',a.dog||'',a.breed||'',(a.services||[]).join(', '),a.details||'',num(a.price),PAY[a.pay]?PAY[a.pay].label:'',a.done?'Fait':(a.date<today()?'Passé':'Prévu')]);
+  rows.push([]);
+  const r2=n=>num(Math.round(n*100)/100);
+  rows.push(['Carte','','','','','','',D.pays.card.n+' RDV',r2(D.pays.card.total),'','']);
+  rows.push(['Espèces','','','','','','',D.pays.cash.n+' RDV',r2(D.pays.cash.total),'','']);
+  if(D.pays.none.n)rows.push(['Non indiqué','','','','','','',D.pays.none.n+' RDV',r2(D.pays.none.total),'','']);
+  rows.push(['Total','','','','','','',D.count+' RDV',r2(D.total),'','']);
   const csv='﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n');
   const name=`compta-toilettage_${D.from}_${D.to}.csv`;
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
@@ -1090,7 +1112,7 @@ function fromAI(x,fallbackDate){
     client:(x.client||'').trim(),phone:(x.phone||'').trim(),dog:(x.dog||'').trim(),breed:(x.breed||'').trim(),
     services:[...new Set((x.services||[]).map(s=>known.get(norm(s))||s.trim()).filter(Boolean))],
     details:(x.details||'').trim(),price:(x.price==null||isNaN(x.price))?'':+x.price,notes:(x.notes||'').trim(),
-    uncertain:(x.uncertain||'').trim(),dateGuessed:!ok(x.date)};
+    uncertain:(x.uncertain||'').trim(),dateGuessed:!ok(x.date),...(PAY[x.pay]?{pay:x.pay,done:true}:{})};
 }
 
 /* Image → JPEG base64 redimensionné (≤1568 px) */
@@ -1440,7 +1462,7 @@ function openReview(items,title){
     const now=new Date().toISOString();let n=0;
     for(const r of reviewItems){if(r._saved||!r._on)continue;
       const{_id,_on,_saved,_dup,uncertain,dateGuessed,...rec}=r;
-      S.appts.push({...rec,id:uid(),done:false,created:now,updated:now});n++;}
+      S.appts.push({...rec,id:uid(),done:!!rec.pay,created:now,updated:now});n++;}
     save();reviewItems=[];closeSheet();
     render();toast(n+' rendez-vous ajoutés');
   };
@@ -1552,6 +1574,7 @@ function parseDictation(text,defDate,opt={}){
   for(const s of svcList())if(t.includes(norm(s)))svcs.add(s);
   for(const[k,v]of Object.entries(SYN))if(t.includes(k)&&svcList().includes(v)&&!(v==='Coupe ciseaux'&&/griffe|ongle/.test(t)&&!/coupe\s+(au\s+)?ciseau|coupe\s+(de\s+)?poil|coupe\s+et/.test(t)))svcs.add(v);
   out.services=[...svcs];
+  if(/\b(especes|liquide|cash|en liquide)\b/.test(t))out.pay='cash';else if(/\b(carte bleue|carte bancaire|par carte|en carte|cb)\b/.test(t))out.pay='card';
   // Remarques / détails
   const rm=raw.match(/\b(?:remarques?|attention|à noter|note)\s*:?\s*(.+)$/i);
   if(rm){out.notes=rm[1].trim();}
