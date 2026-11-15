@@ -161,6 +161,7 @@ function load(){
   let s=null;
   try{s=JSON.parse(localStorage.getItem(KEY));}catch(e){}
   if(!s||!Array.isArray(s.appts))s={appts:[]};
+  if(!Array.isArray(s.clients))s.clients=[];
   s.settings=Object.assign({services:[...DEFAULT_SERVICES],salon:'',sms:DEFAULT_SMS,remindDays:1},s.settings||{});
   return s;
 }
@@ -199,16 +200,23 @@ function toast(msg){document.querySelectorAll('.toast').forEach(x=>x.remove());c
 /* Répertoire clients reconstruit à partir des rendez-vous */
 function directory(){
   const map=new Map();
+  const blank=(k,name)=>({key:k,name,phone:'',email:'',address:'',notes:'',rid:null,dogs:new Map(),appts:[]});
+  for(const r of S.clients){const k=norm(r.name);if(!k)continue;
+    const c=map.get(k)||blank(k,r.name.trim());map.set(k,c);
+    Object.assign(c,{rid:r.id,email:r.email||'',address:r.address||'',notes:r.notes||''});
+    for(const d of r.dogs||[]){const dk=norm(d.name);if(dk)c.dogs.set(dk,{name:d.name.trim(),breed:d.breed||'',notes:d.notes||'',last:null});}}
   for(const a of sortAppts([...S.appts])){
     const k=norm(a.client);if(!k)continue;
     let c=map.get(k);
-    if(!c){c={key:k,name:a.client.trim(),phone:'',dogs:new Map(),appts:[]};map.set(k,c);}
+    if(!c){c=blank(k,a.client.trim());map.set(k,c);}
     c.name=a.client.trim();
     if(a.phone)c.phone=a.phone;
     c.appts.push(a);
     const dk=norm(a.dog);
-    if(dk){const d=c.dogs.get(dk)||{name:'',breed:'',last:null};d.name=a.dog.trim();if(a.breed)d.breed=a.breed;d.last=a;c.dogs.set(dk,d);}
+    if(dk){const d=c.dogs.get(dk)||{name:'',breed:'',notes:'',last:null};d.name=a.dog.trim();if(a.breed)d.breed=a.breed;d.last=a;c.dogs.set(dk,d);}
   }
+  // La fiche client enregistrée fait foi pour le nom et le téléphone
+  for(const r of S.clients){const c=map.get(norm(r.name));if(!c)continue;c.name=r.name.trim();if(r.phone)c.phone=r.phone;}
   return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
 }
 
@@ -295,13 +303,16 @@ function renderClients(){
   const dir=directory();const nq=norm(q);
   const list=nq?dir.filter(c=>norm(c.name).includes(nq)||[...c.dogs.values()].some(d=>norm(d.name).includes(nq))||String(c.phone).replace(/\s/g,'').includes(nq.replace(/\s/g,''))):dir;
   $('#app').innerHTML=`
-    <div class="top"><h1>Clients</h1><span class="muted" style="font-size:.88rem">${dir.length} client${dir.length>1?'s':''}</span></div>
+    <div class="top"><h1>Clients <span class="muted" style="font-size:.85rem;font-weight:400">${dir.length}</span></h1>
+      <div style="display:flex;gap:6px"><button class="iconbtn" id="cl-photo" aria-label="Créer des fiches clients depuis une photo">📷</button><button class="btn small primary" id="cl-new">+ Client</button></div></div>
     <div class="search"><input type="search" id="q" placeholder="Rechercher un client, un chien, un numéro…" value="${esc(q)}" autocomplete="off"></div>
     ${list.length?`<div class="card list-pad">${list.map(c=>`<button class="client-row" data-client="${esc(c.key)}">
       <span class="avatar">${esc(c.name[0]?.toUpperCase()||'?')}</span>
       <span style="flex:1;min-width:0"><div class="name">${esc(c.name)}</div><div class="sub">🐕 ${esc([...c.dogs.values()].map(d=>d.name).join(', ')||'—')}${c.phone?' · '+esc(c.phone):''}</div></span>
       <span class="muted">›</span></button>`).join('')}</div>`
-    :`<div class="empty"><div class="big">🐶</div>${dir.length?'Aucun résultat.':'Les clients apparaîtront ici dès le premier rendez-vous enregistré.'}</div>`}`;
+    :`<div class="empty"><div class="big">🐶</div>${dir.length?'Aucun résultat.':'Aucun client pour l’instant.<br>Créez une fiche avec « + Client », ou photographiez une fiche papier avec 📷.'}</div>`}`;
+  $('#cl-new').onclick=()=>openClientForm({});
+  $('#cl-photo').onclick=()=>openPhotoImport('clients');
   const inp=$('#q');inp.oninput=e=>{q=e.target.value;const pos=inp.selectionStart;renderClients();const n=$('#q');n.focus();n.setSelectionRange(pos,pos);};
 }
 
@@ -382,8 +393,10 @@ function importData(e){
     try{
       const d=JSON.parse(r.result);if(!d||!Array.isArray(d.appts))throw 0;
       const ids=new Set(S.appts.map(a=>a.id));const added=d.appts.filter(a=>a&&a.id&&a.date&&!ids.has(a.id));
-      if(!confirm(`Restaurer cette sauvegarde ?\n${d.appts.length} rendez-vous dans le fichier, dont ${added.length} nouveaux.\nLes rendez-vous déjà présents sont conservés.`))return;
-      S.appts.push(...added);if(d.settings&&typeof d.settings==='object')S.settings=Object.assign(S.settings,d.settings);save();toast(added.length+' rendez-vous ajoutés');render();
+      const cids=new Set(S.clients.map(c=>c.id));const cnames=new Set(S.clients.map(c=>norm(c.name)));
+      const addedC=(Array.isArray(d.clients)?d.clients:[]).filter(c=>c&&c.id&&c.name&&!cids.has(c.id)&&!cnames.has(norm(c.name)));
+      if(!confirm(`Restaurer cette sauvegarde ?\n${added.length} nouveaux rendez-vous et ${addedC.length} nouvelles fiches clients.\nCe qui est déjà présent est conservé.`))return;
+      S.appts.push(...added);S.clients.push(...addedC);if(d.settings&&typeof d.settings==='object')S.settings=Object.assign(S.settings,d.settings);save();toast(added.length+' RDV et '+addedC.length+' fiches ajoutés');render();
     }catch(err){alert('Ce fichier n’est pas une sauvegarde valide.');}
   };
   r.readAsText(f);e.target.value='';
@@ -510,6 +523,7 @@ function openForm(init={},opts={}){
       if(d.last.duration)$('#f-dur').value=d.last.duration;
       toast('Dernière prestation de '+d.name+' reprise');
     }
+    if(d.notes&&!$('#f-notes').value)$('#f-notes').value=d.notes;
     suggestDogs();
   }
   fClient.addEventListener('input',()=>{suggestClients();suggestDogs();});
@@ -555,17 +569,22 @@ function openClient(key){
   const html=`
     <div style="text-align:center;margin:14px 0 6px"><div class="avatar" style="width:64px;height:64px;font-size:1.6rem;margin:0 auto 8px">${esc(c.name[0]?.toUpperCase()||'?')}</div>
       <div style="font-weight:700;font-size:1.2rem">${esc(c.name)}</div>
-      ${c.phone?`<div class="muted">${esc(c.phone)}</div>`:''}</div>
+      ${c.phone?`<div class="muted">${esc(c.phone)}</div>`:''}
+      ${c.email?`<div class="muted" style="font-size:.9rem">${esc(c.email)}</div>`:''}
+      ${c.address?`<div class="muted" style="font-size:.9rem">${esc(c.address)}</div>`:''}</div>
     <div class="actions" style="justify-content:center;margin-top:10px">
       ${c.phone?`<a class="btn" href="${telHref(c.phone)}">📞 Appeler</a><a class="btn" href="${smsHref(c.phone)}">💬 SMS</a>`:''}
       <button class="btn" id="c-edit">✎ Modifier</button>
     </div>
+    <div class="actions" style="justify-content:center;margin-top:8px"><button class="btn small primary" id="c-rdv">+ Rendez-vous</button></div>
+    ${c.notes?`<h2>Remarques sur le client</h2><div class="card" style="padding:12px 14px;white-space:pre-wrap">${esc(c.notes)}</div>`:''}
     ${next?`<h2>Prochain rendez-vous</h2>${apptCard(next,true)}`:''}
     ${lastNote?`<h2>Dernière remarque</h2><div class="card" style="padding:12px 14px;white-space:pre-wrap">⚠ ${esc(lastNote.notes)}<div class="muted" style="font-size:.8rem;margin-top:4px">${esc(fmtShort(lastNote.date))}</div></div>`:''}
     <h2>Chiens</h2>
-    <div class="card list-pad">${[...c.dogs.values()].map(d=>`<div class="client-row"><span class="avatar">🐕</span><span style="flex:1;min-width:0"><div class="name">${esc(d.name)}</div><div class="sub">${esc(d.breed||'Race non précisée')}</div></span><button class="btn small primary" data-newdog="${esc(d.name)}">+ RDV</button></div>`).join('')||'<div class="client-row muted">Aucun chien renseigné</div>'}</div>
+    <div class="card list-pad">${[...c.dogs.values()].map(d=>`<div class="client-row"><span class="avatar">🐕</span><span style="flex:1;min-width:0"><div class="name">${esc(d.name)}</div><div class="sub">${esc(d.breed||'Race non précisée')}</div>${d.notes?`<div class="sub" style="white-space:normal">⚠ ${esc(d.notes)}</div>`:''}</span><button class="btn small primary" data-newdog="${esc(d.name)}">+ RDV</button></div>`).join('')||'<div class="client-row muted">Aucun chien renseigné</div>'}</div>
     <h2>Historique (${hist.length})</h2>
-    <div class="card list-pad">${hist.map(a=>`<button class="hist" data-id="${a.id}">
+    ${hist.length?'':'<p class="muted">Aucune visite enregistrée.</p>'}
+    <div class="card list-pad${hist.length?'':' hidden'}">${hist.map(a=>`<button class="hist" data-id="${a.id}">
       <div class="h1"><span>${esc(fmtShort(a.date))}${a.time?' · '+esc(a.time):''} — ${esc(a.dog||'')}</span><span class="price">${fmtPrice(a.price)}</span></div>
       ${(a.services||[]).length?`<div class="chips">${a.services.map(s=>`<span class="chip">${esc(s)}</span>`).join('')}</div>`:''}
       ${a.details?`<div class="note">${esc(a.details)}</div>`:''}
@@ -576,15 +595,65 @@ function openClient(key){
     const d=c.dogs.get(norm(b.dataset.newdog));const last=d.last||{};
     openForm({date:sel<t?t:sel,client:c.name,phone:c.phone,dog:d.name,breed:d.breed,services:last.services||[],details:last.details||'',price:last.price??'',notes:last.notes||'',duration:last.duration||60});
   });
+  $('#c-rdv').onclick=()=>{const d=[...c.dogs.values()];const one=d.length===1?d[0]:null;const last=(one&&one.last)||{};
+    openForm({date:sel<t?t:sel,client:c.name,phone:c.phone,dog:one?one.name:'',breed:one?one.breed:'',services:last.services||[],details:last.details||'',price:last.price??'',notes:last.notes||(one?one.notes:'')||'',duration:last.duration||60});};
   $('#c-edit').onclick=()=>{
-    const h=`<label for="e-name">Nom du client</label><input id="e-name" value="${esc(c.name)}" autocapitalize="words">
-      <label for="e-phone">Téléphone</label><input id="e-phone" type="tel" value="${esc(c.phone)}">
-      <p class="muted" style="font-size:.85rem;margin-top:10px">La modification s’applique à tous les rendez-vous de ce client (${c.appts.length}).</p>
-      <div class="actions"><button class="btn primary" id="e-save" style="flex:1">Enregistrer</button></div>`;
-    openSheet('Modifier le client',h,{onClose:()=>openClient(key)});
-    $('#e-save').onclick=()=>{const name=$('#e-name').value.trim(),phone=$('#e-phone').value.trim();if(!name){toast('Le nom est obligatoire');return;}
-      const ids=new Set(c.appts.map(a=>a.id));S.appts.forEach(a=>{if(ids.has(a.id)){a.client=name;a.phone=phone;}});save();render();openClient(norm(name));toast('Client modifié');};
+    openClientForm({id:c.rid,name:c.name,phone:c.phone,email:c.email,address:c.address,notes:c.notes,
+      dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||''}))},{oldKey:key,nAppts:c.appts.length,onCancel:()=>openClient(key)});
   };
+}
+
+/* ---------- Formulaire fiche client ---------- */
+function openClientForm(init,opts={}){
+  const r=Object.assign({name:'',phone:'',email:'',address:'',notes:'',dogs:[]},init);
+  let dogs=(r.dogs&&r.dogs.length?r.dogs:[{name:'',breed:'',notes:''}]).map(d=>({...d}));
+  const isNew=!opts.oldKey;
+  const breeds=[...new Set([...BREEDS,...S.appts.map(x=>x.breed).filter(Boolean)])].sort((x,y)=>x.localeCompare(y,'fr'));
+  const html=`
+    ${opts.banner?`<p style="font-size:.85rem;margin-top:12px;color:var(--bad)">${esc(opts.banner)}</p>`:''}
+    <h2>Propriétaire</h2>
+    <label for="cf-name">Nom</label><input id="cf-name" value="${esc(r.name)}" autocapitalize="words" placeholder="ex. Mme Martin">
+    <label for="cf-phone">Téléphone</label><input id="cf-phone" type="tel" value="${esc(r.phone)}" placeholder="06 12 34 56 78">
+    <label for="cf-email">E-mail</label><input id="cf-email" type="email" value="${esc(r.email)}" autocapitalize="off">
+    <label for="cf-address">Adresse</label><input id="cf-address" value="${esc(r.address)}">
+    <label for="cf-notes">Remarques sur le client</label><textarea id="cf-notes" placeholder="Préférences, paiement, disponibilités…">${esc(r.notes)}</textarea>
+    <h2>Chiens</h2><div id="cf-dogs"></div>
+    <button type="button" class="btn small" id="cf-adddog" style="margin-top:8px">+ Ajouter un chien</button>
+    <datalist id="cf-breeds">${breeds.map(b=>`<option value="${esc(b)}">`).join('')}</datalist>
+    ${!isNew&&opts.nAppts?`<p class="muted" style="font-size:.85rem;margin-top:14px">Un changement de nom ou de téléphone s’applique aussi aux ${opts.nAppts} rendez-vous de ce client.</p>`:''}
+    <div class="actions"><button class="btn primary" id="cf-save" style="flex:1">${opts.onSaved?'Valider':'Enregistrer la fiche'}</button></div>
+    ${!isNew&&r.id&&!opts.nAppts?'<div class="actions"><button class="btn danger" id="cf-del">Supprimer la fiche</button></div>':''}`;
+  openSheet(isNew&&!opts.onSaved?'Nouveau client':'Fiche client',html,{right:'OK',onRight:submit,onClose:opts.onCancel});
+  function readDogs(){document.querySelectorAll('[data-dog-i]').forEach(row=>{const i=+row.dataset.dogI;
+    dogs[i]={name:row.querySelector('.dn').value.trim(),breed:row.querySelector('.db').value.trim(),notes:row.querySelector('.dno').value.trim()};});}
+  function drawDogs(){
+    $('#cf-dogs').innerHTML=dogs.map((d,i)=>`<div class="card" data-dog-i="${i}" style="padding:4px 12px 12px;margin-top:8px">
+      <div class="row"><div><label>Nom du chien</label><input class="dn" value="${esc(d.name)}" autocapitalize="words"></div>
+      <div><label>Race</label><input class="db" value="${esc(d.breed)}" list="cf-breeds" autocapitalize="words"></div></div>
+      <label>Remarques sur le chien</label><textarea class="dno" style="min-height:56px" placeholder="Âge, caractère, santé, coupe habituelle…">${esc(d.notes)}</textarea>
+      ${dogs.length>1?`<button type="button" class="btn small danger" data-rmdog="${i}" style="margin-top:8px">Retirer ce chien</button>`:''}</div>`).join('');
+  }
+  drawDogs();
+  $('#cf-adddog').onclick=()=>{readDogs();dogs.push({name:'',breed:'',notes:''});drawDogs();const l=document.querySelectorAll('.dn');l[l.length-1].focus();};
+  $('#cf-dogs').onclick=e=>{const b=e.target.closest('[data-rmdog]');if(!b)return;readDogs();dogs.splice(+b.dataset.rmdog,1);drawDogs();};
+  const del=$('#cf-del');if(del)del.onclick=()=>{if(!confirm('Supprimer la fiche de '+r.name+' ?'))return;S.clients=S.clients.filter(x=>x.id!==r.id);save();closeSheet();render();toast('Fiche supprimée');};
+  function submit(){
+    readDogs();
+    const v=id=>$(id).value.trim();
+    const rec={id:r.id||uid(),name:v('#cf-name'),phone:v('#cf-phone'),email:v('#cf-email'),address:v('#cf-address'),notes:v('#cf-notes'),
+      dogs:dogs.filter(d=>d.name||d.breed||d.notes),updated:new Date().toISOString()};
+    if(!rec.name){toast('Le nom du client est obligatoire');$('#cf-name').focus();return;}
+    if(opts.onSaved){closeSheet();opts.onSaved(rec);return;}
+    const k=norm(rec.name);
+    const other=S.clients.find(x=>norm(x.name)===k&&x.id!==rec.id);
+    if(other){alert('Une fiche « '+other.name+' » existe déjà.');return;}
+    const i=S.clients.findIndex(x=>x.id===rec.id);
+    if(i>=0)S.clients[i]={...S.clients[i],...rec};else S.clients.push({...rec,created:new Date().toISOString()});
+    if(opts.oldKey){S.appts.forEach(a=>{if(norm(a.client)===opts.oldKey){a.client=rec.name;if(rec.phone)a.phone=rec.phone;}});}
+    save();closeSheet();render();openClient(k);toast(isNew?'Fiche client créée':'Fiche client enregistrée');
+  }
+  $('#cf-save').onclick=submit;
+  if(isNew&&!r.name)setTimeout(()=>{const n=$('#cf-name');if(n)n.focus();},250);
 }
 
 function step(n){sel=mode==='month'?monthShift(sel,n):addDays(sel,7*n);render();}
@@ -617,7 +686,7 @@ Prestations habituelles (utilise ces libellés exacts quand ça correspond) : ${
 ${dir?'Clients déjà connus (corrige l’orthographe d’un nom mal lu s’il correspond clairement à l’un d’eux, et reprends son téléphone) :\n'+dir:''}`;
 }
 
-async function askClaude(content,effort){
+async function askClaude(content,effort,schema=APPT_SCHEMA){
   const key=getKey();if(!key)throw new Error('Aucune clé API : ajoutez-la dans Réglages.');
   if(!navigator.onLine)throw new Error('Pas de connexion internet.');
   let res;
@@ -627,8 +696,8 @@ async function askClaude(content,effort){
       'anthropic-beta':'server-side-fallback-2026-07-01',
       'anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-opus-5-5',max_tokens:16000,fallbacks:'default',
-        output_config:{effort,format:{type:'json_schema',schema:APPT_SCHEMA}},
-        system:'Tu aides une toiletteuse à saisir ses rendez-vous. Tu extrais des rendez-vous structurés, sans rien inventer : laisse vide ce qui n’est pas indiqué.',
+        output_config:{effort,format:{type:'json_schema',schema}},
+        system:'Tu aides une toiletteuse à saisir ses rendez-vous et ses fiches clients. Tu extrais des informations structurées, sans rien inventer : laisse vide ce qui n’est pas indiqué.',
         messages:[{role:'user',content}]})});
   }catch(e){throw new Error('Impossible de joindre le service (connexion ?).');}
   const data=await res.json().catch(()=>({}));
@@ -641,7 +710,7 @@ async function askClaude(content,effort){
   if(data.stop_reason==='refusal')throw new Error('La demande a été refusée par le service.');
   if(data.stop_reason==='max_tokens')throw new Error('Réponse trop longue : essayez avec moins de pages à la fois.');
   const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
-  try{return JSON.parse(txt).appointments||[];}catch(e){throw new Error('Réponse illisible, réessayez.');}
+  try{return JSON.parse(txt);}catch(e){throw new Error('Réponse illisible, réessayez.');}
 }
 
 /* Convertit une proposition de l'IA (ou du lecteur local) en rendez-vous de l'appli */
@@ -669,14 +738,14 @@ function shrinkImage(file){
 }
 
 let photoFiles=[];
-function openPhotoImport(){
-  photoFiles=[];
+function openPhotoImport(kind='agenda'){
+  photoFiles=[];const isCl=kind==='clients';
   const hasKey=!!getKey();
   const html=`
-    <p style="margin-top:14px">Prenez en photo une ou plusieurs pages de l’agenda papier. L’application lit les rendez-vous, puis vous les montre pour vérification avant de les ajouter.</p>
+    <p style="margin-top:14px">${isCl?'Prenez en photo une ou plusieurs fiches clients papier (carte, carnet, cahier). L’application crée les fiches (client, téléphone, chiens, remarques, passages déjà notés) et vous les montre pour vérification.':'Prenez en photo une ou plusieurs pages de l’agenda papier. L’application lit les rendez-vous, puis vous les montre pour vérification avant de les ajouter.'}</p>
     ${hasKey?'':`<div class="card" style="padding:12px 14px;margin-top:12px">⚠ Il faut d’abord ajouter une clé API dans <b>Réglages</b> pour la lecture des photos.<div class="actions" style="margin-top:10px"><button class="btn small primary" id="ph-settings">Aller aux réglages</button></div></div>`}
-    <label for="ph-date">Date de la page ou de la semaine (si elle n’est pas écrite)</label>
-    <input type="date" id="ph-date" value="">
+    <div class="${isCl?'hidden':''}"><label for="ph-date">Date de la page ou de la semaine (si elle n’est pas écrite)</label>
+    <input type="date" id="ph-date" value=""></div>
     <div class="actions">
       <button class="btn primary" id="ph-cam" style="flex:1">📷 Prendre une photo</button>
       <button class="btn" id="ph-gal" style="flex:1">🖼 Choisir des photos</button>
@@ -684,10 +753,10 @@ function openPhotoImport(){
     <input type="file" id="ph-cam-in" accept="image/*" capture="environment" class="hidden">
     <input type="file" id="ph-gal-in" accept="image/*" multiple class="hidden">
     <div id="ph-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px"></div>
-    <p class="muted" style="font-size:.85rem;margin-top:10px">Conseils : page bien à plat, bonne lumière, une page par photo, texte net.</p>
+    <p class="muted" style="font-size:.85rem;margin-top:10px">Conseils : ${isCl?'fiche':'page'} bien à plat, bonne lumière, texte net. Pensez à photographier aussi le verso s’il est rempli.</p>
     <div class="actions"><button class="btn primary" id="ph-go" style="flex:1" disabled>Lire les rendez-vous</button></div>
     <div id="ph-status" class="muted" style="margin-top:10px;text-align:center"></div>`;
-  openSheet('Agenda papier',html,{left:'Fermer'});
+  openSheet(isCl?'Fiches clients papier':'Agenda papier',html,{left:'Fermer'});
   const st=$('#ph-settings');if(st)st.onclick=()=>{closeSheet();tab='settings';render();setTimeout(()=>$('#set-key')&&$('#set-key').focus(),100);};
   const add=e=>{photoFiles.push(...e.target.files);e.target.value='';thumbs();};
   $('#ph-cam').onclick=()=>$('#ph-cam-in').click();$('#ph-gal').onclick=()=>$('#ph-gal-in').click();
@@ -699,9 +768,10 @@ function openPhotoImport(){
       const x=document.createElement('button');x.textContent='✕';x.setAttribute('aria-label','Retirer');x.style.cssText='position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;text-align:center';
       x.onclick=()=>{photoFiles.splice(i,1);thumbs();};d.append(im,x);box.append(d);});
     $('#ph-go').disabled=!photoFiles.length||!getKey();
-    $('#ph-go').textContent=photoFiles.length>1?`Lire les ${photoFiles.length} pages`:'Lire les rendez-vous';
+    $('#ph-go').textContent=photoFiles.length>1?`Lire les ${photoFiles.length} photos`:(isCl?'Lire la fiche':'Lire les rendez-vous');
   }
   $('#ph-go').onclick=async()=>{
+    if(isCl)return readClientPhotos();
     const hint=$('#ph-date').value;const go=$('#ph-go');go.disabled=true;
     const status=$('#ph-status');const found=[];const errors=[];
     for(let i=0;i<photoFiles.length;i++){
@@ -711,7 +781,7 @@ function openPhotoImport(){
         const content=[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:data.split(',')[1]}},
           {type:'text',text:aiContext()+`\n${hint?'La page photographiée correspond au '+fmtDay(hint)+' ('+hint+') ou à la semaine qui contient ce jour.':'Si l’année ou le mois ne sont pas écrits, déduis-les : la page concerne très probablement des dates proches d’aujourd’hui.'}
 Voici la photo d’une page d’agenda papier écrite à la main. Relève chaque rendez-vous : date, heure, client, téléphone, nom du chien, race, prestations, détails, prix, remarques. Les noms de jours ou les numéros en haut des colonnes donnent les dates. Ignore ce qui n’est pas un rendez-vous de toilettage. Signale dans « uncertain » ce qui est difficile à lire.`}];
-        found.push(...(await askClaude(content,'high')).map(x=>fromAI(x,hint||today())));
+        found.push(...((await askClaude(content,'high')).appointments||[]).map(x=>fromAI(x,hint||today())));
       }catch(err){errors.push(`Page ${i+1} : ${err.message}`);}
     }
     status.textContent='';go.disabled=false;
@@ -719,6 +789,92 @@ Voici la photo d’une page d’agenda papier écrite à la main. Relève chaque
     if(found.length)openReview(found,'Agenda papier');
     else if(!errors.length)alert('Aucun rendez-vous trouvé sur ces photos.');
   };
+}
+
+async function readClientPhotos(){
+  const go=$('#ph-go');go.disabled=true;const status=$('#ph-status');const found=[];const errors=[];
+  for(let i=0;i<photoFiles.length;i++){
+    status.textContent=`Lecture de la photo ${i+1} sur ${photoFiles.length}… (environ 30 secondes)`;
+    try{
+      const data=await shrinkImage(photoFiles[i]);
+      const content=[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:data.split(',')[1]}},
+        {type:'text',text:aiContext()+`
+Voici la photo d’une ou plusieurs fiches clients papier d’un salon de toilettage (écriture à la main ou imprimée). Pour chaque client : nom du propriétaire (avec Mme/M. si indiqué), téléphone, e-mail, adresse, remarques générales ; pour chacun de ses chiens : nom, race, remarques (âge, caractère, santé, allergies, coupe habituelle). Si la fiche contient un historique des passages, relève chaque passage : date (AAAA-MM-JJ, chaîne vide si illisible ; déduis l’année si elle manque), chien concerné, prestations, détails, prix. Si une partie de la photo est le verso d’une fiche sans nom, rattache-la au client le plus probable. Signale dans « uncertain » ce qui est difficile à lire.`}];
+      found.push(...((await askClaude(content,'high',CLIENT_SCHEMA)).clients||[]));
+    }catch(err){errors.push(`Photo ${i+1} : ${err.message}`);}
+  }
+  status.textContent='';go.disabled=false;
+  if(errors.length)alert(errors.join('\n'));
+  // Regroupe recto et verso d'un même client
+  const merged=[];
+  for(const c of found){const m=merged.find(x=>norm(x.name)&&norm(x.name)===norm(c.name));
+    if(m){m.phone=m.phone||c.phone;m.email=m.email||c.email;m.address=m.address||c.address;m.notes=[m.notes,c.notes].filter(Boolean).join('\n');
+      for(const d of c.dogs)if(!m.dogs.some(x=>norm(x.name)===norm(d.name)))m.dogs.push(d);m.visits.push(...c.visits);m.uncertain=[m.uncertain,c.uncertain].filter(Boolean).join(' ; ');}
+    else merged.push(c);}
+  if(merged.length)openClientReview(merged);
+  else if(!errors.length)alert('Aucune fiche client trouvée sur ces photos.');
+}
+
+const CLIENT_SCHEMA={type:'object',additionalProperties:false,required:['clients'],properties:{clients:{type:'array',items:{
+  type:'object',additionalProperties:false,required:['name','phone','email','address','notes','dogs','visits','uncertain'],
+  properties:{name:{type:'string'},phone:{type:'string'},email:{type:'string'},address:{type:'string'},notes:{type:'string'},
+    dogs:{type:'array',items:{type:'object',additionalProperties:false,required:['name','breed','notes'],properties:{name:{type:'string'},breed:{type:'string'},notes:{type:'string'}}}},
+    visits:{type:'array',items:{type:'object',additionalProperties:false,required:['date','dog','services','details','price'],properties:{
+      date:{type:'string',description:'AAAA-MM-JJ ou chaîne vide'},dog:{type:'string'},services:{type:'array',items:{type:'string'}},details:{type:'string'},price:{anyOf:[{type:'number'},{type:'null'}]}}}},
+    uncertain:{type:'string'}}}}}};
+
+/* Vérification des fiches clients lues sur photo */
+let clReview=[];
+function openClientReview(items){
+  if(items)clReview=items.map(c=>({...c,_id:uid(),_on:true}));
+  if(!clReview.length){closeSheet();render();return;}
+  const dir=directory();
+  const html=`
+    <p class="muted" style="font-size:.9rem;margin-top:12px">${clReview.length} fiche${clReview.length>1?'s':''} trouvée${clReview.length>1?'s':''}. Vérifiez : « Corriger » pour modifier, décochez celles à ne pas créer.</p>
+    ${clReview.map(c=>{const known=dir.find(x=>x.key===norm(c.name));const nv=c.visits.filter(v=>/^\d{4}-\d{2}-\d{2}$/.test(v.date)).length;
+      return `<div class="card" style="padding:12px 14px;margin-top:10px;display:flex;gap:12px;align-items:flex-start">
+      <input type="checkbox" data-crv="${c._id}" ${c._on?'checked':''} style="width:22px;height:22px;flex:none;margin-top:2px" aria-label="Créer cette fiche">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700">${esc(c.name||'Nom ?')}${c.phone?' <span class="muted" style="font-weight:400">· '+esc(c.phone)+'</span>':''}</div>
+        ${c.email||c.address?`<div class="muted" style="font-size:.85rem">${esc([c.email,c.address].filter(Boolean).join(' · '))}</div>`:''}
+        ${c.dogs.map(d=>`<div style="margin-top:4px">🐕 <b>${esc(d.name||'?')}</b>${d.breed?' <span class="muted">· '+esc(d.breed)+'</span>':''}${d.notes?`<div class="note warn">${esc(d.notes)}</div>`:''}</div>`).join('')}
+        ${c.notes?`<div class="note">${esc(c.notes)}</div>`:''}
+        ${nv?`<div class="muted" style="font-size:.85rem;margin-top:4px">${nv} passage${nv>1?'s':''} ajouté${nv>1?'s':''} à l’historique</div>`:''}
+        ${known?'<div class="muted" style="font-size:.82rem;margin-top:4px">Client déjà connu : sa fiche sera complétée</div>':''}
+        ${c.uncertain?`<div style="font-size:.82rem;margin-top:4px;color:var(--bad)">À vérifier : ${esc(c.uncertain)}</div>`:''}
+        <button class="btn small" data-crvedit="${c._id}" style="margin-top:8px">✎ Corriger</button>
+      </div></div>`;}).join('')}
+    <div class="actions"><button class="btn primary" id="crv-go" style="flex:1"></button></div>`;
+  openSheet('Fiches clients',html,{left:'Annuler',onClose:()=>{clReview=[];}});
+  const upd=()=>{const n=clReview.filter(c=>c._on).length;$('#crv-go').textContent=n?`Créer ${n} fiche${n>1?'s':''}`:'Rien à créer';$('#crv-go').disabled=!n;};
+  document.querySelectorAll('[data-crv]').forEach(x=>x.onchange=()=>{clReview.find(c=>c._id===x.dataset.crv)._on=x.checked;upd();});
+  document.querySelectorAll('[data-crvedit]').forEach(b=>b.onclick=()=>{
+    const c=clReview.find(x=>x._id===b.dataset.crvedit);
+    openClientForm({name:c.name,phone:c.phone,email:c.email,address:c.address,notes:c.notes,dogs:c.dogs},
+      {banner:c.uncertain?'À vérifier : '+c.uncertain:'',onSaved:rec=>{Object.assign(c,{name:rec.name,phone:rec.phone,email:rec.email,address:rec.address,notes:rec.notes,dogs:rec.dogs,uncertain:''});openClientReview();},onCancel:()=>openClientReview()});
+  });
+  $('#crv-go').onclick=()=>{
+    const now=new Date().toISOString();let nc=0,nv=0;const known=new Map(svcList().map(x=>[norm(x),x]));
+    for(const c of clReview){if(!c._on||!c.name.trim())continue;
+      const k=norm(c.name);let r=S.clients.find(x=>norm(x.name)===k);
+      if(!r){const d=directory().find(x=>x.key===k);r={id:uid(),name:d?d.name:c.name.trim(),phone:d?d.phone:'',email:'',address:'',notes:'',dogs:d?[...d.dogs.values()].map(x=>({name:x.name,breed:x.breed,notes:''})):[],created:now};S.clients.push(r);}
+      r.phone=r.phone||c.phone;r.email=r.email||c.email;r.address=r.address||c.address;
+      if(c.notes&&!(r.notes||'').includes(c.notes))r.notes=[r.notes,c.notes].filter(Boolean).join('\n');
+      for(const d of c.dogs){if(!d.name)continue;const e=r.dogs.find(x=>norm(x.name)===norm(d.name));
+        if(e){e.breed=e.breed||d.breed;if(d.notes&&!(e.notes||'').includes(d.notes))e.notes=[e.notes,d.notes].filter(Boolean).join('\n');}
+        else r.dogs.push({name:d.name,breed:d.breed,notes:d.notes});}
+      r.updated=now;nc++;
+      for(const v of c.visits){if(!/^\d{4}-\d{2}-\d{2}$/.test(v.date))continue;
+        const dog=v.dog||(r.dogs.length===1?r.dogs[0].name:'');const dd=r.dogs.find(x=>norm(x.name)===norm(dog));
+        if(S.appts.some(a=>a.date===v.date&&norm(a.client)===k&&(!dog||norm(a.dog)===norm(dog))))continue;
+        S.appts.push({id:uid(),date:v.date,time:'',duration:60,client:r.name,phone:r.phone,dog,breed:dd?dd.breed:'',
+          services:[...new Set((v.services||[]).map(x=>known.get(norm(x))||x.trim()).filter(Boolean))],details:v.details||'',
+          price:v.price==null?'':+v.price,notes:'',done:true,created:now,updated:now});nv++;}
+    }
+    save();clReview=[];closeSheet();tab='clients';render();
+    toast(nc+' fiche'+(nc>1?'s':'')+' client'+(nv?' · '+nv+' passage'+(nv>1?'s':''):''));
+  };
+  upd();
 }
 
 /* Écran de vérification avant import */
@@ -795,7 +951,7 @@ function openVoice(date){
     let items;
     if(getKey()){
       const b=$('#v-go');b.disabled=true;b.textContent='Analyse en cours…';
-      try{items=(await askClaude([{type:'text',text:aiContext()+`\nDate par défaut si aucune date n’est dite : ${date} (${fmtDay(date)}).\nVoici une dictée vocale (la transcription peut contenir des erreurs, des chiffres écrits en lettres, des mots mal reconnus) décrivant un ou plusieurs rendez-vous. Extrais-les.\n\nDictée : « ${text} »`}],'medium')).map(x=>fromAI(x,date));}
+      try{items=(await askClaude([{type:'text',text:aiContext()+`\nDate par défaut si aucune date n’est dite : ${date} (${fmtDay(date)}).\nVoici une dictée vocale (la transcription peut contenir des erreurs, des chiffres écrits en lettres, des mots mal reconnus) décrivant un ou plusieurs rendez-vous. Extrais-les.\n\nDictée : « ${text} »`}],'medium')).appointments.map(x=>fromAI(x,date));}
       catch(err){toast('IA indisponible : lecture simple utilisée');items=[parseDictation(text,date)];}
     }else items=[parseDictation(text,date)];
     items=items.filter(x=>x.client||x.dog||x.time||x.services.length);
