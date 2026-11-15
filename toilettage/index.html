@@ -436,7 +436,7 @@ function renderClients(){
   const list=nq?dir.filter(c=>norm(c.name).includes(nq)||[...c.dogs.values()].some(d=>norm(d.name).includes(nq))||String(c.phone).replace(/\s/g,'').includes(nq.replace(/\s/g,''))):dir;
   $('#app').innerHTML=`
     <div class="top"><h1>Clients <span class="muted" style="font-size:.85rem;font-weight:400">${dir.length}</span></h1>
-      <div style="display:flex;gap:6px"><button class="iconbtn" id="cl-photo" aria-label="Créer des fiches clients depuis une photo">📷</button><button class="btn small primary" id="cl-new">+ Client</button></div></div>
+      <div style="display:flex;gap:6px"><button class="iconbtn" id="cl-voice" aria-label="Créer une fiche client à la voix">🎤</button><button class="iconbtn" id="cl-photo" aria-label="Créer des fiches clients depuis une photo">📷</button><button class="btn small primary" id="cl-new">+ Client</button></div></div>
     <div class="search"><input type="search" id="q" placeholder="Rechercher un client, un chien, un numéro…" value="${esc(q)}" autocomplete="off"></div>
     ${list.length?`<p class="swipe-hint">Astuce : glissez un client vers la gauche pour le supprimer.</p><div class="card list-pad" style="overflow:hidden">${list.map(c=>`<div class="swipe row-sw" data-sw="${esc(c.key)}" data-kind="client"><div class="del"><button data-delcl="${esc(c.key)}" aria-label="Supprimer ce client"><span>🗑</span>Supprimer</button></div><button class="client-row" data-client="${esc(c.key)}">
       ${clientAvatar(c)}
@@ -445,6 +445,7 @@ function renderClients(){
     :`<div class="empty"><div class="big">🐶</div>${dir.length?'Aucun résultat.':'Aucun client pour l’instant.<br>Créez une fiche avec « + Client », ou photographiez une fiche papier avec 📷.'}</div>`}`;
   $('#cl-new').onclick=()=>openClientForm({});
   $('#cl-photo').onclick=()=>openPhotoImport('clients');
+  $('#cl-voice').onclick=()=>openVoice(today(),'client');
   bindSwipes($('#app'));
   const inp=$('#q');inp.oninput=e=>{q=e.target.value;const pos=inp.selectionStart;renderClients();const n=$('#q');n.focus();n.setSelectionRange(pos,pos);};
 }
@@ -784,7 +785,8 @@ function openClientForm(init,opts={}){
   const isNew=!opts.oldKey;
   const breeds=[...new Set([...BREEDS,...S.appts.map(x=>x.breed).filter(Boolean)])].sort((x,y)=>x.localeCompare(y,'fr'));
   const html=`
-    ${opts.banner?`<p style="font-size:.85rem;margin-top:12px;color:var(--bad)">${esc(opts.banner)}</p>`:''}
+    ${isNew&&!opts.onSaved&&!opts.fromVoice?`<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="cf-voice" style="flex:1">🎤 Remplir à la voix</button></div>`:''}
+    ${opts.banner?`<p style="font-size:.85rem;margin-top:12px;color:${opts.bannerMuted?'var(--muted)':'var(--bad)'}">${esc(opts.banner)}</p>`:''}
     <h2>Propriétaire</h2>
     <label for="cf-name">Nom</label><input id="cf-name" value="${esc(r.name)}" autocapitalize="words" placeholder="ex. Mme Martin">
     <label for="cf-phone">Téléphone</label><input id="cf-phone" type="tel" value="${esc(r.phone)}" placeholder="06 12 34 56 78">
@@ -798,6 +800,7 @@ function openClientForm(init,opts={}){
     <div class="actions"><button class="btn primary" id="cf-save" style="flex:1">${opts.onSaved?'Valider':'Enregistrer la fiche'}</button></div>
     ${!isNew&&r.id&&!opts.nAppts?'<div class="actions"><button class="btn danger" id="cf-del">Supprimer la fiche</button></div>':''}`;
   openSheet(isNew&&!opts.onSaved?'Nouveau client':'Fiche client',html,{right:'OK',onRight:submit,onClose:opts.onCancel});
+  const cfv=$('#cf-voice');if(cfv)cfv.onclick=()=>openVoice(today(),'client');
   function readDogs(){document.querySelectorAll('[data-dog-i]').forEach(row=>{const i=+row.dataset.dogI;
     dogs[i]={name:row.querySelector('.dn').value.trim(),breed:row.querySelector('.db').value.trim(),notes:row.querySelector('.dno').value.trim(),photo:dogs[i].photo||''};});}
   function drawDogs(){
@@ -1607,10 +1610,11 @@ function openReview(items,title){
 /* ---------- Dictée vocale ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let recog=null;
-function openVoice(date){
+function openVoice(date,kind='appt'){
+  const isCl=kind==='client';
   const html=`
     <p style="margin-top:14px">Touchez le micro et parlez naturellement, par exemple :</p>
-    <p class="muted" style="font-size:.9rem;font-style:italic;margin-top:6px">« Demain à 14 h 30, madame Martin, 06 12 34 56 78, son caniche Filou, bain et coupe ciseaux, tête bien ronde, 45 euros. Remarque : a peur du séchoir. »</p>
+    <p class="muted" style="font-size:.9rem;font-style:italic;margin-top:6px">${isCl?'« Madame Martin, 06 12 34 56 78, elle habite 12 rue Victor Hugo à Lyon. Son caniche s’appelle Filou, il a 10 ans. Remarque : cardiaque, pas de séchoir chaud. »':'« Demain à 14 h 30, madame Martin, 06 12 34 56 78, son caniche Filou, bain et coupe ciseaux, tête bien ronde, 45 euros. Remarque : a peur du séchoir. »'}</p>
     <div style="text-align:center;margin:18px 0 8px">
       <button id="mic" aria-label="Démarrer la dictée" style="width:92px;height:92px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:2.4rem;display:inline-grid;place-items:center;box-shadow:0 6px 18px rgba(192,96,63,.35)">🎤</button>
       <div id="mic-state" class="muted" style="margin-top:8px;font-size:.9rem">${SR?'Touchez pour parler':'Dictée intégrée indisponible ici : touchez la zone de texte puis le micro 🎤 du clavier.'}</div>
@@ -1619,7 +1623,7 @@ function openVoice(date){
     <textarea id="v-text" style="min-height:120px" placeholder="Le texte apparaît ici…"></textarea>
     <div class="actions"><button class="btn primary" id="v-go" style="flex:1">Remplir la fiche</button></div>
     <p class="muted" style="font-size:.82rem;margin-top:8px">${getKey()?'Le texte sera compris par l’IA (Claude). Vous pourrez tout vérifier avant d’enregistrer.':'Sans clé API, l’application reconnaît les éléments simples (date, heure, prix, prestations, clients déjà connus). Vous pourrez tout vérifier avant d’enregistrer.'} Plusieurs rendez-vous peuvent être dictés à la suite.</p>`;
-  openSheet('Dictée vocale',html,{onClose:stopRecog});
+  openSheet(isCl?'Fiche client à la voix':'Dictée vocale',html,{onClose:stopRecog});
   const mic=$('#mic'),stateEl=$('#mic-state'),ta=$('#v-text');
   if(!SR)mic.onclick=()=>ta.focus();
   else mic.onclick=()=>{
@@ -1633,6 +1637,7 @@ function openVoice(date){
   };
   $('#v-go').onclick=async()=>{
     stopRecog();const text=ta.value.trim();if(!text){toast('Dictez ou écrivez d’abord');return;}
+    if(isCl)return voiceClient(text);
     let items;
     if(getKey()){
       const b=$('#v-go');b.disabled=true;b.textContent='Analyse en cours…';
@@ -1644,6 +1649,48 @@ function openVoice(date){
     if(items.length===1){const{uncertain,dateGuessed,...init}=items[0];closeSheet();openForm(init,{fromImport:true,banner:'Fiche remplie à partir de la dictée : vérifiez puis enregistrez.'+(uncertain?' À vérifier : '+uncertain:'')});}
     else openReview(items,'Dictée');
   };
+}
+/* Dictée d'une fiche client */
+async function voiceClient(text){
+  let list=null;
+  if(getKey()){
+    const b=$('#v-go');b.disabled=true;b.textContent='Analyse en cours…';
+    try{list=((await askClaude([{type:'text',text:aiContext()+`
+Voici une dictée vocale (la transcription peut contenir des erreurs, des chiffres écrits en lettres, « arobase » pour @) décrivant un ou plusieurs clients d’un salon de toilettage et leurs chiens. Crée la fiche de chaque client : nom (avec Mme/M. si dit), téléphone, e-mail, adresse, remarques sur le client ; pour chaque chien : nom, race, remarques (âge, caractère, santé, coupe habituelle). Aucun passage (visits vide).
+
+Dictée : « ${text} »`}],'medium',CLIENT_SCHEMA)).clients||[]).filter(c=>c.name||c.dogs.length);}
+    catch(err){toast('IA indisponible : lecture simple utilisée');list=null;}
+  }
+  if(!list||!list.length)list=[parseClientDictation(text)];
+  if(list.length===1){const c=list[0];closeSheet();
+    openClientForm({name:c.name,phone:c.phone,email:c.email,address:c.address,notes:c.notes,dogs:c.dogs},{fromVoice:true,bannerMuted:!c.uncertain,
+      banner:'Fiche remplie à partir de la dictée : vérifiez puis enregistrez.'+(c.uncertain?' À vérifier : '+c.uncertain:'')});}
+  else openClientReview(list.map(c=>({...c,visits:c.visits||[]})));
+}
+function parseClientDictation(text){
+  const raw=text.trim();
+  const c={name:'',phone:'',email:'',address:'',notes:'',dogs:[],visits:[],uncertain:''};
+  let rest=raw;
+  // E-mail dicté : « martin arobase gmail point com »
+  const em=raw.replace(/\s*(?:arobase|arrobase|@)\s*/gi,'@').replace(/(@[\w-]+)\s*(?:point|\.)\s*(\w{2,4})\b/gi,'$1.$2').match(/[\w.+-]+@[\w-]+\.[\w.]+/);
+  if(em){c.email=em[0].toLowerCase();rest=rest.replace(/\S+\s*(?:arobase|arrobase|@)\s*\S+(?:\s*(?:point|\.)\s*\w{2,4})?/i,' ');}
+  // Adresse : « 12 rue Victor Hugo à Lyon », « 3 bis avenue … 69003 Lyon »
+  const ad=raw.match(/\b\d{1,4}\s*(?:bis|ter)?\s*,?\s*(?:rue|avenue|av\.?|boulevard|bd|chemin|all[ée]e|impasse|place|route|quai|lotissement|r[ée]sidence)\b[^,.;]*?(?=(?:[,.;]|\s+(?:son|sa|ses|il|elle|le chien|la chienne|chien|t[ée]l|remarque|attention)\b|$))/i);
+  if(ad){c.address=ad[0].replace(/\s+à\s+/i,' ').replace(/\s+/g,' ').trim();rest=rest.replace(ad[0],' ');}
+  const d=parseDictation(rest.replace(/\b(?:elle|il)\s+habite\b/gi,' '),today(),{agenda:true});
+  c.name=d.client||'';c.phone=d.phone||'';
+  // Chiens : « Filou et Lola », sinon le chien trouvé
+  const dogs=[];
+  if(d.dog){dogs.push({name:d.dog,breed:d.breed||'',notes:''});
+    const more=raw.match(new RegExp(d.dog.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s+et\\s+([A-ZÀ-Ý][\\wà-ÿ\'-]+)'));if(more)dogs.push({name:more[1],breed:'',notes:''});}
+  else if(d.breed)dogs.push({name:'',breed:d.breed,notes:''});
+  // Âge du chien
+  const age=raw.match(/\b(\d{1,2})\s*ans\b/i);
+  if(age&&dogs[0])dogs[0].notes=age[1]+' ans';
+  if(d.notes){if(dogs[0])dogs[0].notes=[dogs[0].notes,d.notes].filter(Boolean).join(', ');else c.notes=d.notes;}
+  c.dogs=dogs;
+  if(!c.name)c.uncertain='nom du client non reconnu';
+  return c;
 }
 function stopRecog(){if(recog){try{recog.stop();}catch(e){}recog=null;}}
 
@@ -1691,11 +1738,11 @@ function parseDictation(text,defDate,opt={}){
   if(!out.client){const cm=raw.match(opt.agenda?/\b(madame|monsieur|mademoiselle|mme|m\.|mr)\s+([A-Za-zÀ-ÿ'-]+)/i:/\b(madame|monsieur|mademoiselle|mme|m\.|mr)\s+([A-Za-zÀ-ÿ'-]+(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+)?)/i);
     if(cm){const tt={madame:'Mme',mme:'Mme',mademoiselle:'Mlle',monsieur:'M.','m.':'M.',mr:'M.'}[cm[1].toLowerCase()]||cm[1];out.client=tt+' '+cap(cm[2]);}
     else{const cc=raw.match(/\bclient(?:e)?\s*:?\s+([A-Za-zÀ-ÿ'-]+(?:\s+[A-Za-zÀ-ÿ'-]+)?)/i);if(cc)out.client=cap(cc[1]);}}
-  if(!out.dog){const dm=raw.match(/\b(?:chien(?:ne)?|toutou|chiot|il s'appelle|elle s'appelle|nommée?)\s+(?:s'appelle\s+)?([A-Za-zÀ-ÿ'-]+)/i);
+  if(!out.dog){const dm=raw.replace(/’/g,"'").match(/\b(?:chien(?:ne)?|toutou|chiot|s'appelle|nommée?|nom du chien\s*:?)\s+(?:s'appelle\s+|qui s'appelle\s+)?([A-Za-zÀ-ÿ-]+)/i);
     if(dm&&!/^(de|du|la|le|est|a|qui)$/i.test(dm[1]))out.dog=cap(dm[1]);}
   if(!out.dog&&opt.agenda){
     // Agenda : le premier mot en majuscule qui n'est ni le client, ni une race, ni une prestation est le chien
-    const skip=new Set([...norm(out.client).split(/\s+/),'mme','mr','m','madame','monsieur','mlle','tel','rdv']);
+    const skip=new Set([...norm(out.client).split(/\s+/),'mme','mr','m','madame','monsieur','mlle','tel','rdv','son','sa','ses','il','elle','nouvelle','nouveau','client','cliente','chien','chienne','le','la','les','un','une','remarque','attention','telephone','adresse','mail','email','rue','avenue','boulevard','chemin','place','route','habite','lyon','paris']);
     const bad=w=>skip.has(norm(w))||BREEDS.some(b=>norm(b).split(' ').includes(norm(w)))||svcList().some(x=>norm(x).split(' ').includes(norm(w)))||Object.keys(SYN).some(k=>norm(w).startsWith(k));
     const words=raw.replace(/\b\d{1,2}\s*(?:h|:)\s*\d{0,2}\b/gi,' ').match(/[A-ZÀ-Ý][a-zà-ÿ'-]{1,}/g)||[];
     const w=words.find(x=>!bad(x));if(w)out.dog=w;}
