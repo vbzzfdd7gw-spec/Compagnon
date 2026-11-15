@@ -24,14 +24,22 @@
   --shadow:none;color-scheme:dark;
 }}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+html{font-size:16px}
+html.fs-1{font-size:18px}
+html.fs-2{font-size:20px}
+/* Onglets : taille fixe pour qu'ils tiennent toujours sur une ligne */
+html.fs-1 .tab,html.fs-2 .tab{font-size:11px}
+/* Grands textes sur écran étroit : les champs côte à côte passent l'un sous l'autre */
+@media (max-width:400px){html.fs-2 .row{flex-direction:column;gap:0}}
+@media (max-width:340px){html.fs-1 .row{flex-direction:column;gap:0}}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.4;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
 .wrap{max-width:620px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right)) calc(100px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left))}
 h1{font-size:1.4rem;margin:0;letter-spacing:-.01em}
 h2{font-size:.78rem;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
 p{margin:0}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0;text-align:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-input,select,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+input,select,textarea{font:inherit;font-size:max(16px,1rem);color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
 textarea{resize:vertical;min-height:72px}
 label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
 .muted{color:var(--muted)}
@@ -194,6 +202,10 @@ details.blk[open]>summary::after{content:'▴'}
 'use strict';
 /* ---------- Données ---------- */
 const KEY='toilettage.v1';
+/* Taille du texte (propre à chaque téléphone) */
+const FS_KEY='toilettage.fs';
+function applyFs(v){document.documentElement.classList.remove('fs-1','fs-2');if(v==='1'||v==='2')document.documentElement.classList.add('fs-'+v);}
+let fsLevel='0';try{fsLevel=localStorage.getItem(FS_KEY)||'0';}catch(e){}applyFs(fsLevel);
 const DEFAULT_SMS='Bonjour, petit rappel : rendez-vous toilettage pour {chien} {jour} à {heure}. À bientôt ! {salon}';
 const DEFAULT_SERVICES=['Bain','Séchage','Brushing','Démêlage','Coupe ciseaux','Tonte','Épilation','Coupe des griffes','Oreilles','Yeux','Anti-puces','Dents'];
 const BREEDS=['Bichon','Bichon maltais','Bouledogue français','Berger allemand','Berger australien','Border collie','Cavalier King Charles','Caniche','Caniche toy','Chihuahua','Cocker','Golden retriever','Husky','Jack Russell','Labrador','Lhassa Apso','Shih Tzu','Spitz nain','Teckel','Westie','Yorkshire','Croisé','Chat'];
@@ -315,7 +327,7 @@ function renderAgenda(){
     </div>
     <div class="seg viewseg" id="mode"><button data-mode="week" class="${mode==='week'?'on':''}">Semaine</button><button data-mode="month" class="${mode==='month'?'on':''}">Mois</button></div>
     <div class="${mode==='month'?'month':'week'}" id="week">${week}</div>
-    <div class="dayhead"><h3 class="cap">${esc(fmtDay(sel))}</h3><span class="muted" style="font-size:.88rem">${list.length?list.length+' RDV'+(total?' · '+fmtPrice(total):''):''}</span></div>
+    <div class="dayhead"><h3 class="cap">${esc(fmtDay(sel))}</h3><span class="muted" style="font-size:.88rem;white-space:nowrap">${list.length?list.length+' RDV'+(total?' · '+fmtPrice(total):''):''}</span></div>
     ${list.length?list.map(a=>apptCard(a)).join(''):`<div class="empty"><div class="big">🐾</div>Aucun rendez-vous ce jour.<br><br><button class="btn primary" id="addday">+ Ajouter un rendez-vous</button></div>`}`;
   $('#pick').onchange=e=>{if(e.target.value){sel=e.target.value;render();}};
   const gt=$('#gotoday');if(gt)gt.onclick=()=>{sel=today();render();};
@@ -399,6 +411,13 @@ function renderSettings(){
   const mTotal=mAppts.reduce((s,a)=>s+(+a.price||0),0);
   $('#app').innerHTML=`
     <div class="top"><h1>Réglages</h1></div>
+    <h2 style="margin-top:4px">Taille du texte</h2>
+    <div class="seg" id="set-fs" role="radiogroup" aria-label="Taille du texte">
+      <button data-fs="0" role="radio" aria-checked="${fsLevel==='0'}" class="${fsLevel==='0'?'on':''}"><span style="font-size:15px">A</span> Normal</button>
+      <button data-fs="1" role="radio" aria-checked="${fsLevel==='1'}" class="${fsLevel==='1'?'on':''}"><span style="font-size:18px">A</span> Grand</button>
+      <button data-fs="2" role="radio" aria-checked="${fsLevel==='2'}" class="${fsLevel==='2'?'on':''}"><span style="font-size:22px">A</span> Très grand</button>
+    </div>
+    <p class="muted" style="font-size:.82rem;margin-top:6px">Agrandit tout le texte de l’application sur ce téléphone.</p>
     <div class="card list-pad">
       <div class="stat"><span>Rendez-vous enregistrés</span><b>${S.appts.length}</b></div>
       <div class="stat"><span>Clients</span><b>${dir.length}</b></div>
@@ -445,6 +464,7 @@ function renderSettings(){
     <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
   $('#exp').onclick=exportData;
   bindSyncSection();
+  $('#set-fs').onclick=e=>{const b=e.target.closest('[data-fs]');if(!b)return;fsLevel=b.dataset.fs;try{localStorage.setItem(FS_KEY,fsLevel);}catch(_){}applyFs(fsLevel);const y=scrollY;render();scrollTo(0,y);};
   $('#set-key').onchange=e=>{setKey(e.target.value.trim());toast(e.target.value.trim()?'Clé enregistrée':'Clé supprimée');};
   $('#imp-photo').onclick=()=>openPhotoImport();
   $('#key-test').onclick=async e=>{setKey($('#set-key').value.trim());if(!getKey()){toast('Saisissez d’abord la clé');return;}
@@ -1451,7 +1471,7 @@ function openTextImport(kind,{text='',hint='',scans=[]}={}){
     <p style="margin-top:14px">${text?'Voici le texte lu sur la photo. Corrigez ce qui est mal lu, puis touchez « Analyser ».':'Collez ici le texte de '+(isCl?'la fiche':'la page d’agenda')+'.'}</p>
     ${text?'':`<p class="muted" style="font-size:.85rem;margin-top:6px">Astuce : sur iPhone, ouvrez la photo dans Photos et touchez l’icône « Texte en direct » pour copier le texte. Sur Android, utilisez Google Lens (« Texte » puis « Copier »).</p>`}
     <p class="muted" style="font-size:.85rem;margin-top:6px">${isCl?'Une information par ligne aide beaucoup (ex. « Tél : … », « Chien : … », « Race : … »). Séparez plusieurs fiches par une ligne -----.':'Une ligne par jour (« Lundi 16 ») puis une ligne par rendez-vous commençant par l’heure (« 9h30 Mme Martin Filou bain 45 € »).'}</p>
-    <textarea id="ti-text" style="min-height:240px;font-size:15px;margin-top:10px">${esc(text)}</textarea>
+    <textarea id="ti-text" style="min-height:240px;font-size:max(16px,.95rem);margin-top:10px">${esc(text)}</textarea>
     ${isCl?'':`<label for="ti-date">Date de la page ou de la semaine (si elle n’est pas écrite)</label><input type="date" id="ti-date" value="${esc(hint)}">`}
     <div class="actions"><button class="btn primary" id="ti-go" style="flex:1">Analyser</button></div>`;
   openSheet(isCl?'Fiche papier : texte':'Agenda : texte',html,{onClose:()=>{scans.forEach(id=>delete SCANP[id]);}});
