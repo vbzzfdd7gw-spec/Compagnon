@@ -261,7 +261,7 @@ accounts(){
   <section class="card"><h2>Mes comptes</h2>${S.accounts.map(a=>{const b=balance(a.id);return `<button class="row" data-act="editAcc" data-id="${a.id}">${icoBox(a.icon,'#8d8f99')}<div class="grow"><div class="t">${esc(a.name)}</div><div class="s">Solde initial ${money(a.initial||0)}</div></div><span class="amt num ${b<0?'neg':''}">${money(b)}</span></button>`;}).join('')}
     <div class="btns"><button class="btn" data-act="newAcc">+ Nouveau compte</button><button class="btn" data-act="newTransfer">⇄ Virement</button></div>
     <div class="btns" style="margin-top:8px"><button class="btn primary" data-act="importStmt">⬆ Importer un relevé bancaire</button></div>
-    <p class="hint">Fichier CSV, OFX ou QIF téléchargé depuis le site de votre banque.</p></section>
+    <p class="hint">Relevé PDF de votre banque, ou fichier CSV, OFX ou QIF.</p></section>
   <section class="card"><h2>Opérations récurrentes</h2>${rec.length?rec.map(r=>{const c=r.kind==='transfer'?{icon:'⇄',color:'#8d8f99',name:'Virement'}:cat(r.cat);
     return `<button class="row" data-act="editRec" data-id="${r.id}">${icoBox(c.icon,c.color)}<div class="grow"><div class="t">${esc(r.note||c.name)}</div><div class="s">Le ${r.day} de chaque mois · ${r.paused?'en pause':'prochaine : '+shortDate(r.next)}</div></div><span class="amt num ${r.kind==='income'?'pos':''}">${r.kind==='transfer'?money(r.amount):signed(r.kind==='income'?r.amount:-r.amount)}</span></button>`;}).join(''):'<p class="empty">Aucune. Cochez « Répéter chaque mois » en ajoutant une opération (loyer, salaire, abonnements…).</p>'}</section>`;
 },
@@ -316,7 +316,7 @@ function bars(){const ms=[];for(let i=5;i>=0;i--)ms.push(addMonths(UI.month,-i))
 const dlg=$('#dlg'),form=$('#dlgForm');
 function openDlg(title,body,onSubmit){
   form.innerHTML=`<div class="dhead"><h3>${esc(title)}</h3><button type="button" class="x" data-act="close" aria-label="Fermer">✕</button></div>${body}`;
-  form.onchange=null;form.oninput=null;
+  form.onchange=null;form.oninput=null;form.onclick=null;
   form.onsubmit=e=>{e.preventDefault();if(onSubmit(new FormData(form))!==false){dlg.close();render();}};
   if(!dlg.open)dlg.showModal();form.scrollTop=0;dlg.scrollTop=0;const f=form.querySelector('[autofocus]');if(f)setTimeout(()=>f.focus(),50);}
 dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
@@ -457,7 +457,7 @@ const PREFIX=/^(prlv( sepa)?|pr[ée]l[èe]v(ement)?( sepa)?( europ[ée]en)?|paie
 function cleanLabel(raw){let s=String(raw||'').replace(/\s+/g,' ').trim();const cash=/^(retrait|dab)\b/i.test(s),s0=s;
   for(let i=0;i<3;i++)s=s.replace(PREFIX,'');
   s=s.replace(/\b(du |le )?\d{2}[\/.]\d{2}([\/.]\d{2,4})?\b/gi,' ').replace(/\bX{2,}\d+\b|\bX\d{3,}\b/gi,' ').replace(/\b(carte|cb)\s*\*+\d{4}\b/gi,' ')
-   .replace(/\b\d{4,}\b/g,' ').replace(/\*+/g,' ').replace(/\s+/g,' ').replace(/^[\s\-:./]+|[\s\-:./]+$/g,'');
+   .replace(/\b(REF|R[ée]f\.?|ICS|RUM|MDT|ID [ée]metteur|N° ?OPE)\b\s*:?\s*\S*/gi,' ').replace(/\b\d{4,}\b/g,' ').replace(/\*+/g,' ').replace(/\s+/g,' ').replace(/^[\s\-:./]+|[\s\-:./]+$/g,'');
   if(s!==s0)s=s.replace(/^(de|a|à|vers|pour)\s+/i,'');
   if(!s&&!cash)s=String(raw||'').trim();
   if(s===s.toUpperCase())s=s.toLowerCase().replace(/(^|[\s'\-\/.&])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
@@ -492,11 +492,69 @@ function dupState(it,aid,used){if(S.tx.some(x=>x.imp===it.key))return'same';
     (x.kind==='transfer'?(out?x.account===aid:x.to===aid):(!x.imp&&x.account===aid&&x.kind===(out?'expense':'income'))));
   if(m){used.add(m.id);return'probable';}return null;}
 
+/* ====== Lecture des relevés PDF ====== */
+let pdfjsP=null;
+function loadPdfJs(){return pdfjsP||(pdfjsP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='lib/pdf.min.js';
+  s.onload=()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc='lib/pdf.worker.min.js';res(window.pdfjsLib);};
+  s.onerror=()=>{pdfjsP=null;s.remove();rej(new Error('load'));};document.head.append(s);}));}
+async function pdfLines(buf){const lib=await loadPdfJs();let password,doc;
+  for(;;){try{doc=await lib.getDocument({data:buf.slice(0),password,isEvalSupported:false}).promise;break;}
+    catch(e){if(e&&e.name==='PasswordException'){password=prompt(password===undefined?'Ce relevé PDF est protégé. Mot de passe :':'Mot de passe incorrect. Réessayez :');if(password==null)throw new Error('cancel');}else throw e;}}
+  const out=[];
+  for(let pn=1;pn<=doc.numPages;pn++){const page=await doc.getPage(pn);const tc=await page.getTextContent();
+    const its=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width,h:Math.abs(i.transform[3])||Math.hypot(i.transform[2],i.transform[3])||10}));
+    its.sort((a,b)=>b.y-a.y||a.x-b.x);const lines=[];
+    for(const it of its){const L=lines.find(l=>Math.abs(l.y-it.y)<Math.max(2,Math.min(l.h,it.h)*.45));if(L)L.items.push(it);else lines.push({y:it.y,h:it.h,items:[it]});}
+    lines.sort((a,b)=>b.y-a.y);
+    for(const L of lines){L.items.sort((a,b)=>a.x-b.x);const cells=[];
+      for(const it of L.items){const c=cells[cells.length-1],gap=c?it.x-c.x1:Infinity;
+        if(c&&gap<L.h*.6){c.t+=(gap>L.h*.12?' ':'')+it.s;c.x1=Math.max(c.x1,it.x+it.w);}else cells.push({t:it.s,x0:it.x,x1:it.x+it.w});}
+      cells.forEach(c=>c.t=c.t.replace(/\s+/g,' ').trim());
+      const cs=cells.filter(c=>c.t);if(cs.length)out.push({page:pn,y:L.y,h:L.h,cells:cs});}}
+  return out;}
+const AMT_RE=/^[+-]?\s?\d{1,3}(?:[ .  ]\d{3})*,\d{2}\s?(?:€|EUR)?$|^[+-]?\s?\d+\.\d{2}\s?(?:€|EUR)?$/;
+const CREDIT_HINT=/(^|\s)(VIR(EMENT)?( SEPA| INST\w*)?( PERMANENT)? (RECU|DE)\b|VIR(EMENT)? RECU|REMBOURS|REMB |SALAIRE|AVOIR|REMISE( DE)? CH|INTERETS|VERSEMENT ESP|DEPOT)/;
+function parsePDFLines(lines){
+  const full=[];for(const L of lines)for(const c of L.cells)for(const m of c.t.matchAll(/\b\d{2}[\/.]\d{2}[\/.]\d{4}\b/g)){const d=parseDate(m[0]);if(d)full.push(d);}
+  full.sort();const ref=full.length?full[full.length-1]:today();
+  const fixYear=(dd,mm,yy)=>{if(yy){let y=+yy;if(y<100)y+=2000;return parseDate(dd+'/'+mm+'/'+y);}
+    const y=+ref.slice(0,4);let d=parseDate(dd+'/'+mm+'/'+y);if(d&&Date.parse(d)>Date.parse(ref)+20*864e5)d=parseDate(dd+'/'+mm+'/'+(y-1));return d;};
+  let cols=null,last=null,end=null;const items=[];
+  const nearest=a=>{let best=null,bd=Infinity;for(const k of['debit','credit','solde']){const c=cols&&cols[k];if(!c)continue;
+    const d=Math.min(Math.abs(a.x1-c.x1),Math.abs((a.x0+a.x1)/2-(c.x0+c.x1)/2));if(d<bd){bd=d;best=k;}}return best;};
+  for(const L of lines){const H=L.cells.map(c=>norm(c.t));
+    const di=H.findIndex(t=>/^DEBIT/.test(t)),ci=H.findIndex(t=>/^CREDIT/.test(t));
+    if(di>=0&&ci>=0){cols={debit:L.cells[di],credit:L.cells[ci]};const si=H.findIndex(t=>/^SOLDE/.test(t));if(si>=0)cols.solde=L.cells[si];last=null;continue;}
+    const amts=[];let k=L.cells.length;while(k>0&&AMT_RE.test(L.cells[k-1].t)){amts.unshift(L.cells[k-1]);k--;}
+    const tc=L.cells.slice(0,k),text=tc.map(c=>c.t).join(' '),nt=norm(text);
+    const m=text.match(/^(\d{2})[\/.](\d{2})(?:[\/.](\d{4}|\d{2}(?!\d)))?\s*(.*)$/);
+    if(amts.length&&/SOLDE/.test(nt)&&!/ANCIEN|PRECEDENT|REPORT/.test(nt)){
+      const a=amts[0];let v=Math.abs(parseNum(a.t));if(/DEBITEUR/.test(nt)||/^-/.test(a.t)||(cols&&nearest(a)==='debit'))v=-v;
+      const dm=text.match(/\d{2}[\/.]\d{2}[\/.]\d{2,4}/);end={amount:v,date:dm?parseDate(dm[0]):null};last=null;continue;}
+    if(!m||!amts.length){
+      if(last&&!amts.length&&!m&&tc.length&&L.page===last.page&&last.y-L.y<last.h*2.6&&tc[0].x0>last.x+4&&last.extra<2&&!/SOLDE|TOTAL|PAGE \d|SUITE/.test(nt)){
+        last.it.label+=' '+text;last.extra++;last.y=L.y;}
+      else if(m||amts.length||tc[0]&&tc[0].x0<=(last?last.x+4:0))last=null;
+      continue;}
+    let rest=m[4];const m2=rest.match(/^(\d{2})[\/.](\d{2})(?:[\/.](\d{2,4}))?\s+(.*)$/);if(m2)rest=m2[4];
+    rest=rest.replace(/\s+\d{2}[\/.]\d{2}(?:[\/.]\d{2,4})?$/,'').trim();
+    const date=fixYear(m[1],m[2],m[3]),nr=norm(rest);
+    if(!date||!rest||/^(SOLDE|TOTAL|ANCIEN SOLDE|NOUVEAU SOLDE|REPORT)/.test(nr)){last=null;continue;}
+    let cand=amts;if(cols&&cols.solde)cand=amts.filter(a=>nearest(a)!=='solde');if(!cand.length)continue;
+    const a=cand[0];let v=parseNum(a.t);if(v==null||!v)continue;let unsure=false;
+    if(/^[+-]/.test(a.t.trim())){}
+    else if(cols){const n=nearest(a);v=n==='credit'?Math.abs(v):-Math.abs(v);}
+    else{v=CREDIT_HINT.test(' '+nr)?Math.abs(v):-Math.abs(v);unsure=true;}
+    const it={date,amount:v,label:rest,unsure};items.push(it);last={it,page:L.page,y:L.y,h:L.h,x:tc[0].x0,extra:0};}
+  return{items,end:end&&end.amount!=null?{amount:end.amount,date:end.date&&items.length?end.date:null}:null};}
+
 let IMP=null;
 async function onStatementFile(f){
-  if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){openDlg('Relevé PDF',`<p>Les relevés PDF ne peuvent pas être lus de façon fiable : leur mise en page change d’une banque à l’autre.</p>
-    <p class="hint" style="font-size:.9rem;margin-top:10px">Sur le <b>site web</b> de votre banque, cherchez « Télécharger mes opérations » ou « Exporter », choisissez la période du mois et le format <b>CSV</b> (ou Excel/CSV), <b>OFX</b> ou <b>QIF</b>.</p>
-    <div class="btns"><button class="btn primary">Compris</button></div>`,()=>{});return;}
+  if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){toast('Lecture du PDF…');let r;
+    try{r=parsePDFLines(await pdfLines(await f.arrayBuffer()));}
+    catch(e){if(e&&e.message==='cancel')return;return toast(e&&e.message==='load'?'Lecteur PDF indisponible : ouvrez l’application une fois avec Internet':'PDF illisible ou endommagé');}
+    if(!r.items.length){openDlg('Relevé PDF',`<p>Aucune opération n’a pu être lue dans ce PDF.</p><p class="hint" style="font-size:.9rem;margin-top:10px">S’il s’agit d’un document scanné (une image), il ne contient pas de texte lisible. Téléchargez plutôt le relevé depuis l’espace client de votre banque, ou exportez les opérations en <b>CSV</b>, <b>OFX</b> ou <b>QIF</b>.</p><div class="btns"><button class="btn primary">Compris</button></div>`,()=>{});return;}
+    IMP={format:'PDF',name:f.name,...r};importStep1();return;}
   let text;try{text=await readText(f);}catch(e){return toast('Lecture du fichier impossible');}
   let p;if(/<OFX>|OFXHEADER|<STMTTRN>/i.test(text))p={format:'OFX',...parseOFX(text)};
   else if(/^!Type:/im.test(text))p={format:'QIF',...parseQIF(text)};
@@ -520,6 +578,7 @@ function importStep1(){const p=IMP,pkey=p.format==='CSV'?p.sig:p.format,prof=S.i
   const sel=(n,l,opt)=>`<div><label>${l}</label><select name="${n}">${opt?'<option value="-1">—</option>':''}${cols}</select></div>`;
   openDlg('Importer un relevé',`<p class="muted" style="font-size:.9rem">${esc(p.name)} · format ${p.format}</p>
     <label>Compte concerné</label><select name="account">${accOptions(accId)}</select>
+    ${p.format==='PDF'?`<p class="hint">Lecture automatique du PDF : vérifiez l’aperçu. À l’étape suivante, touchez un montant pour inverser débit et crédit si besoin.</p>`:''}
     ${p.format==='CSV'?`<p class="hint">Vérifiez les colonnes. Ce choix est retenu pour les prochains relevés de la même banque.</p>
       <div class="grid2">${sel('date','Date')}${sel('label','Libellé')}</div>${sel('amount','Montant',1)}
       <div class="grid2">${sel('debit','ou Débit',1)}${sel('credit','et Crédit',1)}</div>
@@ -546,8 +605,8 @@ function importStep2(items){const aid=IMP.account,used=new Set(),occ={};
   openDlg('Vérifier l’import',`<p class="muted" style="font-size:.9rem">${esc(acc(aid).name)} · du ${shortDate(dates[0])} au ${shortDate(lastDate)}<br>
     ${fresh.length} nouvelle(s) opération(s)${same?` · ${same} déjà importée(s), ignorée(s)`:''}</p>
     ${prob?`<p class="hint">${prob} doublon(s) probable(s) décoché(s) : une opération du même montant existe déjà à quelques jours près (saisie à la main ou récurrente).</p>`:''}
-    ${fresh.length?`<p class="hint">Vérifiez les catégories : vos corrections seront retenues pour les prochains relevés.</p>
-    <div>${fresh.map((l,i)=>`<div class="irow" data-i="${i}"><input type="checkbox" name="on${i}" ${l.dup?'':'checked'} aria-label="Importer cette opération"><div class="grow"><div class="t">${esc(l.note)}</div><div class="s">${shortDate(l.date)}${l.dup?' · <span class="pill">doublon probable</span>':''}</div></div><span class="amt num ${l.amount>0?'pos':''}">${signed(l.amount)}</span><select name="c${i}" aria-label="Catégorie">${opts(l)}</select></div>`).join('')}</div>
+    ${fresh.length?`<p class="hint">Vérifiez les catégories : vos corrections seront retenues pour les prochains relevés. Touchez un montant pour inverser dépense et revenu.</p>
+    <div>${fresh.map((l,i)=>`<div class="irow" data-i="${i}"><input type="checkbox" name="on${i}" ${l.dup?'':'checked'} aria-label="Importer cette opération"><div class="grow"><div class="t">${esc(l.note)}</div><div class="s">${shortDate(l.date)}${l.dup?' · <span class="pill">doublon probable</span>':''}${l.unsure?' · <span class="pill">sens à vérifier</span>':''}</div></div><button type="button" class="amt num ${l.amount>0?'pos':''}" data-flip="${i}" title="Inverser débit / crédit">${signed(l.amount)}</button><select name="c${i}" aria-label="Catégorie">${opts(l)}</select></div>`).join('')}</div>
     <label>Solde du compte en fin de relevé (facultatif)</label><input name="endBal" inputmode="decimal" placeholder="Ex. 1 234,56" value="${end&&end.amount!=null?toInput(end.amount):''}">
     <p class="hint">Si vous l’indiquez, le solde de départ du compte est corrigé pour que votre solde au ${shortDate(end&&end.date||lastDate)} soit identique à celui de la banque.</p>`
     :'<p class="empty">Rien de nouveau dans ce relevé : tout a déjà été importé.</p>'}
@@ -565,6 +624,9 @@ function importStep2(items){const aid=IMP.account,used=new Set(),occ={};
   fresh.forEach((l,i)=>{form.elements['c'+i].value=l.guess;});
   const cnt=()=>{if(!fresh.length)return;let n=0;form.querySelectorAll('.irow').forEach(r=>{const on=form.elements['on'+r.dataset.i].checked;r.classList.toggle('off',!on);if(on)n++;});
     $('#impGo').textContent=`Importer ${n} opération${n>1?'s':''}`;$('#impGo').disabled=!n;};
+  form.onclick=e=>{const b=e.target.closest('[data-flip]');if(!b)return;const i=+b.dataset.flip,l=fresh[i];
+    l.amount=-l.amount;l.unsure=false;l.guess=guessCat(l.label,l.amount);const sel=form.elements['c'+i];sel.innerHTML=opts(l);sel.value=l.guess;
+    b.textContent=signed(l.amount);b.classList.toggle('pos',l.amount>0);const pill=[...b.parentNode.querySelectorAll('.pill')].find(p=>p.textContent==='sens à vérifier');if(pill)pill.parentNode.innerHTML=pill.parentNode.innerHTML.replace(/ · <span class="pill">sens à vérifier<\/span>/,'');};
   form.onchange=cnt;cnt();}
 
 /* ====== Actions ====== */
