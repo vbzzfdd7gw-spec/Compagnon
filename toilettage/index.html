@@ -119,6 +119,12 @@ label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
 .list-pad{padding:4px 0}
 .hidden{display:none!important}
 input[type=checkbox]{accent-color:var(--accent)}
+.dogpic{border-radius:50%;object-fit:cover;flex:none;display:block;background:var(--panel2)}
+.pics{display:flex;flex:none}
+.pics img{border:2px solid var(--panel)}
+.pics img+img{margin-left:-14px}
+.photo-slot{width:72px;height:72px;border-radius:50%;border:1.5px dashed var(--line);display:grid;place-items:center;font-size:1.5rem;color:var(--muted);flex:none;overflow:hidden;background:var(--panel2)}
+.photo-slot img{width:100%;height:100%;object-fit:cover}
 .viewseg{width:auto;margin-bottom:8px}
 .month{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:6px 0 4px;touch-action:pan-y}
 .month .wd{text-align:center;font-size:.72rem;color:var(--muted);padding:4px 0}
@@ -204,7 +210,7 @@ function directory(){
   for(const r of S.clients){const k=norm(r.name);if(!k)continue;
     const c=map.get(k)||blank(k,r.name.trim());map.set(k,c);
     Object.assign(c,{rid:r.id,email:r.email||'',address:r.address||'',notes:r.notes||''});
-    for(const d of r.dogs||[]){const dk=norm(d.name);if(dk)c.dogs.set(dk,{name:d.name.trim(),breed:d.breed||'',notes:d.notes||'',last:null});}}
+    for(const d of r.dogs||[]){const dk=norm(d.name);if(dk)c.dogs.set(dk,{name:d.name.trim(),breed:d.breed||'',notes:d.notes||'',photo:d.photo||'',last:null});}}
   for(const a of sortAppts([...S.appts])){
     const k=norm(a.client);if(!k)continue;
     let c=map.get(k);
@@ -235,7 +241,7 @@ function apptCard(a,showDate){
     <div class="time">${esc(a.time||'—')}${a.time&&a.duration?`<small>${endTime(a.time,a.duration)}</small>`:''}</div>
     <div class="body">
       ${showDate?`<div class="muted cap" style="font-size:.8rem">${esc(fmtDay(a.date))}</div>`:''}
-      <div style="display:flex;justify-content:space-between;gap:8px"><span class="dog">${esc(a.dog||'Chien ?')}${a.breed?` <span class="muted" style="font-weight:400;font-size:.88rem">· ${esc(a.breed)}</span>`:''}</span><span class="price">${a.done?'✓ ':''}${fmtPrice(a.price)}</span></div>
+      <div style="display:flex;justify-content:space-between;gap:8px"><span class="dog" style="display:flex;align-items:center;gap:7px">${dogImg(dogPhotoId(a.client,a.dog),28)}<span>${esc(a.dog||'Chien ?')}${a.breed?` <span class="muted" style="font-weight:400;font-size:.88rem">· ${esc(a.breed)}</span>`:''}</span></span><span class="price">${a.done?'✓ ':''}${fmtPrice(a.price)}</span></div>
       <div class="client">${esc(a.client||'Client ?')}</div>
       ${svc?`<div class="chips">${svc}</div>`:''}
       ${a.details?`<div class="note">${esc(a.details)}</div>`:''}
@@ -307,7 +313,7 @@ function renderClients(){
       <div style="display:flex;gap:6px"><button class="iconbtn" id="cl-photo" aria-label="Créer des fiches clients depuis une photo">📷</button><button class="btn small primary" id="cl-new">+ Client</button></div></div>
     <div class="search"><input type="search" id="q" placeholder="Rechercher un client, un chien, un numéro…" value="${esc(q)}" autocomplete="off"></div>
     ${list.length?`<div class="card list-pad">${list.map(c=>`<button class="client-row" data-client="${esc(c.key)}">
-      <span class="avatar">${esc(c.name[0]?.toUpperCase()||'?')}</span>
+      ${clientAvatar(c)}
       <span style="flex:1;min-width:0"><div class="name">${esc(c.name)}</div><div class="sub">🐕 ${esc([...c.dogs.values()].map(d=>d.name).join(', ')||'—')}${c.phone?' · '+esc(c.phone):''}</div></span>
       <span class="muted">›</span></button>`).join('')}</div>`
     :`<div class="empty"><div class="big">🐶</div>${dir.length?'Aucun résultat.':'Aucun client pour l’instant.<br>Créez une fiche avec « + Client », ou photographiez une fiche papier avec 📷.'}</div>`}`;
@@ -378,7 +384,9 @@ function renderSettings(){
 
 async function exportData(){
   const name='toilettage-sauvegarde-'+today()+'.json';
-  const blob=new Blob([JSON.stringify({app:'toilettage',version:1,exported:new Date().toISOString(),...S},null,1)],{type:'application/json'});
+  const used=new Set(S.clients.flatMap(c=>(c.dogs||[]).map(d=>d.photo)).filter(id=>id&&PH[id]));
+  const photos={};used.forEach(id=>photos[id]=PH[id]);
+  const blob=new Blob([JSON.stringify({app:'toilettage',version:1,exported:new Date().toISOString(),...S,photos})],{type:'application/json'});
   const file=new File([blob],name,{type:'application/json'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
     try{await navigator.share({files:[file],title:'Sauvegarde toilettage'});return;}catch(e){if(e.name==='AbortError')return;}
@@ -396,7 +404,7 @@ function importData(e){
       const cids=new Set(S.clients.map(c=>c.id));const cnames=new Set(S.clients.map(c=>norm(c.name)));
       const addedC=(Array.isArray(d.clients)?d.clients:[]).filter(c=>c&&c.id&&c.name&&!cids.has(c.id)&&!cnames.has(norm(c.name)));
       if(!confirm(`Restaurer cette sauvegarde ?\n${added.length} nouveaux rendez-vous et ${addedC.length} nouvelles fiches clients.\nCe qui est déjà présent est conservé.`))return;
-      S.appts.push(...added);S.clients.push(...addedC);if(d.settings&&typeof d.settings==='object')S.settings=Object.assign(S.settings,d.settings);save();toast(added.length+' RDV et '+addedC.length+' fiches ajoutés');render();
+      S.appts.push(...added);S.clients.push(...addedC);if(d.photos&&typeof d.photos==='object')for(const[id,v]of Object.entries(d.photos))if(!PH[id]&&typeof v==='string'&&v.startsWith('data:image/'))putPhoto(id,v);if(d.settings&&typeof d.settings==='object')S.settings=Object.assign(S.settings,d.settings);save();toast(added.length+' RDV et '+addedC.length+' fiches ajoutés');render();
     }catch(err){alert('Ce fichier n’est pas une sauvegarde valide.');}
   };
   r.readAsText(f);e.target.value='';
@@ -581,7 +589,7 @@ function openClient(key){
     ${next?`<h2>Prochain rendez-vous</h2>${apptCard(next,true)}`:''}
     ${lastNote?`<h2>Dernière remarque</h2><div class="card" style="padding:12px 14px;white-space:pre-wrap">⚠ ${esc(lastNote.notes)}<div class="muted" style="font-size:.8rem;margin-top:4px">${esc(fmtShort(lastNote.date))}</div></div>`:''}
     <h2>Chiens</h2>
-    <div class="card list-pad">${[...c.dogs.values()].map(d=>`<div class="client-row"><span class="avatar">🐕</span><span style="flex:1;min-width:0"><div class="name">${esc(d.name)}</div><div class="sub">${esc(d.breed||'Race non précisée')}</div>${d.notes?`<div class="sub" style="white-space:normal">⚠ ${esc(d.notes)}</div>`:''}</span><button class="btn small primary" data-newdog="${esc(d.name)}">+ RDV</button></div>`).join('')||'<div class="client-row muted">Aucun chien renseigné</div>'}</div>
+    <div class="card list-pad">${[...c.dogs.values()].map(d=>`<div class="client-row"><button class="photo-slot" style="width:56px;height:56px" data-dogpic="${esc(d.name)}" aria-label="${PH[d.photo]?'Voir la photo de':'Ajouter une photo de'} ${esc(d.name)}">${PH[d.photo]?`<img src="${PH[d.photo]}" alt="">`:'📷'}</button><span style="flex:1;min-width:0"><div class="name">${esc(d.name)}</div><div class="sub">${esc(d.breed||'Race non précisée')}</div>${d.notes?`<div class="sub" style="white-space:normal">⚠ ${esc(d.notes)}</div>`:''}</span><button class="btn small primary" data-newdog="${esc(d.name)}">+ RDV</button></div>`).join('')||'<div class="client-row muted">Aucun chien renseigné</div>'}</div>
     <h2>Historique (${hist.length})</h2>
     ${hist.length?'':'<p class="muted">Aucune visite enregistrée.</p>'}
     <div class="card list-pad${hist.length?'':' hidden'}">${hist.map(a=>`<button class="hist" data-id="${a.id}">
@@ -591,6 +599,10 @@ function openClient(key){
       ${a.notes?`<div class="note warn">${esc(a.notes)}</div>`:''}
     </button>`).join('')}</div>`;
   const bg=openSheet('Fiche client',html,{left:'Fermer'});
+  bg.querySelectorAll('[data-dogpic]').forEach(b=>b.onclick=()=>{
+    const d=c.dogs.get(norm(b.dataset.dogpic));
+    if(PH[d.photo])viewDogPhoto(c,d);else pickPhoto(file=>setDogPhoto(key,d.name,file));
+  });
   bg.querySelectorAll('[data-newdog]').forEach(b=>b.onclick=()=>{
     const d=c.dogs.get(norm(b.dataset.newdog));const last=d.last||{};
     openForm({date:sel<t?t:sel,client:c.name,phone:c.phone,dog:d.name,breed:d.breed,services:last.services||[],details:last.details||'',price:last.price??'',notes:last.notes||'',duration:last.duration||60});
@@ -599,7 +611,7 @@ function openClient(key){
     openForm({date:sel<t?t:sel,client:c.name,phone:c.phone,dog:one?one.name:'',breed:one?one.breed:'',services:last.services||[],details:last.details||'',price:last.price??'',notes:last.notes||(one?one.notes:'')||'',duration:last.duration||60});};
   $('#c-edit').onclick=()=>{
     openClientForm({id:c.rid,name:c.name,phone:c.phone,email:c.email,address:c.address,notes:c.notes,
-      dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||''}))},{oldKey:key,nAppts:c.appts.length,onCancel:()=>openClient(key)});
+      dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||'',photo:d.photo||''}))},{oldKey:key,nAppts:c.appts.length,onCancel:()=>openClient(key)});
   };
 }
 
@@ -607,6 +619,7 @@ function openClient(key){
 function openClientForm(init,opts={}){
   const r=Object.assign({name:'',phone:'',email:'',address:'',notes:'',dogs:[]},init);
   let dogs=(r.dogs&&r.dogs.length?r.dogs:[{name:'',breed:'',notes:''}]).map(d=>({...d}));
+  const pending={};const oldPics=new Set((r.dogs||[]).map(d=>d.photo).filter(Boolean));
   const isNew=!opts.oldKey;
   const breeds=[...new Set([...BREEDS,...S.appts.map(x=>x.breed).filter(Boolean)])].sort((x,y)=>x.localeCompare(y,'fr'));
   const html=`
@@ -625,9 +638,14 @@ function openClientForm(init,opts={}){
     ${!isNew&&r.id&&!opts.nAppts?'<div class="actions"><button class="btn danger" id="cf-del">Supprimer la fiche</button></div>':''}`;
   openSheet(isNew&&!opts.onSaved?'Nouveau client':'Fiche client',html,{right:'OK',onRight:submit,onClose:opts.onCancel});
   function readDogs(){document.querySelectorAll('[data-dog-i]').forEach(row=>{const i=+row.dataset.dogI;
-    dogs[i]={name:row.querySelector('.dn').value.trim(),breed:row.querySelector('.db').value.trim(),notes:row.querySelector('.dno').value.trim()};});}
+    dogs[i]={name:row.querySelector('.dn').value.trim(),breed:row.querySelector('.db').value.trim(),notes:row.querySelector('.dno').value.trim(),photo:dogs[i].photo||''};});}
   function drawDogs(){
     $('#cf-dogs').innerHTML=dogs.map((d,i)=>`<div class="card" data-dog-i="${i}" style="padding:4px 12px 12px;margin-top:8px">
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+        <button type="button" class="photo-slot" data-setpic="${i}" aria-label="Photo du chien">${PH[d.photo]||pending[d.photo]?`<img src="${PH[d.photo]||pending[d.photo]}" alt="">`:'📷'}</button>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start"><button type="button" class="btn small" data-setpic="${i}">${d.photo?'Changer la photo':'Ajouter une photo'}</button>
+        ${d.photo?`<button type="button" class="btn small danger" data-rmpic="${i}">Retirer la photo</button>`:''}</div>
+      </div>
       <div class="row"><div><label>Nom du chien</label><input class="dn" value="${esc(d.name)}" autocapitalize="words"></div>
       <div><label>Race</label><input class="db" value="${esc(d.breed)}" list="cf-breeds" autocapitalize="words"></div></div>
       <label>Remarques sur le chien</label><textarea class="dno" style="min-height:56px" placeholder="Âge, caractère, santé, coupe habituelle…">${esc(d.notes)}</textarea>
@@ -635,25 +653,76 @@ function openClientForm(init,opts={}){
   }
   drawDogs();
   $('#cf-adddog').onclick=()=>{readDogs();dogs.push({name:'',breed:'',notes:''});drawDogs();const l=document.querySelectorAll('.dn');l[l.length-1].focus();};
-  $('#cf-dogs').onclick=e=>{const b=e.target.closest('[data-rmdog]');if(!b)return;readDogs();dogs.splice(+b.dataset.rmdog,1);drawDogs();};
-  const del=$('#cf-del');if(del)del.onclick=()=>{if(!confirm('Supprimer la fiche de '+r.name+' ?'))return;S.clients=S.clients.filter(x=>x.id!==r.id);save();closeSheet();render();toast('Fiche supprimée');};
+  $('#cf-dogs').onclick=e=>{
+    const sp=e.target.closest('[data-setpic]'),rp=e.target.closest('[data-rmpic]'),b=e.target.closest('[data-rmdog]');
+    if(sp){const i=+sp.dataset.setpic;readDogs();pickPhoto(async file=>{try{const id=uid();pending[id]=await dogThumb(file);dogs[i].photo=id;drawDogs();}catch(err){toast('Photo illisible');}});return;}
+    if(rp){readDogs();dogs[+rp.dataset.rmpic].photo='';drawDogs();return;}
+    if(!b)return;readDogs();dogs.splice(+b.dataset.rmdog,1);drawDogs();};
+  const del=$('#cf-del');if(del)del.onclick=()=>{if(!confirm('Supprimer la fiche de '+r.name+' ?'))return;S.clients=S.clients.filter(x=>x.id!==r.id);oldPics.forEach(delPhoto);save();closeSheet();render();toast('Fiche supprimée');};
   function submit(){
     readDogs();
     const v=id=>$(id).value.trim();
     const rec={id:r.id||uid(),name:v('#cf-name'),phone:v('#cf-phone'),email:v('#cf-email'),address:v('#cf-address'),notes:v('#cf-notes'),
-      dogs:dogs.filter(d=>d.name||d.breed||d.notes),updated:new Date().toISOString()};
+      dogs:dogs.filter(d=>d.name||d.breed||d.notes||d.photo),updated:new Date().toISOString()};
     if(!rec.name){toast('Le nom du client est obligatoire');$('#cf-name').focus();return;}
-    if(opts.onSaved){closeSheet();opts.onSaved(rec);return;}
+    const keepPics=()=>{const used=new Set(rec.dogs.map(d=>d.photo).filter(Boolean));
+      for(const id of used)if(pending[id])putPhoto(id,pending[id]);
+      if(!opts.onSaved)for(const id of oldPics)if(!used.has(id))delPhoto(id);};
+    if(opts.onSaved){keepPics();closeSheet();opts.onSaved(rec);return;}
     const k=norm(rec.name);
     const other=S.clients.find(x=>norm(x.name)===k&&x.id!==rec.id);
     if(other){alert('Une fiche « '+other.name+' » existe déjà.');return;}
     const i=S.clients.findIndex(x=>x.id===rec.id);
     if(i>=0)S.clients[i]={...S.clients[i],...rec};else S.clients.push({...rec,created:new Date().toISOString()});
     if(opts.oldKey){S.appts.forEach(a=>{if(norm(a.client)===opts.oldKey){a.client=rec.name;if(rec.phone)a.phone=rec.phone;}});}
-    save();closeSheet();render();openClient(k);toast(isNew?'Fiche client créée':'Fiche client enregistrée');
+    keepPics();save();closeSheet();render();openClient(k);toast(isNew?'Fiche client créée':'Fiche client enregistrée');
   }
   $('#cf-save').onclick=submit;
   if(isNew&&!r.name)setTimeout(()=>{const n=$('#cf-name');if(n)n.focus();},250);
+}
+
+/* ---------- Photos des chiens (IndexedDB) ---------- */
+const PH={};let phDB=null;
+function idb(){return new Promise((res,rej)=>{if(phDB)return res(phDB);if(!window.indexedDB)return rej(new Error('indisponible'));
+  const r=indexedDB.open('toilettage-photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>{phDB=r.result;res(phDB);};r.onerror=()=>rej(r.error);});}
+async function loadPhotos(){try{const db=await idb();await new Promise(res=>{const rq=db.transaction('p').objectStore('p').openCursor();
+  rq.onsuccess=()=>{const c=rq.result;if(c){PH[c.key]=c.value;c.continue();}else res();};rq.onerror=()=>res();});}catch(e){}}
+async function putPhoto(id,data){PH[id]=data;try{const db=await idb();db.transaction('p','readwrite').objectStore('p').put(data,id);}catch(e){toast('Photo non enregistrée : stockage indisponible');}}
+async function delPhoto(id){if(!id)return;delete PH[id];try{const db=await idb();db.transaction('p','readwrite').objectStore('p').delete(id);}catch(e){}}
+function dogImg(id,size){return id&&PH[id]?`<img class="dogpic" src="${PH[id]}" alt="" style="width:${size}px;height:${size}px">`:'';}
+function dogPhotoId(client,dog){const r=S.clients.find(x=>norm(x.name)===norm(client));const d=r&&(r.dogs||[]).find(x=>norm(x.name)===norm(dog));return d?d.photo:'';}
+function clientAvatar(c){
+  const pics=[...c.dogs.values()].map(d=>d.photo).filter(id=>PH[id]).slice(0,3);
+  if(!pics.length)return `<span class="avatar">${esc(c.name[0]?.toUpperCase()||'?')}</span>`;
+  return `<span class="pics">${pics.map(id=>dogImg(id,pics.length>1?36:44)).join('')}</span>`;
+}
+/* Photo carrée recadrée au centre, 480 px */
+function dogThumb(file){
+  return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file);const img=new Image();
+    img.onload=()=>{const side=Math.min(img.naturalWidth,img.naturalHeight);const S2=Math.min(480,side);const c=document.createElement('canvas');c.width=c.height=S2;
+      c.getContext('2d').drawImage(img,(img.naturalWidth-side)/2,(img.naturalHeight-side)/2,side,side,0,0,S2,S2);URL.revokeObjectURL(url);resolve(c.toDataURL('image/jpeg',0.8));};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Image illisible'));};img.src=url;});
+}
+function pickPhoto(cb){const i=document.createElement('input');i.type='file';i.accept='image/*';i.style.display='none';
+  i.onchange=()=>{const f=i.files[0];i.remove();if(f)cb(f);};document.body.appendChild(i);i.click();}
+/* Ajoute ou remplace la photo d'un chien depuis la fiche client (crée la fiche si besoin) */
+async function setDogPhoto(key,dogName,file){
+  let data;try{data=await dogThumb(file);}catch(e){toast('Photo illisible');return;}
+  const c=directory().find(x=>x.key===key);if(!c)return;
+  let r=S.clients.find(x=>norm(x.name)===key);
+  if(!r){r={id:uid(),name:c.name,phone:c.phone,email:'',address:'',notes:'',dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||'',photo:''})),created:new Date().toISOString()};S.clients.push(r);}
+  let d=r.dogs.find(x=>norm(x.name)===norm(dogName));if(!d){d={name:dogName,breed:'',notes:'',photo:''};r.dogs.push(d);}
+  const old=d.photo;const id=uid();await putPhoto(id,data);d.photo=id;if(old)delPhoto(old);
+  save();render();openClient(key);toast('Photo de '+dogName+' enregistrée');
+}
+function viewDogPhoto(c,d){
+  const html=`<img src="${PH[d.photo]}" alt="${esc(d.name)}" style="width:100%;border-radius:16px;margin-top:14px;display:block">
+    <div class="actions"><button class="btn" id="vp-change" style="flex:1">📷 Changer</button><button class="btn danger" id="vp-del" style="flex:1">Retirer</button></div>`;
+  openSheet(d.name,html,{left:'Retour',onClose:()=>openClient(c.key)});
+  $('#vp-change').onclick=()=>pickPhoto(f=>setDogPhoto(c.key,d.name,f));
+  $('#vp-del').onclick=()=>{if(!confirm('Retirer la photo de '+d.name+' ?'))return;
+    const r=S.clients.find(x=>norm(x.name)===c.key);const rd=r&&r.dogs.find(x=>norm(x.name)===norm(d.name));
+    if(rd){delPhoto(rd.photo);rd.photo='';save();}closeSheet();render();openClient(c.key);};
 }
 
 function step(n){sel=mode==='month'?monthShift(sel,n):addDays(sel,7*n);render();}
@@ -861,8 +930,8 @@ function openClientReview(items){
       r.phone=r.phone||c.phone;r.email=r.email||c.email;r.address=r.address||c.address;
       if(c.notes&&!(r.notes||'').includes(c.notes))r.notes=[r.notes,c.notes].filter(Boolean).join('\n');
       for(const d of c.dogs){if(!d.name)continue;const e=r.dogs.find(x=>norm(x.name)===norm(d.name));
-        if(e){e.breed=e.breed||d.breed;if(d.notes&&!(e.notes||'').includes(d.notes))e.notes=[e.notes,d.notes].filter(Boolean).join('\n');}
-        else r.dogs.push({name:d.name,breed:d.breed,notes:d.notes});}
+        if(e){e.breed=e.breed||d.breed;e.photo=e.photo||d.photo||'';if(d.notes&&!(e.notes||'').includes(d.notes))e.notes=[e.notes,d.notes].filter(Boolean).join('\n');}
+        else r.dogs.push({name:d.name,breed:d.breed,notes:d.notes,photo:d.photo||''});}
       r.updated=now;nc++;
       for(const v of c.visits){if(!/^\d{4}-\d{2}-\d{2}$/.test(v.date))continue;
         const dog=v.dog||(r.dogs.length===1?r.dogs[0].name:'');const dd=r.dogs.find(x=>norm(x.name)===norm(dog));
@@ -1039,6 +1108,7 @@ document.addEventListener('click',e=>{
 $('#fab').onclick=()=>openForm({date:tab==='agenda'?sel:today()});
 
 render();
+loadPhotos().then(()=>{if(Object.keys(PH).length)render();});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body></html>
