@@ -198,7 +198,9 @@ function load(){
   try{s=JSON.parse(localStorage.getItem(KEY));}catch(e){}
   if(!s||!Array.isArray(s.appts))s={appts:[]};
   if(!Array.isArray(s.clients))s.clients=[];
-  s.settings=Object.assign({services:[...DEFAULT_SERVICES],salon:'',sms:DEFAULT_SMS,remindDays:1,feeFixed:1.75,feePct:0},s.settings||{});
+  s.settings=Object.assign({services:[...DEFAULT_SERVICES],salon:'',sms:DEFAULT_SMS,remindDays:1,feeFixed:0,feePct:1.75},s.settings||{});
+  // Correction : SumUp prend 1,75 % par transaction (et non 1,75 € fixes)
+  if(s.settings.feeV!==2){if(+s.settings.feeFixed===1.75&&!+s.settings.feePct){s.settings.feeFixed=0;s.settings.feePct=1.75;}s.settings.feeV=2;}
   return s;
 }
 let S=load();
@@ -913,7 +915,7 @@ function applyRemote(kind,doc){
     else SY.p[id]=1;
     return !!d.deleted;
   }
-  if(kind==='meta'){if(!d.json)return false;const h=hashStr(d.json);if(SY.s===h)return false;S.settings=Object.assign(S.settings,JSON.parse(d.json));SY.s=h;return true;}
+  if(kind==='meta'){if(!d.json)return false;const h=hashStr(d.json);if(SY.s===h)return false;const rs=JSON.parse(d.json);if(rs.feeV!==2){delete rs.feeFixed;delete rs.feePct;delete rs.feeV;}S.settings=Object.assign(S.settings,rs);SY.s=h;return true;}
   const arr=kind==='appts'?S.appts:S.clients,map=kind==='appts'?SY.a:SY.c;
   const i=arr.findIndex(x=>x.id===id);
   if(d.deleted){delete map[id];if(i>=0){arr.splice(i,1);return true;}return false;}
