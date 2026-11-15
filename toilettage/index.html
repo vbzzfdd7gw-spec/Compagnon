@@ -226,7 +226,7 @@ details.blk[open]>summary::after{content:'▴'}
 /* ---------- Données ---------- */
 const KEY='toilettage.v1';
 /* Version de l'application (à augmenter à chaque mise à jour, comme dans sw.js) */
-const APP_VERSION='26',APP_DATE='15 novembre 2026';
+const APP_VERSION='27',APP_DATE='15 novembre 2026';
 /* Taille du texte (propre à chaque téléphone) */
 const FS_KEY='toilettage.fs';
 function applyFs(v){document.documentElement.classList.remove('fs-1','fs-2');if(v==='1'||v==='2')document.documentElement.classList.add('fs-'+v);}
@@ -297,7 +297,7 @@ function directory(){
   const gone=new Map(S.clients.filter(r=>r.deleted).map(r=>[norm(r.name),r.deletedAt||'']));
   for(const r of S.clients){const k=norm(r.name);if(!k||r.deleted)continue;
     const c=map.get(k)||blank(k,r.name.trim());map.set(k,c);
-    Object.assign(c,{rid:r.id,email:r.email||'',address:r.address||'',notes:r.notes||''});
+    Object.assign(c,{rid:r.id,email:r.email||'',address:r.address||'',notes:r.notes||'',civ:r.civ,last:r.last,first:r.first});
     for(const d of r.dogs||[]){const dk=norm(d.name);if(dk)c.dogs.set(dk,{name:d.name.trim(),breed:d.breed||'',notes:d.notes||'',photo:d.photo||'',last:null});}}
   for(const a of sortAppts([...S.appts])){
     const k=norm(a.client);if(!k)continue;
@@ -838,6 +838,16 @@ function openForm(init={},opts={}){
     const kept=S.appts.find(x=>x.id===rec.id);if(kept&&kept.reminded&&kept.date===rec.date&&kept.time===rec.time)rec.reminded=kept.reminded;
     if(!rec.date){toast('Choisissez une date');return;}
     if(!rec.client&&!rec.dog){toast('Indiquez au moins le client ou le chien');$('#f-client').focus();return;}
+    if(!editing&&rec.client&&!opts.homonymOk){
+      const dir=directory(),exact=dir.find(c=>c.key===norm(rec.client));
+      if(exact){
+        // Client connu mais chien inconnu : même personne avec un nouveau chien, ou homonyme ?
+        if(rec.dog&&exact.dogs.size&&!exact.dogs.has(norm(rec.dog))){askHomonymRdv(rec,[exact],true,commit);return;}
+      }else{const hs=homonyms(rec.client);if(hs.length){askHomonymRdv(rec,hs,false,commit);return;}}
+    }
+    commit(rec);
+  }
+  function commit(rec){
     const i=S.appts.findIndex(x=>x.id===rec.id);
     if(i>=0)S.appts[i]=rec;else S.appts.push(rec);
     save();closeSheet();
@@ -902,16 +912,62 @@ function openClient(key){
     openForm({date:sel<t?t:sel,client:c.name,phone:c.phone,dog:one?one.name:'',breed:one?one.breed:'',services:last.services||[],details:last.details||'',price:last.price??'',notes:last.notes||(one?one.notes:'')||'',duration:last.duration||60});};
   $('#c-del').onclick=()=>askDeleteClient(key,()=>openClient(key));
   $('#c-edit').onclick=()=>{
-    openClientForm({id:c.rid,name:c.name,phone:c.phone,email:c.email,address:c.address,notes:c.notes,
+    openClientForm({id:c.rid,name:c.name,civ:c.civ,last:c.last,first:c.first,phone:c.phone,email:c.email,address:c.address,notes:c.notes,
       dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||'',photo:d.photo||''}))},{oldKey:key,nAppts:c.appts.length,onCancel:()=>openClient(key)});
   };
 }
 
 /* ---------- Formulaire fiche client ---------- */
+/* ---------- Homonymes : avertissement ---------- */
+function askHomonymClient(rec,cands,{same,other}){
+  const html=`
+    <p style="margin-top:14px">⚠ ${cands.length>1?'Des clients portent':'Un client porte'} déjà le nom <b>${esc(nameParts(rec).last)}</b> :</p>
+    <div class="card list-pad" style="margin-top:8px">${cands.map(c=>`<button class="client-row" data-hk="${esc(c.key)}" style="text-align:left">${clientAvatar(c)}<span style="flex:1;min-width:0;font-weight:600">${clientLine(c)}</span><span class="muted" style="font-size:.85rem">C’est elle/lui ›</span></button>`).join('')}</div>
+    <p class="muted" style="font-size:.88rem;margin-top:10px">Touchez la fiche si c’est la même personne. Sinon :</p>
+    <div class="actions"><button class="btn primary" id="hm-other" style="flex:1">Non, c’est une autre personne</button></div>`;
+  openSheet('Même client ?',html,{left:'Retour',onClose:()=>openClientForm(rec,{homonymOk:false})});
+  document.querySelectorAll('[data-hk]').forEach(b=>b.onclick=()=>same(cands.find(c=>c.key===b.dataset.hk)));
+  $('#hm-other').onclick=other;
+}
+function askHomonymRdv(rec,cands,newDog,commit){
+  const c0=cands[0];const np=nameParts({name:rec.client});
+  const html=`
+    ${newDog?`<p style="margin-top:14px">⚠ <b>${esc(c0.name)}</b> est déjà enregistré${nameParts(c0).civ==='Mme'?'e':nameParts(c0).civ==='M.'?'':'(e)'} avec ${esc([...c0.dogs.values()].map(d=>d.name).join(', '))}${c0.phone?' ('+esc(c0.phone)+')':''}.</p>
+      <p style="margin-top:6px"><b>${esc(rec.dog)}</b> est-il le chien de cette même personne ?</p>
+      <div class="actions" style="flex-direction:column;align-items:stretch"><button class="btn primary" id="hr-same">Oui, même personne (nouveau chien)</button></div>`
+    :`<p style="margin-top:14px">⚠ ${cands.length>1?'Plusieurs clients portent':'Un client porte'} déjà le nom <b>${esc(np.last)}</b>. De qui s’agit-il ?</p>
+      <div class="card list-pad" style="margin-top:8px">${cands.map(c=>`<button class="client-row" data-hc="${esc(c.key)}" style="text-align:left">${clientAvatar(c)}<span style="flex:1;min-width:0;font-weight:600">${clientLine(c)}</span><span class="muted">›</span></button>`).join('')}</div>`}
+    <h2>${newDog?'Sinon, c’est une autre personne':'Ou une autre personne'}</h2>
+    <label for="hr-first">Prénom de cette personne (pour la distinguer)</label>
+    <input id="hr-first" autocapitalize="words" placeholder="ex. Claire">
+    <div class="actions"><button class="btn" id="hr-other" style="flex:1">Enregistrer comme nouvelle cliente / nouveau client</button></div>`;
+  openSheet('Même client ?',html,{left:'Retour',onClose:()=>{const{id,created,updated,...rest}=rec;openForm(rest);}});
+  const hs=$('#hr-same');if(hs)hs.onclick=()=>commit(rec);
+  document.querySelectorAll('[data-hc]').forEach(b=>b.onclick=()=>{const c=cands.find(x=>x.key===b.dataset.hc);
+    rec.client=c.name;if(!rec.phone)rec.phone=c.phone;if(!rec.breed&&rec.dog){const d=c.dogs.get(norm(rec.dog));if(d&&d.breed)rec.breed=d.breed;}commit(rec);});
+  $('#hr-other').onclick=()=>{
+    const first=$('#hr-first').value.trim();
+    if(!first&&cands.some(c=>c.key===norm(rec.client))){toast('Ajoutez le prénom pour distinguer les deux clients');$('#hr-first').focus();return;}
+    const name=first?fullName(np.civ,np.last,first):rec.client;rec.client=name;
+    // Fiche client créée pour garder nom et prénom séparés
+    if(!S.clients.some(x=>!x.deleted&&norm(x.name)===norm(name)))S.clients.push({id:uid(),name,civ:np.civ,last:np.last,first,phone:rec.phone,email:'',address:'',notes:'',
+      dogs:rec.dog?[{name:rec.dog,breed:rec.breed||'',notes:''}]:[],created:new Date().toISOString()});
+    commit(rec);};
+}
+
 /* Civilité (Mme / M.) séparée du nom */
 const CIV_RE=/^\s*(madame|mademoiselle|mme|mlle|monsieur|mr\.?|m\.)\s+/i;
 function splitCiv(name){const m=String(name||'').match(CIV_RE);if(!m)return {civ:'',nom:String(name||'').trim()};
   return {civ:/^m(\.|r\.?|onsieur)$/i.test(m[1])?'M.':'Mme',nom:String(name).replace(CIV_RE,'').trim()};}
+const fullName=(civ,last,first)=>[civ,last,first].map(x=>String(x||'').trim()).filter(Boolean).join(' ');
+function nameParts(c){if(c.last!=null&&c.last!=='')return {civ:c.civ||'',last:c.last,first:c.first||''};const sc=splitCiv(c.name);return {civ:sc.civ,last:sc.nom,first:''};}
+/* Clients existants au même nom de famille (prénom absent d'un côté, ou identique) */
+function homonyms(typed,exceptKey){
+  const nt=norm(splitCiv(typed).nom);if(!nt)return [];
+  return directory().filter(c=>{if(c.key===exceptKey)return false;const p=nameParts(c);const nl=norm(p.last);if(!nl)return false;
+    if(!(nt===nl||nt.startsWith(nl+' ')))return false;const tf=nt.slice(nl.length).trim();return !tf||!p.first||tf===norm(p.first);});
+}
+function clientLine(c){const d=[...c.dogs.values()].map(x=>x.name).filter(Boolean);return esc(c.name)+'<div class="muted" style="font-size:.85rem;font-weight:400">'+(d.length?'🐕 '+esc(d.join(', ')):'Aucun chien')+(c.phone?' · '+esc(c.phone):'')+(c.appts.length?' · '+c.appts.length+' RDV':'')+'</div>';}
 function openClientForm(init,opts={}){
   const r=Object.assign({name:'',phone:'',email:'',address:'',notes:'',dogs:[]},init);
   let dogs=(r.dogs&&r.dogs.length?r.dogs:[{name:'',breed:'',notes:''}]).map(d=>({...d}));
@@ -922,12 +978,14 @@ function openClientForm(init,opts={}){
     ${isNew&&!opts.onSaved&&!opts.fromVoice?`<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="cf-voice" style="flex:1">🎤 Remplir à la voix</button></div>`:''}
     ${opts.banner?`<p style="font-size:.85rem;margin-top:12px;color:${opts.bannerMuted?'var(--muted)':'var(--bad)'}">${esc(opts.banner)}</p>`:''}
     <h2>Propriétaire</h2>
-    ${(()=>{const sc=splitCiv(r.name);return `<label>Civilité</label>
+    ${(()=>{const np=nameParts(r);const sc={civ:np.civ};return `<label>Civilité</label>
     <div style="display:flex;gap:18px;align-items:center" id="cf-civ">
       <label style="display:flex;align-items:center;gap:8px;margin:0;color:var(--fg);font-size:1rem"><input type="checkbox" data-civ="Mme" ${sc.civ==='Mme'?'checked':''} style="width:22px;height:22px;min-height:0"> Madame (Mme)</label>
       <label style="display:flex;align-items:center;gap:8px;margin:0;color:var(--fg);font-size:1rem"><input type="checkbox" data-civ="M." ${sc.civ==='M.'?'checked':''} style="width:22px;height:22px;min-height:0"> Monsieur (M.)</label>
     </div>
-    <label for="cf-name">Nom</label><input id="cf-name" value="${esc(sc.nom)}" autocapitalize="words" placeholder="ex. Martin">`;})()}
+    <div class="row"><div><label for="cf-name">Nom</label><input id="cf-name" value="${esc(np.last)}" autocapitalize="words" placeholder="ex. Martin"></div>
+    <div><label for="cf-first">Prénom</label><input id="cf-first" value="${esc(np.first)}" autocapitalize="words" placeholder="ex. Sophie"></div></div>
+    <p class="muted" style="font-size:.8rem;margin-top:4px">Le prénom permet de distinguer deux clients qui ont le même nom.</p>`;})()}
     <label for="cf-phone">Téléphone</label><input id="cf-phone" type="tel" value="${esc(r.phone)}" placeholder="06 12 34 56 78">
     <label for="cf-email">E-mail</label><input id="cf-email" type="email" value="${esc(r.email)}" autocapitalize="off">
     <label for="cf-address">Adresse</label><input id="cf-address" value="${esc(r.address)}">
@@ -967,8 +1025,8 @@ function openClientForm(init,opts={}){
     readDogs();
     const v=id=>$(id).value.trim();
     const civ=(document.querySelector('#cf-civ [data-civ]:checked')||{}).dataset?.civ||'';
-    const nom=civ?v('#cf-name').replace(CIV_RE,'').trim():v('#cf-name');
-    const rec={id:r.id||uid(),name:nom?(civ?civ+' ':'')+nom:'',phone:v('#cf-phone'),email:v('#cf-email'),address:v('#cf-address'),notes:v('#cf-notes'),
+    const nom=civ?v('#cf-name').replace(CIV_RE,'').trim():v('#cf-name'),first=v('#cf-first');
+    const rec={id:r.id||uid(),civ,last:nom,first,name:nom?fullName(civ,nom,first):'',phone:v('#cf-phone'),email:v('#cf-email'),address:v('#cf-address'),notes:v('#cf-notes'),
       dogs:dogs.filter(d=>d.name||d.breed||d.notes||d.photo),updated:new Date().toISOString()};
     if(!rec.name){toast('Le nom du client est obligatoire');$('#cf-name').focus();return;}
     const keepPics=()=>{const used=new Set(rec.dogs.map(d=>d.photo).filter(Boolean));
@@ -976,16 +1034,23 @@ function openClientForm(init,opts={}){
       if(!opts.onSaved)for(const id of oldPics)if(!used.has(id))delPhoto(id);};
     if(opts.onSaved){keepPics();closeSheet();opts.onSaved(rec);return;}
     const k=norm(rec.name);
+    // Même nom de famille qu'un client existant : même personne ou homonyme ?
+    if(isNew&&!opts.homonymOk){const hs=homonyms(rec.name);if(hs.length){
+      for(const d of rec.dogs)if(d.photo&&pending[d.photo])putPhoto(d.photo,pending[d.photo]);
+      askHomonymClient(rec,hs,{
+        same:c=>{closeSheet();openClient(c.key);toast('Fiche existante ouverte');},
+        other:()=>openClientForm({...rec,dogs:rec.dogs},{...opts,homonymOk:true,needFirst:!rec.first,banner:'Autre personne au même nom : ajoutez son prénom pour la distinguer.',bannerMuted:false})});return;}}
     const other=S.clients.find(x=>!x.deleted&&norm(x.name)===k&&x.id!==rec.id);
     S.clients=S.clients.filter(x=>!(x.deleted&&norm(x.name)===k));
-    if(other){alert('Une fiche « '+other.name+' » existe déjà.');return;}
+    if(other){alert('Une fiche « '+other.name+' » existe déjà. Ajoutez le prénom pour distinguer les deux clients.');const f=$('#cf-first');if(f)f.focus();return;}
     const i=S.clients.findIndex(x=>x.id===rec.id);
     if(i>=0)S.clients[i]={...S.clients[i],...rec};else S.clients.push({...rec,created:new Date().toISOString()});
     if(opts.oldKey){S.appts.forEach(a=>{if(norm(a.client)===opts.oldKey){a.client=rec.name;if(rec.phone)a.phone=rec.phone;}});}
     keepPics();save();closeSheet();render();openClient(k);toast(isNew?'Fiche client créée':'Fiche client enregistrée');
   }
   $('#cf-save').onclick=submit;
-  if(isNew&&!r.name)setTimeout(()=>{const n=$('#cf-name');if(n)n.focus();},250);
+  if(opts.needFirst)setTimeout(()=>{const n=$('#cf-first');if(n)n.focus();},300);
+  else if(isNew&&!r.name)setTimeout(()=>{const n=$('#cf-name');if(n)n.focus();},250);
 }
 
 
