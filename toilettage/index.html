@@ -226,7 +226,7 @@ details.blk[open]>summary::after{content:'▴'}
 /* ---------- Données ---------- */
 const KEY='toilettage.v1';
 /* Version de l'application (à augmenter à chaque mise à jour, comme dans sw.js) */
-const APP_VERSION='28',APP_DATE='15 novembre 2026';
+const APP_VERSION='29',APP_DATE='15 novembre 2026';
 /* Taille du texte (propre à chaque téléphone) */
 const FS_KEY='toilettage.fs';
 function applyFs(v){document.documentElement.classList.remove('fs-1','fs-2');if(v==='1'||v==='2')document.documentElement.classList.add('fs-'+v);}
@@ -249,6 +249,9 @@ const DURATIONS=[[30,'30 min'],[45,'45 min'],[60,'1 h'],[90,'1 h 30'],[120,'2 h'
 function load(){
   let s=null;
   try{s=JSON.parse(localStorage.getItem(KEY));}catch(e){}
+  return normState(s);
+}
+function normState(s){
   if(!s||!Array.isArray(s.appts))s={appts:[]};
   if(!Array.isArray(s.clients))s.clients=[];
   if(!Array.isArray(s.sales))s.sales=[];
@@ -259,7 +262,13 @@ function load(){
 }
 let S=load();
 const svcList=()=>S.settings.services;
-function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Impossible d’enregistrer sur ce téléphone');}}
+let STORE='ls';// 'idb' = grand espace du téléphone, 'ls' = mémoire limitée (repli)
+function saveLocal(){
+  const json=JSON.stringify(S);
+  if(STORE==='locked'){toast('Non enregistré : fermez et rouvrez l’appli');return;}
+  if(STORE==='idb'){idbPut('d','state',json).catch(()=>{toast('Enregistrement impossible : fermez et rouvrez l’appli');});return;}
+  try{localStorage.setItem(KEY,json);}catch(e){toast('Impossible d’enregistrer sur ce téléphone : mémoire pleine');}
+}
 function save(){saveLocal();syncPush();}
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 
@@ -611,6 +620,7 @@ function renderSettings(){
       <div class="stat"><span>Rendez-vous enregistrés</span><b>${S.appts.length}</b></div>
       <div class="stat"><span>Clients</span><b>${dir.length}</b></div>
       <div class="stat"><span>RDV ce mois-ci</span><b>${mAppts.length}${mTotal?' · '+fmtPrice(mTotal):''}</b></div>
+      <div class="stat" style="align-items:flex-start"><span>Espace utilisé<span class="muted" id="st-detail" style="display:block;font-size:.8rem"></span></span><b id="st-used" style="text-align:right">…</b></div>
     </div>
     <h2>Prestations proposées</h2>
     <div class="card list-pad" id="svc-list">${svcList().map((x,i)=>`<div class="svc-edit"><span>${esc(x)}</span>
@@ -652,6 +662,7 @@ function renderSettings(){
     <h2>Installer sur le téléphone</h2>
     <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
   $('#exp').onclick=exportData;
+  storageInfo().then(i=>{const u=$('#st-used'),d=$('#st-detail');if(u)u.textContent=i.text;if(d)d.textContent=i.detail+(i.big?' · grand espace du téléphone ✓':' · mémoire limitée (5 Mo)');}).catch(()=>{});
   $('#upd-check').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='Recherche…';
     const r=await checkUpdate(true);b.disabled=false;b.textContent='↻ Mise à jour';
     const m=$('#upd-msg');if(!m)return;
@@ -1253,7 +1264,7 @@ const FBCFG={apiKey:'AIzaSyAtrz4Grulg6sjcwXne6FodbrnSNzws7fU',authDomain:'compag
 const SYNC_KEY='toilettage.sync';
 let SY=(()=>{try{return JSON.parse(localStorage.getItem(SYNC_KEY))||{};}catch(e){return {};}})();
 // SY = {uid,email,t:{appts,clients,photos,meta}, a:{id:hash}, c:{id:hash}, s:hash, p:{id:1}}
-const saveSY=()=>{try{localStorage.setItem(SYNC_KEY,JSON.stringify(SY));}catch(e){}};
+const saveSY=()=>{const j=JSON.stringify(SY);if(STORE==='locked')return;if(STORE==='idb'){idbPut('d','sync',j).catch(()=>{});return;}try{localStorage.setItem(SYNC_KEY,j);}catch(e){}};
 let fbApp=null,fauth=null,fdb=null,fuser=null,syncLive=false,unsubs=[],pushTimer=null,pushing=false,pushAgain=false,syncMsg='',renderTimer=null;
 const hashStr=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)+':'+s.length;};
 function loadJs(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('chargement impossible'));document.head.appendChild(s);});}
@@ -1407,7 +1418,42 @@ function bindSyncSection(){
 /* ---------- Photos des chiens (IndexedDB) ---------- */
 const PH={};let phDB=null;
 function idb(){return new Promise((res,rej)=>{if(phDB)return res(phDB);if(!window.indexedDB)return rej(new Error('indisponible'));
-  const r=indexedDB.open('toilettage-photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>{phDB=r.result;res(phDB);};r.onerror=()=>rej(r.error);});}
+  const r=indexedDB.open('toilettage-photos',2);
+  r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('p'))db.createObjectStore('p');if(!db.objectStoreNames.contains('d'))db.createObjectStore('d');};
+  r.onsuccess=()=>{phDB=r.result;phDB.onversionchange=()=>{phDB.close();phDB=null;};res(phDB);};r.onerror=()=>rej(r.error);r.onblocked=()=>rej(new Error('bloqué'));});}
+async function idbGet(store,key){const db=await idb();return new Promise((res,rej)=>{const rq=db.transaction(store).objectStore(store).get(key);rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error);});}
+async function idbPut(store,key,val){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction(store,'readwrite');tx.objectStore(store).put(val,key);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error);});}
+/* Démarrage : données lues dans le grand espace ; transfert automatique depuis l'ancienne mémoire limitée */
+async function bootData(){
+  try{
+    await idb();
+    let ls=null;try{ls=localStorage.getItem(KEY);}catch(e){}
+    if(ls){await idbPut('d','state',ls);if(await idbGet('d','state')!==ls)throw new Error('vérification');try{localStorage.setItem('toilettage.store','idb');localStorage.removeItem(KEY);}catch(e){}}
+    else{const js=await idbGet('d','state');if(js)S=normState(JSON.parse(js));}
+    let lsy=null;try{lsy=localStorage.getItem(SYNC_KEY);}catch(e){}
+    if(lsy){await idbPut('d','sync',lsy);try{localStorage.removeItem(SYNC_KEY);}catch(e){}}
+    else{const sj=await idbGet('d','sync');if(sj){try{SY=JSON.parse(sj)||{};}catch(e){}}}
+    STORE='idb';try{localStorage.setItem('toilettage.store','idb');}catch(e){}
+  }catch(e){
+    // Données déjà dans le grand espace mais illisibles pour l'instant : surtout ne rien écraser
+    let was='';try{was=localStorage.getItem('toilettage.store')||'';}catch(_){}
+    STORE=was==='idb'?'locked':'ls';
+  }
+}
+function showStoreError(){
+  const d=document.createElement('div');d.className='upd-bar';d.style.background='var(--bad)';d.style.color='#fff';
+  d.innerHTML='<span>⚠ Données momentanément illisibles : fermez complètement l’appli puis rouvrez-la. Rien n’est enregistré en attendant.</span>';
+  document.body.appendChild(d);
+}
+async function storageInfo(){
+  const data=JSON.stringify(S).length,photos=Object.values(PH).reduce((t,v)=>t+(v?v.length:0),0);
+  const mo=n=>(n/1048576).toLocaleString('fr-FR',{maximumFractionDigits:n<1048576?2:1})+' Mo';
+  let quota=STORE==='idb'?0:5*1048576;
+  if(STORE==='idb'&&navigator.storage&&navigator.storage.estimate){try{quota=(await navigator.storage.estimate()).quota||0;}catch(e){}}
+  const used=data+photos;
+  return {text:mo(used)+(quota?' sur '+(quota>1073741824?(quota/1073741824).toLocaleString('fr-FR',{maximumFractionDigits:1})+' Go':mo(quota))+' · '+Math.max(used/quota*100,used?0.1:0).toLocaleString('fr-FR',{maximumFractionDigits:1})+' %':''),
+    detail:'Données '+mo(data)+' · photos '+mo(photos),big:STORE==='idb'};
+}
 async function loadPhotos(){try{const db=await idb();await new Promise(res=>{const rq=db.transaction('p').objectStore('p').openCursor();
   rq.onsuccess=()=>{const c=rq.result;if(c){PH[c.key]=c.value;c.continue();}else res();};rq.onerror=()=>res();});}catch(e){}}
 async function putPhoto(id,data,fromRemote){PH[id]=data;if(!fromRemote)photoPush(id,data);try{const db=await idb();db.transaction('p','readwrite').objectStore('p').put(data,id);}catch(e){toast('Photo non enregistrée : stockage indisponible');}}
@@ -2055,8 +2101,13 @@ document.addEventListener('click',e=>{
 });
 $('#fab').onclick=()=>tab==='sales'?openSaleForm({}):openForm({date:tab==='agenda'?sel:today()});
 
-render();
-loadPhotos().then(()=>{if(Object.keys(PH).length)render();if(SY.uid)syncInit();});
+// Démarrage : on attend toujours la lecture des données (jamais d'affichage vide à la place)
+$('#app').innerHTML='<div class="empty"><div class="big">🐾</div>Chargement…</div>';
+bootData().then(()=>{
+  render();
+  if(STORE==='locked')showStoreError();
+  loadPhotos().then(()=>{if(Object.keys(PH).length)render();if(SY.uid)syncInit();});
+});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 
 /* ---------- Mises à jour ---------- */
