@@ -73,7 +73,7 @@ label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
 .appt .time small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
 .appt .body{flex:1;min-width:0;border-left:3px solid var(--accent);padding-left:12px}
 .appt.done .body{border-left-color:var(--good)}
-.appt.done{opacity:.72}
+.appt.done>*{opacity:.72}
 .appt .dog{font-weight:700;font-size:1.05rem}
 .appt .client{color:var(--muted);font-size:.9rem}
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
@@ -128,7 +128,8 @@ label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
 .hidden{display:none!important}
 input[type=checkbox]{accent-color:var(--accent)}
 .swipe{position:relative;margin-bottom:10px;border-radius:16px;overflow:hidden}
-.swipe .del{position:absolute;inset:0;background:var(--bad);border-radius:16px;display:flex;justify-content:flex-end;align-items:stretch}
+.swipe .del{visibility:hidden;position:absolute;inset:0;background:#c4473d;border-radius:16px;display:flex;justify-content:flex-end;align-items:stretch}
+.swipe.active .del{visibility:visible}
 .swipe .del button{width:104px;color:#fff;font-weight:600;font-size:.9rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .swipe .del button span{font-size:1.3rem}
 .swipe .appt,.swipe .client-row{margin-bottom:0;position:relative;transition:transform .22s ease;touch-action:pan-y;user-select:none;-webkit-user-select:none}
@@ -404,7 +405,7 @@ function askDeleteClient(key,onNo){
 
 /* ---------- Glisser pour supprimer ---------- */
 const SW_OPEN=104;let swOpen=null;
-function closeSw(w){if(!w)return;w.classList.remove('open');const c=w.querySelector('.appt');if(c){c.classList.remove('dragging');c.style.transform='';}if(swOpen===w)swOpen=null;}
+function closeSw(w){if(!w)return;w.classList.remove('open');setTimeout(()=>{if(!w.classList.contains('open'))w.classList.remove('active');},240);const c=w.querySelector('.appt, .client-row');if(c){c.classList.remove('dragging');c.style.transform='';}if(swOpen===w)swOpen=null;}
 function askDelete(id,onNo){
   const a=S.appts.find(x=>x.id===id);if(!a){onNo&&onNo();return;}
   const what=[a.dog,a.client&&'('+a.client+')'].filter(Boolean).join(' ')||'ce rendez-vous';
@@ -419,7 +420,7 @@ function bindSwipes(root){
       x0=e.clientX;y0=e.clientY;dx=0;drag=false;decided=false;start=w.classList.contains('open')?-SW_OPEN:0;pid=e.pointerId;});
     card.addEventListener('pointermove',e=>{if(pid!==e.pointerId)return;const mx=e.clientX-x0,my=e.clientY-y0;
       if(!decided){if(Math.abs(mx)<8&&Math.abs(my)<8)return;decided=true;drag=Math.abs(mx)>Math.abs(my)*1.2;
-        if(drag){try{card.setPointerCapture(pid);}catch(_){}if(swOpen&&swOpen!==w)closeSw(swOpen);}}
+        if(drag){w.classList.add('active');try{card.setPointerCapture(pid);}catch(_){}if(swOpen&&swOpen!==w)closeSw(swOpen);}}
       if(!drag)return;dx=Math.max(Math.min(0,start+mx),-w.offsetWidth);set(dx,false);e.preventDefault();});
     const end=e=>{if(pid!==e.pointerId)return;pid=null;if(!drag)return;
       card.dataset.swiped='1';setTimeout(()=>{delete card.dataset.swiped;},80);
