@@ -131,8 +131,12 @@ input[type=checkbox]{accent-color:var(--accent)}
 .swipe .del{position:absolute;inset:0;background:var(--bad);border-radius:16px;display:flex;justify-content:flex-end;align-items:stretch}
 .swipe .del button{width:104px;color:#fff;font-weight:600;font-size:.9rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .swipe .del button span{font-size:1.3rem}
-.swipe .appt{margin-bottom:0;position:relative;transition:transform .22s ease;touch-action:pan-y;user-select:none;-webkit-user-select:none}
-.swipe .appt.dragging{transition:none}
+.swipe .appt,.swipe .client-row{margin-bottom:0;position:relative;transition:transform .22s ease;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.swipe .appt.dragging,.swipe .client-row.dragging{transition:none}
+.swipe.row-sw{margin:0;border-radius:0}
+.swipe.row-sw .del{border-radius:0}
+.swipe.row-sw .client-row{background:var(--panel);border-bottom:0}
+.swipe.row-sw:not(:last-child){border-bottom:1px solid var(--line)}
 .swipe-hint{font-size:.8rem;color:var(--muted);margin:-4px 0 6px}
 .presets{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin:0 -16px;padding-left:16px;padding-right:16px;scrollbar-width:none}
 .presets::-webkit-scrollbar{display:none}
@@ -259,12 +263,14 @@ function toast(msg){document.querySelectorAll('.toast').forEach(x=>x.remove());c
 function directory(){
   const map=new Map();
   const blank=(k,name)=>({key:k,name,phone:'',email:'',address:'',notes:'',rid:null,dogs:new Map(),appts:[]});
-  for(const r of S.clients){const k=norm(r.name);if(!k)continue;
+  const gone=new Map(S.clients.filter(r=>r.deleted).map(r=>[norm(r.name),r.deletedAt||'']));
+  for(const r of S.clients){const k=norm(r.name);if(!k||r.deleted)continue;
     const c=map.get(k)||blank(k,r.name.trim());map.set(k,c);
     Object.assign(c,{rid:r.id,email:r.email||'',address:r.address||'',notes:r.notes||''});
     for(const d of r.dogs||[]){const dk=norm(d.name);if(dk)c.dogs.set(dk,{name:d.name.trim(),breed:d.breed||'',notes:d.notes||'',photo:d.photo||'',last:null});}}
   for(const a of sortAppts([...S.appts])){
     const k=norm(a.client);if(!k)continue;
+    if(gone.has(k)&&!((a.created||'')>gone.get(k)))continue;
     let c=map.get(k);
     if(!c){c=blank(k,a.client.trim());map.set(k,c);}
     c.name=a.client.trim();
@@ -274,7 +280,7 @@ function directory(){
     if(dk){const d=c.dogs.get(dk)||{name:'',breed:'',notes:'',last:null};d.name=a.dog.trim();if(a.breed)d.breed=a.breed;d.last=a;c.dogs.set(dk,d);}
   }
   // La fiche client enregistrée fait foi pour le nom et le téléphone
-  for(const r of S.clients){const c=map.get(norm(r.name));if(!c)continue;c.name=r.name.trim();if(r.phone)c.phone=r.phone;}
+  for(const r of S.clients){if(r.deleted)continue;const c=map.get(norm(r.name));if(!c)continue;c.name=r.name.trim();if(r.phone)c.phone=r.phone;}
   return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
 }
 
@@ -360,6 +366,42 @@ function renderUpcoming(){
   bindSwipes($('#app'));
 }
 
+/* ---------- Suppression d'un client ---------- */
+function askDeleteClient(key,onNo){
+  const c=directory().find(x=>x.key===key);if(!c){onNo&&onNo();return;}
+  const T=today();const past=c.appts.filter(a=>a.date<T||a.done),next=c.appts.filter(a=>!(a.date<T||a.done));
+  const dogs=[...c.dogs.values()].map(d=>d.name).filter(Boolean);
+  const pl=(n,w)=>n+' '+w+(n>1?'s':'');
+  const html=`
+    <p style="margin-top:14px;font-size:1.05rem">Supprimer <b>${esc(c.name)}</b>${dogs.length?' ('+esc(dogs.join(', '))+')':''} ?</p>
+    <div class="card list-pad" style="margin-top:10px">
+      <div class="stat"><span>Rendez-vous à venir</span><b>${next.length}</b></div>
+      <div class="stat"><span>Rendez-vous passés</span><b>${past.length}</b></div>
+    </div>
+    <div class="actions" style="flex-direction:column;align-items:stretch">
+      <button class="btn danger" id="dc-one" style="background:var(--bad);color:#fff;border-color:transparent">🗑 Supprimer la fiche${next.length?' et '+pl(next.length,'RDV')+' à venir':''}</button>
+      ${past.length?`<p class="muted" style="font-size:.84rem;margin:0 4px 6px">${past.length>1?'Les '+past.length+' rendez-vous passés restent comptés':'Le rendez-vous passé reste compté'} dans la Compta, mais le client n’apparaît plus dans la liste.</p>
+      <button class="btn danger" id="dc-all">Tout supprimer, y compris ${past.length>1?'les '+past.length+' RDV passés':'le RDV passé'}</button>
+      <p class="muted" style="font-size:.84rem;margin:0 4px">⚠ ${past.length>1?'Leurs montants disparaîtront':'Son montant disparaîtra'} aussi de la Compta.</p>`:''}
+      <button class="btn" id="dc-no">Annuler</button>
+    </div>`;
+  openSheet('Supprimer le client',html,{onClose:onNo});
+  const finish=msg=>{save();closeSheet();swOpen=null;render();toast(msg);};
+  const dropRecord=()=>{const r=S.clients.find(x=>!x.deleted&&norm(x.name)===key);
+    if(r){(r.dogs||[]).forEach(d=>d.photo&&delPhoto(d.photo));(r.scans||[]).forEach(delPhoto);}
+    S.clients=S.clients.filter(x=>norm(x.name)!==key);};
+  $('#dc-no').onclick=()=>{closeSheet();onNo&&onNo();};
+  $('#dc-one').onclick=()=>{
+    const ids=new Set(next.map(a=>a.id));S.appts=S.appts.filter(a=>!ids.has(a.id));
+    dropRecord();
+    if(past.length)S.clients.push({id:uid(),name:c.name,deleted:true,deletedAt:new Date().toISOString(),dogs:[]});
+    finish('Client supprimé');};
+  const all=$('#dc-all');if(all)all.onclick=()=>{
+    if(!confirm('Supprimer définitivement '+c.name+' et '+(c.appts.length>1?'ses '+c.appts.length+' rendez-vous':'son rendez-vous')+' ?\nLa Compta sera modifiée.'))return;
+    const ids=new Set(c.appts.map(a=>a.id));S.appts=S.appts.filter(a=>!ids.has(a.id));
+    dropRecord();finish('Client et rendez-vous supprimés');};
+}
+
 /* ---------- Glisser pour supprimer ---------- */
 const SW_OPEN=104;let swOpen=null;
 function closeSw(w){if(!w)return;w.classList.remove('open');const c=w.querySelector('.appt');if(c){c.classList.remove('dragging');c.style.transform='';}if(swOpen===w)swOpen=null;}
@@ -371,7 +413,7 @@ function askDelete(id,onNo){
 }
 function bindSwipes(root){
   root.querySelectorAll('.swipe').forEach(w=>{
-    const card=w.querySelector('.appt');let x0=0,y0=0,dx=0,drag=false,decided=false,start=0,pid=null;
+    const card=w.querySelector('.appt, .client-row');let x0=0,y0=0,dx=0,drag=false,decided=false,start=0,pid=null;
     const set=(v,anim)=>{card.classList.toggle('dragging',!anim);card.style.transform=v?`translateX(${v}px)`:'';};
     card.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;
       x0=e.clientX;y0=e.clientY;dx=0;drag=false;decided=false;start=w.classList.contains('open')?-SW_OPEN:0;pid=e.pointerId;});
@@ -381,7 +423,7 @@ function bindSwipes(root){
       if(!drag)return;dx=Math.max(Math.min(0,start+mx),-w.offsetWidth);set(dx,false);e.preventDefault();});
     const end=e=>{if(pid!==e.pointerId)return;pid=null;if(!drag)return;
       card.dataset.swiped='1';setTimeout(()=>{delete card.dataset.swiped;},80);
-      if(dx<-w.offsetWidth*0.55){set(-w.offsetWidth,true);setTimeout(()=>askDelete(w.dataset.sw,()=>closeSw(w)),180);}
+      if(dx<-w.offsetWidth*0.55){set(-w.offsetWidth,true);setTimeout(()=>(w.dataset.kind==='client'?askDeleteClient:askDelete)(w.dataset.sw,()=>closeSw(w)),180);}
       else if(dx<-50){w.classList.add('open');set(-SW_OPEN,true);swOpen=w;}
       else closeSw(w);};
     card.addEventListener('pointerup',end);card.addEventListener('pointercancel',end);
@@ -395,13 +437,14 @@ function renderClients(){
     <div class="top"><h1>Clients <span class="muted" style="font-size:.85rem;font-weight:400">${dir.length}</span></h1>
       <div style="display:flex;gap:6px"><button class="iconbtn" id="cl-photo" aria-label="Créer des fiches clients depuis une photo">📷</button><button class="btn small primary" id="cl-new">+ Client</button></div></div>
     <div class="search"><input type="search" id="q" placeholder="Rechercher un client, un chien, un numéro…" value="${esc(q)}" autocomplete="off"></div>
-    ${list.length?`<div class="card list-pad">${list.map(c=>`<button class="client-row" data-client="${esc(c.key)}">
+    ${list.length?`<p class="swipe-hint">Astuce : glissez un client vers la gauche pour le supprimer.</p><div class="card list-pad" style="overflow:hidden">${list.map(c=>`<div class="swipe row-sw" data-sw="${esc(c.key)}" data-kind="client"><div class="del"><button data-delcl="${esc(c.key)}" aria-label="Supprimer ce client"><span>🗑</span>Supprimer</button></div><button class="client-row" data-client="${esc(c.key)}">
       ${clientAvatar(c)}
       <span style="flex:1;min-width:0"><div class="name">${esc(c.name)}</div><div class="sub">🐕 ${esc([...c.dogs.values()].map(d=>d.name).join(', ')||'—')}${c.phone?' · '+esc(c.phone):''}</div></span>
-      <span class="muted">›</span></button>`).join('')}</div>`
+      <span class="muted">›</span></button></div>`).join('')}</div>`
     :`<div class="empty"><div class="big">🐶</div>${dir.length?'Aucun résultat.':'Aucun client pour l’instant.<br>Créez une fiche avec « + Client », ou photographiez une fiche papier avec 📷.'}</div>`}`;
   $('#cl-new').onclick=()=>openClientForm({});
   $('#cl-photo').onclick=()=>openPhotoImport('clients');
+  bindSwipes($('#app'));
   const inp=$('#q');inp.oninput=e=>{q=e.target.value;const pos=inp.selectionStart;renderClients();const n=$('#q');n.focus();n.setSelectionRange(pos,pos);};
 }
 
@@ -693,6 +736,7 @@ function openClient(key){
     <div class="actions" style="justify-content:center;margin-top:10px">
       ${c.phone?`<a class="btn" href="${telHref(c.phone)}">📞 Appeler</a><a class="btn" href="${smsHref(c.phone)}">💬 SMS</a>`:''}
       <button class="btn" id="c-edit">✎ Modifier</button>
+      <button class="btn danger" id="c-del">🗑 Supprimer</button>
     </div>
     <div class="actions" style="justify-content:center;margin-top:8px"><button class="btn small primary" id="c-rdv">+ Rendez-vous</button></div>
     ${c.notes?`<h2>Remarques sur le client</h2><div class="card" style="padding:12px 14px;white-space:pre-wrap">${esc(c.notes)}</div>`:''}
@@ -724,6 +768,7 @@ function openClient(key){
   });
   $('#c-rdv').onclick=()=>{const d=[...c.dogs.values()];const one=d.length===1?d[0]:null;const last=(one&&one.last)||{};
     openForm({date:sel<t?t:sel,client:c.name,phone:c.phone,dog:one?one.name:'',breed:one?one.breed:'',services:last.services||[],details:last.details||'',price:last.price??'',notes:last.notes||(one?one.notes:'')||'',duration:last.duration||60});};
+  $('#c-del').onclick=()=>askDeleteClient(key,()=>openClient(key));
   $('#c-edit').onclick=()=>{
     openClientForm({id:c.rid,name:c.name,phone:c.phone,email:c.email,address:c.address,notes:c.notes,
       dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||'',photo:d.photo||''}))},{oldKey:key,nAppts:c.appts.length,onCancel:()=>openClient(key)});
@@ -785,7 +830,8 @@ function openClientForm(init,opts={}){
       if(!opts.onSaved)for(const id of oldPics)if(!used.has(id))delPhoto(id);};
     if(opts.onSaved){keepPics();closeSheet();opts.onSaved(rec);return;}
     const k=norm(rec.name);
-    const other=S.clients.find(x=>norm(x.name)===k&&x.id!==rec.id);
+    const other=S.clients.find(x=>!x.deleted&&norm(x.name)===k&&x.id!==rec.id);
+    S.clients=S.clients.filter(x=>!(x.deleted&&norm(x.name)===k));
     if(other){alert('Une fiche « '+other.name+' » existe déjà.');return;}
     const i=S.clients.findIndex(x=>x.id===rec.id);
     if(i>=0)S.clients[i]={...S.clients[i],...rec};else S.clients.push({...rec,created:new Date().toISOString()});
@@ -1099,7 +1145,7 @@ async function loadPhotos(){try{const db=await idb();await new Promise(res=>{con
 async function putPhoto(id,data,fromRemote){PH[id]=data;if(!fromRemote)photoPush(id,data);try{const db=await idb();db.transaction('p','readwrite').objectStore('p').put(data,id);}catch(e){toast('Photo non enregistrée : stockage indisponible');}}
 async function delPhoto(id,fromRemote){if(!id)return;delete PH[id];if(!fromRemote)photoPush(id,null);try{const db=await idb();db.transaction('p','readwrite').objectStore('p').delete(id);}catch(e){}}
 function dogImg(id,size){return id&&PH[id]?`<img class="dogpic" src="${PH[id]}" alt="" style="width:${size}px;height:${size}px">`:'';}
-function dogPhotoId(client,dog){const r=S.clients.find(x=>norm(x.name)===norm(client));const d=r&&(r.dogs||[]).find(x=>norm(x.name)===norm(dog));return d?d.photo:'';}
+function dogPhotoId(client,dog){const r=S.clients.find(x=>!x.deleted&&norm(x.name)===norm(client));const d=r&&(r.dogs||[]).find(x=>norm(x.name)===norm(dog));return d?d.photo:'';}
 function clientAvatar(c){
   const pics=[...c.dogs.values()].map(d=>d.photo).filter(id=>PH[id]).slice(0,3);
   if(!pics.length)return `<span class="avatar">${esc(c.name[0]?.toUpperCase()||'?')}</span>`;
@@ -1118,7 +1164,7 @@ function pickPhoto(cb){const i=document.createElement('input');i.type='file';i.a
 async function setDogPhoto(key,dogName,file){
   let data;try{data=await dogThumb(file);}catch(e){toast('Photo illisible');return;}
   const c=directory().find(x=>x.key===key);if(!c)return;
-  let r=S.clients.find(x=>norm(x.name)===key);
+  let r=S.clients.find(x=>!x.deleted&&norm(x.name)===key);
   if(!r){r={id:uid(),name:c.name,phone:c.phone,email:'',address:'',notes:'',dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||'',photo:''})),created:new Date().toISOString()};S.clients.push(r);}
   let d=r.dogs.find(x=>norm(x.name)===norm(dogName));if(!d){d={name:dogName,breed:'',notes:'',photo:''};r.dogs.push(d);}
   const old=d.photo;const id=uid();await putPhoto(id,data);d.photo=id;if(old)delPhoto(old);
@@ -1130,7 +1176,7 @@ function viewDogPhoto(c,d){
   openSheet(d.name,html,{left:'Retour',onClose:()=>openClient(c.key)});
   $('#vp-change').onclick=()=>pickPhoto(f=>setDogPhoto(c.key,d.name,f));
   $('#vp-del').onclick=()=>{if(!confirm('Retirer la photo de '+d.name+' ?'))return;
-    const r=S.clients.find(x=>norm(x.name)===c.key);const rd=r&&r.dogs.find(x=>norm(x.name)===norm(d.name));
+    const r=S.clients.find(x=>!x.deleted&&norm(x.name)===c.key);const rd=r&&r.dogs.find(x=>norm(x.name)===norm(d.name));
     if(rd){delPhoto(rd.photo);rd.photo='';save();}closeSheet();render();openClient(c.key);};
 }
 
@@ -1352,7 +1398,7 @@ function openClientReview(items){
     const noName=clReview.filter(c=>c._on&&!c.name.trim()).length;
     if(noName){alert(noName>1?noName+' fiches n’ont pas de nom : touchez « Corriger » pour l’ajouter.':'Une fiche n’a pas de nom : touchez « Corriger » pour l’ajouter.');return;}
     for(const c of clReview){if(!c._on||!c.name.trim())continue;
-      const k=norm(c.name);let r=S.clients.find(x=>norm(x.name)===k);
+      const k=norm(c.name);S.clients=S.clients.filter(x=>!(x.deleted&&norm(x.name)===k));let r=S.clients.find(x=>!x.deleted&&norm(x.name)===k);
       if(!r){const d=directory().find(x=>x.key===k);r={id:uid(),name:d?d.name:c.name.trim(),phone:d?d.phone:'',email:'',address:'',notes:'',dogs:d?[...d.dogs.values()].map(x=>({name:x.name,breed:x.breed,notes:''})):[],created:now};S.clients.push(r);}
       r.phone=r.phone||c.phone;r.email=r.email||c.email;r.address=r.address||c.address;
       if(c.notes&&!(r.notes||'').includes(c.notes))r.notes=[r.notes,c.notes].filter(Boolean).join('\n');
@@ -1505,12 +1551,12 @@ function viewScan(key,id){
     <div class="actions"><button class="btn danger" id="sc-del" style="flex:1">Supprimer cette photo</button></div>`;
   openSheet('Fiche papier',html,{left:'Retour',onClose:()=>openClient(key)});
   $('#sc-del').onclick=()=>{if(!confirm('Supprimer cette photo de fiche ?'))return;
-    const r=S.clients.find(x=>norm(x.name)===key);if(r){r.scans=(r.scans||[]).filter(x=>x!==id);save();}delPhoto(id);closeSheet();render();openClient(key);};
+    const r=S.clients.find(x=>!x.deleted&&norm(x.name)===key);if(r){r.scans=(r.scans||[]).filter(x=>x!==id);save();}delPhoto(id);closeSheet();render();openClient(key);};
 }
 async function addScan(key,file){
   let data;try{data=await shrinkImage(file);}catch(e){toast('Photo illisible');return;}
   const c=directory().find(x=>x.key===key);if(!c)return;
-  let r=S.clients.find(x=>norm(x.name)===key);
+  let r=S.clients.find(x=>!x.deleted&&norm(x.name)===key);
   if(!r){r={id:uid(),name:c.name,phone:c.phone,email:'',address:'',notes:'',dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||'',photo:d.photo||''})),created:new Date().toISOString()};S.clients.push(r);}
   const id=uid();await putPhoto(id,data);r.scans=[...(r.scans||[]),id];save();render();openClient(key);toast('Photo de la fiche ajoutée');
 }
@@ -1678,7 +1724,8 @@ function cap(s){return String(s).replace(/(^|[\s-])(\p{L})/gu,(m,a,b)=>a+b.toUpp
 document.addEventListener('click',e=>{
   const del=e.target.closest('[data-del]');if(del){const w=del.closest('.swipe');askDelete(del.dataset.del,()=>closeSw(w));return;}
   const sw=e.target.closest('.swipe');
-  if(sw){const c=sw.querySelector('.appt');if(c&&c.dataset.swiped)return;if(sw.classList.contains('open')){closeSw(sw);return;}}
+  const dcl=e.target.closest('[data-delcl]');if(dcl){const w=dcl.closest('.swipe');askDeleteClient(dcl.dataset.delcl,()=>closeSw(w));return;}
+  if(sw){const c=sw.querySelector('.appt, .client-row');if(c&&c.dataset.swiped)return;if(sw.classList.contains('open')){closeSw(sw);return;}}
   if(swOpen&&!e.target.closest('.swipe')){closeSw(swOpen);}
   const ap=e.target.closest('[data-id]');
   if(ap){const a=S.appts.find(x=>x.id===ap.dataset.id);if(a)openForm(a);return;}
