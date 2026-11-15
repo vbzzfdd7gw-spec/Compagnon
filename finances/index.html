@@ -80,8 +80,8 @@ label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
 .check{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:.92rem}
 .check input{width:20px;height:20px;accent-color:var(--accent)}
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tabs nav{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
-.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 9px;font-size:.7rem;color:var(--muted)}
+.tabs nav{max-width:620px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 9px;font-size:.66rem;color:var(--muted);min-width:0}
 .tabs button svg{width:22px;height:22px}
 .tabs button[aria-current=page]{color:var(--accent)}
 .fab{position:fixed;z-index:6;right:max(18px,calc(50% - 292px));bottom:calc(72px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:18px;background:var(--accent);color:var(--accent-ink);font-size:2rem;display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.18)}
@@ -113,6 +113,24 @@ dialog{overflow-y:auto}
 .irow.off .grow,.irow.off .amt,.irow.off select{opacity:.45}
 .dfoot{position:sticky;bottom:0;background:var(--panel);padding:12px 0 14px;margin-bottom:-20px}
 button:disabled{opacity:.45;cursor:default}
+.crow{display:block;width:100%;padding:9px 0;border-top:1px solid var(--line)}
+.clegend+.crow,.crow:first-child{border-top:0}
+.ctop{display:flex;justify-content:space-between;gap:10px;font-size:.92rem}
+.cn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cv{font-weight:600;white-space:nowrap}
+.cbar{position:relative;height:10px;margin:6px 0 4px;background:var(--panel2);border-radius:4px}
+.cbar i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:0 4px 4px 0;min-width:2px}
+.cbar b{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--fg);border-radius:1px}
+.csub{display:flex;justify-content:space-between;gap:8px;font-size:.76rem;color:var(--muted)}
+.csub .up{color:var(--bad);font-weight:600}
+.clegend{display:flex;gap:16px;flex-wrap:wrap;font-size:.76rem;color:var(--muted);margin-bottom:6px}
+.clegend span{display:flex;align-items:center;gap:6px}
+.clegend .sw{width:14px;height:8px;border-radius:2px;background:var(--accent)}.clegend .tk{width:2px;height:12px;background:var(--fg)}
+.ins{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.ins:first-of-type{border-top:0}
+.ins .ii{font-size:1.3rem;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--panel2)}
+.ins.bad .ii{background:color-mix(in srgb,var(--bad) 18%,transparent)}.ins.warn .ii{background:color-mix(in srgb,var(--warn) 20%,transparent)}.ins.good .ii{background:color-mix(in srgb,var(--good) 18%,transparent)}
+.ins h4{margin:0 0 3px;font-size:.95rem}.ins p{font-size:.86rem;color:var(--muted);line-height:1.45}
+.ins .gain{display:inline-block;margin-top:6px;font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--panel2);color:var(--fg)}
+.ins .link{margin-top:6px;display:inline-block;margin-left:8px}
 </style>
 </head><body>
 <div class="wrap" id="app"></div>
@@ -196,6 +214,7 @@ const UI={tab:'home',month:curMonth(),q:'',fCat:'',fAcc:''};
 const TABS=[
   ['home','Accueil','<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
   ['ops','Opérations','<path d="M4 6h16M4 12h16M4 18h10"/>'],
+  ['analyse','Analyse','<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
   ['budgets','Budgets','<circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.5 6"/>'],
   ['accounts','Comptes','<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>'],
   ['settings','Réglages','<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>']];
@@ -243,6 +262,17 @@ ops(){
   <select id="fAcc" aria-label="Compte"><option value="">Tous les comptes</option>${S.accounts.map(a=>`<option value="${a.id}" ${UI.fAcc===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
   <div style="text-align:right;margin:4px 2px 0"><button class="link" data-act="importStmt">⬆ Importer un relevé bancaire</button></div>
   <div id="opsList">${opsList()}</div>`;
+},
+analyse(){
+  const m=UI.month,{exp}=monthTotals(m),I=insights(m),partial=S.tx.some(x=>x.date.startsWith(m))&&!monthComplete(m);
+  return `<div class="top"><h1>Analyse</h1>${monthNav()}</div>
+  ${partial?`<div class="card" style="padding:10px 14px;font-size:.88rem">📅 Données partielles pour ce mois${(()=>{const d=S.tx.filter(x=>x.date.startsWith(m)&&!x.rec).map(x=>x.date).sort();return d.length?' (du '+shortDate(d[0])+' au '+shortDate(d[d.length-1])+')':'';})()} : importez le relevé suivant pour une analyse complète.${S.tx.some(x=>x.date.startsWith(addMonths(m,-1)))?` <button class="link" data-act="month" data-id="-1">Voir ${monthLabel(addMonths(m,-1))}</button>`:''}</div>`:''}
+  <section class="card"><h2>Dépenses par secteur · ${money(exp)}</h2>${catChart(m)}</section>
+  <section class="card"><h2>Pistes d’amélioration</h2>
+    ${I.potential>0?`<div class="hero" style="margin-bottom:6px"><div class="big num" style="font-size:1.8rem">≈ ${money(I.potential)}<span class="muted" style="font-size:1rem;font-weight:500"> / mois</span></div><p class="muted" style="font-size:.85rem">d’économies possibles en suivant les pistes ci-dessous (≈ ${money(I.potential*12)} par an).</p></div>`:''}
+    ${I.list.length?I.list.map(o=>`<div class="ins ${o.tone}"><span class="ii" aria-hidden="true">${o.icon}</span><div class="grow"><h4>${esc(o.title)}</h4><p>${o.text}</p>${o.save>0?`<span class="gain">≈ ${money(o.save)} / mois</span>`:''}${o.action?`<button class="link" data-act="${o.action.act}" data-id="${o.action.id}">${o.action.label} ›</button>`:''}</div></div>`).join('')
+      :'<p class="empty">Pas encore assez de données. Importez un relevé pour obtenir des conseils.</p>'}
+    <p class="hint" style="margin-top:12px">Conseils calculés sur votre téléphone à partir de vos opérations ; les montants d’économie sont des estimations.</p></section>`;
 },
 budgets(){
   const by=spentByCat(UI.month);const exps=S.categories.filter(c=>c.kind==='expense');
@@ -311,6 +341,90 @@ function bars(){const ms=[];for(let i=5;i>=0;i--)ms.push(addMonths(UI.month,-i))
     return `<rect x="${x-bw-1}" y="${H-hi}" width="${bw}" height="${hi}" rx="3" fill="var(--good)"><title>${monthLabel(o.m)} — revenus ${money(o.inc)}</title></rect><rect x="${x+1}" y="${H-he}" width="${bw}" height="${he}" rx="3" fill="var(--bad)"><title>${monthLabel(o.m)} — dépenses ${money(o.exp)}</title></rect>
     <text x="${x}" y="${H+16}" text-anchor="middle" font-size="11" fill="${o.m===UI.month?'var(--fg)':'var(--muted)'}" font-weight="${o.m===UI.month?700:400}">${esc(monthLabel(o.m,true).replace('.',''))}</text>`;}).join('')}</svg>
   <div class="legend" style="display:flex;gap:16px;margin-top:6px"><div><span class="dot" style="background:var(--good)"></span>Revenus</div><div><span class="dot" style="background:var(--bad)"></span>Dépenses</div></div>`;}
+
+/* ====== Analyse & pistes d'amélioration ====== */
+function coverage(){let a='9999',b='0000';for(const x of S.tx){if(x.rec)continue;if(x.date<a)a=x.date;if(x.date>b)b=x.date;}return{a,b};}
+function monthComplete(m){const{a,b}=coverage(),[y,mo]=m.split('-').map(Number),last=new Date(y,mo,0).getDate();return a<=m+'-04'&&b>=m+'-'+pad(last-3);}
+function prevMonthsWithData(m,n){const out=[];let k=addMonths(m,-1);const first=S.tx.reduce((a,x)=>x.date<a?x.date:a,'9999').slice(0,7);
+  for(let i=0;i<24&&out.length<n&&k>=first;i++,k=addMonths(k,-1))if(monthComplete(k)&&S.tx.some(x=>x.kind==='expense'&&x.date.startsWith(k)))out.push(k);return out;}
+function avgByCat(ms){const r={};for(const m of ms){const b=spentByCat(m);for(const k in b)r[k]=(r[k]||0)+b[k];}for(const k in r)r[k]=Math.round(r[k]/ms.length);return r;}
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const txIn=(m,f)=>S.tx.filter(x=>x.date.startsWith(m)&&f(x));
+const noteKey=x=>norm(x.note||cat(x.cat).name).split(' ').slice(0,2).join(' ');
+
+function insights(m){
+  const out=[],{inc,exp}=monthTotals(m),by=spentByCat(m),hist=prevMonthsWithData(m,3),avg=avgByCat(hist);
+  const E=txIn(m,x=>x.kind==='expense'),catNamed=n=>S.categories.find(c=>c.kind==='expense'&&norm(c.name)===norm(n));
+  const add=(o)=>out.push(o);
+  // 1. Taux d'épargne
+  if(inc>0){const r=(inc-exp)/inc;
+    if(r<0)add({key:'save',tone:'bad',icon:'⚠️',title:'Dépenses supérieures aux revenus',text:`Ce mois-ci vous avez dépensé ${money(exp-inc)} de plus que vos revenus. Repérez ci-dessous les postes les plus faciles à réduire.`,save:0});
+    else if(r<.1)add({key:'save',tone:'warn',icon:'🐷',title:`Taux d’épargne : ${Math.round(r*100)} %`,text:`L’objectif courant est de mettre de côté 10 à 20 % de ses revenus, soit ${money(Math.round(inc*.1))} à ${money(Math.round(inc*.2))} par mois pour vous. Le plus efficace : un virement automatique vers l’épargne le jour de la paie.`,save:0});
+    else add({key:'save',tone:'good',icon:'✅',title:`Taux d’épargne : ${Math.round(r*100)} %`,text:`Vous avez gardé ${money(inc-exp)} sur ${money(inc)} de revenus. ${r>=.2?'Excellent, continuez ainsi.':'C’est bien ; viser 20 % renforcerait votre marge.'}`,save:0});}
+  // 2. Hausses par rapport à la moyenne
+  if(hist.length)for(const [id,v] of Object.entries(by)){const a=avg[id]||0;if(a>0&&v>a*1.2&&v-a>=3000){const c=cat(id);
+    add({key:'cat:'+id,tone:'warn',icon:c.icon,title:`${c.name} : +${pct(v-a,a)} %`,text:`${money(v)} ce mois-ci contre ${money(a)} en moyenne sur ${hist.length} mois. Revenir à votre moyenne libérerait ${money(v-a)}.`,save:v-a,action:{act:'catOps',id,label:'Voir les opérations'}});}}
+  // 3. Restaurants / fast-food
+  const resto=catNamed('Restaurants');if(resto){const R=E.filter(x=>x.cat===resto.id),t=R.reduce((s,x)=>s+x.amount,0);
+    if(R.length>=6&&t>=10000)add({key:'cat:'+resto.id,tone:'warn',icon:'🍔',title:`${R.length} repas au restaurant ou en fast-food`,text:`${money(t)} au total, ${money(Math.round(t/R.length))} en moyenne par repas. En divisant la fréquence par deux (repas préparés, gamelle au travail), vous économiseriez environ ${money(Math.round(t/2))} par mois.`,save:Math.round(t/2),action:{act:'catOps',id:resto.id,label:'Voir les repas'}});}
+  // 4. Abonnements
+  const abo=catNamed('Abonnements');{const A=E.filter(x=>abo&&x.cat===abo.id),g={};
+    for(const x of A){const k=noteKey(x);(g[k]=g[k]||{n:x.note||cat(x.cat).name,t:0}).t+=x.amount;}
+    const list=Object.values(g).sort((a,b)=>b.t-a.t),t=list.reduce((s,o)=>s+o.t,0);
+    if(list.length>=3&&t>=3000)add({key:'abo',tone:'warn',icon:'📱',title:`${list.length} abonnements : ${money(t)} par mois`,text:`Soit ${money(t*12)} par an : ${list.slice(0,6).map(o=>esc(o.n)+' '+money(o.t)).join(', ')}${list.length>6?'…':''}. Faites le tri dans ceux que vous utilisez peu ; supprimer un tiers d’entre eux rapporterait environ ${money(Math.round(t/3))} par mois.`,save:Math.round(t/3),action:abo?{act:'catOps',id:abo.id,label:'Voir les abonnements'}:null});}
+  // 5. Frais bancaires
+  {const F=E.filter(x=>/COTIS(ATION)? (OFFRE|CARTE|COMPTE)|FRAIS|COMMISSION|AGIOS|OFFRE ESSENTIEL|TENUE DE COMPTE/.test(norm(x.note+' '+(x.raw||'')))&&!/OGBL|SYNDIC/.test(norm(x.note))),t=F.reduce((s,x)=>s+x.amount,0);
+    if(t>0)add({key:'bank',tone:'info',icon:'🏦',title:`Frais bancaires : ${money(t)} ce mois-ci`,text:`Soit environ ${money(t*12)} par an. Les banques en ligne proposent souvent un compte et une carte gratuits ; demandez aussi à votre conseiller une offre moins chère.`,save:t});}
+  // 6. Assurances
+  {const I=E.filter(x=>/ASSU|MACIF|MAIF|MAAF|MATMUT|AXA|ALLIANZ|GMF|GROUPAMA|AVANSSUR|MUTUELLE|PREVOYANCE/.test(norm(x.note+' '+(x.raw||'')))),t=I.reduce((s,x)=>s+x.amount,0);
+    if(t>=5000)add({key:'assu',tone:'info',icon:'🛡️',title:`Assurances : ${money(t)} par mois`,text:`Comparez vos contrats chaque année : après un an, la loi Hamon permet de résilier à tout moment auto, habitation et mutuelle. Une économie de 10 à 15 % est courante, soit environ ${money(Math.round(t*.12))} par mois.`,save:Math.round(t*.12)});}
+  // 7. Carburant
+  {const C=E.filter(x=>/STATION|CARBURANT|ESSENCE|Q8|TOTAL(?!ENERGIES ELEC)|ESSO|SHELL|AVIA|BP /.test(norm(x.note+' '+(x.raw||'')))),t=C.reduce((s,x)=>s+x.amount,0);
+    if(t>=15000)add({key:'fuel',tone:'info',icon:'⛽',title:`Carburant : ${money(t)} en ${C.length} pleins`,text:`Comparez les prix sur prix-carburants.gouv.fr, regroupez vos trajets et pensez au covoiturage pour les trajets réguliers : 10 % d’économie représentent ${money(Math.round(t*.1))} par mois.`,save:Math.round(t*.1)});}
+  // 8. Petites dépenses
+  {const P=E.filter(x=>x.amount<1500),t=P.reduce((s,x)=>s+x.amount,0);
+    if(P.length>=10)add({key:'small',tone:'info',icon:'🪙',title:`${P.length} petites dépenses de moins de 15 €`,text:`Elles passent inaperçues mais totalisent ${money(t)}. En supprimer un tiers (cafés, snacks, achats d’impulsion) libérerait environ ${money(Math.round(t/3))} par mois.`,save:Math.round(t/3)});}
+  // 8b. Virements entre vos propres comptes
+  const STOP=new Set(['MONSIEUR','MADAME','MLLE','WEB','VIREMENT','INST','VERS','POUR','SEPA','COMPTE']);
+  const words=x=>new Set(norm(x.note).replace(/[^A-Z ]/g,' ').split(' ').filter(w=>w.length>=4&&!STOP.has(w)));
+  const otherE=S.categories.find(c=>c.kind==='expense'&&/^AUTRE/.test(norm(c.name))),otherI=S.categories.filter(c=>c.kind==='income'&&!/SALAIRE/.test(norm(c.name))).map(c=>c.id);
+  const INs=txIn(m,x=>x.kind==='income'&&otherI.includes(x.cat)),OUTs=E.filter(x=>otherE&&x.cat===otherE.id);
+  const selfOut=OUTs.filter(o=>{const w=words(o);return w.size>=2&&INs.some(i=>{const v=words(i);let n=0;w.forEach(z=>v.has(z)&&n++);return n>=2;});});
+  const selfIds=new Set(selfOut.map(x=>x.id));
+  if(selfOut.length){const ow=selfOut.map(words),selfIn=INs.filter(i=>{const v=words(i);return ow.some(w=>{let n=0;w.forEach(z=>v.has(z)&&n++);return n>=2;});});
+    const tin=selfIn.reduce((s,x)=>s+x.amount,0),tout=selfOut.reduce((s,x)=>s+x.amount,0);
+    add({key:'self',tone:'warn',icon:'⇄',title:'Virements entre vos comptes à reclasser',text:`${selfIn.length+selfOut.length} virements semblent aller et venir entre vos propres comptes (${money(tin)} entrés, ${money(tout)} sortis). Comptés comme revenus et dépenses, ils faussent le bilan. Créez vos autres comptes dans « Comptes », puis classez-les en « Virement » : l’application s’en souviendra.`,save:0,action:{act:'tab',id:'accounts',label:'Mes comptes'}});}
+  // 9. Gros achat ponctuel
+  {const big=E.filter(x=>x.amount>=30000&&!selfIds.has(x.id)&&!/^AUTRE/.test(norm(cat(x.cat).name))&&!['LOGEMENT','FACTURES'].includes(norm(cat(x.cat).name))&&!/PRET|LOYER/.test(norm(x.note))).sort((a,b)=>b.amount-a.amount)[0];
+    if(big)add({key:'big',tone:'info',icon:'🛒',title:`Achat important : ${big.note||cat(big.cat).name}`,text:`${money(big.amount)}, soit ${pct(big.amount,exp)} % des dépenses du mois. Pour les grosses dépenses prévisibles, mettre de côté un peu chaque mois évite de déséquilibrer le budget.`,save:0});}
+  // 10. Budgets dépassés / à créer
+  for(const c of S.categories)if(S.budgets[c.id]>0&&(by[c.id]||0)>S.budgets[c.id])
+    add({key:'cat:'+c.id,tone:'bad',icon:c.icon,title:`Budget ${c.name} dépassé`,text:`${money(by[c.id])} pour un budget de ${money(S.budgets[c.id])} (+${money(by[c.id]-S.budgets[c.id])}).`,save:by[c.id]-S.budgets[c.id],action:{act:'catOps',id:c.id,label:'Voir les opérations'}});
+  const byReg={};for(const x of E)if(x.amount<30000)byReg[x.cat]=(byReg[x.cat]||0)+x.amount;
+  const top=Object.entries(byReg).filter(([id])=>!(S.budgets[id]>0)&&!/^AUTRE|LOGEMENT|FACTURES|SANTE|ABONNEMENTS/.test(norm(cat(id).name))).sort((a,b)=>b[1]-a[1]).slice(0,2);
+  for(const [id,v] of top){const base=avg[id]?Math.round((avg[id]+v)/2):v,prop=Math.floor(base*.9/500)*500;if(prop<3000||prop>=v)continue;const c=cat(id);
+    add({key:'bud:'+id,tone:'info',icon:'🎯',title:`Fixer un budget ${c.name}`,text:`Vous y consacrez ${money(v)} ce mois-ci${avg[id]?' ('+money(avg[id])+' en moyenne)':''}. Un plafond de ${money(prop)} par mois vous aiderait à garder le cap ; l’application vous alertera à 80 %.`,save:Math.max(0,v-prop),action:{act:'editBudget',id,label:'Définir ce budget'}});}
+  // 11. Non classé
+  {const o=S.categories.find(c=>c.kind==='expense'&&/^AUTRE/.test(norm(c.name)));const v=o?by[o.id]||0:0;
+    if(exp&&v/exp>.12)add({key:'other',tone:'info',icon:'🏷️',title:`${money(v)} de dépenses non classées`,text:`${pct(v,exp)} de vos dépenses sont dans « ${esc(o.name)} ». Classez-les une fois : l’application retiendra vos choix et l’analyse sera plus juste.`,save:0,action:{act:'catOps',id:o.id,label:'Les classer'}});}
+  // Potentiel : max par sujet
+  const best={};for(const o of out)if(o.save>0)best[o.key]=Math.max(best[o.key]||0,o.save);
+  const rank={bad:0,warn:1,info:2,good:3};
+  out.sort((a,b)=>(a.key==='save'?-1:b.key==='save'?1:0)||rank[a.tone]-rank[b.tone]||b.save-a.save);
+  return{list:out,potential:Object.values(best).reduce((s,v)=>s+v,0),hist};}
+
+function catChart(m){const by=spentByCat(m),hist=prevMonthsWithData(m,3),avg=avgByCat(hist),total=Object.values(by).reduce((s,v)=>s+v,0);
+  const ids=[...new Set([...Object.keys(by),...Object.keys(avg)])].filter(id=>(by[id]||0)>0||avg[id]>0).sort((a,b)=>(by[b]||0)-(by[a]||0)||(avg[b]||0)-(avg[a]||0));
+  if(!ids.length)return '<p class="empty">Aucune dépense ce mois-ci.</p>';
+  const max=Math.max(...ids.map(id=>Math.max(by[id]||0,avg[id]||0)));
+  return `${hist.length?`<div class="clegend"><span><i class="sw"></i>Ce mois</span><span><i class="tk"></i>Moyenne des ${hist.length} mois précédents</span></div>`:''}`+
+   ids.map(id=>{const c=cat(id),v=by[id]||0,a=avg[id];const d=a?Math.round((v-a)/a*100):null;
+    const delta=d==null?'':Math.abs(d)<5?' · stable':` · ${d>0?'▲ +':'▼ −'}${Math.abs(d)} %`;
+    const tip=`${c.name} — ${money(v)} (${pct(v,total)} % des dépenses)${a?' · moyenne '+money(a):''}`;
+    return `<button class="crow" data-act="catOps" data-id="${id}" title="${esc(tip)}" aria-label="${esc(tip)}">
+      <div class="ctop"><span class="cn">${esc(c.icon)} ${esc(c.name)}</span><span class="num cv">${money(v)}</span></div>
+      <div class="cbar"><i style="width:${v/max*100}%"></i>${a?`<b style="left:${a/max*100}%"></b>`:''}</div>
+      <div class="csub"><span>${pct(v,total)} % des dépenses${a?' · moy. '+money(a):''}</span><span class="${d>20?'up':''}">${delta.replace(' · ','')}</span></div></button>`;}).join('');}
 
 /* ====== Fenêtres ====== */
 const dlg=$('#dlg'),form=$('#dlgForm');
@@ -642,7 +756,7 @@ function download(name,text,type){const a=document.createElement('a');a.href=URL
 function setCurrency(v){S.currency=v;setFmt();save();render();}
 
 const ACT={
-  tab:id=>{UI.tab=id;render();scrollTo(0,0);},
+  tab:id=>{UI.tab=id;if(id==='analyse'&&!monthComplete(UI.month)){const n=k=>S.tx.filter(x=>x.kind==='expense'&&x.date.startsWith(k)).length,pm=addMonths(UI.month,-1);if(n(pm)>n(UI.month))UI.month=pm;}render();scrollTo(0,0);},
   month:d=>{UI.month=addMonths(UI.month,+d);render();},
   close:()=>dlg.close(),
   newTx:()=>txForm(null,true),
@@ -663,6 +777,7 @@ const ACT={
     S.tx.forEach(x=>{if(x.cat===id)x.cat=fallback.id;});S.recurring.forEach(r=>{if(r.cat===id)r.cat=fallback.id;});
     S.categories=S.categories.filter(x=>x.id!==id);delete S.budgets[id];if(UI.fCat===id)UI.fCat='';save();dlg.close();render();},
   editBudget:id=>budgetForm(cat(id)),
+  catOps:id=>{UI.tab='ops';UI.fCat=id;UI.fAcc='';UI.q='';render();scrollTo(0,0);},
   clearBudget:id=>{delete S.budgets[id];save();dlg.close();render();},
   editRec:id=>recForm(S.recurring.find(r=>r.id===id)),
   delRec:id=>{if(!confirm('Supprimer cette récurrence ? Les opérations déjà créées sont conservées.'))return;S.recurring=S.recurring.filter(r=>r.id!==id);S.tx.forEach(x=>{if(x.rec===id)delete x.rec;});save();dlg.close();render();},
