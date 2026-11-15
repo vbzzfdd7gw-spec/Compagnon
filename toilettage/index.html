@@ -118,6 +118,23 @@ label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
 .stat:last-child{border-bottom:0}
 .list-pad{padding:4px 0}
 .hidden{display:none!important}
+.viewseg{width:auto;margin-bottom:8px}
+.month{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:6px 0 4px;touch-action:pan-y}
+.month .wd{text-align:center;font-size:.72rem;color:var(--muted);padding:4px 0}
+.mday{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:12px;font-size:.95rem;font-variant-numeric:tabular-nums}
+.mday.out{color:var(--muted);opacity:.45}
+.mday.today{color:var(--accent);font-weight:700}
+.mday.sel{background:var(--accent);color:var(--accent-ink)}
+.mday .dots{height:5px;display:flex;gap:2px}
+.mday .dots i{width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.mday.sel .dots i{background:var(--accent-ink)}
+.remind{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.remind:last-child{border-bottom:0}
+.remind.sent{opacity:.55}
+.svc-edit{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.svc-edit:last-child{border-bottom:0}
+.svc-edit span{flex:1}
+.svc-edit button{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
 </style>
 </head><body>
 <div class="wrap" id="app"></div>
@@ -127,22 +144,27 @@ label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
   <button class="tab" data-tab="upcoming"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>À venir</button>
   <button class="fab" id="fab" aria-label="Nouveau rendez-vous">+</button>
   <button class="tab" data-tab="clients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="9" r="2"/><circle cx="10" cy="5" r="2"/><circle cx="14" cy="5" r="2"/><circle cx="18" cy="9" r="2"/><path d="M12 11c-3 0-6 4-6 7 0 2 2 3 3.5 2.5S11 19.5 12 19.5s1 .5 2.5 1S18 20 18 18c0-3-3-7-6-7z"/></svg>Clients</button>
-  <button class="tab" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v12M7 10l5 5 5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>Sauvegarde</button>
+  <button class="tab" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Réglages</button>
 </div></nav>
 
 <script>
 'use strict';
 /* ---------- Données ---------- */
 const KEY='toilettage.v1';
-const SERVICES=['Bain','Séchage','Brushing','Démêlage','Coupe ciseaux','Tonte','Épilation','Coupe des griffes','Oreilles','Yeux','Anti-puces','Dents'];
+const DEFAULT_SMS='Bonjour, petit rappel : rendez-vous toilettage pour {chien} {jour} à {heure}. À bientôt ! {salon}';
+const DEFAULT_SERVICES=['Bain','Séchage','Brushing','Démêlage','Coupe ciseaux','Tonte','Épilation','Coupe des griffes','Oreilles','Yeux','Anti-puces','Dents'];
 const BREEDS=['Bichon','Bichon maltais','Bouledogue français','Berger allemand','Berger australien','Border collie','Cavalier King Charles','Caniche','Caniche toy','Chihuahua','Cocker','Golden retriever','Husky','Jack Russell','Labrador','Lhassa Apso','Shih Tzu','Spitz nain','Teckel','Westie','Yorkshire','Croisé','Chat'];
 const DURATIONS=[[30,'30 min'],[45,'45 min'],[60,'1 h'],[90,'1 h 30'],[120,'2 h'],[150,'2 h 30'],[180,'3 h'],[240,'4 h']];
 
 function load(){
-  try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.appts))return s;}catch(e){}
-  return {appts:[]};
+  let s=null;
+  try{s=JSON.parse(localStorage.getItem(KEY));}catch(e){}
+  if(!s||!Array.isArray(s.appts))s={appts:[]};
+  s.settings=Object.assign({services:[...DEFAULT_SERVICES],salon:'',sms:DEFAULT_SMS,remindDays:1},s.settings||{});
+  return s;
 }
 let S=load();
+const svcList=()=>S.settings.services;
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Impossible d’enregistrer sur ce téléphone');}}
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 
@@ -163,6 +185,14 @@ const endTime=(t,dur)=>{if(!t)return'';const[h,m]=t.split(':').map(Number);const
 const fmtDur=m=>{m=+m||0;const h=Math.floor(m/60),r=m%60;return h?(h+' h'+(r?' '+pad(r):'')):r+' min';};
 const sortAppts=a=>a.sort((x,y)=>(x.date+(x.time||'99')).localeCompare(y.date+(y.time||'99')));
 const telHref=p=>'tel:'+String(p).replace(/[^\d+]/g,'');
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function smsHref(phone,body){const n=String(phone||'').replace(/[^\d+]/g,'');return 'sms:'+n+(body?(isIOS?'&':'?')+'body='+encodeURIComponent(body):'');}
+function relDay(d){const t=today();if(d===t)return 'aujourd’hui';if(d===addDays(t,1))return 'demain';return 'le '+fmtDay(d);}
+function reminderText(a){
+  const h=a.time?a.time.replace(':','h'):'(heure à confirmer)';
+  return S.settings.sms.replace(/\{chien\}/g,a.dog||'votre chien').replace(/\{client\}/g,a.client||'').replace(/\{jour\}/g,relDay(a.date)).replace(/\{date\}/g,fmtDay(a.date)).replace(/\{heure\}/g,h).replace(/\{salon\}/g,S.settings.salon||'').replace(/\s+$/,'').replace(/ {2,}/g,' ');
+}
+function markReminded(id){const a=S.appts.find(x=>x.id===id);if(a){a.reminded=new Date().toISOString();save();}}
 function toast(msg){document.querySelectorAll('.toast').forEach(x=>x.remove());const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);}
 
 /* Répertoire clients reconstruit à partir des rendez-vous */
@@ -183,6 +213,7 @@ function directory(){
 
 /* ---------- État de l'interface ---------- */
 let tab='agenda',sel=today(),q='';
+let mode='week';try{mode=localStorage.getItem('toilettage.mode')||'week';}catch(e){}
 
 function render(){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
@@ -203,39 +234,55 @@ function apptCard(a,showDate){
     </div></button>`;
 }
 
+function monthShift(s,n){const d=parse(s);const day=d.getDate();const x=new Date(d.getFullYear(),d.getMonth()+n,1);const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();x.setDate(Math.min(day,last));return iso(x);}
 function renderAgenda(){
   const d=parse(sel);const dow=(d.getDay()+6)%7;const monday=addDays(sel,-dow);
   const counts={};for(const a of S.appts)counts[a.date]=(counts[a.date]||0)+1;
+  const dots=n=>'<span class="dots">'+'<i></i>'.repeat(Math.min(n,4))+'</span>';
   let week='';
-  for(let i=0;i<7;i++){const ds=addDays(monday,i);const dd=parse(ds);const n=counts[ds]||0;
-    week+=`<button class="day${ds===sel?' sel':''}${ds===today()?' today':''}" data-day="${ds}">${dd.toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','')}<b>${dd.getDate()}</b><span class="dots">${'<i></i>'.repeat(Math.min(n,4))}</span></button>`;}
+  if(mode==='month'){
+    const first=iso(new Date(d.getFullYear(),d.getMonth(),1));const start=addDays(first,-((parse(first).getDay()+6)%7));
+    week=['lun','mar','mer','jeu','ven','sam','dim'].map(w=>`<div class="wd">${w}</div>`).join('');
+    for(let i=0;i<42;i++){const ds=addDays(start,i);const dd=parse(ds);if(i>=35&&dd.getMonth()!==d.getMonth())break;
+      week+=`<button class="mday${dd.getMonth()!==d.getMonth()?' out':''}${ds===sel?' sel':''}${ds===today()?' today':''}" data-day="${ds}">${dd.getDate()}${dots(counts[ds]||0)}</button>`;}
+  }else for(let i=0;i<7;i++){const ds=addDays(monday,i);const dd=parse(ds);
+    week+=`<button class="day${ds===sel?' sel':''}${ds===today()?' today':''}" data-day="${ds}">${dd.toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','')}<b>${dd.getDate()}</b>${dots(counts[ds]||0)}</button>`;}
   const list=sortAppts(S.appts.filter(a=>a.date===sel));
   const total=list.reduce((s,a)=>s+(+a.price||0),0);
   $('#app').innerHTML=`
     <div class="top">
       <div class="monthbar">
-        <button class="iconbtn" data-nav="-7" aria-label="Semaine précédente">‹</button>
+        <button class="iconbtn" data-nav="-1" aria-label="Précédent">‹</button>
         <span class="monthlabel">${d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})} ▾<input type="date" id="pick" value="${sel}" aria-label="Choisir une date"></span>
-        <button class="iconbtn" data-nav="7" aria-label="Semaine suivante">›</button>
+        <button class="iconbtn" data-nav="1" aria-label="Suivant">›</button>
       </div>
       ${sel!==today()?'<button class="btn small" id="gotoday">Aujourd’hui</button>':''}
     </div>
-    <div class="week" id="week">${week}</div>
+    <div class="seg viewseg" id="mode"><button data-mode="week" class="${mode==='week'?'on':''}">Semaine</button><button data-mode="month" class="${mode==='month'?'on':''}">Mois</button></div>
+    <div class="${mode==='month'?'month':'week'}" id="week">${week}</div>
     <div class="dayhead"><h3 class="cap">${esc(fmtDay(sel))}</h3><span class="muted" style="font-size:.88rem">${list.length?list.length+' RDV'+(total?' · '+fmtPrice(total):''):''}</span></div>
     ${list.length?list.map(a=>apptCard(a)).join(''):`<div class="empty"><div class="big">🐾</div>Aucun rendez-vous ce jour.<br><br><button class="btn primary" id="addday">+ Ajouter un rendez-vous</button></div>`}`;
   $('#pick').onchange=e=>{if(e.target.value){sel=e.target.value;render();}};
   const gt=$('#gotoday');if(gt)gt.onclick=()=>{sel=today();render();};
   const ad=$('#addday');if(ad)ad.onclick=()=>openForm({date:sel});
+  $('#mode').onclick=e=>{const b=e.target.closest('[data-mode]');if(!b)return;mode=b.dataset.mode;try{localStorage.setItem('toilettage.mode',mode);}catch(_){}render();};
   // Glisser pour changer de semaine
   const w=$('#week');let x0=null;
   w.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;},{passive:true});
-  w.addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>50){sel=addDays(sel,dx<0?7:-7);render();}});
+  w.addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>50){step(dx<0?1:-1);}});
 }
 
 function renderUpcoming(){
   const t=today();
   const list=sortAppts(S.appts.filter(a=>a.date>=t));
   let html='<div class="top"><h1>À venir</h1></div>';
+  const lim=addDays(t,+S.settings.remindDays||1);
+  const toRemind=list.filter(a=>a.date>t&&a.date<=lim&&a.phone&&!a.done);
+  if(toRemind.length){
+    html+=`<h2>Rappels SMS à envoyer</h2><div class="card list-pad">${toRemind.map(a=>`<div class="remind${a.reminded?' sent':''}">
+      <span style="flex:1;min-width:0"><b>${esc(a.dog||'?')}</b> <span class="muted">· ${esc(a.client)}</span><div class="muted" style="font-size:.85rem">${esc(relDay(a.date))}${a.time?' à '+esc(a.time):''}${a.reminded?' · rappel envoyé ✓':''}</div></span>
+      <a class="btn small${a.reminded?'':' primary'}" data-remind="${a.id}" href="${smsHref(a.phone,reminderText(a))}">💬 ${a.reminded?'Renvoyer':'Rappel'}</a></div>`).join('')}</div>`;
+  }
   if(!list.length)html+='<div class="empty"><div class="big">📅</div>Aucun rendez-vous à venir.</div>';
   let cur='';
   for(const a of list){if(a.date!==cur){cur=a.date;html+=`<h2>${a.date===t?'Aujourd’hui':esc(fmtDay(a.date))}</h2>`;}html+=apptCard(a);}
@@ -261,12 +308,27 @@ function renderSettings(){
   const month=t.slice(0,7);const mAppts=S.appts.filter(a=>a.date.startsWith(month));
   const mTotal=mAppts.reduce((s,a)=>s+(+a.price||0),0);
   $('#app').innerHTML=`
-    <div class="top"><h1>Sauvegarde</h1></div>
+    <div class="top"><h1>Réglages</h1></div>
     <div class="card list-pad">
       <div class="stat"><span>Rendez-vous enregistrés</span><b>${S.appts.length}</b></div>
       <div class="stat"><span>Clients</span><b>${dir.length}</b></div>
       <div class="stat"><span>RDV ce mois-ci</span><b>${mAppts.length}${mTotal?' · '+fmtPrice(mTotal):''}</b></div>
     </div>
+    <h2>Prestations proposées</h2>
+    <div class="card list-pad" id="svc-list">${svcList().map((x,i)=>`<div class="svc-edit"><span>${esc(x)}</span>
+      <button data-up="${i}" aria-label="Monter" ${i?'':'disabled style="opacity:.25"'}>↑</button><button data-rm="${i}" aria-label="Retirer">✕</button></div>`).join('')}</div>
+    <div class="row" style="margin-top:8px"><input id="svc-new" placeholder="Nouvelle prestation…"><button class="btn primary" id="svc-addbtn" style="flex:0 0 auto">Ajouter</button></div>
+
+    <h2>Rappels SMS</h2>
+    <label for="set-salon">Signature (nom du salon)</label>
+    <input id="set-salon" value="${esc(S.settings.salon)}" placeholder="ex. Salon Patte Douce">
+    <label for="set-days">Proposer les rappels pour les RDV</label>
+    <select id="set-days"><option value="1"${S.settings.remindDays==1?' selected':''}>du lendemain</option><option value="2"${S.settings.remindDays==2?' selected':''}>des 2 prochains jours</option><option value="3"${S.settings.remindDays==3?' selected':''}>des 3 prochains jours</option><option value="7"${S.settings.remindDays==7?' selected':''}>de la semaine</option></select>
+    <label for="set-sms">Message</label>
+    <textarea id="set-sms">${esc(S.settings.sms)}</textarea>
+    <p class="muted" style="font-size:.82rem;margin-top:4px">Mots remplacés automatiquement : {chien} {client} {jour} {date} {heure} {salon}</p>
+    <div class="actions" style="margin-top:8px"><button class="btn small" id="sms-reset">Message par défaut</button></div>
+
     <h2>Sauvegarder les données</h2>
     <p class="muted" style="font-size:.9rem">Les données restent uniquement sur ce téléphone. Pensez à faire une sauvegarde de temps en temps (par exemple l’envoyer par mail ou dans vos fichiers) : elle permet de tout récupérer si le téléphone est changé ou perdu.</p>
     <div class="actions"><button class="btn primary" id="exp">⬇ Exporter une sauvegarde</button><button class="btn" id="imp">⬆ Restaurer une sauvegarde</button></div>
@@ -274,6 +336,16 @@ function renderSettings(){
     <h2>Installer sur le téléphone</h2>
     <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
   $('#exp').onclick=exportData;
+  const st=S.settings;
+  $('#svc-list').onclick=e=>{const up=e.target.closest('[data-up]'),rm=e.target.closest('[data-rm]');
+    if(up){const i=+up.dataset.up;if(i>0){[st.services[i-1],st.services[i]]=[st.services[i],st.services[i-1]];save();renderSettings();}}
+    if(rm){const i=+rm.dataset.rm;if(confirm('Retirer « '+st.services[i]+' » de la liste ?\n(les anciens rendez-vous ne sont pas modifiés)')){st.services.splice(i,1);save();renderSettings();}}};
+  const addSvc=()=>{const v=$('#svc-new').value.trim();if(!v)return;if(!st.services.some(x=>norm(x)===norm(v)))st.services.push(v);save();renderSettings();};
+  $('#svc-addbtn').onclick=addSvc;$('#svc-new').onkeydown=e=>{if(e.key==='Enter')addSvc();};
+  $('#set-salon').onchange=e=>{st.salon=e.target.value.trim();save();toast('Enregistré');};
+  $('#set-days').onchange=e=>{st.remindDays=+e.target.value;save();toast('Enregistré');};
+  $('#set-sms').onchange=e=>{st.sms=e.target.value.trim()||DEFAULT_SMS;save();toast('Message enregistré');};
+  $('#sms-reset').onclick=()=>{st.sms=DEFAULT_SMS;save();renderSettings();toast('Message par défaut rétabli');};
   $('#imp').onclick=()=>$('#file').click();
   $('#file').onchange=importData;
 }
@@ -296,7 +368,7 @@ function importData(e){
       const d=JSON.parse(r.result);if(!d||!Array.isArray(d.appts))throw 0;
       const ids=new Set(S.appts.map(a=>a.id));const added=d.appts.filter(a=>a&&a.id&&a.date&&!ids.has(a.id));
       if(!confirm(`Restaurer cette sauvegarde ?\n${d.appts.length} rendez-vous dans le fichier, dont ${added.length} nouveaux.\nLes rendez-vous déjà présents sont conservés.`))return;
-      S.appts.push(...added);save();toast(added.length+' rendez-vous ajoutés');render();
+      S.appts.push(...added);if(d.settings&&typeof d.settings==='object')S.settings=Object.assign(S.settings,d.settings);save();toast(added.length+' rendez-vous ajoutés');render();
     }catch(err){alert('Ce fichier n’est pas une sauvegarde valide.');}
   };
   r.readAsText(f);e.target.value='';
@@ -322,8 +394,8 @@ function openForm(init={}){
   const editing=!!init.id;
   const a=Object.assign({date:sel,time:'',duration:60,client:'',phone:'',dog:'',breed:'',services:[],details:'',price:'',notes:'',done:false},init);
   let services=new Set(a.services||[]);
-  const custom=(a.services||[]).filter(s=>!SERVICES.includes(s));
-  const allSvc=[...SERVICES,...custom];
+  const custom=(a.services||[]).filter(s=>!svcList().includes(s));
+  const allSvc=[...svcList(),...custom];
   const durOpts=DURATIONS.some(([v])=>v==a.duration)?DURATIONS:[...DURATIONS,[+a.duration,fmtDur(a.duration)]].sort((x,y)=>x[0]-y[0]);
   const breeds=[...new Set([...BREEDS,...S.appts.map(x=>x.breed).filter(Boolean)])].sort((x,y)=>x.localeCompare(y,'fr'));
   const html=`
@@ -365,7 +437,7 @@ function openForm(init={}){
       <button class="btn primary" id="f-save" style="flex:1">${editing?'Enregistrer':'Ajouter le rendez-vous'}</button>
     </div>
     ${editing?`<div class="actions">
-      ${a.phone?`<a class="btn" href="${telHref(a.phone)}" style="text-decoration:none">📞 Appeler</a>`:''}
+      ${a.phone?`<a class="btn" href="${telHref(a.phone)}">📞 Appeler</a><a class="btn" id="f-sms" href="${smsHref(a.phone,reminderText(a))}">💬 Rappel SMS${a.reminded?' ✓':''}</a>`:''}
       <button class="btn" id="f-again">↻ Reprendre RDV</button>
       <button class="btn danger" id="f-del">Supprimer</button>
     </div>`:''}`;
@@ -438,6 +510,7 @@ function openForm(init={}){
       services:[...svcBox.querySelectorAll('[data-s].on')].map(b=>b.dataset.s),
       details:v('#f-details'),price:$('#f-price').value===''?'':+$('#f-price').value,notes:v('#f-notes'),done,
       created:a.created||new Date().toISOString(),updated:new Date().toISOString()};
+    const kept=S.appts.find(x=>x.id===rec.id);if(kept&&kept.reminded&&kept.date===rec.date&&kept.time===rec.time)rec.reminded=kept.reminded;
     if(!rec.date){toast('Choisissez une date');return;}
     if(!rec.client&&!rec.dog){toast('Indiquez au moins le client ou le chien');$('#f-client').focus();return;}
     const i=S.appts.findIndex(x=>x.id===rec.id);
@@ -449,7 +522,8 @@ function openForm(init={}){
   $('#f-save').onclick=submit;
   if(editing){
     $('#f-del').onclick=()=>{if(!confirm('Supprimer ce rendez-vous ?'))return;S.appts=S.appts.filter(x=>x.id!==a.id);save();closeSheet();toast('Rendez-vous supprimé');render();};
-    $('#f-again').onclick=()=>{const{id,created,updated,date,time,done:_,...rest}=a;openForm({...rest,date:addDays(a.date,42)});toast('Nouveau RDV pré-rempli (dans 6 semaines)');};
+    const fs=$('#f-sms');if(fs)fs.addEventListener('click',()=>{markReminded(a.id);a.reminded=true;});
+    $('#f-again').onclick=()=>{const{id,created,updated,date,time,done:_,reminded:__,...rest}=a;openForm({...rest,date:addDays(a.date,42)});toast('Nouveau RDV pré-rempli (dans 6 semaines)');};
   }
 }
 
@@ -464,7 +538,7 @@ function openClient(key){
       <div style="font-weight:700;font-size:1.2rem">${esc(c.name)}</div>
       ${c.phone?`<div class="muted">${esc(c.phone)}</div>`:''}</div>
     <div class="actions" style="justify-content:center;margin-top:10px">
-      ${c.phone?`<a class="btn" href="${telHref(c.phone)}" style="text-decoration:none">📞 Appeler</a><a class="btn" href="sms:${esc(String(c.phone).replace(/[^\d+]/g,''))}" style="text-decoration:none">💬 SMS</a>`:''}
+      ${c.phone?`<a class="btn" href="${telHref(c.phone)}">📞 Appeler</a><a class="btn" href="${smsHref(c.phone)}">💬 SMS</a>`:''}
       <button class="btn" id="c-edit">✎ Modifier</button>
     </div>
     ${next?`<h2>Prochain rendez-vous</h2>${apptCard(next,true)}`:''}
@@ -494,12 +568,14 @@ function openClient(key){
   };
 }
 
+function step(n){sel=mode==='month'?monthShift(sel,n):addDays(sel,7*n);render();}
 /* ---------- Événements globaux ---------- */
 document.addEventListener('click',e=>{
   const ap=e.target.closest('[data-id]');
   if(ap){const a=S.appts.find(x=>x.id===ap.dataset.id);if(a)openForm(a);return;}
   const day=e.target.closest('[data-day]');if(day){sel=day.dataset.day;render();return;}
-  const nav=e.target.closest('[data-nav]');if(nav){sel=addDays(sel,+nav.dataset.nav);render();return;}
+  const nav=e.target.closest('[data-nav]');if(nav){step(+nav.dataset.nav);return;}
+  const rm=e.target.closest('[data-remind]');if(rm){markReminded(rm.dataset.remind);setTimeout(render,600);return;}
   const cl=e.target.closest('[data-client]');if(cl){openClient(cl.dataset.client);return;}
   const tb=e.target.closest('[data-tab]');if(tb){tab=tb.dataset.tab;closeSheet();render();window.scrollTo(0,0);}
 });
