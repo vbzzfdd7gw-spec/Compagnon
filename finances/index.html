@@ -457,8 +457,10 @@ const PREFIX=/^(prlv( sepa)?|pr[ée]l[èe]v(ement)?( sepa)?( europ[ée]en)?|paie
 function cleanLabel(raw){let s=String(raw||'').replace(/\s+/g,' ').trim();const cash=/^(retrait|dab)\b/i.test(s),s0=s;
   for(let i=0;i<3;i++)s=s.replace(PREFIX,'');
   s=s.replace(/\b(du |le )?\d{2}[\/.]\d{2}([\/.]\d{2,4})?\b/gi,' ').replace(/\bX{2,}\d+\b|\bX\d{3,}\b/gi,' ').replace(/\b(carte|cb)\s*\*+\d{4}\b/gi,' ')
+   .replace(/\bMt initial\s*:.*?\b(EUR|Eur)\b/g,' ').replace(/\b[A-Z]{2}\d{2}ZZZ\w*/gi,' ').replace(/\b(?=[\w\-\/]*\d[\w\-\/]*\d[\w\-\/]*\d)[\w\-\/]{8,}/g,' ').replace(/\s(Core)$/i,' ')
    .replace(/\b(REF|R[ée]f\.?|ICS|RUM|MDT|ID [ée]metteur|N° ?OPE)\b\s*:?\s*\S*/gi,' ').replace(/\b\d{4,}\b/g,' ').replace(/\*+/g,' ').replace(/\s+/g,' ').replace(/^[\s\-:./]+|[\s\-:./]+$/g,'');
   if(s!==s0)s=s.replace(/^(de|a|à|vers|pour)\s+/i,'');
+  s=s.replace(/\s(Prlvt|Prlv|Pr[ée]l[èe]vement)( Sepa)?\b/gi,' ').replace(/(^|\s)-?prelev\b/gi,' ').replace(/\b([\p{L}.]+)(\s+\1\b)+/giu,'$1').replace(/\s+/g,' ').trim();
   if(!s&&!cash)s=String(raw||'').trim();
   if(s===s.toUpperCase())s=s.toLowerCase().replace(/(^|[\s'\-\/.&])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
   if(cash)s='Retrait d’espèces'+(s?' · '+s:'');
@@ -468,14 +470,14 @@ function learnRule(raw,kind,target){const p=ruleKey(raw);if(p.length<3)return;
   S.rules=S.rules.filter(r=>!(r.pattern===p&&r.kind===kind));S.rules.unshift({id:uid(),pattern:p,kind,...target});}
 const KW={
   'Restaurants':'RESTAURANT,RESTO,MCDONALD,MC DONALD,BURGER KING,KFC,DELIVEROO,UBER EATS,UBEREATS,JUST EAT,STARBUCKS,BRASSERIE,PIZZ,SUSHI,CAFE,FLUNCH,BUFFALO',
-  'Alimentation':'CARREFOUR,LECLERC,AUCHAN,LIDL,INTERMARCHE,MONOPRIX,FRANPRIX,SUPER U,HYPER U,SYSTEME U,ALDI,NETTO,PICARD,BIOCOOP,CASINO,SPAR,GRAND FRAIS,BOULANGERIE,MARCHE,PRIMEUR,BOUCHERIE,LA VIE CLAIRE',
-  'Abonnements':'NETFLIX,SPOTIFY,DEEZER,DISNEY,CANAL,PRIME VIDEO,AMAZON PRIME,FREE MOBILE,FREE TELECOM,ORANGE,SFR,BOUYGUES,SOSH,APPLE.COM,ITUNES,GOOGLE,YOUTUBE,ABONNEMENT',
-  'Transport':'SNCF,RATP,NAVIGO,TOTAL,ESSO,SHELL,AVIA,UBER,BOLT,BLABLACAR,PEAGE,AUTOROUTE,APRR,SANEF,PARKING,INDIGO,TRAINLINE,OUIGO,AIR FRANCE,EASYJET,RYANAIR,CARBURANT,STATION',
-  'Factures':'EDF,ENGIE,VEOLIA,SUEZ,ASSURANCE,MAIF,MACIF,MAAF,MATMUT,AXA,ALLIANZ,GMF,GROUPAMA,IMPOT,DGFIP,TRESOR PUBLIC',
-  'Logement':'LOYER,FONCIA,NEXITY,CITYA,SYNDIC,COPROPRIETE',
-  'Santé':'PHARMACIE,PHIE,DOCTEUR,DR ,MEDECIN,DENTISTE,KINE,OPTIC,LABO,HOPITAL,CLINIQUE,DOCTOLIB,MUTUELLE',
-  'Shopping':'AMAZON,AMZN,FNAC,DECATHLON,ZARA,H&M,IKEA,CDISCOUNT,LEROY MERLIN,CASTORAMA,DARTY,BOULANGER,KIABI,PRIMARK,SEPHORA,ACTION,ZALANDO,VINTED,ETSY,ALIEXPRESS,SHEIN',
-  'Loisirs':'CINEMA,UGC,PATHE,GAUMONT,MK2,STEAM,PLAYSTATION,NINTENDO,XBOX,BILLETTERIE,TICKETMASTER,MUSEE,PISCINE,BASIC FIT,FITNESS',
+  'Alimentation':'CARREFOUR,LECLERC,AUCHAN,LIDL,INTERMARCHE,MONOPRIX,FRANPRIX,SUPER U,HYPER U,SYSTEME U,ALDI,NETTO,PICARD,BIOCOOP,CASINO,SPAR,GRAND FRAIS,CUEILLET,BOULANGERIE,MARCHE,PRIMEUR,BOUCHERIE,LA VIE CLAIRE',
+  'Abonnements':'NETFLIX,SPOTIFY,DEEZER,DISNEY,CANAL,PRIME VIDEO,AMAZON PRIME,FREE MOBILE,FREE TELECOM,ORANGE,SFR,BOUYGUES,SOSH,APPLE.COM,APPLE ,ITUNES,GOOGLE,YOUTUBE,MICROSOFT,PATREON,ABONNEMENT',
+  'Factures':'TOTALENERGIES ELEC,ELECTRICITE,GAZ DE,EDF,ENGIE,VEOLIA,SUEZ,ASSU,MAIF,MACIF,MAAF,MATMUT,AXA,ALLIANZ,GMF,GROUPAMA,AVANSSUR,DIRECT ASSURANCE,IMPOT,DGFIP,TRESOR PUBLIC,COTIS,FRAIS,COMMISSION',
+  'Transport':'Q8,SNCF,RATP,NAVIGO,TOTAL,ESSO,SHELL,AVIA,UBER,BOLT,BLABLACAR,PEAGE,AUTOROUTE,APRR,SANEF,PARKING,INDIGO,TRAINLINE,OUIGO,AIR FRANCE,EASYJET,RYANAIR,CARBURANT,STATION',
+  'Logement':'ECH PRET,ECHEANCE PRET,PRET HABITAT,PRET IMMO,LOYER,FONCIA,NEXITY,CITYA,SYNDIC,COPROPRIETE',
+  'Santé':'PHARM,PHIE,DOCTEUR,DR ,MEDECIN,DENTISTE,KINE,OPTIC,LABO,HOPITAL,CLINIQUE,DOCTOLIB,MUTUELLE',
+  'Shopping':'BUT ,AMAZON,AMZN,FNAC,DECATHLON,ZARA,H&M,IKEA,CDISCOUNT,LEROY MERLIN,CASTORAMA,DARTY,BOULANGER,KIABI,PRIMARK,SEPHORA,ACTION,ZALANDO,VINTED,ETSY,ALIEXPRESS,SHEIN',
+  'Loisirs':'CINEMA,UGC,PATHE,GAUMONT,MK2,STEAM,TICKET,PLAYSTATION,NINTENDO,XBOX,BILLETTERIE,TICKETMASTER,MUSEE,PISCINE,BASIC FIT,FITNESS',
   'Salaire':'SALAIRE,PAIE,REMUNERATION,TRAITEMENT',
   'Remboursements':'CPAM,REMBOURSEMENT,REMB,RBT,MUTUELLE,AVOIR',
   'Autres revenus':'CAF,POLE EMPLOI,FRANCE TRAVAIL,INTERETS,DIVIDENDE'};
@@ -502,7 +504,7 @@ async function pdfLines(buf){const lib=await loadPdfJs();let password,doc;
     catch(e){if(e&&e.name==='PasswordException'){password=prompt(password===undefined?'Ce relevé PDF est protégé. Mot de passe :':'Mot de passe incorrect. Réessayez :');if(password==null)throw new Error('cancel');}else throw e;}}
   const out=[];
   for(let pn=1;pn<=doc.numPages;pn++){const page=await doc.getPage(pn);const tc=await page.getTextContent();
-    const its=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width,h:Math.abs(i.transform[3])||Math.hypot(i.transform[2],i.transform[3])||10}));
+    const its=tc.items.filter(i=>i.str&&/[\p{L}\p{N}]/u.test(i.str)).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width,h:Math.abs(i.transform[3])||Math.hypot(i.transform[2],i.transform[3])||10})).filter(i=>i.h>=5);
     its.sort((a,b)=>b.y-a.y||a.x-b.x);const lines=[];
     for(const it of its){const L=lines.find(l=>Math.abs(l.y-it.y)<Math.max(2,Math.min(l.h,it.h)*.45));if(L)L.items.push(it);else lines.push({y:it.y,h:it.h,items:[it]});}
     lines.sort((a,b)=>b.y-a.y);
@@ -512,6 +514,7 @@ async function pdfLines(buf){const lib=await loadPdfJs();let password,doc;
       cells.forEach(c=>c.t=c.t.replace(/\s+/g,' ').trim());
       const cs=cells.filter(c=>c.t);if(cs.length)out.push({page:pn,y:L.y,h:L.h,cells:cs});}}
   return out;}
+const unglue=s=>s.replace(/(\d)([A-Z][a-z])/g,'$1 $2').replace(/([A-Z])([A-Z][a-z]{2})/g,'$1 $2');
 const AMT_RE=/^[+-]?\s?\d{1,3}(?:[ .  ]\d{3})*,\d{2}\s?(?:€|EUR)?$|^[+-]?\s?\d+\.\d{2}\s?(?:€|EUR)?$/;
 const CREDIT_HINT=/(^|\s)(VIR(EMENT)?( SEPA| INST\w*)?( PERMANENT)? (RECU|DE)\b|VIR(EMENT)? RECU|REMBOURS|REMB |SALAIRE|AVOIR|REMISE( DE)? CH|INTERETS|VERSEMENT ESP|DEPOT)/;
 function parsePDFLines(lines){
@@ -533,7 +536,7 @@ function parsePDFLines(lines){
       const dm=text.match(/\d{2}[\/.]\d{2}[\/.]\d{2,4}/);end={amount:v,date:dm?parseDate(dm[0]):null};last=null;continue;}
     if(!m||!amts.length){
       if(last&&!amts.length&&!m&&tc.length&&L.page===last.page&&last.y-L.y<last.h*2.6&&tc[0].x0>last.x+4&&last.extra<2&&!/SOLDE|TOTAL|PAGE \d|SUITE/.test(nt)){
-        last.it.label+=' '+text;last.extra++;last.y=L.y;}
+        if(!norm(last.it.label).includes(norm(unglue(text))))last.it.label+=' '+unglue(text);last.extra++;last.y=L.y;}
       else if(m||amts.length||tc[0]&&tc[0].x0<=(last?last.x+4:0))last=null;
       continue;}
     let rest=m[4];const m2=rest.match(/^(\d{2})[\/.](\d{2})(?:[\/.](\d{2,4}))?\s+(.*)$/);if(m2)rest=m2[4];
@@ -545,7 +548,7 @@ function parsePDFLines(lines){
     if(/^[+-]/.test(a.t.trim())){}
     else if(cols){const n=nearest(a);v=n==='credit'?Math.abs(v):-Math.abs(v);}
     else{v=CREDIT_HINT.test(' '+nr)?Math.abs(v):-Math.abs(v);unsure=true;}
-    const it={date,amount:v,label:rest,unsure};items.push(it);last={it,page:L.page,y:L.y,h:L.h,x:tc[0].x0,extra:0};}
+    const it={date,amount:v,label:unglue(rest),unsure};items.push(it);last={it,page:L.page,y:L.y,h:L.h,x:tc[0].x0,extra:0};}
   return{items,end:end&&end.amount!=null?{amount:end.amount,date:end.date&&items.length?end.date:null}:null};}
 
 let IMP=null;
