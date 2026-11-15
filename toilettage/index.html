@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Agenda Toilettage</title>
+<meta name="description" content="Agenda de toilettage : rendez-vous, clients, chiens, prestations et remarques, hors connexion.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Toilettage">
+<meta name="theme-color" content="#faf6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
+<style>
+:root{
+  --bg:#faf6f2;--panel:#fff;--panel2:#f3ece5;--line:#e8ddd2;--fg:#2a2420;--muted:#7a6e65;
+  --accent:#c0603f;--accent-soft:#f8e3d9;--accent-ink:#fff;--good:#3d8a5c;--bad:#c4473d;
+  --shadow:0 1px 2px rgba(60,30,10,.05),0 4px 14px rgba(60,30,10,.05);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#16130f;--panel:#201c18;--panel2:#2b2621;--line:#3a332c;--fg:#f1ebe5;--muted:#a89c91;
+  --accent:#e98a68;--accent-soft:#3d2a21;--accent-ink:#22120b;--good:#6cc48f;--bad:#ec7b70;
+  --shadow:none;color-scheme:dark;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+.wrap{max-width:620px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right)) calc(100px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left))}
+h1{font-size:1.4rem;margin:0;letter-spacing:-.01em}
+h2{font-size:.78rem;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+p{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0;text-align:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:72px}
+label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
+.muted{color:var(--muted)}
+.row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.btn{color:inherit;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;padding:9px 16px;font-weight:600;font-size:.92rem;background:var(--panel2);border:1px solid var(--line)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:6px 12px;font-size:.85rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+/* Semaine */
+.monthbar{display:flex;align-items:center;gap:6px}
+.iconbtn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:1.2rem;background:var(--panel);border:1px solid var(--line)}
+.monthlabel{font-weight:700;font-size:1.05rem;text-transform:capitalize;position:relative}
+.monthlabel input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:6px 0 4px;touch-action:pan-y}
+.day{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;border-radius:14px;font-size:.75rem;color:var(--muted)}
+.day b{font-size:1.1rem;color:var(--fg);font-weight:600}
+.day .dots{height:6px;display:flex;gap:2px}
+.day .dots i{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.day.today b{color:var(--accent)}
+.day.sel{background:var(--accent);color:var(--accent-ink)}
+.day.sel b{color:var(--accent-ink)}
+.day.sel .dots i{background:var(--accent-ink)}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 8px}
+.dayhead h3{margin:0;font-size:1rem}
+.cap::first-letter{text-transform:uppercase}
+/* Rendez-vous */
+.appt{display:flex;gap:12px;padding:12px 14px;margin-bottom:10px;width:100%}
+.appt .time{min-width:52px;font-weight:700;font-variant-numeric:tabular-nums}
+.appt .time small{display:block;font-weight:400;color:var(--muted);font-size:.78rem}
+.appt .body{flex:1;min-width:0;border-left:3px solid var(--accent);padding-left:12px}
+.appt.done .body{border-left-color:var(--good)}
+.appt.done{opacity:.72}
+.appt .dog{font-weight:700;font-size:1.05rem}
+.appt .client{color:var(--muted);font-size:.9rem}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.chip{font-size:.78rem;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--fg)}
+.note{margin-top:6px;font-size:.88rem;color:var(--muted);white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.note.warn::before{content:"⚠ ";}
+.price{font-weight:600;white-space:nowrap}
+.empty{text-align:center;padding:36px 16px;color:var(--muted)}
+.empty .big{font-size:2.4rem;margin-bottom:6px}
+/* Clients */
+.search{position:relative;margin-bottom:12px}
+.client-row{display:flex;align-items:center;gap:12px;padding:12px 14px;width:100%;border-bottom:1px solid var(--line)}
+.client-row:last-child{border-bottom:0}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--accent-soft);display:grid;place-items:center;font-weight:700;color:var(--accent);flex:none}
+.client-row .name{font-weight:600}
+.client-row .sub{font-size:.85rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist{padding:10px 14px;border-bottom:1px solid var(--line);width:100%;display:block}
+.hist:last-child{border-bottom:0}
+.hist .h1{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+/* Barre d'onglets */
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));z-index:10}
+.tabs .in{display:flex;width:100%;max-width:620px;align-items:center}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;color:var(--muted);padding:4px 0;text-align:center}
+.tab svg{width:24px;height:24px}
+.tab.on{color:var(--accent);font-weight:600}
+.fab{width:58px;height:58px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:2rem;font-weight:300;margin:-26px 10px 0;box-shadow:0 6px 18px rgba(192,96,63,.35);flex:none;line-height:1}
+/* Feuille modale */
+.sheet-bg{position:fixed;inset:0;background:rgba(20,10,5,.4);z-index:20;display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+.sheet{background:var(--bg);width:100%;max-width:620px;max-height:94vh;max-height:94dvh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;animation:up .2s ease-out}
+.sheet header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.sheet header h3{margin:0;font-size:1.05rem;flex:1;text-align:center}
+.sheet .content{overflow-y:auto;padding:4px 16px calc(24px + env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}
+.linkbtn{color:var(--accent);font-weight:600;padding:4px 2px;min-width:70px}
+.linkbtn.right{text-align:right}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}
+@keyframes fade{from{opacity:0}}
+.svc{display:flex;flex-wrap:wrap;gap:7px}
+.svc button{padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:.9rem}
+.svc button.on{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{flex:1;text-align:center;padding:8px 4px;border-radius:9px;font-size:.88rem}
+.seg button.on{background:var(--panel);box-shadow:var(--shadow);font-weight:600}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.suggest{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-top:4px;overflow:hidden}
+.suggest button{display:block;width:100%;padding:10px 12px;border-bottom:1px solid var(--line)}
+.suggest button:last-child{border-bottom:0}
+.suggest small{color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.9rem;z-index:30;animation:fade .2s;max-width:90vw;text-align:center}
+.stat{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.stat:last-child{border-bottom:0}
+.list-pad{padding:4px 0}
+.hidden{display:none!important}
+.viewseg{width:auto;margin-bottom:8px}
+.month{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:6px 0 4px;touch-action:pan-y}
+.month .wd{text-align:center;font-size:.72rem;color:var(--muted);padding:4px 0}
+.mday{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:12px;font-size:.95rem;font-variant-numeric:tabular-nums}
+.mday.out{color:var(--muted);opacity:.45}
+.mday.today{color:var(--accent);font-weight:700}
+.mday.sel{background:var(--accent);color:var(--accent-ink)}
+.mday .dots{height:5px;display:flex;gap:2px}
+.mday .dots i{width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.mday.sel .dots i{background:var(--accent-ink)}
+.remind{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.remind:last-child{border-bottom:0}
+.remind.sent{opacity:.55}
+.svc-edit{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.svc-edit:last-child{border-bottom:0}
+.svc-edit span{flex:1}
+.svc-edit button{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+</style>
+</head><body>
+<div class="wrap" id="app"></div>
+
+<nav class="tabs"><div class="in">
+  <button class="tab" data-tab="agenda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Agenda</button>
+  <button class="tab" data-tab="upcoming"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>À venir</button>
+  <button class="fab" id="fab" aria-label="Nouveau rendez-vous">+</button>
+  <button class="tab" data-tab="clients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="9" r="2"/><circle cx="10" cy="5" r="2"/><circle cx="14" cy="5" r="2"/><circle cx="18" cy="9" r="2"/><path d="M12 11c-3 0-6 4-6 7 0 2 2 3 3.5 2.5S11 19.5 12 19.5s1 .5 2.5 1S18 20 18 18c0-3-3-7-6-7z"/></svg>Clients</button>
+  <button class="tab" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Réglages</button>
+</div></nav>
+
+<script>
+'use strict';
+/* ---------- Données ---------- */
+const KEY='toilettage.v1';
+const DEFAULT_SMS='Bonjour, petit rappel : rendez-vous toilettage pour {chien} {jour} à {heure}. À bientôt ! {salon}';
+const DEFAULT_SERVICES=['Bain','Séchage','Brushing','Démêlage','Coupe ciseaux','Tonte','Épilation','Coupe des griffes','Oreilles','Yeux','Anti-puces','Dents'];
+const BREEDS=['Bichon','Bichon maltais','Bouledogue français','Berger allemand','Berger australien','Border collie','Cavalier King Charles','Caniche','Caniche toy','Chihuahua','Cocker','Golden retriever','Husky','Jack Russell','Labrador','Lhassa Apso','Shih Tzu','Spitz nain','Teckel','Westie','Yorkshire','Croisé','Chat'];
+const DURATIONS=[[30,'30 min'],[45,'45 min'],[60,'1 h'],[90,'1 h 30'],[120,'2 h'],[150,'2 h 30'],[180,'3 h'],[240,'4 h']];
+
+function load(){
+  let s=null;
+  try{s=JSON.parse(localStorage.getItem(KEY));}catch(e){}
+  if(!s||!Array.isArray(s.appts))s={appts:[]};
+  s.settings=Object.assign({services:[...DEFAULT_SERVICES],salon:'',sms:DEFAULT_SMS,remindDays:1},s.settings||{});
+  return s;
+}
+let S=load();
+const svcList=()=>S.settings.services;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Impossible d’enregistrer sur ce téléphone');}}
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+
+/* ---------- Outils ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d);};
+const today=()=>iso(new Date());
+const norm=s=>String(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const fmtDay=s=>parse(s).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+const fmtShort=s=>parse(s).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+const fmtPrice=n=>(n===''||n==null||isNaN(n))?'':Number(n).toLocaleString('fr-FR',{minimumFractionDigits:Number(n)%1?2:0,maximumFractionDigits:2})+' €';
+const endTime=(t,dur)=>{if(!t)return'';const[h,m]=t.split(':').map(Number);const x=h*60+m+(+dur||0);return pad(Math.floor(x/60)%24)+':'+pad(x%60);};
+const fmtDur=m=>{m=+m||0;const h=Math.floor(m/60),r=m%60;return h?(h+' h'+(r?' '+pad(r):'')):r+' min';};
+const sortAppts=a=>a.sort((x,y)=>(x.date+(x.time||'99')).localeCompare(y.date+(y.time||'99')));
+const telHref=p=>'tel:'+String(p).replace(/[^\d+]/g,'');
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function smsHref(phone,body){const n=String(phone||'').replace(/[^\d+]/g,'');return 'sms:'+n+(body?(isIOS?'&':'?')+'body='+encodeURIComponent(body):'');}
+function relDay(d){const t=today();if(d===t)return 'aujourd’hui';if(d===addDays(t,1))return 'demain';return 'le '+fmtDay(d);}
+function reminderText(a){
+  const h=a.time?a.time.replace(':','h'):'(heure à confirmer)';
+  return S.settings.sms.replace(/\{chien\}/g,a.dog||'votre chien').replace(/\{client\}/g,a.client||'').replace(/\{jour\}/g,relDay(a.date)).replace(/\{date\}/g,fmtDay(a.date)).replace(/\{heure\}/g,h).replace(/\{salon\}/g,S.settings.salon||'').replace(/\s+$/,'').replace(/ {2,}/g,' ');
+}
+function markReminded(id){const a=S.appts.find(x=>x.id===id);if(a){a.reminded=new Date().toISOString();save();}}
+function toast(msg){document.querySelectorAll('.toast').forEach(x=>x.remove());const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);}
+
+/* Répertoire clients reconstruit à partir des rendez-vous */
+function directory(){
+  const map=new Map();
+  for(const a of sortAppts([...S.appts])){
+    const k=norm(a.client);if(!k)continue;
+    let c=map.get(k);
+    if(!c){c={key:k,name:a.client.trim(),phone:'',dogs:new Map(),appts:[]};map.set(k,c);}
+    c.name=a.client.trim();
+    if(a.phone)c.phone=a.phone;
+    c.appts.push(a);
+    const dk=norm(a.dog);
+    if(dk){const d=c.dogs.get(dk)||{name:'',breed:'',last:null};d.name=a.dog.trim();if(a.breed)d.breed=a.breed;d.last=a;c.dogs.set(dk,d);}
+  }
+  return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+}
+
+/* ---------- État de l'interface ---------- */
+let tab='agenda',sel=today(),q='';
+let mode='week';try{mode=localStorage.getItem('toilettage.mode')||'week';}catch(e){}
+
+function render(){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  ({agenda:renderAgenda,upcoming:renderUpcoming,clients:renderClients,settings:renderSettings})[tab]();
+}
+
+function apptCard(a,showDate){
+  const svc=(a.services||[]).map(s=>`<span class="chip">${esc(s)}</span>`).join('');
+  return `<button class="card appt${a.done?' done':''}" data-id="${a.id}">
+    <div class="time">${esc(a.time||'—')}${a.time&&a.duration?`<small>${endTime(a.time,a.duration)}</small>`:''}</div>
+    <div class="body">
+      ${showDate?`<div class="muted cap" style="font-size:.8rem">${esc(fmtDay(a.date))}</div>`:''}
+      <div style="display:flex;justify-content:space-between;gap:8px"><span class="dog">${esc(a.dog||'Chien ?')}${a.breed?` <span class="muted" style="font-weight:400;font-size:.88rem">· ${esc(a.breed)}</span>`:''}</span><span class="price">${a.done?'✓ ':''}${fmtPrice(a.price)}</span></div>
+      <div class="client">${esc(a.client||'Client ?')}</div>
+      ${svc?`<div class="chips">${svc}</div>`:''}
+      ${a.details?`<div class="note">${esc(a.details)}</div>`:''}
+      ${a.notes?`<div class="note warn">${esc(a.notes)}</div>`:''}
+    </div></button>`;
+}
+
+function monthShift(s,n){const d=parse(s);const day=d.getDate();const x=new Date(d.getFullYear(),d.getMonth()+n,1);const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();x.setDate(Math.min(day,last));return iso(x);}
+function renderAgenda(){
+  const d=parse(sel);const dow=(d.getDay()+6)%7;const monday=addDays(sel,-dow);
+  const counts={};for(const a of S.appts)counts[a.date]=(counts[a.date]||0)+1;
+  const dots=n=>'<span class="dots">'+'<i></i>'.repeat(Math.min(n,4))+'</span>';
+  let week='';
+  if(mode==='month'){
+    const first=iso(new Date(d.getFullYear(),d.getMonth(),1));const start=addDays(first,-((parse(first).getDay()+6)%7));
+    week=['lun','mar','mer','jeu','ven','sam','dim'].map(w=>`<div class="wd">${w}</div>`).join('');
+    for(let i=0;i<42;i++){const ds=addDays(start,i);const dd=parse(ds);if(i>=35&&dd.getMonth()!==d.getMonth())break;
+      week+=`<button class="mday${dd.getMonth()!==d.getMonth()?' out':''}${ds===sel?' sel':''}${ds===today()?' today':''}" data-day="${ds}">${dd.getDate()}${dots(counts[ds]||0)}</button>`;}
+  }else for(let i=0;i<7;i++){const ds=addDays(monday,i);const dd=parse(ds);
+    week+=`<button class="day${ds===sel?' sel':''}${ds===today()?' today':''}" data-day="${ds}">${dd.toLocaleDateString('fr-FR',{weekday:'short'}).replace('.','')}<b>${dd.getDate()}</b>${dots(counts[ds]||0)}</button>`;}
+  const list=sortAppts(S.appts.filter(a=>a.date===sel));
+  const total=list.reduce((s,a)=>s+(+a.price||0),0);
+  $('#app').innerHTML=`
+    <div class="top">
+      <div class="monthbar">
+        <button class="iconbtn" data-nav="-1" aria-label="Précédent">‹</button>
+        <span class="monthlabel">${d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})} ▾<input type="date" id="pick" value="${sel}" aria-label="Choisir une date"></span>
+        <button class="iconbtn" data-nav="1" aria-label="Suivant">›</button>
+      </div>
+      ${sel!==today()?'<button class="btn small" id="gotoday">Aujourd’hui</button>':''}
+    </div>
+    <div class="seg viewseg" id="mode"><button data-mode="week" class="${mode==='week'?'on':''}">Semaine</button><button data-mode="month" class="${mode==='month'?'on':''}">Mois</button></div>
+    <div class="${mode==='month'?'month':'week'}" id="week">${week}</div>
+    <div class="dayhead"><h3 class="cap">${esc(fmtDay(sel))}</h3><span class="muted" style="font-size:.88rem">${list.length?list.length+' RDV'+(total?' · '+fmtPrice(total):''):''}</span></div>
+    ${list.length?list.map(a=>apptCard(a)).join(''):`<div class="empty"><div class="big">🐾</div>Aucun rendez-vous ce jour.<br><br><button class="btn primary" id="addday">+ Ajouter un rendez-vous</button></div>`}`;
+  $('#pick').onchange=e=>{if(e.target.value){sel=e.target.value;render();}};
+  const gt=$('#gotoday');if(gt)gt.onclick=()=>{sel=today();render();};
+  const ad=$('#addday');if(ad)ad.onclick=()=>openForm({date:sel});
+  $('#mode').onclick=e=>{const b=e.target.closest('[data-mode]');if(!b)return;mode=b.dataset.mode;try{localStorage.setItem('toilettage.mode',mode);}catch(_){}render();};
+  // Glisser pour changer de semaine
+  const w=$('#week');let x0=null;
+  w.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;},{passive:true});
+  w.addEventListener('touchend',e=>{if(x0==null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>50){step(dx<0?1:-1);}});
+}
+
+function renderUpcoming(){
+  const t=today();
+  const list=sortAppts(S.appts.filter(a=>a.date>=t));
+  let html='<div class="top"><h1>À venir</h1></div>';
+  const lim=addDays(t,+S.settings.remindDays||1);
+  const toRemind=list.filter(a=>a.date>t&&a.date<=lim&&a.phone&&!a.done);
+  if(toRemind.length){
+    html+=`<h2>Rappels SMS à envoyer</h2><div class="card list-pad">${toRemind.map(a=>`<div class="remind${a.reminded?' sent':''}">
+      <span style="flex:1;min-width:0"><b>${esc(a.dog||'?')}</b> <span class="muted">· ${esc(a.client)}</span><div class="muted" style="font-size:.85rem">${esc(relDay(a.date))}${a.time?' à '+esc(a.time):''}${a.reminded?' · rappel envoyé ✓':''}</div></span>
+      <a class="btn small${a.reminded?'':' primary'}" data-remind="${a.id}" href="${smsHref(a.phone,reminderText(a))}">💬 ${a.reminded?'Renvoyer':'Rappel'}</a></div>`).join('')}</div>`;
+  }
+  if(!list.length)html+='<div class="empty"><div class="big">📅</div>Aucun rendez-vous à venir.</div>';
+  let cur='';
+  for(const a of list){if(a.date!==cur){cur=a.date;html+=`<h2>${a.date===t?'Aujourd’hui':esc(fmtDay(a.date))}</h2>`;}html+=apptCard(a);}
+  $('#app').innerHTML=html;
+}
+
+function renderClients(){
+  const dir=directory();const nq=norm(q);
+  const list=nq?dir.filter(c=>norm(c.name).includes(nq)||[...c.dogs.values()].some(d=>norm(d.name).includes(nq))||String(c.phone).replace(/\s/g,'').includes(nq.replace(/\s/g,''))):dir;
+  $('#app').innerHTML=`
+    <div class="top"><h1>Clients</h1><span class="muted" style="font-size:.88rem">${dir.length} client${dir.length>1?'s':''}</span></div>
+    <div class="search"><input type="search" id="q" placeholder="Rechercher un client, un chien, un numéro…" value="${esc(q)}" autocomplete="off"></div>
+    ${list.length?`<div class="card list-pad">${list.map(c=>`<button class="client-row" data-client="${esc(c.key)}">
+      <span class="avatar">${esc(c.name[0]?.toUpperCase()||'?')}</span>
+      <span style="flex:1;min-width:0"><div class="name">${esc(c.name)}</div><div class="sub">🐕 ${esc([...c.dogs.values()].map(d=>d.name).join(', ')||'—')}${c.phone?' · '+esc(c.phone):''}</div></span>
+      <span class="muted">›</span></button>`).join('')}</div>`
+    :`<div class="empty"><div class="big">🐶</div>${dir.length?'Aucun résultat.':'Les clients apparaîtront ici dès le premier rendez-vous enregistré.'}</div>`}`;
+  const inp=$('#q');inp.oninput=e=>{q=e.target.value;const pos=inp.selectionStart;renderClients();const n=$('#q');n.focus();n.setSelectionRange(pos,pos);};
+}
+
+function renderSettings(){
+  const dir=directory();const t=today();
+  const month=t.slice(0,7);const mAppts=S.appts.filter(a=>a.date.startsWith(month));
+  const mTotal=mAppts.reduce((s,a)=>s+(+a.price||0),0);
+  $('#app').innerHTML=`
+    <div class="top"><h1>Réglages</h1></div>
+    <div class="card list-pad">
+      <div class="stat"><span>Rendez-vous enregistrés</span><b>${S.appts.length}</b></div>
+      <div class="stat"><span>Clients</span><b>${dir.length}</b></div>
+      <div class="stat"><span>RDV ce mois-ci</span><b>${mAppts.length}${mTotal?' · '+fmtPrice(mTotal):''}</b></div>
+    </div>
+    <h2>Prestations proposées</h2>
+    <div class="card list-pad" id="svc-list">${svcList().map((x,i)=>`<div class="svc-edit"><span>${esc(x)}</span>
+      <button data-up="${i}" aria-label="Monter" ${i?'':'disabled style="opacity:.25"'}>↑</button><button data-rm="${i}" aria-label="Retirer">✕</button></div>`).join('')}</div>
+    <div class="row" style="margin-top:8px"><input id="svc-new" placeholder="Nouvelle prestation…"><button class="btn primary" id="svc-addbtn" style="flex:0 0 auto">Ajouter</button></div>
+
+    <h2>Rappels SMS</h2>
+    <label for="set-salon">Signature (nom du salon)</label>
+    <input id="set-salon" value="${esc(S.settings.salon)}" placeholder="ex. Salon Patte Douce">
+    <label for="set-days">Proposer les rappels pour les RDV</label>
+    <select id="set-days"><option value="1"${S.settings.remindDays==1?' selected':''}>du lendemain</option><option value="2"${S.settings.remindDays==2?' selected':''}>des 2 prochains jours</option><option value="3"${S.settings.remindDays==3?' selected':''}>des 3 prochains jours</option><option value="7"${S.settings.remindDays==7?' selected':''}>de la semaine</option></select>
+    <label for="set-sms">Message</label>
+    <textarea id="set-sms">${esc(S.settings.sms)}</textarea>
+    <p class="muted" style="font-size:.82rem;margin-top:4px">Mots remplacés automatiquement : {chien} {client} {jour} {date} {heure} {salon}</p>
+    <div class="actions" style="margin-top:8px"><button class="btn small" id="sms-reset">Message par défaut</button></div>
+
+    <h2>Sauvegarder les données</h2>
+    <p class="muted" style="font-size:.9rem">Les données restent uniquement sur ce téléphone. Pensez à faire une sauvegarde de temps en temps (par exemple l’envoyer par mail ou dans vos fichiers) : elle permet de tout récupérer si le téléphone est changé ou perdu.</p>
+    <div class="actions"><button class="btn primary" id="exp">⬇ Exporter une sauvegarde</button><button class="btn" id="imp">⬆ Restaurer une sauvegarde</button></div>
+    <input type="file" id="file" accept=".json,application/json" class="hidden">
+    <h2>Installer sur le téléphone</h2>
+    <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
+  $('#exp').onclick=exportData;
+  const st=S.settings;
+  $('#svc-list').onclick=e=>{const up=e.target.closest('[data-up]'),rm=e.target.closest('[data-rm]');
+    if(up){const i=+up.dataset.up;if(i>0){[st.services[i-1],st.services[i]]=[st.services[i],st.services[i-1]];save();renderSettings();}}
+    if(rm){const i=+rm.dataset.rm;if(confirm('Retirer « '+st.services[i]+' » de la liste ?\n(les anciens rendez-vous ne sont pas modifiés)')){st.services.splice(i,1);save();renderSettings();}}};
+  const addSvc=()=>{const v=$('#svc-new').value.trim();if(!v)return;if(!st.services.some(x=>norm(x)===norm(v)))st.services.push(v);save();renderSettings();};
+  $('#svc-addbtn').onclick=addSvc;$('#svc-new').onkeydown=e=>{if(e.key==='Enter')addSvc();};
+  $('#set-salon').onchange=e=>{st.salon=e.target.value.trim();save();toast('Enregistré');};
+  $('#set-days').onchange=e=>{st.remindDays=+e.target.value;save();toast('Enregistré');};
+  $('#set-sms').onchange=e=>{st.sms=e.target.value.trim()||DEFAULT_SMS;save();toast('Message enregistré');};
+  $('#sms-reset').onclick=()=>{st.sms=DEFAULT_SMS;save();renderSettings();toast('Message par défaut rétabli');};
+  $('#imp').onclick=()=>$('#file').click();
+  $('#file').onchange=importData;
+}
+
+async function exportData(){
+  const name='toilettage-sauvegarde-'+today()+'.json';
+  const blob=new Blob([JSON.stringify({app:'toilettage',version:1,exported:new Date().toISOString(),...S},null,1)],{type:'application/json'});
+  const file=new File([blob],name,{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:'Sauvegarde toilettage'});return;}catch(e){if(e.name==='AbortError')return;}
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+}
+function importData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);if(!d||!Array.isArray(d.appts))throw 0;
+      const ids=new Set(S.appts.map(a=>a.id));const added=d.appts.filter(a=>a&&a.id&&a.date&&!ids.has(a.id));
+      if(!confirm(`Restaurer cette sauvegarde ?\n${d.appts.length} rendez-vous dans le fichier, dont ${added.length} nouveaux.\nLes rendez-vous déjà présents sont conservés.`))return;
+      S.appts.push(...added);if(d.settings&&typeof d.settings==='object')S.settings=Object.assign(S.settings,d.settings);save();toast(added.length+' rendez-vous ajoutés');render();
+    }catch(err){alert('Ce fichier n’est pas une sauvegarde valide.');}
+  };
+  r.readAsText(f);e.target.value='';
+}
+
+/* ---------- Feuille modale ---------- */
+function openSheet(title,html,{left='Annuler',right='',onRight=null,onClose=null}={}){
+  closeSheet();
+  const bg=document.createElement('div');bg.className='sheet-bg';bg.id='sheet';
+  bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><header><button class="linkbtn" id="sh-l">${esc(left)}</button><h3>${esc(title)}</h3><button class="linkbtn right" id="sh-r">${esc(right)}</button></header><div class="content">${html}</div></div>`;
+  document.body.appendChild(bg);document.body.style.overflow='hidden';
+  const close=()=>{closeSheet();onClose&&onClose();};
+  bg.addEventListener('click',e=>{if(e.target===bg)close();});
+  $('#sh-l').onclick=close;
+  if(onRight)$('#sh-r').onclick=onRight;
+  return bg;
+}
+function closeSheet(){const s=$('#sheet');if(s)s.remove();document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
+
+/* ---------- Formulaire de rendez-vous ---------- */
+function openForm(init={}){
+  const editing=!!init.id;
+  const a=Object.assign({date:sel,time:'',duration:60,client:'',phone:'',dog:'',breed:'',services:[],details:'',price:'',notes:'',done:false},init);
+  let services=new Set(a.services||[]);
+  const custom=(a.services||[]).filter(s=>!svcList().includes(s));
+  const allSvc=[...svcList(),...custom];
+  const durOpts=DURATIONS.some(([v])=>v==a.duration)?DURATIONS:[...DURATIONS,[+a.duration,fmtDur(a.duration)]].sort((x,y)=>x[0]-y[0]);
+  const breeds=[...new Set([...BREEDS,...S.appts.map(x=>x.breed).filter(Boolean)])].sort((x,y)=>x.localeCompare(y,'fr'));
+  const html=`
+    <div class="row">
+      <div><label for="f-date">Date</label><input type="date" id="f-date" value="${esc(a.date)}" required></div>
+      <div><label for="f-time">Heure</label><input type="time" id="f-time" value="${esc(a.time)}" step="300"></div>
+    </div>
+    <label for="f-dur">Durée</label>
+    <select id="f-dur">${durOpts.map(([v,l])=>`<option value="${v}"${v==a.duration?' selected':''}>${l}</option>`).join('')}</select>
+
+    <h2>Client</h2>
+    <label for="f-client">Nom du client</label>
+    <input id="f-client" value="${esc(a.client)}" autocomplete="off" autocapitalize="words" placeholder="ex. Mme Martin">
+    <div id="sug-client"></div>
+    <label for="f-phone">Téléphone</label>
+    <input id="f-phone" type="tel" value="${esc(a.phone)}" autocomplete="off" placeholder="06 12 34 56 78">
+
+    <h2>Chien</h2>
+    <div class="row">
+      <div><label for="f-dog">Nom du chien</label><input id="f-dog" value="${esc(a.dog)}" autocomplete="off" autocapitalize="words" placeholder="ex. Filou"></div>
+      <div><label for="f-breed">Race</label><input id="f-breed" value="${esc(a.breed)}" list="breeds" autocomplete="off" autocapitalize="words" placeholder="ex. Caniche"></div>
+    </div>
+    <div id="sug-dog"></div>
+    <datalist id="breeds">${breeds.map(b=>`<option value="${esc(b)}">`).join('')}</datalist>
+
+    <h2>Prestation</h2>
+    <div class="svc" id="svc">${allSvc.map(s=>`<button type="button" data-s="${esc(s)}" class="${services.has(s)?'on':''}">${esc(s)}</button>`).join('')}<button type="button" id="svc-add">+ Autre</button></div>
+    <label for="f-details">Détails de la prestation</label>
+    <textarea id="f-details" placeholder="ex. Coupe courte sur le corps, garder la tête ronde, sabot 6 mm">${esc(a.details)}</textarea>
+    <div class="row">
+      <div><label for="f-price">Prix (€)</label><input id="f-price" type="number" inputmode="decimal" min="0" step="0.5" value="${esc(a.price)}" placeholder="0"></div>
+      <div><label>Statut</label><div class="seg" id="f-done"><button type="button" data-v="0" class="${a.done?'':'on'}">Prévu</button><button type="button" data-v="1" class="${a.done?'on':''}">Fait ✓</button></div></div>
+    </div>
+
+    <h2>Remarques</h2>
+    <textarea id="f-notes" placeholder="Comportement, santé, allergies, peur du séchoir, mord…">${esc(a.notes)}</textarea>
+
+    <div class="actions">
+      <button class="btn primary" id="f-save" style="flex:1">${editing?'Enregistrer':'Ajouter le rendez-vous'}</button>
+    </div>
+    ${editing?`<div class="actions">
+      ${a.phone?`<a class="btn" href="${telHref(a.phone)}">📞 Appeler</a><a class="btn" id="f-sms" href="${smsHref(a.phone,reminderText(a))}">💬 Rappel SMS${a.reminded?' ✓':''}</a>`:''}
+      <button class="btn" id="f-again">↻ Reprendre RDV</button>
+      <button class="btn danger" id="f-del">Supprimer</button>
+    </div>`:''}`;
+  openSheet(editing?'Rendez-vous':'Nouveau rendez-vous',html,{right:'OK',onRight:submit});
+  let done=!!a.done;
+
+  // Prestations
+  const svcBox=$('#svc');
+  svcBox.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    if(b.id==='svc-add'){
+      const n=(prompt('Nom de la prestation :')||'').trim();if(!n)return;
+      if(![...svcBox.querySelectorAll('[data-s]')].some(x=>x.dataset.s===n)){const nb=document.createElement('button');nb.type='button';nb.dataset.s=n;nb.textContent=n;svcBox.insertBefore(nb,b);}
+      services.add(n);svcBox.querySelector(`[data-s="${CSS.escape(n)}"]`).classList.add('on');return;
+    }
+    const s=b.dataset.s;if(services.has(s)){services.delete(s);b.classList.remove('on');}else{services.add(s);b.classList.add('on');}
+  });
+  $('#f-done').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;done=b.dataset.v==='1';[...$('#f-done').children].forEach(x=>x.classList.toggle('on',x===b));});
+
+  // Suggestions clients / chiens
+  const dir=directory();
+  const fClient=$('#f-client'),fDog=$('#f-dog');
+  function currentClient(){return dir.find(c=>c.key===norm(fClient.value));}
+  function suggestClients(){
+    const v=norm(fClient.value);const box=$('#sug-client');
+    if(!v){box.innerHTML='';return;}
+    const m=dir.filter(c=>(norm(c.name).includes(v)||[...c.dogs.values()].some(d=>norm(d.name).includes(v)))&&c.key!==v).slice(0,5);
+    box.innerHTML=m.length?`<div class="suggest">${m.map(c=>`<button type="button" data-k="${esc(c.key)}">${esc(c.name)} <small>· ${esc([...c.dogs.values()].map(d=>d.name).join(', '))}</small></button>`).join('')}</div>`:'';
+  }
+  function suggestDogs(){
+    const c=currentClient();const box=$('#sug-dog');
+    if(!c||!c.dogs.size){box.innerHTML='';return;}
+    const v=norm(fDog.value);
+    const m=[...c.dogs.values()].filter(d=>norm(d.name)!==v);
+    box.innerHTML=m.length?`<div class="chips" style="margin-top:8px">${m.map(d=>`<button type="button" class="chip" data-dog="${esc(d.name)}">🐕 ${esc(d.name)}</button>`).join('')}</div>`:'';
+  }
+  function pickClient(c){
+    fClient.value=c.name;if(c.phone&&!$('#f-phone').value)$('#f-phone').value=c.phone;
+    $('#sug-client').innerHTML='';
+    if(c.dogs.size===1&&!fDog.value)pickDog([...c.dogs.values()][0]);
+    suggestDogs();
+  }
+  function pickDog(d){
+    fDog.value=d.name;if(d.breed&&!$('#f-breed').value)$('#f-breed').value=d.breed;
+    // Reprendre la dernière prestation si rien n'est encore saisi
+    if(!editing&&d.last&&!services.size&&!$('#f-details').value){
+      (d.last.services||[]).forEach(s=>{services.add(s);let b=svcBox.querySelector(`[data-s="${CSS.escape(s)}"]`);
+        if(!b){b=document.createElement('button');b.type='button';b.dataset.s=s;b.textContent=s;svcBox.insertBefore(b,$('#svc-add'));}b.classList.add('on');});
+      $('#f-details').value=d.last.details||'';
+      if(!$('#f-price').value&&d.last.price!=='')$('#f-price').value=d.last.price;
+      if(!$('#f-notes').value)$('#f-notes').value=d.last.notes||'';
+      if(d.last.duration)$('#f-dur').value=d.last.duration;
+      toast('Dernière prestation de '+d.name+' reprise');
+    }
+    suggestDogs();
+  }
+  fClient.addEventListener('input',()=>{suggestClients();suggestDogs();});
+  fClient.addEventListener('blur',()=>setTimeout(()=>{$('#sug-client')&&($('#sug-client').innerHTML='');const c=currentClient();if(c)pickClient(c);},200));
+  $('#sug-client').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b)pickClient(dir.find(c=>c.key===b.dataset.k));});
+  $('#sug-dog').addEventListener('click',e=>{const b=e.target.closest('[data-dog]');if(!b)return;const c=currentClient();pickDog(c.dogs.get(norm(b.dataset.dog)));});
+  fDog.addEventListener('input',suggestDogs);
+  fDog.addEventListener('blur',()=>{const c=currentClient();const d=c&&c.dogs.get(norm(fDog.value));if(d&&!$('#f-breed').value&&d.breed)$('#f-breed').value=d.breed;});
+  suggestDogs();
+  if(!editing&&!a.client)setTimeout(()=>{if(!a.time)$('#f-time').focus();},250);
+
+  function submit(){
+    const v=id=>$(id).value.trim();
+    const rec={id:a.id||uid(),date:v('#f-date'),time:v('#f-time'),duration:+$('#f-dur').value,
+      client:v('#f-client'),phone:v('#f-phone'),dog:v('#f-dog'),breed:v('#f-breed'),
+      services:[...svcBox.querySelectorAll('[data-s].on')].map(b=>b.dataset.s),
+      details:v('#f-details'),price:$('#f-price').value===''?'':+$('#f-price').value,notes:v('#f-notes'),done,
+      created:a.created||new Date().toISOString(),updated:new Date().toISOString()};
+    const kept=S.appts.find(x=>x.id===rec.id);if(kept&&kept.reminded&&kept.date===rec.date&&kept.time===rec.time)rec.reminded=kept.reminded;
+    if(!rec.date){toast('Choisissez une date');return;}
+    if(!rec.client&&!rec.dog){toast('Indiquez au moins le client ou le chien');$('#f-client').focus();return;}
+    const i=S.appts.findIndex(x=>x.id===rec.id);
+    if(i>=0)S.appts[i]=rec;else S.appts.push(rec);
+    save();closeSheet();
+    if(tab==='agenda')sel=rec.date;
+    toast(editing?'Rendez-vous modifié':'Rendez-vous ajouté');render();
+  }
+  $('#f-save').onclick=submit;
+  if(editing){
+    $('#f-del').onclick=()=>{if(!confirm('Supprimer ce rendez-vous ?'))return;S.appts=S.appts.filter(x=>x.id!==a.id);save();closeSheet();toast('Rendez-vous supprimé');render();};
+    const fs=$('#f-sms');if(fs)fs.addEventListener('click',()=>{markReminded(a.id);a.reminded=true;});
+    $('#f-again').onclick=()=>{const{id,created,updated,date,time,done:_,reminded:__,...rest}=a;openForm({...rest,date:addDays(a.date,42)});toast('Nouveau RDV pré-rempli (dans 6 semaines)');};
+  }
+}
+
+/* ---------- Fiche client ---------- */
+function openClient(key){
+  const c=directory().find(x=>x.key===key);if(!c)return;
+  const hist=[...c.appts].reverse();
+  const lastNote=hist.find(a=>a.notes);
+  const t=today();const next=c.appts.find(a=>a.date>=t);
+  const html=`
+    <div style="text-align:center;margin:14px 0 6px"><div class="avatar" style="width:64px;height:64px;font-size:1.6rem;margin:0 auto 8px">${esc(c.name[0]?.toUpperCase()||'?')}</div>
+      <div style="font-weight:700;font-size:1.2rem">${esc(c.name)}</div>
+      ${c.phone?`<div class="muted">${esc(c.phone)}</div>`:''}</div>
+    <div class="actions" style="justify-content:center;margin-top:10px">
+      ${c.phone?`<a class="btn" href="${telHref(c.phone)}">📞 Appeler</a><a class="btn" href="${smsHref(c.phone)}">💬 SMS</a>`:''}
+      <button class="btn" id="c-edit">✎ Modifier</button>
+    </div>
+    ${next?`<h2>Prochain rendez-vous</h2>${apptCard(next,true)}`:''}
+    ${lastNote?`<h2>Dernière remarque</h2><div class="card" style="padding:12px 14px;white-space:pre-wrap">⚠ ${esc(lastNote.notes)}<div class="muted" style="font-size:.8rem;margin-top:4px">${esc(fmtShort(lastNote.date))}</div></div>`:''}
+    <h2>Chiens</h2>
+    <div class="card list-pad">${[...c.dogs.values()].map(d=>`<div class="client-row"><span class="avatar">🐕</span><span style="flex:1;min-width:0"><div class="name">${esc(d.name)}</div><div class="sub">${esc(d.breed||'Race non précisée')}</div></span><button class="btn small primary" data-newdog="${esc(d.name)}">+ RDV</button></div>`).join('')||'<div class="client-row muted">Aucun chien renseigné</div>'}</div>
+    <h2>Historique (${hist.length})</h2>
+    <div class="card list-pad">${hist.map(a=>`<button class="hist" data-id="${a.id}">
+      <div class="h1"><span>${esc(fmtShort(a.date))}${a.time?' · '+esc(a.time):''} — ${esc(a.dog||'')}</span><span class="price">${fmtPrice(a.price)}</span></div>
+      ${(a.services||[]).length?`<div class="chips">${a.services.map(s=>`<span class="chip">${esc(s)}</span>`).join('')}</div>`:''}
+      ${a.details?`<div class="note">${esc(a.details)}</div>`:''}
+      ${a.notes?`<div class="note warn">${esc(a.notes)}</div>`:''}
+    </button>`).join('')}</div>`;
+  const bg=openSheet('Fiche client',html,{left:'Fermer'});
+  bg.querySelectorAll('[data-newdog]').forEach(b=>b.onclick=()=>{
+    const d=c.dogs.get(norm(b.dataset.newdog));const last=d.last||{};
+    openForm({date:sel<t?t:sel,client:c.name,phone:c.phone,dog:d.name,breed:d.breed,services:last.services||[],details:last.details||'',price:last.price??'',notes:last.notes||'',duration:last.duration||60});
+  });
+  $('#c-edit').onclick=()=>{
+    const h=`<label for="e-name">Nom du client</label><input id="e-name" value="${esc(c.name)}" autocapitalize="words">
+      <label for="e-phone">Téléphone</label><input id="e-phone" type="tel" value="${esc(c.phone)}">
+      <p class="muted" style="font-size:.85rem;margin-top:10px">La modification s’applique à tous les rendez-vous de ce client (${c.appts.length}).</p>
+      <div class="actions"><button class="btn primary" id="e-save" style="flex:1">Enregistrer</button></div>`;
+    openSheet('Modifier le client',h,{onClose:()=>openClient(key)});
+    $('#e-save').onclick=()=>{const name=$('#e-name').value.trim(),phone=$('#e-phone').value.trim();if(!name){toast('Le nom est obligatoire');return;}
+      const ids=new Set(c.appts.map(a=>a.id));S.appts.forEach(a=>{if(ids.has(a.id)){a.client=name;a.phone=phone;}});save();render();openClient(norm(name));toast('Client modifié');};
+  };
+}
+
+function step(n){sel=mode==='month'?monthShift(sel,n):addDays(sel,7*n);render();}
+/* ---------- Événements globaux ---------- */
+document.addEventListener('click',e=>{
+  const ap=e.target.closest('[data-id]');
+  if(ap){const a=S.appts.find(x=>x.id===ap.dataset.id);if(a)openForm(a);return;}
+  const day=e.target.closest('[data-day]');if(day){sel=day.dataset.day;render();return;}
+  const nav=e.target.closest('[data-nav]');if(nav){step(+nav.dataset.nav);return;}
+  const rm=e.target.closest('[data-remind]');if(rm){markReminded(rm.dataset.remind);setTimeout(render,600);return;}
+  const cl=e.target.closest('[data-client]');if(cl){openClient(cl.dataset.client);return;}
+  const tb=e.target.closest('[data-tab]');if(tb){tab=tb.dataset.tab;closeSheet();render();window.scrollTo(0,0);}
+});
+$('#fab').onclick=()=>openForm({date:tab==='agenda'?sel:today()});
+
+render();
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body></html>
