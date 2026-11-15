@@ -1765,24 +1765,27 @@ function openVoice(date,kind='appt'){
       <button id="mic" aria-label="Démarrer la dictée" style="width:92px;height:92px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:2.4rem;display:inline-grid;place-items:center;box-shadow:0 6px 18px rgba(58,150,214,.35)">🎤</button>
       <div id="mic-state" class="muted" style="margin-top:8px;font-size:.9rem">${SR?'Touchez pour parler':'Dictée intégrée indisponible ici : touchez la zone de texte puis le micro 🎤 du clavier.'}</div>
     </div>
-    <label for="v-text">Texte dicté (modifiable)</label>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end"><label for="v-text">Texte dicté (modifiable)</label><button type="button" class="linkbtn right" id="v-clear" style="font-size:.85rem;min-width:0">Effacer</button></div>
     <textarea id="v-text" style="min-height:120px" placeholder="Le texte apparaît ici…"></textarea>
     <div class="actions"><button class="btn primary" id="v-go" style="flex:1">Remplir la fiche</button></div>
     <p class="muted" style="font-size:.82rem;margin-top:8px">${getKey()?'Le texte sera compris par l’IA (Claude). Vous pourrez tout vérifier avant d’enregistrer.':'Sans clé API, l’application reconnaît les éléments simples (date, heure, prix, prestations, clients déjà connus). Vous pourrez tout vérifier avant d’enregistrer.'} Plusieurs rendez-vous peuvent être dictés à la suite.</p>`;
-  openSheet(isCl?'Fiche client à la voix':'Dictée vocale',html,{onClose:stopRecog});
-  const mic=$('#mic'),stateEl=$('#mic-state'),ta=$('#v-text');
+  stopRecog(true);
+  openSheet(isCl?'Fiche client à la voix':'Dictée vocale',html,{onClose:()=>stopRecog(true)});
+  const mic=$('#mic'),stateEl=$('#mic-state'),ta=$('#v-text');ta.value='';
+  $('#v-clear').onclick=()=>{stopRecog(true);ta.value='';ta.focus();};
   if(!SR)mic.onclick=()=>ta.focus();
   else mic.onclick=()=>{
     if(recog){stopRecog();return;}
     recog=new SR();recog.lang='fr-FR';recog.continuous=true;recog.interimResults=true;
-    const base=ta.value?ta.value.trim()+' ':'';
-    recog.onresult=e=>{let fin='',tmp='';for(let i=0;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)fin+=r[0].transcript+' ';else tmp+=r[0].transcript;}ta.value=(base+fin+tmp).replace(/\s+/g,' ');};
+    const base=ta.value?ta.value.trim()+' ':'';let start=null;const me=recog;
+    // Sur iPhone, la liste des résultats peut contenir la dictée précédente : on ne lit qu'à partir du premier résultat de cette dictée
+    recog.onresult=e=>{if(recog!==me)return;if(start===null)start=e.resultIndex;let txt='';for(let i=start;i<e.results.length;i++)txt+=e.results[i][0].transcript+' ';ta.value=(base+txt).replace(/\s+/g,' ').trim();};
     recog.onerror=e=>{stateEl.textContent=e.error==='not-allowed'||e.error==='service-not-allowed'?'Micro refusé : autorisez-le dans les réglages du téléphone, ou utilisez le micro du clavier.':'Erreur de dictée ('+e.error+')';};
-    recog.onend=()=>{recog=null;if($('#mic')){$('#mic').textContent='🎤';$('#mic').style.background='var(--accent)';if(!/Erreur|refusé/.test(stateEl.textContent))stateEl.textContent='Touchez pour reprendre';}};
+    recog.onend=()=>{if(recog!==me)return;recog=null;if($('#mic')){$('#mic').textContent='🎤';$('#mic').style.background='var(--accent)';if(!/Erreur|refusé/.test(stateEl.textContent))stateEl.textContent='Touchez pour reprendre';}};
     try{recog.start();mic.textContent='■';mic.style.background='var(--bad)';stateEl.textContent='J’écoute… touchez ■ pour terminer';}catch(err){recog=null;stateEl.textContent='Impossible de démarrer la dictée.';}
   };
   $('#v-go').onclick=async()=>{
-    stopRecog();const text=ta.value.trim();if(!text){toast('Dictez ou écrivez d’abord');return;}
+    const text=ta.value.trim();stopRecog(true);if(!text){toast('Dictez ou écrivez d’abord');return;}
     if(isCl)return voiceClient(text);
     let items;
     if(getKey()){
@@ -1823,7 +1826,7 @@ function parseClientDictation(text){
   // Adresse : « 12 rue Victor Hugo à Lyon », « 3 bis avenue … 69003 Lyon »
   const ad=raw.match(/\b\d{1,4}\s*(?:bis|ter)?\s*,?\s*(?:rue|avenue|av\.?|boulevard|bd|chemin|all[ée]e|impasse|place|route|quai|lotissement|r[ée]sidence)\b[^,.;]*?(?=(?:[,.;]|\s+(?:son|sa|ses|il|elle|le chien|la chienne|chien|t[ée]l|remarque|attention)\b|$))/i);
   if(ad){c.address=ad[0].replace(/\s+à\s+/i,' ').replace(/\s+/g,' ').trim();rest=rest.replace(ad[0],' ');}
-  const d=parseDictation(rest.replace(/\b(?:elle|il)\s+habite\b/gi,' '),today(),{agenda:true});
+  const d=parseDictation(rest.replace(/\b(?:elle|il)\s+habite\b/gi,' '),today(),{agenda:true,noKnown:true});
   c.name=d.client||'';c.phone=d.phone||'';
   // Chiens : « Filou et Lola », sinon le chien trouvé
   const dogs=[];
@@ -1838,7 +1841,7 @@ function parseClientDictation(text){
   if(!c.name)c.uncertain='nom du client non reconnu';
   return c;
 }
-function stopRecog(){if(recog){try{recog.stop();}catch(e){}recog=null;}}
+function stopRecog(hard){if(recog){const r=recog;recog=null;if(hard){r.onresult=null;try{r.abort();}catch(e){}}else{try{r.stop();}catch(e){}}const m=$('#mic');if(m){m.textContent='🎤';m.style.background='var(--accent)';}}}
 
 /* Lecture simple (sans IA) d'une phrase dictée en français */
 const NUMS={un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,onze:11,douze:12,treize:13,quatorze:14,quinze:15,seize:16,'dix-sept':17,'dix-huit':18,'dix-neuf':19,vingt:20,trente:30,quarante:40,cinquante:50,soixante:60};
@@ -1877,8 +1880,8 @@ function parseDictation(text,defDate,opt={}){
   const pr=t.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|euros?)/);if(pr)out.price=+pr[1].replace(',','.');
   // Téléphone
   const ph=raw.replace(/[.\-]/g,' ').match(/(?:\+33\s?|0)\s?[1-9](?:\s?\d{2}){4}/);if(ph)out.phone=ph[0].replace(/\s/g,'').replace(/(\d{2})(?=\d)/g,'$1 ').trim();
-  // Clients et chiens connus
-  const dir=directory();
+  // Clients et chiens connus (pas pour la création d'une nouvelle fiche)
+  const dir=opt.noKnown?[]:directory();
   for(const c of dir){for(const d of c.dogs.values()){if(d.name&&new RegExp('\\b'+norm(d.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(t)){out.dog=d.name;if(!out.breed)out.breed=d.breed;if(!out.client){out.client=c.name;if(!out.phone)out.phone=c.phone;}}}}
   for(const c of dir){const n=norm(c.name).replace(/^(mme|mr|m\.|madame|monsieur)\s+/,'');if(n.length>2&&t.includes(' '+n)){out.client=c.name;if(!out.phone)out.phone=c.phone;}}
   if(!out.client){const cm=raw.match(opt.agenda?/\b(madame|monsieur|mademoiselle|mme|m\.|mr)\s+([A-Za-zÀ-ÿ'-]+)/i:/\b(madame|monsieur|mademoiselle|mme|m\.|mr)\s+([A-Za-zÀ-ÿ'-]+(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+)?)/i);
