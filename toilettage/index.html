@@ -226,7 +226,7 @@ details.blk[open]>summary::after{content:'▴'}
 /* ---------- Données ---------- */
 const KEY='toilettage.v1';
 /* Version de l'application (à augmenter à chaque mise à jour, comme dans sw.js) */
-const APP_VERSION='24',APP_DATE='15 novembre 2026';
+const APP_VERSION='25',APP_DATE='15 novembre 2026';
 /* Taille du texte (propre à chaque téléphone) */
 const FS_KEY='toilettage.fs';
 function applyFs(v){document.documentElement.classList.remove('fs-1','fs-2');if(v==='1'||v==='2')document.documentElement.classList.add('fs-'+v);}
@@ -567,6 +567,10 @@ function renderSettings(){
   const mTotal=mAppts.reduce((s,a)=>s+(+a.price||0),0);
   $('#app').innerHTML=`
     <div class="top"><h1>Réglages</h1></div>
+    <div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="flex:1;min-width:150px">Version <b>${APP_VERSION}</b> <span class="muted">· ${APP_DATE}</span><span class="muted" style="display:block;font-size:.82rem" id="upd-msg">Vérifiée automatiquement à chaque ouverture.</span></span>
+      <button class="btn small" id="upd-check">↻ Mise à jour</button>
+    </div>
     <h2 style="margin-top:4px">Apparence</h2>
     <div class="seg" id="set-theme" role="radiogroup" aria-label="Apparence">
       <button data-theme-v="auto" role="radio" aria-checked="${theme==='auto'}" class="${theme==='auto'?'on':''}">Auto</button>
@@ -623,16 +627,11 @@ function renderSettings(){
     <p class="muted" style="font-size:.9rem">Les données restent uniquement sur ce téléphone. Pensez à faire une sauvegarde de temps en temps (par exemple l’envoyer par mail ou dans vos fichiers) : elle permet de tout récupérer si le téléphone est changé ou perdu.</p>
     <div class="actions"><button class="btn primary" id="exp">⬇ Exporter une sauvegarde</button><button class="btn" id="imp">⬆ Restaurer une sauvegarde</button></div>
     <input type="file" id="file" accept=".json,application/json" class="hidden">
-    <h2>Version de l’application</h2>
-    <div class="card list-pad"><div class="stat"><span>Version installée</span><b>${APP_VERSION} · ${APP_DATE}</b></div></div>
-    <div class="actions" style="margin-top:8px"><button class="btn small" id="upd-check">↻ Rechercher une mise à jour</button></div>
-    <p class="muted" style="font-size:.82rem;margin-top:6px" id="upd-msg">L’application vérifie aussi toute seule à chaque ouverture et propose la nouvelle version.</p>
-
     <h2>Installer sur le téléphone</h2>
     <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
   $('#exp').onclick=exportData;
   $('#upd-check').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='Recherche…';
-    const r=await checkUpdate(true);b.disabled=false;b.textContent='↻ Rechercher une mise à jour';
+    const r=await checkUpdate(true);b.disabled=false;b.textContent='↻ Mise à jour';
     const m=$('#upd-msg');if(!m)return;
     if(r===null)m.textContent='Impossible de vérifier : pas de connexion internet.';
     else if(r)m.textContent='Nouvelle version '+r+' trouvée : installation…';
@@ -1970,7 +1969,7 @@ async function checkUpdate(install){
 async function installUpdate(){
   try{const reg=await navigator.serviceWorker?.getRegistration();if(reg)await reg.update();}catch(e){}
   try{const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('tg-')&&k!=='tg-lib').map(k=>caches.delete(k)));}catch(e){}
-  location.reload();
+  location.replace(location.pathname+'?maj='+Date.now());
 }
 function showUpdateBar(v){
   if($('#upd-bar'))return;
@@ -1978,6 +1977,7 @@ function showUpdateBar(v){
   d.innerHTML='<span>✨ Nouvelle version disponible</span><button>Mettre à jour</button>';
   d.querySelector('button').onclick=installUpdate;document.body.appendChild(d);
 }
+if(/[?&]maj=/.test(location.search))history.replaceState(null,'',location.pathname);
 let lastUpdCheck=0;
 function autoCheck(){if(Date.now()-lastUpdCheck<10*60*1000)return;lastUpdCheck=Date.now();checkUpdate(false);}
 setTimeout(autoCheck,4000);
