@@ -1,5 +1,5 @@
 // Agenda Toilettage : fonctionnement hors connexion
-const V='tg-23';
+const V='tg-24';
 const CORE=['./','index.html','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png','apple-touch-icon.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('tg-')&&k!==V&&k!=='tg-lib').map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});

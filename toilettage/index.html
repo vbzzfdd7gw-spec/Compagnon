@@ -133,6 +133,9 @@ label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px}
 .suggest button{display:block;width:100%;padding:10px 12px;border-bottom:1px solid var(--line)}
 .suggest button:last-child{border-bottom:0}
 .suggest small{color:var(--muted)}
+.upd-bar{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 8px);z-index:40;display:flex;align-items:center;gap:10px;background:var(--fg);color:var(--bg);padding:8px 8px 8px 14px;border-radius:999px;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:.9rem;width:min(520px,calc(100vw - 24px));animation:fade .2s}
+.upd-bar span{flex:1;min-width:0}
+.upd-bar button{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:6px 12px;font-weight:600;white-space:nowrap}
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.9rem;z-index:30;animation:fade .2s;max-width:90vw;text-align:center}
 .stat{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
 .stat:last-child{border-bottom:0}
@@ -222,6 +225,8 @@ details.blk[open]>summary::after{content:'▴'}
 'use strict';
 /* ---------- Données ---------- */
 const KEY='toilettage.v1';
+/* Version de l'application (à augmenter à chaque mise à jour, comme dans sw.js) */
+const APP_VERSION='24',APP_DATE='15 novembre 2026';
 /* Taille du texte (propre à chaque téléphone) */
 const FS_KEY='toilettage.fs';
 function applyFs(v){document.documentElement.classList.remove('fs-1','fs-2');if(v==='1'||v==='2')document.documentElement.classList.add('fs-'+v);}
@@ -618,9 +623,20 @@ function renderSettings(){
     <p class="muted" style="font-size:.9rem">Les données restent uniquement sur ce téléphone. Pensez à faire une sauvegarde de temps en temps (par exemple l’envoyer par mail ou dans vos fichiers) : elle permet de tout récupérer si le téléphone est changé ou perdu.</p>
     <div class="actions"><button class="btn primary" id="exp">⬇ Exporter une sauvegarde</button><button class="btn" id="imp">⬆ Restaurer une sauvegarde</button></div>
     <input type="file" id="file" accept=".json,application/json" class="hidden">
+    <h2>Version de l’application</h2>
+    <div class="card list-pad"><div class="stat"><span>Version installée</span><b>${APP_VERSION} · ${APP_DATE}</b></div></div>
+    <div class="actions" style="margin-top:8px"><button class="btn small" id="upd-check">↻ Rechercher une mise à jour</button></div>
+    <p class="muted" style="font-size:.82rem;margin-top:6px" id="upd-msg">L’application vérifie aussi toute seule à chaque ouverture et propose la nouvelle version.</p>
+
     <h2>Installer sur le téléphone</h2>
     <p class="muted" style="font-size:.9rem"><b>iPhone</b> : dans Safari, bouton Partager puis « Sur l’écran d’accueil ».<br><b>Android</b> : dans Chrome, menu ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».<br>L’application fonctionne ensuite même sans connexion.</p>`;
   $('#exp').onclick=exportData;
+  $('#upd-check').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='Recherche…';
+    const r=await checkUpdate(true);b.disabled=false;b.textContent='↻ Rechercher une mise à jour';
+    const m=$('#upd-msg');if(!m)return;
+    if(r===null)m.textContent='Impossible de vérifier : pas de connexion internet.';
+    else if(r)m.textContent='Nouvelle version '+r+' trouvée : installation…';
+    else m.textContent='L’application est à jour (version '+APP_VERSION+').';};
   bindSyncSection();
   $('#set-theme').onclick=e=>{const b=e.target.closest('[data-theme-v]');if(!b)return;theme=b.dataset.themeV;try{localStorage.setItem(TH_KEY,theme);}catch(_){}applyTheme(theme);const y=scrollY;render();scrollTo(0,y);};
   $('#set-fs').onclick=e=>{const b=e.target.closest('[data-fs]');if(!b)return;fsLevel=b.dataset.fs;try{localStorage.setItem(FS_KEY,fsLevel);}catch(_){}applyFs(fsLevel);const y=scrollY;render();scrollTo(0,y);};
@@ -1939,5 +1955,33 @@ $('#fab').onclick=()=>tab==='sales'?openSaleForm({}):openForm({date:tab==='agend
 render();
 loadPhotos().then(()=>{if(Object.keys(PH).length)render();if(SY.uid)syncInit();});
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+/* ---------- Mises à jour ---------- */
+// Renvoie la nouvelle version si elle existe, false si à jour, null si impossible de vérifier
+async function checkUpdate(install){
+  if(!location.protocol.startsWith('http'))return false;
+  let latest;
+  try{const r=await fetch('index.html?v='+Date.now(),{cache:'no-store'});if(!r.ok)return null;
+    const m=(await r.text()).match(/APP_VERSION='([^']+)'/);if(!m)return null;latest=m[1];}catch(e){return null;}
+  if(latest===APP_VERSION)return false;
+  if(install)installUpdate();else showUpdateBar(latest);
+  return latest;
+}
+async function installUpdate(){
+  try{const reg=await navigator.serviceWorker?.getRegistration();if(reg)await reg.update();}catch(e){}
+  try{const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('tg-')&&k!=='tg-lib').map(k=>caches.delete(k)));}catch(e){}
+  location.reload();
+}
+function showUpdateBar(v){
+  if($('#upd-bar'))return;
+  const d=document.createElement('div');d.className='upd-bar';d.id='upd-bar';d.setAttribute('role','status');
+  d.innerHTML='<span>✨ Nouvelle version disponible</span><button>Mettre à jour</button>';
+  d.querySelector('button').onclick=installUpdate;document.body.appendChild(d);
+}
+let lastUpdCheck=0;
+function autoCheck(){if(Date.now()-lastUpdCheck<10*60*1000)return;lastUpdCheck=Date.now();checkUpdate(false);}
+setTimeout(autoCheck,4000);
+// Sur iPhone, l'appli reste souvent ouverte en arrière-plan : on vérifie aussi quand elle revient au premier plan
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')autoCheck();});
 </script>
 </body></html>
