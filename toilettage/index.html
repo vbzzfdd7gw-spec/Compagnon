@@ -226,7 +226,7 @@ details.blk[open]>summary::after{content:'▴'}
 /* ---------- Données ---------- */
 const KEY='toilettage.v1';
 /* Version de l'application (à augmenter à chaque mise à jour, comme dans sw.js) */
-const APP_VERSION='27',APP_DATE='15 novembre 2026';
+const APP_VERSION='28',APP_DATE='15 novembre 2026';
 /* Taille du texte (propre à chaque téléphone) */
 const FS_KEY='toilettage.fs';
 function applyFs(v){document.documentElement.classList.remove('fs-1','fs-2');if(v==='1'||v==='2')document.documentElement.classList.add('fs-'+v);}
@@ -296,7 +296,7 @@ function directory(){
   const blank=(k,name)=>({key:k,name,phone:'',email:'',address:'',notes:'',rid:null,dogs:new Map(),appts:[]});
   const gone=new Map(S.clients.filter(r=>r.deleted).map(r=>[norm(r.name),r.deletedAt||'']));
   for(const r of S.clients){const k=norm(r.name);if(!k||r.deleted)continue;
-    const c=map.get(k)||blank(k,r.name.trim());map.set(k,c);
+    const c=map.get(k)||blank(k,r.name.trim());map.set(k,c);c.gone=r.goneDogs||null;
     Object.assign(c,{rid:r.id,email:r.email||'',address:r.address||'',notes:r.notes||'',civ:r.civ,last:r.last,first:r.first});
     for(const d of r.dogs||[]){const dk=norm(d.name);if(dk)c.dogs.set(dk,{name:d.name.trim(),breed:d.breed||'',notes:d.notes||'',photo:d.photo||'',last:null});}}
   for(const a of sortAppts([...S.appts])){
@@ -308,7 +308,8 @@ function directory(){
     if(a.phone)c.phone=a.phone;
     c.appts.push(a);
     const dk=norm(a.dog);
-    if(dk){const d=c.dogs.get(dk)||{name:'',breed:'',notes:'',last:null};d.name=a.dog.trim();if(a.breed)d.breed=a.breed;d.last=a;c.dogs.set(dk,d);}
+    if(dk&&c.gone&&c.gone[dk]&&!((a.created||'')>c.gone[dk])&&!c.dogs.has(dk)){}
+    else if(dk){const d=c.dogs.get(dk)||{name:'',breed:'',notes:'',last:null};d.name=a.dog.trim();if(a.breed)d.breed=a.breed;d.last=a;c.dogs.set(dk,d);}
   }
   // La fiche client enregistrée fait foi pour le nom et le téléphone
   for(const r of S.clients){if(r.deleted)continue;const c=map.get(norm(r.name));if(!c)continue;c.name=r.name.trim();if(r.phone)c.phone=r.phone;}
@@ -478,6 +479,27 @@ function openSaleForm(init){
   const d=$('#s-del');if(d)d.onclick=()=>askDeleteSale(v.id);
 }
 
+/* ---------- Retirer un chien d'une fiche ---------- */
+function askDeleteDog(id,onNo){
+  const i=id.indexOf('|');const key=id.slice(0,i),dk=id.slice(i+1);
+  const c=directory().find(x=>x.key===key);const d=c&&c.dogs.get(dk);if(!d||!dk){onNo&&onNo();return;}
+  const T=today();const appts=c.appts.filter(a=>norm(a.dog)===dk);
+  const next=appts.filter(a=>!(a.date<T||a.done)),past=appts.length-next.length;
+  const msg='Retirer '+d.name+' de la fiche de '+c.name+' ?'
+    +(next.length?'\n'+(next.length>1?next.length+' rendez-vous à venir pour '+d.name+' seront aussi supprimés.':'Son rendez-vous à venir sera aussi supprimé.'):'')
+    +(past?'\n'+(past>1?'Ses '+past+' rendez-vous passés restent':'Son rendez-vous passé reste')+' dans l’historique et la Compta.':'');
+  if(!confirm(msg)){onNo&&onNo();return;}
+  const ids=new Set(next.map(a=>a.id));S.appts=S.appts.filter(a=>!ids.has(a.id));
+  let r=S.clients.find(x=>!x.deleted&&norm(x.name)===key);
+  if(!r){const np=nameParts(c);r={id:uid(),name:c.name,civ:np.civ,last:np.last,first:np.first,phone:c.phone,email:c.email||'',address:c.address||'',notes:c.notes||'',
+    dogs:[...c.dogs.values()].map(x=>({name:x.name,breed:x.breed,notes:x.notes||'',photo:x.photo||''})),created:new Date().toISOString()};S.clients.push(r);}
+  const rd=(r.dogs||[]).find(x=>norm(x.name)===dk);if(rd&&rd.photo)delPhoto(rd.photo);
+  r.dogs=(r.dogs||[]).filter(x=>norm(x.name)!==dk);
+  if(past)r.goneDogs={...(r.goneDogs||{}),[dk]:new Date().toISOString()};
+  r.updated=new Date().toISOString();
+  save();swOpen=null;render();openClient(key);toast(d.name+' retiré de la fiche');
+}
+
 /* ---------- Suppression d'un client ---------- */
 function askDeleteClient(key,onNo){
   const c=directory().find(x=>x.key===key);if(!c){onNo&&onNo();return;}
@@ -535,7 +557,7 @@ function bindSwipes(root){
       if(!drag)return;dx=Math.max(Math.min(0,start+mx),-w.offsetWidth);set(dx,false);e.preventDefault();});
     const end=e=>{if(pid!==e.pointerId)return;pid=null;if(!drag)return;
       card.dataset.swiped='1';setTimeout(()=>{delete card.dataset.swiped;},80);
-      if(dx<-w.offsetWidth*0.55){set(-w.offsetWidth,true);setTimeout(()=>({client:askDeleteClient,sale:askDeleteSale}[w.dataset.kind]||askDelete)(w.dataset.sw,()=>closeSw(w)),180);}
+      if(dx<-w.offsetWidth*0.55){set(-w.offsetWidth,true);setTimeout(()=>({client:askDeleteClient,sale:askDeleteSale,dog:askDeleteDog}[w.dataset.kind]||askDelete)(w.dataset.sw,()=>closeSw(w)),180);}
       else if(dx<-50){w.classList.add('open');set(-SW_OPEN,true);swOpen=w;}
       else closeSw(w);};
     card.addEventListener('pointerup',end);card.addEventListener('pointercancel',end);
@@ -888,7 +910,8 @@ function openClient(key){
       return `<h2>Fiche papier</h2><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${sc.map(id=>`<button data-scan="${id}" aria-label="Voir la fiche papier"><img src="${PH[id]}" alt="" style="width:64px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block"></button>`).join('')}
       <button class="btn small" id="c-scan">📎 ${sc.length?'Ajouter':'Ajouter une photo de la fiche papier'}</button></div>`;})()}
     <h2>Chiens</h2>
-    <div class="card list-pad">${[...c.dogs.values()].map(d=>`<div class="client-row"><button class="photo-slot" style="width:56px;height:56px" data-dogpic="${esc(d.name)}" aria-label="${PH[d.photo]?'Voir la photo de':'Ajouter une photo de'} ${esc(d.name)}">${PH[d.photo]?`<img src="${PH[d.photo]}" alt="">`:'📷'}</button><span style="flex:1;min-width:0"><div class="name">${esc(d.name)}</div><div class="sub">${esc(d.breed||'Race non précisée')}</div>${d.notes?`<div class="sub" style="white-space:normal">⚠ ${esc(d.notes)}</div>`:''}</span><button class="btn small primary" data-newdog="${esc(d.name)}">+ RDV</button></div>`).join('')||'<div class="client-row muted">Aucun chien renseigné</div>'}</div>
+    ${c.dogs.size?'<p class="swipe-hint" style="margin-top:-2px">Glissez un chien vers la gauche pour le retirer de la fiche.</p>':''}
+    <div class="card list-pad" style="overflow:hidden">${[...c.dogs.values()].map(d=>`<div class="swipe row-sw" data-sw="${esc(key+'|'+norm(d.name))}" data-kind="dog"><div class="del"><button data-deldog="${esc(key+'|'+norm(d.name))}" aria-label="Retirer ${esc(d.name)} de la fiche"><span>🗑</span>Supprimer</button></div><div class="client-row"><button class="photo-slot" style="width:56px;height:56px" data-dogpic="${esc(d.name)}" aria-label="${PH[d.photo]?'Voir la photo de':'Ajouter une photo de'} ${esc(d.name)}">${PH[d.photo]?`<img src="${PH[d.photo]}" alt="">`:'📷'}</button><span style="flex:1;min-width:0"><div class="name">${esc(d.name)}</div><div class="sub">${esc(d.breed||'Race non précisée')}</div>${d.notes?`<div class="sub" style="white-space:normal">⚠ ${esc(d.notes)}</div>`:''}</span><button class="btn small primary" data-newdog="${esc(d.name)}">+ RDV</button></div></div>`).join('')||'<div class="client-row muted">Aucun chien renseigné</div>'}</div>
     <h2>Historique (${hist.length})</h2>
     ${hist.length?'':'<p class="muted">Aucune visite enregistrée.</p>'}
     <div class="card list-pad${hist.length?'':' hidden'}">${hist.map(a=>`<button class="hist" data-id="${a.id}">
@@ -900,11 +923,13 @@ function openClient(key){
   const bg=openSheet('Fiche client',html,{left:'Fermer'});
   bg.querySelectorAll('[data-scan]').forEach(b=>b.onclick=()=>viewScan(key,b.dataset.scan));
   $('#c-scan').onclick=()=>pickPhoto(f=>addScan(key,f));
-  bg.querySelectorAll('[data-dogpic]').forEach(b=>b.onclick=()=>{
+  bindSwipes(bg);
+  const swiped=b=>{const r=b.closest('.client-row');return r&&r.dataset.swiped;};
+  bg.querySelectorAll('[data-dogpic]').forEach(b=>b.onclick=()=>{if(swiped(b))return;
     const d=c.dogs.get(norm(b.dataset.dogpic));
     if(PH[d.photo])viewDogPhoto(c,d);else pickPhoto(file=>setDogPhoto(key,d.name,file));
   });
-  bg.querySelectorAll('[data-newdog]').forEach(b=>b.onclick=()=>{
+  bg.querySelectorAll('[data-newdog]').forEach(b=>b.onclick=()=>{if(swiped(b))return;
     const d=c.dogs.get(norm(b.dataset.newdog));const last=d.last||{};
     openForm({date:sel<t?t:sel,client:c.name,phone:c.phone,dog:d.name,breed:d.breed,services:last.services||[],details:last.details||'',price:last.price??'',notes:last.notes||'',duration:last.duration||60});
   });
@@ -1045,6 +1070,7 @@ function openClientForm(init,opts={}){
     if(other){alert('Une fiche « '+other.name+' » existe déjà. Ajoutez le prénom pour distinguer les deux clients.');const f=$('#cf-first');if(f)f.focus();return;}
     const i=S.clients.findIndex(x=>x.id===rec.id);
     if(i>=0)S.clients[i]={...S.clients[i],...rec};else S.clients.push({...rec,created:new Date().toISOString()});
+    {const cr=S.clients.find(x=>x.id===rec.id);if(cr&&cr.goneDogs){for(const d of rec.dogs)delete cr.goneDogs[norm(d.name)];}}
     if(opts.oldKey){S.appts.forEach(a=>{if(norm(a.client)===opts.oldKey){a.client=rec.name;if(rec.phone)a.phone=rec.phone;}});}
     keepPics();save();closeSheet();render();openClient(k);toast(isNew?'Fiche client créée':'Fiche client enregistrée');
   }
@@ -2014,6 +2040,7 @@ document.addEventListener('click',e=>{
   const del=e.target.closest('[data-del]');if(del){const w=del.closest('.swipe');askDelete(del.dataset.del,()=>closeSw(w));return;}
   const sw=e.target.closest('.swipe');
   const dcl=e.target.closest('[data-delcl]');if(dcl){const w=dcl.closest('.swipe');askDeleteClient(dcl.dataset.delcl,()=>closeSw(w));return;}
+  const ddg=e.target.closest('[data-deldog]');if(ddg){const w=ddg.closest('.swipe');askDeleteDog(ddg.dataset.deldog,()=>closeSw(w));return;}
   const dsl=e.target.closest('[data-delsale]');if(dsl){const w=dsl.closest('.swipe');askDeleteSale(dsl.dataset.delsale,()=>closeSw(w));return;}
   if(sw){const c=sw.querySelector('.appt, .client-row, .sale-row');if(c&&c.dataset.swiped)return;if(sw.classList.contains('open')){closeSw(sw);return;}}
   if(swOpen&&!e.target.closest('.swipe')){closeSw(swOpen);}
