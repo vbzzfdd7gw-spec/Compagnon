@@ -348,8 +348,8 @@ function renderSettings(){
     <p class="muted" style="font-size:.82rem;margin-top:4px">Mots remplacés automatiquement : {chien} {client} {jour} {date} {heure} {salon}</p>
     <div class="actions" style="margin-top:8px"><button class="btn small" id="sms-reset">Message par défaut</button></div>
 
-    <h2>Lecture des photos et dictée (IA)</h2>
-    <p class="muted" style="font-size:.9rem">Pour lire un agenda papier en photo (écriture à la main) et mieux comprendre les dictées, l’application utilise Claude, l’intelligence artificielle d’Anthropic. Il faut une clé API, à créer sur <b>console.anthropic.com</b> (compte payant à l’usage : quelques centimes par page photographiée). Sans clé, la dictée fonctionne quand même, de façon plus simple.</p>
+    <h2>Lecture avancée par IA (facultatif)</h2>
+    <p class="muted" style="font-size:.9rem"><b>Facultatif.</b> Sans clé, tout fonctionne : les photos sont lues directement sur le téléphone (gratuit, hors connexion) et la dictée est analysée sur le téléphone. Une clé API Anthropic (payante à l’usage, sur console.anthropic.com) permet seulement une lecture plus fiable de l’écriture à la main.</p>
     <label for="set-key">Clé API Anthropic</label>
     <input id="set-key" type="password" autocomplete="off" value="${esc(getKey())}" placeholder="sk-ant-…">
     <p class="muted" style="font-size:.82rem;margin-top:4px">La clé reste sur ce téléphone et n’est pas incluse dans les sauvegardes. Les photos et dictées sont envoyées à Anthropic pour être lues.</p>
@@ -384,7 +384,7 @@ function renderSettings(){
 
 async function exportData(){
   const name='toilettage-sauvegarde-'+today()+'.json';
-  const used=new Set(S.clients.flatMap(c=>(c.dogs||[]).map(d=>d.photo)).filter(id=>id&&PH[id]));
+  const used=new Set(S.clients.flatMap(c=>[...(c.dogs||[]).map(d=>d.photo),...(c.scans||[])]).filter(id=>id&&PH[id]));
   const photos={};used.forEach(id=>photos[id]=PH[id]);
   const blob=new Blob([JSON.stringify({app:'toilettage',version:1,exported:new Date().toISOString(),...S,photos})],{type:'application/json'});
   const file=new File([blob],name,{type:'application/json'});
@@ -588,6 +588,9 @@ function openClient(key){
     ${c.notes?`<h2>Remarques sur le client</h2><div class="card" style="padding:12px 14px;white-space:pre-wrap">${esc(c.notes)}</div>`:''}
     ${next?`<h2>Prochain rendez-vous</h2>${apptCard(next,true)}`:''}
     ${lastNote?`<h2>Dernière remarque</h2><div class="card" style="padding:12px 14px;white-space:pre-wrap">⚠ ${esc(lastNote.notes)}<div class="muted" style="font-size:.8rem;margin-top:4px">${esc(fmtShort(lastNote.date))}</div></div>`:''}
+    ${(()=>{const r=S.clients.find(x=>x.id===c.rid);const sc=(r&&r.scans||[]).filter(id=>PH[id]);
+      return `<h2>Fiche papier</h2><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${sc.map(id=>`<button data-scan="${id}" aria-label="Voir la fiche papier"><img src="${PH[id]}" alt="" style="width:64px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block"></button>`).join('')}
+      <button class="btn small" id="c-scan">📎 ${sc.length?'Ajouter':'Ajouter une photo de la fiche papier'}</button></div>`;})()}
     <h2>Chiens</h2>
     <div class="card list-pad">${[...c.dogs.values()].map(d=>`<div class="client-row"><button class="photo-slot" style="width:56px;height:56px" data-dogpic="${esc(d.name)}" aria-label="${PH[d.photo]?'Voir la photo de':'Ajouter une photo de'} ${esc(d.name)}">${PH[d.photo]?`<img src="${PH[d.photo]}" alt="">`:'📷'}</button><span style="flex:1;min-width:0"><div class="name">${esc(d.name)}</div><div class="sub">${esc(d.breed||'Race non précisée')}</div>${d.notes?`<div class="sub" style="white-space:normal">⚠ ${esc(d.notes)}</div>`:''}</span><button class="btn small primary" data-newdog="${esc(d.name)}">+ RDV</button></div>`).join('')||'<div class="client-row muted">Aucun chien renseigné</div>'}</div>
     <h2>Historique (${hist.length})</h2>
@@ -599,6 +602,8 @@ function openClient(key){
       ${a.notes?`<div class="note warn">${esc(a.notes)}</div>`:''}
     </button>`).join('')}</div>`;
   const bg=openSheet('Fiche client',html,{left:'Fermer'});
+  bg.querySelectorAll('[data-scan]').forEach(b=>b.onclick=()=>viewScan(key,b.dataset.scan));
+  $('#c-scan').onclick=()=>pickPhoto(f=>addScan(key,f));
   bg.querySelectorAll('[data-dogpic]').forEach(b=>b.onclick=()=>{
     const d=c.dogs.get(norm(b.dataset.dogpic));
     if(PH[d.photo])viewDogPhoto(c,d);else pickPhoto(file=>setDogPhoto(key,d.name,file));
@@ -658,7 +663,7 @@ function openClientForm(init,opts={}){
     if(sp){const i=+sp.dataset.setpic;readDogs();pickPhoto(async file=>{try{const id=uid();pending[id]=await dogThumb(file);dogs[i].photo=id;drawDogs();}catch(err){toast('Photo illisible');}});return;}
     if(rp){readDogs();dogs[+rp.dataset.rmpic].photo='';drawDogs();return;}
     if(!b)return;readDogs();dogs.splice(+b.dataset.rmdog,1);drawDogs();};
-  const del=$('#cf-del');if(del)del.onclick=()=>{if(!confirm('Supprimer la fiche de '+r.name+' ?'))return;S.clients=S.clients.filter(x=>x.id!==r.id);oldPics.forEach(delPhoto);save();closeSheet();render();toast('Fiche supprimée');};
+  const del=$('#cf-del');if(del)del.onclick=()=>{if(!confirm('Supprimer la fiche de '+r.name+' ?'))return;const gone=S.clients.find(x=>x.id===r.id);((gone&&gone.scans)||[]).forEach(delPhoto);S.clients=S.clients.filter(x=>x.id!==r.id);oldPics.forEach(delPhoto);save();closeSheet();render();toast('Fiche supprimée');};
   function submit(){
     readDogs();
     const v=id=>$(id).value.trim();
@@ -812,7 +817,7 @@ function openPhotoImport(kind='agenda'){
   const hasKey=!!getKey();
   const html=`
     <p style="margin-top:14px">${isCl?'Prenez en photo une ou plusieurs fiches clients papier (carte, carnet, cahier). L’application crée les fiches (client, téléphone, chiens, remarques, passages déjà notés) et vous les montre pour vérification.':'Prenez en photo une ou plusieurs pages de l’agenda papier. L’application lit les rendez-vous, puis vous les montre pour vérification avant de les ajouter.'}</p>
-    ${hasKey?'':`<div class="card" style="padding:12px 14px;margin-top:12px">⚠ Il faut d’abord ajouter une clé API dans <b>Réglages</b> pour la lecture des photos.<div class="actions" style="margin-top:10px"><button class="btn small primary" id="ph-settings">Aller aux réglages</button></div></div>`}
+    ${hasKey?'':`<p class="muted" style="font-size:.85rem;margin-top:8px">La lecture se fait sur le téléphone, gratuitement et sans connexion. Elle lit bien un texte net ou écrit en lettres détachées ; une écriture attachée est souvent mal reconnue : vous pourrez corriger le texte lu.${isCl?' La photo de la fiche est de toute façon gardée dans la fiche client.':''}</p>`}
     <div class="${isCl?'hidden':''}"><label for="ph-date">Date de la page ou de la semaine (si elle n’est pas écrite)</label>
     <input type="date" id="ph-date" value=""></div>
     <div class="actions">
@@ -824,9 +829,10 @@ function openPhotoImport(kind='agenda'){
     <div id="ph-thumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px"></div>
     <p class="muted" style="font-size:.85rem;margin-top:10px">Conseils : ${isCl?'fiche':'page'} bien à plat, bonne lumière, texte net. Pensez à photographier aussi le verso s’il est rempli.</p>
     <div class="actions"><button class="btn primary" id="ph-go" style="flex:1" disabled>Lire les rendez-vous</button></div>
+    <div class="actions" style="margin-top:8px"><button class="btn small" id="ph-paste">📋 Coller un texte à la place</button></div>
     <div id="ph-status" class="muted" style="margin-top:10px;text-align:center"></div>`;
   openSheet(isCl?'Fiches clients papier':'Agenda papier',html,{left:'Fermer'});
-  const st=$('#ph-settings');if(st)st.onclick=()=>{closeSheet();tab='settings';render();setTimeout(()=>$('#set-key')&&$('#set-key').focus(),100);};
+  $('#ph-paste').onclick=()=>openTextImport(kind,{hint:$('#ph-date').value});
   const add=e=>{photoFiles.push(...e.target.files);e.target.value='';thumbs();};
   $('#ph-cam').onclick=()=>$('#ph-cam-in').click();$('#ph-gal').onclick=()=>$('#ph-gal-in').click();
   $('#ph-cam-in').onchange=add;$('#ph-gal-in').onchange=add;
@@ -836,10 +842,11 @@ function openPhotoImport(kind='agenda'){
       const im=document.createElement('img');im.src=URL.createObjectURL(f);im.style.cssText='width:84px;height:110px;object-fit:cover;border-radius:10px;border:1px solid var(--line)';
       const x=document.createElement('button');x.textContent='✕';x.setAttribute('aria-label','Retirer');x.style.cssText='position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;text-align:center';
       x.onclick=()=>{photoFiles.splice(i,1);thumbs();};d.append(im,x);box.append(d);});
-    $('#ph-go').disabled=!photoFiles.length||!getKey();
+    $('#ph-go').disabled=!photoFiles.length;
     $('#ph-go').textContent=photoFiles.length>1?`Lire les ${photoFiles.length} photos`:(isCl?'Lire la fiche':'Lire les rendez-vous');
   }
   $('#ph-go').onclick=async()=>{
+    if(!getKey())return readPhotosOnDevice(kind);
     if(isCl)return readClientPhotos();
     const hint=$('#ph-date').value;const go=$('#ph-go');go.disabled=true;
     const status=$('#ph-status');const found=[];const errors=[];
@@ -860,26 +867,39 @@ Voici la photo d’une page d’agenda papier écrite à la main. Relève chaque
   };
 }
 
+async function readPhotosOnDevice(kind){
+  const isCl=kind==='clients';const go=$('#ph-go');go.disabled=true;const status=$('#ph-status');
+  const hint=isCl?'':$('#ph-date').value;const texts=[];const scans=[];
+  try{
+    for(let i=0;i<photoFiles.length;i++){
+      const data=await shrinkImage(photoFiles[i]);
+      if(isCl){const id=uid();SCANP[id]=data;scans.push(id);}
+      status.textContent=`Lecture de la photo ${i+1} sur ${photoFiles.length}…`;
+      texts.push(await ocrImage(data,m=>status.textContent=m));
+    }
+  }catch(err){status.textContent='';go.disabled=false;
+    if(isCl&&scans.length&&confirm('La lecture du texte a échoué ('+err.message+').\nCréer quand même la fiche avec la photo, et la remplir à la main ?'))return openClientReview([{name:'',phone:'',email:'',address:'',notes:'',dogs:[],visits:[],uncertain:'texte non lu : remplissez la fiche',scans}]);
+    alert(err.message);return;}
+  status.textContent='';go.disabled=false;
+  openTextImport(kind,{text:texts.join(isCl?'\n-----\n':'\n'),hint,scans});
+}
+
 async function readClientPhotos(){
   const go=$('#ph-go');go.disabled=true;const status=$('#ph-status');const found=[];const errors=[];
   for(let i=0;i<photoFiles.length;i++){
     status.textContent=`Lecture de la photo ${i+1} sur ${photoFiles.length}… (environ 30 secondes)`;
     try{
-      const data=await shrinkImage(photoFiles[i]);
+      const data=await shrinkImage(photoFiles[i]);const sid=uid();SCANP[sid]=data;
       const content=[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:data.split(',')[1]}},
         {type:'text',text:aiContext()+`
 Voici la photo d’une ou plusieurs fiches clients papier d’un salon de toilettage (écriture à la main ou imprimée). Pour chaque client : nom du propriétaire (avec Mme/M. si indiqué), téléphone, e-mail, adresse, remarques générales ; pour chacun de ses chiens : nom, race, remarques (âge, caractère, santé, allergies, coupe habituelle). Si la fiche contient un historique des passages, relève chaque passage : date (AAAA-MM-JJ, chaîne vide si illisible ; déduis l’année si elle manque), chien concerné, prestations, détails, prix. Si une partie de la photo est le verso d’une fiche sans nom, rattache-la au client le plus probable. Signale dans « uncertain » ce qui est difficile à lire.`}];
-      found.push(...((await askClaude(content,'high',CLIENT_SCHEMA)).clients||[]));
+      found.push(...((await askClaude(content,'high',CLIENT_SCHEMA)).clients||[]).map(c=>({...c,scans:[sid]})));
     }catch(err){errors.push(`Photo ${i+1} : ${err.message}`);}
   }
   status.textContent='';go.disabled=false;
   if(errors.length)alert(errors.join('\n'));
   // Regroupe recto et verso d'un même client
-  const merged=[];
-  for(const c of found){const m=merged.find(x=>norm(x.name)&&norm(x.name)===norm(c.name));
-    if(m){m.phone=m.phone||c.phone;m.email=m.email||c.email;m.address=m.address||c.address;m.notes=[m.notes,c.notes].filter(Boolean).join('\n');
-      for(const d of c.dogs)if(!m.dogs.some(x=>norm(x.name)===norm(d.name)))m.dogs.push(d);m.visits.push(...c.visits);m.uncertain=[m.uncertain,c.uncertain].filter(Boolean).join(' ; ');}
-    else merged.push(c);}
+  const merged=mergeClients(found);
   if(merged.length)openClientReview(merged);
   else if(!errors.length)alert('Aucune fiche client trouvée sur ces photos.');
 }
@@ -910,11 +930,12 @@ function openClientReview(items){
         ${c.notes?`<div class="note">${esc(c.notes)}</div>`:''}
         ${nv?`<div class="muted" style="font-size:.85rem;margin-top:4px">${nv} passage${nv>1?'s':''} ajouté${nv>1?'s':''} à l’historique</div>`:''}
         ${known?'<div class="muted" style="font-size:.82rem;margin-top:4px">Client déjà connu : sa fiche sera complétée</div>':''}
+        ${(c.scans||[]).length?`<div style="display:flex;gap:6px;margin-top:6px">${c.scans.map(id=>SCANP[id]?`<img src="${SCANP[id]}" alt="" style="width:48px;height:62px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`:'').join('')}</div>`:''}
         ${c.uncertain?`<div style="font-size:.82rem;margin-top:4px;color:var(--bad)">À vérifier : ${esc(c.uncertain)}</div>`:''}
         <button class="btn small" data-crvedit="${c._id}" style="margin-top:8px">✎ Corriger</button>
       </div></div>`;}).join('')}
     <div class="actions"><button class="btn primary" id="crv-go" style="flex:1"></button></div>`;
-  openSheet('Fiches clients',html,{left:'Annuler',onClose:()=>{clReview=[];}});
+  openSheet('Fiches clients',html,{left:'Annuler',onClose:()=>{clReview.forEach(c=>(c.scans||[]).forEach(id=>delete SCANP[id]));clReview=[];}});
   const upd=()=>{const n=clReview.filter(c=>c._on).length;$('#crv-go').textContent=n?`Créer ${n} fiche${n>1?'s':''}`:'Rien à créer';$('#crv-go').disabled=!n;};
   document.querySelectorAll('[data-crv]').forEach(x=>x.onchange=()=>{clReview.find(c=>c._id===x.dataset.crv)._on=x.checked;upd();});
   document.querySelectorAll('[data-crvedit]').forEach(b=>b.onclick=()=>{
@@ -924,6 +945,8 @@ function openClientReview(items){
   });
   $('#crv-go').onclick=()=>{
     const now=new Date().toISOString();let nc=0,nv=0;const known=new Map(svcList().map(x=>[norm(x),x]));
+    const noName=clReview.filter(c=>c._on&&!c.name.trim()).length;
+    if(noName){alert(noName>1?noName+' fiches n’ont pas de nom : touchez « Corriger » pour l’ajouter.':'Une fiche n’a pas de nom : touchez « Corriger » pour l’ajouter.');return;}
     for(const c of clReview){if(!c._on||!c.name.trim())continue;
       const k=norm(c.name);let r=S.clients.find(x=>norm(x.name)===k);
       if(!r){const d=directory().find(x=>x.key===k);r={id:uid(),name:d?d.name:c.name.trim(),phone:d?d.phone:'',email:'',address:'',notes:'',dogs:d?[...d.dogs.values()].map(x=>({name:x.name,breed:x.breed,notes:''})):[],created:now};S.clients.push(r);}
@@ -932,6 +955,7 @@ function openClientReview(items){
       for(const d of c.dogs){if(!d.name)continue;const e=r.dogs.find(x=>norm(x.name)===norm(d.name));
         if(e){e.breed=e.breed||d.breed;e.photo=e.photo||d.photo||'';if(d.notes&&!(e.notes||'').includes(d.notes))e.notes=[e.notes,d.notes].filter(Boolean).join('\n');}
         else r.dogs.push({name:d.name,breed:d.breed,notes:d.notes,photo:d.photo||''});}
+      for(const id of c.scans||[])if(SCANP[id]){putPhoto(id,SCANP[id]);delete SCANP[id];r.scans=[...(r.scans||[]),id];}
       r.updated=now;nc++;
       for(const v of c.visits){if(!/^\d{4}-\d{2}-\d{2}$/.test(v.date))continue;
         const dog=v.dog||(r.dogs.length===1?r.dogs[0].name:'');const dd=r.dogs.find(x=>norm(x.name)===norm(dog));
@@ -944,6 +968,147 @@ function openClientReview(items){
     toast(nc+' fiche'+(nc>1?'s':'')+' client'+(nv?' · '+nv+' passage'+(nv>1?'s':''):''));
   };
   upd();
+}
+
+
+/* ---------- Lecture du texte des photos sur le téléphone (Tesseract, hors ligne) ---------- */
+let ocrWorker=null;
+function loadScript(src){return new Promise((res,rej)=>{if(window.Tesseract)return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Lecture indisponible (chargement impossible)'));document.head.appendChild(s);});}
+async function ocrImage(dataUrl,onStatus){
+  if(!ocrWorker){
+    onStatus&&onStatus('Préparation de la lecture… (la première fois, environ 4 Mo à télécharger)');
+    await loadScript('lib/ocr/tesseract.min.js');
+    ocrWorker=await Tesseract.createWorker('fra',1,{workerPath:'lib/ocr/worker.min.js',corePath:'lib/ocr/',langPath:'lib/ocr/',gzip:true});
+  }
+  const r=await ocrWorker.recognize(dataUrl);
+  return (r.data.text||'').replace(/\n{2,}/g,'\n').trim();
+}
+const MONTHS=['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+const WDAYS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const HAS_TIME=/\b\d{1,2}\s*(?:h|:)\s*\d{0,2}\b/i;
+/* Ligne d'en-tête de jour : « Lundi 16 », « 16 novembre », « 16/11 », « Mardi » */
+function headerDate(line,ref,prev){
+  const t=norm(line);if(HAS_TIME.test(t)&&!/^\s*(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b/.test(t))return null;
+  const R=parse(ref);
+  const near=(y,m,d)=>{let dt=new Date(y,m,d);if(iso(dt)<addDays(ref,-200))dt=new Date(y+1,m,d);return iso(dt);};
+  let m=t.match(new RegExp('\\b(\\d{1,2}|1er)\\s*('+MONTHS.join('|')+')(?:\\s+(\\d{4}))?'));
+  if(m){const d=m[1]==='1er'?1:+m[1];return m[3]?iso(new Date(+m[3],MONTHS.indexOf(m[2]),d)):near(R.getFullYear(),MONTHS.indexOf(m[2]),d);}
+  m=t.match(/\b(\d{1,2})\s*[\/.]\s*(\d{1,2})(?:\s*[\/.]\s*(\d{2,4}))?\b/);
+  if(m&&+m[2]>=1&&+m[2]<=12&&!HAS_TIME.test(t)){const y=m[3]?(+m[3]<100?2000+ +m[3]:+m[3]):null;return y?iso(new Date(y,+m[2]-1,+m[1])):near(R.getFullYear(),+m[2]-1,+m[1]);}
+  m=t.match(/^\s*(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b\s*(\d{1,2})?\b/);
+  if(m){
+    if(m[2]){const d=+m[2];let best=null;for(const k of [-1,0,1]){const dt=new Date(R.getFullYear(),R.getMonth()+k,d);if(dt.getDate()!==d)continue;const x=iso(dt);if(!best||Math.abs(parse(x)-R)<Math.abs(parse(best)-R))best=x;}return best;}
+    const target=WDAYS.indexOf(m[1]);
+    if(prev){let x=addDays(prev,1);for(let i=0;i<7&&parse(x).getDay()!==target;i++)x=addDays(x,1);return x;}
+    const monday=addDays(ref,-((R.getDay()+6)%7));return addDays(monday,(target+6)%7);
+  }
+  return null;
+}
+/* Texte d'une page d'agenda → rendez-vous */
+function parseAgendaText(text,hint){
+  const ref=hint||today();let cur=hint||today();let prev=null;const out=[];let last=null;
+  for(const line0 of text.split('\n')){const line=line0.trim();if(!line)continue;
+    const hd=headerDate(line,ref,prev);
+    if(hd&&!HAS_TIME.test(norm(line).replace(/^\s*\w+\s+\d{1,2}\b/,''))){cur=prev=hd;last=null;
+      const rest=line.replace(/^\s*\S+\s+\d{1,2}\b\s*/,'');if(HAS_TIME.test(rest)){last=parseDictation(rest,cur,{agenda:true});out.push(last);}
+      continue;}
+    if(HAS_TIME.test(line)){last=parseDictation(line,cur,{agenda:true});out.push(last);continue;}
+    if(last){// ligne de suite : compléter le rendez-vous précédent
+      const more=parseDictation(last.details.replace(/^Noté : /,'')+' '+line,cur,{agenda:true});
+      for(const k of ['client','phone','dog','breed'])if(!last[k]&&more[k])last[k]=more[k];
+      last.services=[...new Set([...last.services,...more.services])];if(last.price===''&&more.price!=='')last.price=more.price;
+      if(!last.notes&&more.notes)last.notes=more.notes;
+      last.details=last.details+' / '+line;}
+  }
+  return out;
+}
+/* Texte d'une fiche client papier → fiche */
+function parseClientText(text){
+  const c={name:'',phone:'',email:'',address:'',notes:'',dogs:[],visits:[],uncertain:''};
+  const dog={name:'',breed:'',notes:''};const notes=[];const dogNotes=[];
+  const lab=(l,re)=>{const m=l.match(new RegExp('^\\s*(?:'+re+')\\s*[:.\\-]?\\s*(.*)$','i'));return m?m[1].trim():null;};
+  const breeds=[...new Set([...BREEDS,...S.appts.map(a=>a.breed).filter(Boolean)])].sort((a,b)=>b.length-a.length);
+  const known=new Map(svcList().map(x=>[norm(x),x]));
+  for(const line0 of text.split('\n')){const l=line0.trim();if(!l||/^fiche\s*(client)?$/i.test(norm(l)))continue;let v;
+    const em=l.match(/[\w.+-]+@[\w-]+\.[\w.]+/);if(em&&!c.email){c.email=em[0];if(l.replace(em[0],'').replace(/e-?mail|courriel|:/gi,'').trim().length<3)continue;}
+    const ph=l.replace(/[.\-]/g,' ').match(/(?:\+33\s?|0)\s?[1-9](?:\s?\d{2}){4}/);
+    const dv=l.match(/^\s*(\d{1,2})\s*[\/.]\s*(\d{1,2})\s*[\/.]?\s*(\d{2,4})?\b(.*)$/);
+    if(dv&&!ph){const y=dv[3]?(+dv[3]<100?2000+ +dv[3]:+dv[3]):parse(today()).getFullYear();
+      const rest=dv[4]||'';const pd=parseDictation(rest,today(),{agenda:true});
+      c.visits.push({date:iso(new Date(y,+dv[2]-1,+dv[1])),dog:'',services:pd.services,details:rest.trim(),price:pd.price===''?null:pd.price});continue;}
+    if((v=lab(l,'nom du chien|chien(?:ne)?|animal|nom de l.animal'))!==null){if(v)dog.name=cap(v.split(/[,(]/)[0].trim());continue;}
+    if((v=lab(l,'race'))!==null){if(v)dog.breed=cap(v);continue;}
+    if((v=lab(l,'caract[eè]re|sant[eé]|allergies?|[aâ]ge|coupe|comportement|poids|n[eé]\\s*le|observations?\\s*chien'))!==null){dogNotes.push(l);continue;}
+    if((v=lab(l,'t[eé]l[eé]?(?:phone)?|t[eé]l|portable|mobile|fixe'))!==null||ph){if(ph&&!c.phone)c.phone=ph[0].replace(/\s/g,'').replace(/(\d{2})(?=\d)/g,'$1 ').trim();if(!ph&&v)notes.push(l);continue;}
+    if((v=lab(l,'adresse|adr'))!==null){c.address=[c.address,v].filter(Boolean).join(', ');continue;}
+    if(/\b\d{5}\b/.test(l)||/\b(rue|avenue|av\.?|bd|boulevard|chemin|all[ée]e|impasse|place|route|lotissement|r[ée]sidence|quai)\b/i.test(l)){c.address=[c.address,l].filter(Boolean).join(', ');continue;}
+    if((v=lab(l,'nom(?:\\s*du\\s*propri[eé]taire)?|propri[eé]taire|client(?:e)?|ma[iî]tre'))!==null){if(v)c.name=v;continue;}
+    if(!c.name&&/^\s*(mme|m\.|mr|madame|monsieur|mlle)\b/i.test(l)){c.name=l;continue;}
+    if((v=lab(l,'remarques?|notes?|observations?|infos?'))!==null){if(v)notes.push(v);continue;}
+    const br=breeds.find(b=>norm(l).includes(norm(b)));if(br&&!dog.breed){dog.breed=br;const rest=l.replace(new RegExp(br,'i'),'').replace(/[:,\-]/g,' ').trim();if(rest&&!dog.name&&/^[A-ZÀ-Ý][\wà-ÿ'-]+$/.test(rest))dog.name=rest;continue;}
+    if(!c.name&&/^[A-ZÀ-Ý][\wà-ÿ'-]+(\s+[A-ZÀ-Ý][\wà-ÿ'-]+)?$/.test(l)){c.name=l;continue;}
+    notes.push(l);
+  }
+  c.name=c.name.replace(/\s+/g,' ').trim();
+  const tt={madame:'Mme',mme:'Mme',mademoiselle:'Mlle',mlle:'Mlle',monsieur:'M.',mr:'M.','m.':'M.'};
+  c.name=c.name.replace(/^(madame|mme|mademoiselle|mlle|monsieur|mr|m\.)\s*/i,(m,a)=>(tt[a.toLowerCase()]||a)+' ');
+  dog.notes=dogNotes.join('\n');
+  if(dog.name||dog.breed||dog.notes)c.dogs.push(dog);
+  for(const v of c.visits){if(c.dogs.length===1)v.dog=c.dogs[0].name;v.services=v.services.map(x=>known.get(norm(x))||x);}
+  c.notes=notes.join('\n');
+  if(!c.name)c.uncertain='nom du client non trouvé';
+  return c;
+}
+
+/* Écran « texte lu » : à corriger avant analyse (photo lue sur le téléphone, ou texte collé) */
+function openTextImport(kind,{text='',hint='',scans=[]}={}){
+  const isCl=kind==='clients';
+  const html=`
+    <p style="margin-top:14px">${text?'Voici le texte lu sur la photo. Corrigez ce qui est mal lu, puis touchez « Analyser ».':'Collez ici le texte de '+(isCl?'la fiche':'la page d’agenda')+'.'}</p>
+    ${text?'':`<p class="muted" style="font-size:.85rem;margin-top:6px">Astuce : sur iPhone, ouvrez la photo dans Photos et touchez l’icône « Texte en direct » pour copier le texte. Sur Android, utilisez Google Lens (« Texte » puis « Copier »).</p>`}
+    <p class="muted" style="font-size:.85rem;margin-top:6px">${isCl?'Une information par ligne aide beaucoup (ex. « Tél : … », « Chien : … », « Race : … »). Séparez plusieurs fiches par une ligne -----.':'Une ligne par jour (« Lundi 16 ») puis une ligne par rendez-vous commençant par l’heure (« 9h30 Mme Martin Filou bain 45 € »).'}</p>
+    <textarea id="ti-text" style="min-height:240px;font-size:15px;margin-top:10px">${esc(text)}</textarea>
+    ${isCl?'':`<label for="ti-date">Date de la page ou de la semaine (si elle n’est pas écrite)</label><input type="date" id="ti-date" value="${esc(hint)}">`}
+    <div class="actions"><button class="btn primary" id="ti-go" style="flex:1">Analyser</button></div>`;
+  openSheet(isCl?'Fiche papier : texte':'Agenda : texte',html,{onClose:()=>{scans.forEach(id=>delete SCANP[id]);}});
+  if(!text)setTimeout(()=>{const x=$('#ti-text');if(x)x.focus();},250);
+  $('#ti-go').onclick=()=>{
+    const tx=$('#ti-text').value.trim();if(!tx){toast('Aucun texte');return;}
+    if(isCl){
+      const parts=tx.split(/^\s*-{3,}.*$/m).map(x=>x.trim()).filter(Boolean);
+      const list=parts.map((p,i)=>({...parseClientText(p),scans:parts.length===scans.length?[scans[i]]:(i===0?scans:[])}));
+      openClientReview(mergeClients(list));
+    }else{
+      const h=$('#ti-date').value;const list=parseAgendaText(tx,h);
+      if(!list.length){alert('Aucun rendez-vous trouvé : vérifiez que chaque rendez-vous commence par une heure (ex. 9h30).');return;}
+      openReview(list,'Agenda papier');
+    }
+  };
+}
+function mergeClients(found){
+  const merged=[];
+  for(const c of found){const m=merged.find(x=>norm(x.name)&&norm(x.name)===norm(c.name));
+    if(m){m.phone=m.phone||c.phone;m.email=m.email||c.email;m.address=m.address||c.address;m.notes=[m.notes,c.notes].filter(Boolean).join('\n');
+      for(const d of c.dogs)if(!m.dogs.some(x=>norm(x.name)===norm(d.name)))m.dogs.push(d);m.visits.push(...c.visits);m.scans=[...(m.scans||[]),...(c.scans||[])];m.uncertain=[m.uncertain,c.uncertain].filter(Boolean).join(' ; ');}
+    else merged.push(c);}
+  return merged;
+}
+
+/* Photos des fiches papier gardées dans la fiche client */
+const SCANP={};// en attente de validation
+function viewScan(key,id){
+  const html=`<img src="${PH[id]}" alt="Fiche papier" style="width:100%;border-radius:12px;margin-top:14px;display:block">
+    <div class="actions"><button class="btn danger" id="sc-del" style="flex:1">Supprimer cette photo</button></div>`;
+  openSheet('Fiche papier',html,{left:'Retour',onClose:()=>openClient(key)});
+  $('#sc-del').onclick=()=>{if(!confirm('Supprimer cette photo de fiche ?'))return;
+    const r=S.clients.find(x=>norm(x.name)===key);if(r){r.scans=(r.scans||[]).filter(x=>x!==id);save();}delPhoto(id);closeSheet();render();openClient(key);};
+}
+async function addScan(key,file){
+  let data;try{data=await shrinkImage(file);}catch(e){toast('Photo illisible');return;}
+  const c=directory().find(x=>x.key===key);if(!c)return;
+  let r=S.clients.find(x=>norm(x.name)===key);
+  if(!r){r={id:uid(),name:c.name,phone:c.phone,email:'',address:'',notes:'',dogs:[...c.dogs.values()].map(d=>({name:d.name,breed:d.breed,notes:d.notes||'',photo:d.photo||''})),created:new Date().toISOString()};S.clients.push(r);}
+  const id=uid();await putPhoto(id,data);r.scans=[...(r.scans||[]),id];save();render();openClient(key);toast('Photo de la fiche ajoutée');
 }
 
 /* Écran de vérification avant import */
@@ -1034,14 +1199,15 @@ function stopRecog(){if(recog){try{recog.stop();}catch(e){}recog=null;}}
 /* Lecture simple (sans IA) d'une phrase dictée en français */
 const NUMS={un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,onze:11,douze:12,treize:13,quatorze:14,quinze:15,seize:16,'dix-sept':17,'dix-huit':18,'dix-neuf':19,vingt:20,trente:30,quarante:40,cinquante:50,soixante:60};
 const SYN={'griffe':'Coupe des griffes','ongle':'Coupe des griffes','tondre':'Tonte','tonte':'Tonte','tondu':'Tonte','shampo':'Bain','lavage':'Bain','laver':'Bain','bain':'Bain','ciseau':'Coupe ciseaux','coupe':'Coupe ciseaux','epil':'Épilation','trimming':'Épilation','demel':'Démêlage','noeud':'Démêlage','brush':'Brushing','sech':'Séchage','oreille':'Oreilles','yeux':'Yeux','puce':'Anti-puces','dent':'Dents'};
-function parseDictation(text,defDate){
+function parseDictation(text,defDate,opt={}){
   const raw=text.trim();
   let t=' '+norm(raw).replace(/[’']/g,"'")+' ';
   for(const[w,n]of Object.entries(NUMS).sort((x,y)=>y[0].length-x[0].length))t=t.replace(new RegExp('\\b'+w+'\\b','g'),String(n));
   const out={date:defDate,time:'',duration_min:0,client:'',phone:'',dog:'',breed:'',services:[],details:'',price:null,notes:'',uncertain:''};
   const T=today();
   // Date
-  if(/apres[- ]demain/.test(t))out.date=addDays(T,2);
+  if(opt.agenda){}
+  else if(/apres[- ]demain/.test(t))out.date=addDays(T,2);
   else if(/\bdemain\b/.test(t))out.date=addDays(T,1);
   else if(/aujourd'?hui|ce matin|cet apres-midi|ce soir/.test(t))out.date=T;
   else{
@@ -1071,14 +1237,22 @@ function parseDictation(text,defDate){
   const dir=directory();
   for(const c of dir){for(const d of c.dogs.values()){if(d.name&&new RegExp('\\b'+norm(d.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b').test(t)){out.dog=d.name;if(!out.breed)out.breed=d.breed;if(!out.client){out.client=c.name;if(!out.phone)out.phone=c.phone;}}}}
   for(const c of dir){const n=norm(c.name).replace(/^(mme|mr|m\.|madame|monsieur)\s+/,'');if(n.length>2&&t.includes(' '+n)){out.client=c.name;if(!out.phone)out.phone=c.phone;}}
-  if(!out.client){const cm=raw.match(/\b(madame|monsieur|mademoiselle|mme|m\.|mr)\s+([A-Za-zÀ-ÿ'-]+(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+)?)/i);
+  if(!out.client){const cm=raw.match(opt.agenda?/\b(madame|monsieur|mademoiselle|mme|m\.|mr)\s+([A-Za-zÀ-ÿ'-]+)/i:/\b(madame|monsieur|mademoiselle|mme|m\.|mr)\s+([A-Za-zÀ-ÿ'-]+(?:\s+[A-ZÀ-Ý][A-Za-zÀ-ÿ'-]+)?)/i);
     if(cm){const tt={madame:'Mme',mme:'Mme',mademoiselle:'Mlle',monsieur:'M.','m.':'M.',mr:'M.'}[cm[1].toLowerCase()]||cm[1];out.client=tt+' '+cap(cm[2]);}
     else{const cc=raw.match(/\bclient(?:e)?\s*:?\s+([A-Za-zÀ-ÿ'-]+(?:\s+[A-Za-zÀ-ÿ'-]+)?)/i);if(cc)out.client=cap(cc[1]);}}
   if(!out.dog){const dm=raw.match(/\b(?:chien(?:ne)?|toutou|chiot|il s'appelle|elle s'appelle|nommée?)\s+(?:s'appelle\s+)?([A-Za-zÀ-ÿ'-]+)/i);
     if(dm&&!/^(de|du|la|le|est|a|qui)$/i.test(dm[1]))out.dog=cap(dm[1]);}
+  if(!out.dog&&opt.agenda){
+    // Agenda : le premier mot en majuscule qui n'est ni le client, ni une race, ni une prestation est le chien
+    const skip=new Set([...norm(out.client).split(/\s+/),'mme','mr','m','madame','monsieur','mlle','tel','rdv']);
+    const bad=w=>skip.has(norm(w))||BREEDS.some(b=>norm(b).split(' ').includes(norm(w)))||svcList().some(x=>norm(x).split(' ').includes(norm(w)))||Object.keys(SYN).some(k=>norm(w).startsWith(k));
+    const words=raw.replace(/\b\d{1,2}\s*(?:h|:)\s*\d{0,2}\b/gi,' ').match(/[A-ZÀ-Ý][a-zà-ÿ'-]{1,}/g)||[];
+    const w=words.find(x=>!bad(x));if(w)out.dog=w;}
   // Race
   const breeds=[...new Set([...BREEDS,...S.appts.map(a=>a.breed).filter(Boolean)])].sort((a,b)=>b.length-a.length);
   for(const b of breeds){if(t.includes(' '+norm(b))){out.breed=b;break;}}
+  if(!out.breed){const AL={golden:'Golden retriever',labra:'Labrador',york:'Yorkshire',jack:'Jack Russell',cavalier:'Cavalier King Charles',bouledogue:'Bouledogue français',bouldog:'Bouledogue français',bichon:'Bichon',shih:'Shih Tzu',lhassa:'Lhassa Apso',spitz:'Spitz nain',chihua:'Chihuahua',westie:'Westie',caniche:'Caniche',cocker:'Cocker',husky:'Husky',teckel:'Teckel',border:'Border collie','berger australien':'Berger australien','berger allemand':'Berger allemand',aussie:'Berger australien',malinois:'Malinois',croise:'Croisé'};
+    for(const[k,v]of Object.entries(AL))if(t.includes(' '+k)){out.breed=v;break;}}
   // Prestations
   const svcs=new Set();
   for(const s of svcList())if(t.includes(norm(s)))svcs.add(s);
@@ -1089,7 +1263,7 @@ function parseDictation(text,defDate){
   if(rm){out.notes=rm[1].trim();}
   const dt=raw.match(/\b(?:détails?|précisions?)\s*:?\s*(.+?)(?=\b(?:remarques?|attention|à noter)\b|$)/i);
   if(dt)out.details=dt[1].trim().replace(/[.,;]$/,'');
-  else out.details='Dictée : '+(rm?raw.slice(0,rm.index).trim():raw);
+  else out.details=(opt.agenda?'Noté : ':'Dictée : ')+(rm?raw.slice(0,rm.index).trim():raw);
   out.uncertain='';
   return fromAI(out,defDate);
 }
