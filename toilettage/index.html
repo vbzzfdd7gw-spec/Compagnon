@@ -226,7 +226,7 @@ details.blk[open]>summary::after{content:'▴'}
 /* ---------- Données ---------- */
 const KEY='toilettage.v1';
 /* Version de l'application (à augmenter à chaque mise à jour, comme dans sw.js) */
-const APP_VERSION='25',APP_DATE='15 novembre 2026';
+const APP_VERSION='26',APP_DATE='15 novembre 2026';
 /* Taille du texte (propre à chaque téléphone) */
 const FS_KEY='toilettage.fs';
 function applyFs(v){document.documentElement.classList.remove('fs-1','fs-2');if(v==='1'||v==='2')document.documentElement.classList.add('fs-'+v);}
@@ -908,6 +908,10 @@ function openClient(key){
 }
 
 /* ---------- Formulaire fiche client ---------- */
+/* Civilité (Mme / M.) séparée du nom */
+const CIV_RE=/^\s*(madame|mademoiselle|mme|mlle|monsieur|mr\.?|m\.)\s+/i;
+function splitCiv(name){const m=String(name||'').match(CIV_RE);if(!m)return {civ:'',nom:String(name||'').trim()};
+  return {civ:/^m(\.|r\.?|onsieur)$/i.test(m[1])?'M.':'Mme',nom:String(name).replace(CIV_RE,'').trim()};}
 function openClientForm(init,opts={}){
   const r=Object.assign({name:'',phone:'',email:'',address:'',notes:'',dogs:[]},init);
   let dogs=(r.dogs&&r.dogs.length?r.dogs:[{name:'',breed:'',notes:''}]).map(d=>({...d}));
@@ -918,7 +922,12 @@ function openClientForm(init,opts={}){
     ${isNew&&!opts.onSaved&&!opts.fromVoice?`<div class="actions" style="margin-top:12px"><button type="button" class="btn" id="cf-voice" style="flex:1">🎤 Remplir à la voix</button></div>`:''}
     ${opts.banner?`<p style="font-size:.85rem;margin-top:12px;color:${opts.bannerMuted?'var(--muted)':'var(--bad)'}">${esc(opts.banner)}</p>`:''}
     <h2>Propriétaire</h2>
-    <label for="cf-name">Nom</label><input id="cf-name" value="${esc(r.name)}" autocapitalize="words" placeholder="ex. Mme Martin">
+    ${(()=>{const sc=splitCiv(r.name);return `<label>Civilité</label>
+    <div style="display:flex;gap:18px;align-items:center" id="cf-civ">
+      <label style="display:flex;align-items:center;gap:8px;margin:0;color:var(--fg);font-size:1rem"><input type="checkbox" data-civ="Mme" ${sc.civ==='Mme'?'checked':''} style="width:22px;height:22px;min-height:0"> Madame (Mme)</label>
+      <label style="display:flex;align-items:center;gap:8px;margin:0;color:var(--fg);font-size:1rem"><input type="checkbox" data-civ="M." ${sc.civ==='M.'?'checked':''} style="width:22px;height:22px;min-height:0"> Monsieur (M.)</label>
+    </div>
+    <label for="cf-name">Nom</label><input id="cf-name" value="${esc(sc.nom)}" autocapitalize="words" placeholder="ex. Martin">`;})()}
     <label for="cf-phone">Téléphone</label><input id="cf-phone" type="tel" value="${esc(r.phone)}" placeholder="06 12 34 56 78">
     <label for="cf-email">E-mail</label><input id="cf-email" type="email" value="${esc(r.email)}" autocapitalize="off">
     <label for="cf-address">Adresse</label><input id="cf-address" value="${esc(r.address)}">
@@ -952,11 +961,14 @@ function openClientForm(init,opts={}){
     if(sp){const i=+sp.dataset.setpic;readDogs();pickPhoto(async file=>{try{const id=uid();pending[id]=await dogThumb(file);dogs[i].photo=id;drawDogs();}catch(err){toast('Photo illisible');}});return;}
     if(rp){readDogs();dogs[+rp.dataset.rmpic].photo='';drawDogs();return;}
     if(!b)return;readDogs();dogs.splice(+b.dataset.rmdog,1);drawDogs();};
+  $('#cf-civ').onchange=e=>{const c=e.target.closest('[data-civ]');if(c&&c.checked)document.querySelectorAll('#cf-civ [data-civ]').forEach(x=>{if(x!==c)x.checked=false;});};
   const del=$('#cf-del');if(del)del.onclick=()=>{if(!confirm('Supprimer la fiche de '+r.name+' ?'))return;const gone=S.clients.find(x=>x.id===r.id);((gone&&gone.scans)||[]).forEach(delPhoto);S.clients=S.clients.filter(x=>x.id!==r.id);oldPics.forEach(delPhoto);save();closeSheet();render();toast('Fiche supprimée');};
   function submit(){
     readDogs();
     const v=id=>$(id).value.trim();
-    const rec={id:r.id||uid(),name:v('#cf-name'),phone:v('#cf-phone'),email:v('#cf-email'),address:v('#cf-address'),notes:v('#cf-notes'),
+    const civ=(document.querySelector('#cf-civ [data-civ]:checked')||{}).dataset?.civ||'';
+    const nom=civ?v('#cf-name').replace(CIV_RE,'').trim():v('#cf-name');
+    const rec={id:r.id||uid(),name:nom?(civ?civ+' ':'')+nom:'',phone:v('#cf-phone'),email:v('#cf-email'),address:v('#cf-address'),notes:v('#cf-notes'),
       dogs:dogs.filter(d=>d.name||d.breed||d.notes||d.photo),updated:new Date().toISOString()};
     if(!rec.name){toast('Le nom du client est obligatoire');$('#cf-name').focus();return;}
     const keepPics=()=>{const used=new Set(rec.dogs.map(d=>d.photo).filter(Boolean));
@@ -1827,9 +1839,9 @@ Dictée : « ${text} »`}],'medium',CLIENT_SCHEMA)).clients||[]).filter(c=>c.nam
   }
   if(!list||!list.length)list=[parseClientDictation(text)];
   if(list.length===1){const c=list[0];closeSheet();
-    openClientForm({name:c.name,phone:c.phone,email:c.email,address:c.address,notes:c.notes,dogs:c.dogs},{fromVoice:true,bannerMuted:!c.uncertain,
+    openClientForm({name:splitCiv(c.name).nom,phone:c.phone,email:c.email,address:c.address,notes:c.notes,dogs:c.dogs},{fromVoice:true,bannerMuted:!c.uncertain,
       banner:'Fiche remplie à partir de la dictée : vérifiez puis enregistrez.'+(c.uncertain?' À vérifier : '+c.uncertain:'')});}
-  else openClientReview(list.map(c=>({...c,visits:c.visits||[]})));
+  else openClientReview(list.map(c=>({...c,name:splitCiv(c.name).nom,visits:c.visits||[]})));
 }
 function parseClientDictation(text){
   const raw=text.trim();
@@ -1842,7 +1854,7 @@ function parseClientDictation(text){
   const ad=raw.match(/\b\d{1,4}\s*(?:bis|ter)?\s*,?\s*(?:rue|avenue|av\.?|boulevard|bd|chemin|all[ée]e|impasse|place|route|quai|lotissement|r[ée]sidence)\b[^,.;]*?(?=(?:[,.;]|\s+(?:son|sa|ses|il|elle|le chien|la chienne|chien|t[ée]l|remarque|attention)\b|$))/i);
   if(ad){c.address=ad[0].replace(/\s+à\s+/i,' ').replace(/\s+/g,' ').trim();rest=rest.replace(ad[0],' ');}
   const d=parseDictation(rest.replace(/\b(?:elle|il)\s+habite\b/gi,' '),today(),{agenda:true,noKnown:true});
-  c.name=d.client||'';c.phone=d.phone||'';
+  c.name=splitCiv(d.client||'').nom;c.phone=d.phone||'';
   // Chiens : « Filou et Lola », sinon le chien trouvé
   const dogs=[];
   if(d.dog){dogs.push({name:d.dog,breed:d.breed||'',notes:''});
