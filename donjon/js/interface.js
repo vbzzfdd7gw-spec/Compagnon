@@ -66,7 +66,7 @@ const Ui = {
         <div class="logo-sous">Roguelike · D&amp;D 5e</div>
       </div>
       <div class="scene vitrine" id="scene">
-        ${Modeles3D.actif && !Ressources3D.pret ? '<div class="chargement3d" id="chargement3d"><span>Le donjon s\'éveille…</span><b><i style="width:' + Math.round(Ressources3D.progression() * 100) + '%"></i></b></div>' : ''}
+
         <div class="rangee-scene pj avant vitrine-rang">${equipe.map(k => `<div class="combattant pj" data-id="v-${k}" data-modele="${k}">
           <div class="figure"><span class="sprite">${CLASSES[k].icone}</span></div>
           <div class="nom">${CLASSES[k].nom}</div></div>`).join('')}</div>
@@ -814,6 +814,7 @@ const Ui = {
       if (d.infoClasse) return this.ficheClasse(d.infoClasse);
     });
     Modeles3D.init();
+    EcranChargement.suivre();
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { this.fermerModal(); if (this.selection) { this.selection = null; this.majCombat(); } } });
     this.rendu();
   },

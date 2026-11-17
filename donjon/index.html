@@ -15,30 +15,49 @@
 <!-- Police chargée sans bloquer l'affichage (hors ligne : police de secours) -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700&display=swap" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="style.css">
+<style>
+  /* Écran de chargement : visible dès la première image, avant tout script */
+  #ecran-chargement { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: radial-gradient(ellipse 120% 70% at 50% 30%, #3a2414 0%, #14110f 65%); color: #c9a77a; transition: opacity .8s ease; }
+  #ecran-chargement.fini { opacity: 0; pointer-events: none; }
+  .ec-bougie { font-size: 3rem; animation: ec-flamme 1.4s ease-in-out infinite alternate; filter: drop-shadow(0 0 18px #f2a03c99); }
+  .ec-logo { font-family: "Cinzel Decorative", "Cinzel", Georgia, serif; font-weight: 900; font-size: clamp(2rem, 10vw, 3.4rem); text-align: center; line-height: 1.05;
+    background: linear-gradient(180deg, #fff3c4, #f2c45a 45%, #a8661c); -webkit-background-clip: text; background-clip: text; color: transparent; padding: 0 12px; }
+  .ec-texte { font-family: "Cinzel", Georgia, serif; letter-spacing: .14em; font-size: .85rem; text-transform: uppercase; }
+  .ec-barre { width: 200px; height: 4px; border-radius: 4px; background: #ffffff14; overflow: hidden; }
+  .ec-barre i { display: block; height: 100%; width: 8%; background: linear-gradient(90deg, #a8661c, #f2c45a); transition: width .35s ease; }
+  @keyframes ec-flamme { from { transform: scale(1) rotate(-3deg); } to { transform: scale(1.08) rotate(3deg); } }
+</style>
 </head>
 <body>
+<div id="ecran-chargement">
+  <div class="ec-bougie">🕯️</div>
+  <div class="ec-logo">Cryptes &amp; Dés</div>
+  <div class="ec-texte" id="ec-texte">Le donjon s'éveille…</div>
+  <div class="ec-barre"><i id="ec-prog"></i></div>
+</div>
 <div id="app"></div>
 <div id="modal"></div>
 
 <!-- Ordre de chargement : 3D (Three.js, MIT), outils, données, moteur, carte, partie, figurines, interface -->
-<script src="lib/three.min.js"></script>
-<script src="lib/GLTFLoader.js"></script>
-<script src="lib/SkeletonUtils.js"></script>
-<script src="js/son.js"></script>
-<script src="js/des.js"></script>
-<script src="js/donnees/actions.js"></script>
-<script src="js/donnees/classes.js"></script>
-<script src="js/donnees/monstres.js"></script>
-<script src="js/donnees/objets.js"></script>
-<script src="js/donnees/evenements.js"></script>
-<script src="js/donnees/etages.js"></script>
-<script src="js/donnees/campagnes.js"></script>
-<script src="js/combat.js"></script>
-<script src="js/carte.js"></script>
-<script src="js/jeu.js"></script>
-<script src="js/modeles3d.js"></script>
-<script src="js/ressources3d.js"></script>
-<script src="js/interface.js"></script>
+<script defer src="lib/three.min.js"></script>
+<script defer src="lib/GLTFLoader.js"></script>
+<script defer src="lib/SkeletonUtils.js"></script>
+<script defer src="js/son.js"></script>
+<script defer src="js/des.js"></script>
+<script defer src="js/donnees/actions.js"></script>
+<script defer src="js/donnees/classes.js"></script>
+<script defer src="js/donnees/monstres.js"></script>
+<script defer src="js/donnees/objets.js"></script>
+<script defer src="js/donnees/evenements.js"></script>
+<script defer src="js/donnees/etages.js"></script>
+<script defer src="js/donnees/campagnes.js"></script>
+<script defer src="js/combat.js"></script>
+<script defer src="js/carte.js"></script>
+<script defer src="js/jeu.js"></script>
+<script defer src="js/modeles3d.js"></script>
+<script defer src="js/ressources3d.js"></script>
+<script defer src="js/interface.js"></script>
 <script>
   // Hors connexion (uniquement servi en http/https, pas en ouvrant le fichier)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

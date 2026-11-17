@@ -18,6 +18,9 @@ const Ressources3D = {
   // Progression du chargement (0 à 1), affichée sur l'écran d'accueil
   progression() { return this.charges / this.liste.length; },
   majIndicateur() {
+    const barre = document.getElementById('ec-prog');
+    if (barre) barre.style.width = Math.round(20 + this.progression() * 80) + '%';
+    if (this.pret) EcranChargement.fermer();
     const el = document.getElementById('chargement3d');
     if (!el) return;
     if (this.pret) { el.classList.add('fini'); return; }
@@ -364,3 +367,25 @@ function animerDecorKK(d, s, particules) {
     }
   }
 }
+
+// ---------------------------------------------------------------------
+// Écran de chargement plein écran (défini dans index.html)
+// ---------------------------------------------------------------------
+const EcranChargement = {
+  ferme: false,
+  fermer() {
+    if (this.ferme) return;
+    this.ferme = true;
+    const el = document.getElementById('ecran-chargement');
+    if (!el) return;
+    el.classList.add('fini');
+    setTimeout(() => el.remove(), 900);
+  },
+  // Les scripts sont là : on attend les modèles 3D (au plus 25 s)
+  suivre() {
+    const barre = document.getElementById('ec-prog');
+    if (barre) barre.style.width = '20%';
+    if (!Modeles3D.actif || Ressources3D.pret) return this.fermer();
+    setTimeout(() => this.fermer(), 25000);
+  }
+};
