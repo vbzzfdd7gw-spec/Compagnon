@@ -12,8 +12,17 @@
 
 const Ressources3D = {
   // Ordre de chargement : animations d'abord, puis héros, monstres et décor
-  liste: ['skeleton_warrior', 'knight', 'mage', 'rogue_hooded', 'barbarian', 'rogue', 'skeleton_mage',
-    'skeleton_blade', 'skeleton_shield_small_a', 'skeleton_staff', 'donjon'],
+  liste: ['skeleton_warrior', 'donjon', 'knight', 'mage', 'rogue_hooded', 'barbarian', 'rogue', 'skeleton_mage',
+    'skeleton_blade', 'skeleton_shield_small_a', 'skeleton_staff'],
+  charges: 0,
+  // Progression du chargement (0 à 1), affichée sur l'écran d'accueil
+  progression() { return this.charges / this.liste.length; },
+  majIndicateur() {
+    const el = document.getElementById('chargement3d');
+    if (!el) return;
+    if (this.pret) { el.classList.add('fini'); return; }
+    el.querySelector('i').style.width = Math.round(this.progression() * 100) + '%';
+  },
   gltf: {},
   enCours: null,
   pret: false,
@@ -30,8 +39,11 @@ const Ressources3D = {
         } catch (e) {
           console.warn('Modèle 3D indisponible :', nom, e);
         }
+        this.charges++;
+        this.majIndicateur();
       }
       this.pret = true;
+      this.majIndicateur();
       this.quandPret.forEach(f => f());
     })();
     return this.enCours;

@@ -395,7 +395,8 @@ body { overscroll-behavior: none; }
 .etats-detail { background: var(--panneau2); border-radius: 8px; padding: 6px 8px; margin: 6px 0; font-size: .85rem; }
 
 /* ---------- scène 3D cartoon ---------- */
-.canvas3d { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.canvas3d { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; transition: opacity .9s ease; }
+.canvas3d.cache3d { opacity: 0; }
 .mode3d .scene { background: #120d0a; }
 .mode3d .scene::after {           /* vignette sombre sur les bords */
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
@@ -526,3 +527,14 @@ body { overscroll-behavior: none; }
 .prog small { font-size: .6rem; color: #ffd04a; letter-spacing: .05em; }
 .prog.verrou { opacity: .45; }
 .prog.faite { border-color: var(--or); box-shadow: 0 0 10px #d8a64a44; }
+
+/* ---------- chargement de l'accueil ---------- */
+.mode3d .vitrine .combattant { transition: opacity .9s ease; }
+.mode3d .vitrine:has(.canvas3d.cache3d) .combattant { opacity: 0; }
+.chargement3d { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); z-index: 3; text-align: center; transition: opacity .6s ease; pointer-events: none; }
+.chargement3d span { display: block; font-family: "Cinzel", Georgia, serif; color: #c9a77a; letter-spacing: .12em; font-size: .85rem; margin-bottom: 8px; animation: pulse 1.6s infinite; }
+.chargement3d b { display: block; width: 160px; height: 4px; background: #ffffff14; border-radius: 4px; overflow: hidden; margin: 0 auto; }
+.chargement3d i { display: block; height: 100%; background: linear-gradient(90deg, #a8661c, #f2c45a); transition: width .3s ease; }
+.chargement3d.fini { opacity: 0; }
+.logo-zone { opacity: 0; transform: translateY(-6px); transition: opacity .7s ease, transform .7s ease; }
+.polices .logo-zone { opacity: 1; transform: none; }

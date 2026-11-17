@@ -242,8 +242,8 @@ const Modeles3D = {
     if (this.vitrine) return this.decorVitrine();
     const pt = (x, y) => this.pointSol(x * w, y * h) || new THREE.Vector3();
     placerDecor(this.decor, { g: pt(0.06, 0.5), d: pt(0.94, 0.5), hg: pt(0.02, 0.06), hd: pt(0.98, 0.06), bg: pt(0.02, 0.97), bd: pt(0.98, 0.97), c: pt(0.5, 0.5) });
-    // Décor KayKit : reconstruit d'après le cadrage
-    if (Ressources3D.gltf.donjon) {
+    // Décor KayKit : reconstruit d'après le cadrage (une fois tout chargé)
+    if (Ressources3D.pret && Ressources3D.gltf.donjon) {
       if (this.decorKK) { this.scene.remove(this.decorKK.groupe); }
       const zMur = pt(0.5, 0.03).z - 0.2;
       const bords = z => this.largeurA(z);
@@ -262,7 +262,7 @@ const Modeles3D = {
     d.piliers.forEach((p, i) => p.position.set(i % 2 ? 4.6 : -4.6, 0, i < 2 ? -2.6 : 1.8));
     d.front.visible = false;
     d.os.forEach((o, i) => o.position.set([-2, 1.6, -1.2, 2.4][i], 0.04, [1.8, 2.2, -1, -0.6][i]));
-    if (Ressources3D.gltf.donjon) {
+    if (Ressources3D.pret && Ressources3D.gltf.donjon) {
       if (this.decorKK) this.scene.remove(this.decorKK.groupe);
       this.decorKK = construireDecorKK(this.scene, -2.6, () => 5.5, this.themeCourant || THEMES_3D.crypte, 3);
       d.piliers.forEach(p => { p.visible = false; });
@@ -307,7 +307,10 @@ const Modeles3D = {
     const vus = new Set();
     this.parId = {};
     const tanFov = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
-    const glbPret = !!Ressources3D.gltf.skeleton_warrior;
+    const glbPret = Ressources3D.pret;
+    // Accueil : la scène reste dans le noir pendant le chargement, puis apparaît en fondu
+    const visible = !this.vitrine || glbPret || !(THREE.GLTFLoader && THREE.SkeletonUtils);
+    if (canvas.classList.contains('cache3d') === visible) canvas.classList.toggle('cache3d', !visible);
 
     for (const el of canvas.parentElement.querySelectorAll('.combattant')) {
       const fig = el.querySelector('.figure'), spr = el.querySelector('.sprite');

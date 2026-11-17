@@ -66,6 +66,7 @@ const Ui = {
         <div class="logo-sous">Roguelike · D&amp;D 5e</div>
       </div>
       <div class="scene vitrine" id="scene">
+        ${Modeles3D.actif && !Ressources3D.pret ? '<div class="chargement3d" id="chargement3d"><span>Le donjon s\'éveille…</span><b><i style="width:' + Math.round(Ressources3D.progression() * 100) + '%"></i></b></div>' : ''}
         <div class="rangee-scene pj avant vitrine-rang">${equipe.map(k => `<div class="combattant pj" data-id="v-${k}" data-modele="${k}">
           <div class="figure"><span class="sprite">${CLASSES[k].icone}</span></div>
           <div class="nom">${CLASSES[k].nom}</div></div>`).join('')}</div>
@@ -786,6 +787,9 @@ const Ui = {
 
   // -------------------------------------------------------- clics
   initialiser() {
+    // Le titre apparaît en fondu une fois sa police chargée (1,2 s au plus)
+    const polices = () => document.body.classList.add('polices');
+    if (document.fonts && document.fonts.ready) { document.fonts.ready.then(polices); setTimeout(polices, 1200); } else polices();
     document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
     document.addEventListener('click', e => {
       Son.debloquer();
