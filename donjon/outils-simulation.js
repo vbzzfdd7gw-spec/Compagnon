@@ -2,9 +2,9 @@
 const fs = require('fs'), vm = require('vm');
 const D = require('path').join(__dirname, 'js') + '/';
 const file = [];
-const ctx = { console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
+const ctx = { localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
 vm.createContext(ctx);
-for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'combat.js', 'carte.js'])
+for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'donnees/campagnes.js', 'combat.js', 'carte.js'])
   vm.runInContext(fs.readFileSync(D + f, 'utf8').replace(/^const (\w+) =/gm, 'var $1 =').replace(/^class (\w+)/gm, 'var $1 = class $1'), ctx);
 vm.runInContext(`
 function iaPJ(cb, a) {
@@ -53,9 +53,11 @@ function combattre(equipe, rencontre, jeu, force) {
   file.length = 0;
   return { fin, rounds: cb.round };
 }
-function expedition() {
+function expedition(idC) {
+  const camp = CAMPAGNES.find(c => c.id === idC);
+  const ETAGES = camp.etages;
   const equipe = ORDRE_CLASSES.map(creerPJ);
-  const jeu = { potions: 2 }; let long = false;
+  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult }; let long = false;
   const log = [];
   for (let etage = 0; etage < ETAGES.length; etage++) {
     const carte = Carte.generer();
@@ -99,9 +101,10 @@ function expedition() {
 var PERTES = {};
 `, ctx);
 const N = parseInt(process.argv[2] || '200');
+const CAMP = process.argv[3] || 'crypte';
 let gagne = 0; const morts = {};
 for (let i = 0; i < N; i++) {
-  const r = vm.runInContext('expedition()', ctx);
+  const r = vm.runInContext(`expedition('${CAMP}')`, ctx);
   if (r.ok) gagne++; else morts[r.mort.split('@')[0]] = (morts[r.mort.split('@')[0]] || 0) + 1;
 }
 console.log(`Victoires : ${gagne}/${N} (${Math.round(gagne / N * 100)} %) ; défaites (étage:type) :`, JSON.stringify(morts));

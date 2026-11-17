@@ -106,6 +106,67 @@ const MONSTRES = {
       { nom: 'Relever les morts', type: 'special', special: 'invoquer', invocation: 'squelette', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
     ]
   },
+  roi_gobelin: {
+    nom: 'Snikrak, Roi gobelin', icone: '👑', pv: 52, ca: 16, boss: true, actionsParTour: 2,
+    caracs: { FOR: 10, DEX: 18, CON: 14, INT: 12, SAG: 10, CHA: 14 },
+    sauvegardesBonus: { DEX: 6 },
+    actions: [
+      { nom: 'Cimeterre royal', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d8+4', typeDeg: 'tranchant', poids: 3 },
+      { nom: 'Arbalète de poing', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '1d10+3', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Bombe puante', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'], carac: 'CON', dd: 13, degats: '2d6', typeDeg: 'poison', moitie: true,
+        effetSiEchec: { etat: 'empoisonne', duree: 2 }, poids: 1, recharge: 3 },
+      { nom: 'À moi la horde !', type: 'special', special: 'invoquer', invocation: 'gobelin', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+  loup_alpha: {
+    nom: 'Croc-de-Lune', icone: '🐺', pv: 70, ca: 14, boss: true, actionsParTour: 2,
+    caracs: { FOR: 18, DEX: 16, CON: 15, INT: 6, SAG: 13, CHA: 10 },
+    sauvegardesBonus: { DEX: 5, CON: 4 },
+    actions: [
+      { nom: 'Morsure féroce', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 7, degats: '2d6+4', typeDeg: 'perforant',
+        effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'FOR', dd: 14 } }, poids: 4 },
+      { nom: 'Bond sauvage', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 7, degats: '1d10+4', typeDeg: 'perforant', poids: 2 },
+      { nom: 'Hurlement lunaire', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 13, degats: '1d4', typeDeg: 'psychique', moitie: false,
+        effetSiEchec: { peur: 15 }, poids: 1, recharge: 3 },
+      { nom: 'Appel de la meute', type: 'special', special: 'invoquer', invocation: 'loup', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+  grukk_tyran: {
+    nom: 'Grukk le Tyran', icone: '👹', pv: 110, ca: 14, boss: true, actionsParTour: 2,
+    caracs: { FOR: 22, DEX: 8, CON: 20, INT: 6, SAG: 10, CHA: 10 },
+    sauvegardesBonus: { FOR: 8, CON: 7 },
+    actions: [
+      { nom: 'Hache du tyran', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 8, degats: '2d12+6', typeDeg: 'tranchant', poids: 4 },
+      { nom: 'Tourbillon', type: 'sauvegarde', zone: true, depuis: ['avant'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 15, degats: '3d6+6', typeDeg: 'tranchant', moitie: true,
+        effetSiEchec: { etat: 'renverse', duree: 1 }, poids: 2, recharge: 3 },
+      { nom: 'Cri de guerre', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 15, degats: '1d8', typeDeg: 'psychique', moitie: false,
+        effetSiEchec: { peur: 20 }, poids: 1, recharge: 4 },
+      { nom: 'Rocher', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 8, degats: '2d10+6', typeDeg: 'contondant', poids: 1 }
+    ]
+  },
+  pretre_eclipse: {
+    nom: 'Prêtre de l\'Éclipse', icone: '🌘', pv: 30, ca: 14, elite: true,
+    caracs: { FOR: 10, DEX: 12, CON: 12, INT: 12, SAG: 16, CHA: 14 },
+    actions: [
+      { nom: 'Rayon d\'ombre', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '2d8+3', typeDeg: 'nécrotique', sort: true, poids: 3 },
+      { nom: 'Prière noire', type: 'special', special: 'soinAllies', soin: '2d8+3', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, recharge: 3 },
+      { nom: 'Murmures impies', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 13, degats: '1d6', typeDeg: 'psychique', moitie: false,
+        effetSiEchec: { peur: 15 }, poids: 2 }
+    ]
+  },
+  velkor: {
+    nom: 'Velkor, Grand Prêtre', icone: '🌑', pv: 100, ca: 15, boss: true, actionsParTour: 2,
+    caracs: { FOR: 12, DEX: 14, CON: 16, INT: 16, SAG: 20, CHA: 18 },
+    sauvegardesBonus: { SAG: 9, CHA: 8, CON: 6 },
+    resist: ['nécrotique', 'psychique'],
+    actions: [
+      { nom: 'Dague de l\'Éclipse', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 9, degats: '2d6+5', typeDeg: 'perforant', poids: 2 },
+      { nom: 'Flétrissure', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 8, degats: '2d10+4', typeDeg: 'nécrotique', sort: true, poids: 3 },
+      { nom: 'Éclipse totale', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 15, degats: '2d8+2', typeDeg: 'psychique', moitie: true,
+        effetSiEchec: { peur: 20 }, poids: 2, recharge: 3 },
+      { nom: 'Relever les fidèles', type: 'special', special: 'invoquer', invocation: 'zombie', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 3 }
+    ]
+  },
   morvagne: {
     nom: 'Morvagne la Nécromancienne', icone: '☠️', pv: 120, ca: 16, boss: true, actionsParTour: 2,
     caracs: { FOR: 10, DEX: 14, CON: 14, INT: 18, SAG: 14, CHA: 12 },

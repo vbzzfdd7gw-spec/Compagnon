@@ -427,3 +427,17 @@ body { overscroll-behavior: none; }
 .btn-action.apercu { opacity: .45; cursor: default; }
 .sous-titre-offres { margin: 6px 0; font-size: .9rem; }
 .sous-titre-offres .gains { text-align: left; background: var(--panneau); border: 1px solid var(--ligne); border-radius: 10px; padding: 6px 10px; margin: 8px 0; font-size: .8rem; }
+
+/* ---------- choix de campagne ---------- */
+.campagnes { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.campagne { display: flex; gap: 12px; align-items: center; text-align: left; padding: 12px; background: var(--panneau); color: var(--texte);
+  border: 2px solid var(--ligne); border-radius: 14px; font: inherit; cursor: pointer; transition: border-color .15s, transform .15s; }
+.campagne:hover:not(:disabled) { border-color: var(--or); transform: translateY(-2px); }
+.campagne.verrou { opacity: .5; cursor: not-allowed; }
+.camp-icone { font-size: 2.4rem; flex-shrink: 0; }
+.camp-corps { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.camp-corps b { color: var(--or); font-size: 1.02rem; }
+.etoiles { color: #ffd04a; font-size: .85rem; letter-spacing: .1em; }
+.camp-resume { font-size: .84rem; color: #d9cbb8; }
+.camp-infos { font-size: .75rem; color: var(--discret); }
+.deblocage { margin: 14px auto; padding: 10px 14px; border: 2px solid var(--or); border-radius: 12px; background: #4a382055; max-width: 420px; animation: apparait .4s; }

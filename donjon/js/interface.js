@@ -20,7 +20,8 @@ const Ui = {
       recompense: () => this.ecranRecompense(),
       repos: () => this.ecranRepos(),
       evenement: () => this.ecranEvenement(),
-      fin: () => this.ecranFin()
+      fin: () => this.ecranFin(),
+      campagnes: () => this.ecranCampagnes()
     };
     app.innerHTML = ecrans[Jeu.ecran]();
     Son.ambiance(Jeu.ecran === 'combat' ? (Jeu.combat && Jeu.combat.type === 'boss' ? 'boss' : 'combat') : Jeu.ecran === 'fin' ? null : 'carte');
@@ -79,11 +80,33 @@ const Ui = {
       <p class="petit">Astuce : touchez un personnage ou un monstre pour voir sa fiche.</p>`);
   },
 
+  // ------------------------------------------------------ campagnes
+  ecranCampagnes() {
+    return `<div class="ecran-centre">
+      <h2>Choisissez une campagne</h2>
+      <p class="discret">Terminez une campagne pour débloquer la suivante.</p>
+      <div class="campagnes">${CAMPAGNES.map(c => {
+        const ok = Progression.debloquee(c);
+        const avant = c.apres ? Progression.campagne(c.apres) : null;
+        const v = Progression.victoires(c), rec = Progression.record(c);
+        return `<button class="campagne ${ok ? '' : 'verrou'}" ${ok ? `data-campagne="${c.id}"` : 'disabled'}>
+          <span class="camp-icone">${ok ? c.icone : '🔒'}</span>
+          <span class="camp-corps">
+            <b>${c.nom}</b> <span class="etoiles">${'★'.repeat(c.difficulte)}${'☆'.repeat(3 - c.difficulte)}</span>
+            <span class="camp-resume">${ok ? c.resume : `Terminez <b>${avant.nom}</b> pour débloquer cette campagne.`}</span>
+            ${ok ? `<span class="camp-infos">${c.etages.length} étages${c.regleTexte ? ' · ' + c.regleTexte : ''}${v ? ` · ✅ terminée ${v}×` : rec ? ` · record : étage ${rec}/${c.etages.length}` : ''}</span>` : ''}
+          </span>
+        </button>`;
+      }).join('')}</div>
+      <button class="btn" data-clic="titre">Retour</button>
+    </div>`;
+  },
+
   // ----------------------------------------------------------- carte
   ecranCarte() {
     return `<div class="ecran-carte">
       <header class="barre">
-        <div class="titre-carte"><b>${ETAGES[Jeu.etage].nom}</b> <span class="discret">· étage ${Jeu.etage + 1}/${ETAGES.length} · niv. ${Jeu.equipe[0].niveau || 3}</span></div>
+        <div class="titre-carte"><b>${Jeu.etageCourant().nom}</b> <span class="discret">· étage ${Jeu.etage + 1}/${Jeu.etages().length} · niv. ${Jeu.equipe[0].niveau || 3}</span></div>
         <div class="boutons-barre">
           ${this.boutonsAudio()}
           <button class="btn petit" data-clic="equipe">👥 Équipe</button>
@@ -220,7 +243,7 @@ const Ui = {
 
   apresRenduCombat() {
     this.majCombat();
-    Modeles3D.theme(ETAGES[Jeu.etage].theme);
+    Modeles3D.theme(Jeu.etageCourant().theme);
     Modeles3D.attacher($('#scene'));
   },
 
@@ -611,8 +634,9 @@ const Ui = {
     return `<div class="ecran-centre fin ${v ? 'victoire' : 'defaite'}">
       <div class="logo">${v ? '👑' : '🪦'}</div>
       <h1>${v ? 'Victoire !' : 'L\'expédition a échoué'}</h1>
-      <p>${v ? 'Morvagne la Nécromancienne n\'est plus. Les cryptes retrouvent le silence.' : 'Les ténèbres des cryptes ont englouti votre équipe.'}</p>
-      <p>Étage atteint : ${Jeu.etage + 1}/${ETAGES.length} (${ETAGES[Jeu.etage].nom}) · Salles explorées : ${Jeu.stats.salles} · Combats gagnés : ${Jeu.stats.combats}</p>
+      <p>${v ? Jeu.campagneCourante().fin : 'Les ténèbres ont englouti votre équipe.'}</p>
+      ${v && Jeu.debloquee ? `<div class="deblocage">🔓 Nouvelle campagne débloquée : <b>${Jeu.debloquee.icone} ${Jeu.debloquee.nom}</b></div>` : ''}
+      <p>${Jeu.campagneCourante().icone} ${Jeu.campagneCourante().nom} — étage atteint : ${Jeu.etage + 1}/${Jeu.etages().length} (${Jeu.etageCourant().nom}) · Salles explorées : ${Jeu.stats.salles} · Combats gagnés : ${Jeu.stats.combats}</p>
       <button class="btn principal" data-clic="nouvelle">Nouvelle expédition</button>
       <button class="btn" data-clic="titre">Écran titre</button>
     </div>`;
@@ -635,7 +659,7 @@ const Ui = {
     document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
     document.addEventListener('click', e => {
       Son.debloquer();
-      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info]');
+      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne]');
       if (!t || t.disabled) return;
       const d = t.dataset;
       if (d.clic) return this.clic(d.clic, t);
@@ -647,6 +671,7 @@ const Ui = {
       if (d.deVie) return Jeu.depenserDeVie(d.deVie);
       if (d.choix !== undefined) return Jeu.choisirEvenement(parseInt(d.choix, 10));
       if (d.info) return this.infoCombattant(d.info);
+      if (d.campagne) return Jeu.nouvellePartie(d.campagne);
     });
     Modeles3D.init();
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { this.fermerModal(); if (this.selection) { this.selection = null; this.majCombat(); } } });
@@ -657,7 +682,8 @@ const Ui = {
     switch (nom) {
       case 'nouvelle':
         if (Jeu.ecran === 'titre' && Jeu.sauvegardeExiste() && !confirm('Commencer une nouvelle expédition ? La partie en cours sera perdue.')) return;
-        return Jeu.nouvellePartie();
+        Jeu.ecran = 'campagnes';
+        return this.rendu();
       case 'continuer': return Jeu.charger();
       case 'regles': return this.regles();
       case 'equipe': return this.fenetreEquipe();
