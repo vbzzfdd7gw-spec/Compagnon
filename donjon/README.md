@@ -1,6 +1,8 @@
 # Cryptes & Dés
 
-Roguelike au tour par tour : équipe de 4 en rangs, carte à embranchements, règles D&D 5e.
+Roguelike au tour par tour : équipe de 4 sur deux lignes (Avant / Arrière), carte à embranchements, règles D&D 5e.
+
+**Lignes** : le corps à corps s'utilise depuis la ligne Avant et ne touche que la ligne Avant ennemie ; la distance et les sorts touchent tout le monde. Si toute une ligne Avant est hors de combat, la ligne Arrière derrière elle devient attaquable au corps à corps.
 Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 
 ## Organisation
@@ -20,7 +22,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 
 ## Ajouter du contenu
 
-- **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une liste de `RENCONTRES`.
+- **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une rencontre de `RENCONTRES` (`{ avant: [...], arriere: [...] }`).
 - **Une action** : une entrée dans `ACTIONS`, puis son identifiant dans `actions` ou `poolActions` d'une classe.
 - **Un objet** : une entrée dans `OBJETS` avec une fonction `appliquer(pj)`.
 - **Un événement** : un objet dans `EVENEMENTS` avec des `choix` qui ont une fonction `resoudre(jeu)`.

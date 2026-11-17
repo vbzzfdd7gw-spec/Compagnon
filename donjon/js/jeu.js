@@ -56,6 +56,8 @@ const Jeu = {
     try {
       const d = JSON.parse(localStorage.getItem(CLE_SAUVEGARDE));
       Object.assign(this, d);
+      // Sauvegardes d'avant les lignes : les deux premiers devant
+      this.equipe.forEach((p, i) => { if (!p.ligne) p.ligne = i < 2 ? 'avant' : 'arriere'; });
       this.allerCarte();
       return true;
     } catch (e) { return false; }
@@ -86,10 +88,9 @@ const Jeu = {
     return { reussite, texte: `🎲 ${pj.nom}, test de ${carac} : ${r.texte} ${signe(bonus)} = <b>${total}</b> contre DD ${dd} → ${reussite ? '<b>réussite</b>' : '<b>échec</b>'}` };
   },
 
-  deplacerPJ(index, sens) {
-    const j = index + sens;
-    if (j < 0 || j >= this.equipe.length) return;
-    [this.equipe[index], this.equipe[j]] = [this.equipe[j], this.equipe[index]];
+  changerLignePJ(id) {
+    const pj = this.equipe.find(p => p.id === id);
+    pj.ligne = pj.ligne === 'avant' ? 'arriere' : 'avant';
     this.sauvegarder();
   },
 
@@ -115,8 +116,8 @@ const Jeu = {
   },
 
   // ------------------------------------------------------- combat
-  lancerCombat(ids, type) {
-    this.combat = new Combat(this.equipe, ids, this);
+  lancerCombat(rencontre, type) {
+    this.combat = new Combat(this.equipe, rencontre, this);
     this.combat.type = type;
     this.combat.surMaj = () => Ui.majCombat();
     this.combat.surFin = r => this.finCombat(r);

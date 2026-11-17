@@ -45,10 +45,12 @@ const Ui = {
 
   regles() {
     this.modal(`<h2>Règles</h2>
-      <h3>Rangs</h3>
-      <p>Votre équipe (en bas) et les ennemis (en haut) sont alignés en 4 rangs, le rang 1 à gauche (devant). Chaque action indique depuis quels rangs elle s'utilise et quels rangs elle vise :
-      <span class="pips-demo">${this.pips([1, 2], 'lanceur')} ▸ ${this.pips([1, 2], 'cible')}</span> = utilisable depuis les rangs 1-2, vise les rangs ennemis 1-2.
-      Quand un ennemi meurt, ceux de derrière avancent.</p>
+      <h3>Lignes</h3>
+      <p>Chaque camp a deux lignes : <b>Avant</b> et <b>Arrière</b>. Sur la scène, les deux lignes Avant se font face au milieu.</p>
+      <p>• <b>Corps à corps</b> (⚔) : seulement depuis la ligne Avant, et ne touche que la ligne Avant ennemie.<br>
+      • <b>Distance et sorts</b> (🏹) : depuis n'importe où, touchent n'importe qui.<br>
+      • Si toute la ligne Avant d'un camp est vaincue ou à terre, sa ligne Arrière devient attaquable au corps à corps.</p>
+      <p>Chaque bouton indique d'où l'action s'utilise et ce qu'elle vise, par exemple <span class="pips-demo">${this.pipsAction(ACTIONS.epee_longue)}</span>. L'action « Changer de ligne » fait passer de l'Avant à l'Arrière (ou l'inverse) en combat ; hors combat, utilisez l'écran Équipe.</p>
       <h3>Combat</h3>
       <p>Initiative : d20 + DEX. Attaque : d20 + bonus contre la CA. 20 naturel = critique (dés de dégâts doublés), 1 naturel = échec.
       Sorts à sauvegarde : la cible lance d20 + bonus contre le DD du lanceur. Le Clerc et le Magicien ont des emplacements de sorts limités (récupérés au repos long).</p>
@@ -85,7 +87,7 @@ const Ui = {
   resumeEquipe() {
     return `<div class="resume-equipe">
       ${Jeu.equipe.map((p, i) => `<div class="mini-pj ${p.pv <= 0 ? 'a-terre' : ''}" data-info="${p.id}">
-        <div class="mini-tete"><span class="rang-badge">${i + 1}</span><span class="mini-ic">${p.pv <= 0 ? '🪦' : p.icone}</span></div>
+        <div class="mini-tete"><span class="ligne-badge ${p.ligne}">${p.ligne === 'avant' ? 'Avant' : 'Arr.'}</span><span class="mini-ic">${p.pv <= 0 ? '🪦' : p.icone}</span></div>
         ${this.barre(p.pv, p.pvMax, 'pv', `${p.pv}/${p.pvMax}`)}
         ${this.barre(p.peur, 100, 'peur', '')}
         ${this.emplacementsHtml(p, true)}
@@ -108,13 +110,13 @@ const Ui = {
   // ---------------------------------------------------- fiche équipe
   fenetreEquipe() {
     this.modal(`<h2>Équipe</h2>
-      <p class="petit">Utilisez ▲▼ pour réorganiser les rangs avant le prochain combat.</p>
-      ${Jeu.equipe.map((p, i) => `<div class="fiche">
+      <p class="petit">Touchez la ligne d'un héros pour le placer à l'Avant (corps à corps, protège l'arrière) ou à l'Arrière (à l'abri du corps à corps).</p>
+      ${Jeu.equipe.map(p => `<div class="fiche">
         <div class="fiche-tete">
-          <span class="rang-badge">R${i + 1}</span> <b>${p.icone} ${p.nom}</b>
+          <b>${p.icone} ${p.nom}</b>
           <span class="fleches">
-            <button class="btn mini" data-clic="monter" data-index="${i}" ${i === 0 ? 'disabled' : ''}>▲</button>
-            <button class="btn mini" data-clic="descendre" data-index="${i}" ${i === 3 ? 'disabled' : ''}>▼</button>
+            <button class="btn mini ${p.ligne === 'avant' ? 'principal' : ''}" data-clic="ligne" data-pj="${p.id}" ${p.ligne === 'avant' ? 'disabled' : ''}>Avant</button>
+            <button class="btn mini ${p.ligne === 'arriere' ? 'principal' : ''}" data-clic="ligne" data-pj="${p.id}" ${p.ligne === 'arriere' ? 'disabled' : ''}>Arrière</button>
           </span>
         </div>
         ${this.ficheDetails(p)}
@@ -141,18 +143,18 @@ const Ui = {
     return `<div class="ligne-action"><b>${a.icone} ${a.nom}</b> <span class="pips-demo">${this.pipsAction(a)}</span><div class="petit">${a.desc}</div></div>`;
   },
 
-  // Points de rang façon « ○○●● ▸ ●●○○ »
-  pips(rangs, sens) {
-    const ordre = [1, 2, 3, 4];
-    return `<span class="pips ${sens}">${ordre.map(r => `<i class="${rangs.includes(r) ? 'on' : ''}" title="Rang ${r}"></i>`).join('')}</span>`;
-  },
+  // Portée d'une action : « d'où » ▸ « quoi »
+  nomLignes(l) { return l.length > 1 ? 'Partout' : (l[0] === 'avant' ? 'Avant' : 'Arrière'); },
 
   pipsAction(a, court = false) {
-    let cible = '';
-    if (a.cible === 'soi') cible = '<span class="tag-cible">soi</span>';
-    else if (a.cible === 'allie') cible = `<span class="tag-cible allie">${a.adjacent ? (court ? 'voisin' : 'allié adjacent') : (a.zone ? 'alliés' : 'allié')}</span>`;
-    else cible = this.pips(a.rangsCibles, 'cible') + (a.zone ? '<span class="tag-cible">zone</span>' : '');
-    return `${this.pips(a.rangsLanceur, 'lanceur')} ▸ ${cible}`;
+    const de = `<span class="p-de">${this.nomLignes(a.depuis)}</span>`;
+    let vise;
+    if (a.cible === 'soi') vise = '<span class="p-vise soi">soi</span>';
+    else if (a.cible === 'allie') vise = `<span class="p-vise allie">${a.zone ? 'alliés' : 'allié'}</span>`;
+    else if (a.vise.length > 1) vise = `<span class="p-vise loin">🏹 ${a.zone ? 'tous' : 'tous'}</span>`;
+    else vise = `<span class="p-vise cac">⚔ ${a.vise[0] === 'avant' ? 'Avant' : 'Arrière'}</span>`;
+    if (a.zone && a.cible === 'ennemi' && !court) vise += '<span class="p-zone">zone</span>';
+    return `${de}<span class="p-fl">▸</span>${vise}`;
   },
 
   infoCombattant(id) {
@@ -189,9 +191,11 @@ const Ui = {
       <div class="ordre-ligne"><div class="ordre" id="ordre"></div><button class="btn-journal" data-clic="journal" title="Journal des dés">📜</button></div>
       <div class="scene" id="scene">
         <div class="torche g">🔥</div><div class="torche d">🔥</div>
-        <div class="camp camp-en" id="camp-en"></div>
+        <div class="rangee-scene ennemi arriere" id="en-arriere" data-etiquette="Arrière"></div>
+        <div class="rangee-scene ennemi avant" id="en-avant" data-etiquette="Avant"></div>
         <div class="milieu" id="milieu"></div>
-        <div class="camp camp-pj" id="camp-pj"></div>
+        <div class="rangee-scene pj avant" id="pj-avant" data-etiquette="Avant"></div>
+        <div class="rangee-scene pj arriere" id="pj-arriere" data-etiquette="Arrière"></div>
         <div class="calque" id="calque"></div>
       </div>
       <div class="bandeau" id="bandeau" data-clic="journal"></div>
@@ -223,8 +227,16 @@ const Ui = {
     this.affichage = { pvAff, peurAff, vivants };
 
     $('#ordre').innerHTML = this.ordreHtml(cb);
-    $('#camp-en').innerHTML = cb.ennemis.map((e, i) => this.carteCombattant(e, i + 1, cb)).join('');
-    $('#camp-pj').innerHTML = cb.pjs.map((p, i) => this.carteCombattant(p, i + 1, cb)).join('');
+    const act = this.selection ? ACTIONS[this.selection] : null;
+    const atteintes = act && act.cible === 'ennemi' ? cb.lignesAtteignables(cb.ennemis, act.vise) : null;
+    for (const [camp, liste] of [['en', cb.ennemis], ['pj', cb.pjs]]) {
+      for (const l of ['avant', 'arriere']) {
+        const el = $(`#${camp}-${l}`);
+        el.innerHTML = liste.filter(c => c.ligne === l).map(c => this.carteCombattant(c, cb)).join('');
+        el.classList.toggle('hors-portee', !!(atteintes && camp === 'en' && !atteintes.includes(l)));
+        el.classList.toggle('a-portee', !!(atteintes && camp === 'en' && atteintes.includes(l)));
+      }
+    }
     $('#panneau').innerHTML = this.panneauHtml(cb);
     this.majBandeau(cb);
     if (!evs.length) { this.affichage = null; return 0; }
@@ -243,7 +255,7 @@ const Ui = {
       `<span class="puce ${c.camp} ${i === 0 && cb.actif === c ? 'actif' : ''}" title="${echapper(c.nom)}">${c.icone}</span>`).join('');
   },
 
-  carteCombattant(c, rang, cb) {
+  carteCombattant(c, cb) {
     const aff = this.affichage || { pvAff: {}, peurAff: {}, vivants: new Set() };
     const pv = c.id in aff.pvAff ? aff.pvAff[c.id] : Math.max(0, c.pv);
     const peur = c.id in aff.peurAff ? aff.peurAff[c.id] : c.peur;
@@ -262,7 +274,7 @@ const Ui = {
     const etats = Object.keys(c.etats).map(e => `<span title="${ETATS[e].nom}">${ETATS[e].icone}</span>`).join('');
     const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
     return `<div class="${classes.join(' ')}" data-id="${c.id}">
-      <div class="badges"><span class="rang-badge">${rang}</span><span class="ca-badge">🛡${ca}</span></div>
+      <span class="ca-badge">🛡${ca}</span>
       <div class="etats">${etats}</div>
       <div class="figure"><span class="sprite">${mort && c.camp === 'pj' ? '🪦' : c.icone}</span><span class="ombre"></span></div>
       <div class="nom">${echapper(c.nom)}</div>
@@ -272,7 +284,7 @@ const Ui = {
   },
 
   // ------------------------------------------------------ animations
-  DUREES: { action: 420, jet: 900, degats: 420, soin: 420, texte: 260, mort: 380, peur: 120 },
+  DUREES: { action: 420, jet: 900, degats: 420, soin: 420, texte: 260, mort: 380, peur: 120, deplacement: 300 },
 
   jouerAnimations(evs) {
     let t = 0;
@@ -327,6 +339,13 @@ const Ui = {
         if (Math.abs(e.n) >= 10) this.flotter(el, (e.n > 0 ? '😨+' : '😌') + e.n, 'peur');
         if (e.apres >= 100) el.classList.add('panique'); else el.classList.remove('panique');
         break;
+      case 'deplacement': {
+        if (!el) break;
+        const camp = el.classList.contains('pj') ? 'pj' : 'en';
+        $(`#${camp}-${e.ligne}`).appendChild(el);
+        el.classList.remove('arrive'); void el.offsetWidth; el.classList.add('arrive');
+        break;
+      }
       case 'mort':
         if (!el) break;
         el.classList.add(e.pj ? 'a-terre' : 'mort');
@@ -404,7 +423,7 @@ const Ui = {
       </button>`;
     }).join('');
 
-    let aide = `<b>${a.icone} ${a.nom}</b> · rang ${cb.rang(a)}${a.peur >= 100 ? ' · <span class="mauvais">😱 paniqué</span>' : ''} ${this.emplacementsHtml(a, true)}<br><span class="discret">Choisissez une action.</span>`;
+    let aide = `<b>${a.icone} ${a.nom}</b> · ligne ${cb.nomLigne(a.ligne)}${a.peur >= 100 ? ' · <span class="mauvais">😱 paniqué</span>' : ''} ${Object.keys(a.emplacements).length ? this.emplacementsHtml(a, true) : ''}<br><span class="discret">Choisissez une action.</span>`;
     if (this.raison) { aide = `<span class="mauvais">⛔ ${this.raison.nom} : ${this.raison.texte}</span><br><span class="discret">${this.raison.desc}</span>`; this.raison = null; }
     if (this.selection) {
       const act = ACTIONS[this.selection];
@@ -574,8 +593,7 @@ const Ui = {
       case 'continuer': return Jeu.charger();
       case 'regles': return this.regles();
       case 'equipe': return this.fenetreEquipe();
-      case 'monter': Jeu.deplacerPJ(+t.dataset.index, -1); this.fenetreEquipe(); return this.rendu();
-      case 'descendre': Jeu.deplacerPJ(+t.dataset.index, 1); this.fenetreEquipe(); return this.rendu();
+      case 'ligne': Jeu.changerLignePJ(t.dataset.pj); this.fenetreEquipe(); return this.rendu();
       case 'abandonner':
         if (confirm('Abandonner l\'expédition ?')) { Jeu.effacerSauvegarde(); Jeu.ecran = 'titre'; this.rendu(); }
         return;
