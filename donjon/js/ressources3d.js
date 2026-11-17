@@ -17,9 +17,12 @@ const Ressources3D = {
   charges: 0,
   // Progression du chargement (0 à 1), affichée sur l'écran d'accueil
   progression() { return this.charges / this.liste.length; },
+  // demi = 0.5 quand un fichier est téléchargé mais pas encore décodé
+  etape(demi = 0) {
+    if (window.EC) EC.cible(20 + (this.charges + demi) / this.liste.length * 78);
+  },
   majIndicateur() {
-    const barre = document.getElementById('ec-prog');
-    if (barre) barre.style.width = Math.round(20 + this.progression() * 80) + '%';
+    this.etape();
     if (this.pret) EcranChargement.fermer();
     const el = document.getElementById('chargement3d');
     if (!el) return;
@@ -36,7 +39,8 @@ const Ressources3D = {
     this.enCours = (async () => {
       for (const nom of this.liste) {
         try {
-          await this.script(`modeles/${nom}.js`);
+          await this.script(`modeles/${nom}.js?v=${window.VERSION_JEU || 1}`);
+          this.etape(0.5);
           this.gltf[nom] = await this.analyser(window.GLB[nom]);
           delete window.GLB[nom];
         } catch (e) {
@@ -376,15 +380,11 @@ const EcranChargement = {
   fermer() {
     if (this.ferme) return;
     this.ferme = true;
-    const el = document.getElementById('ecran-chargement');
-    if (!el) return;
-    el.classList.add('fini');
-    setTimeout(() => el.remove(), 900);
+    if (window.EC) EC.fermer();
   },
   // Les scripts sont là : on attend les modèles 3D (au plus 25 s)
   suivre() {
-    const barre = document.getElementById('ec-prog');
-    if (barre) barre.style.width = '20%';
+    if (window.EC) EC.cible(20);
     if (!Modeles3D.actif || Ressources3D.pret) return this.fermer();
     setTimeout(() => this.fermer(), 25000);
   }

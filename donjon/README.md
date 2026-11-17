@@ -59,3 +59,8 @@ géométrie compressée) puis emballés en base64 pour fonctionner aussi en ouvr
 Le script `modeles/construire.mjs` (gltf-transform) les régénère.
 
 Moteur 3D : three.js r149 (licence MIT), avec GLTFLoader et SkeletonUtils convertis en scripts classiques.
+
+## Publier une nouvelle version
+
+Augmenter le numéro `?v=` dans `index.html` (et `VERSION_JEU` dans le même fichier) ainsi que `V` dans `sw.js` :
+les navigateurs rechargent alors tous les fichiers d'un coup, sans mélanger ancienne et nouvelle version.
