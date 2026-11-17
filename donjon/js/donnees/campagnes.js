@@ -46,7 +46,7 @@ const CAMPAGNES = [
         }
       },
       {
-        nom: 'Les Tanières', theme: 'grotte', force: { pv: 1.2, toucher: 1, degats: 1, dd: 1 },
+        nom: 'Les Tanières', theme: 'grotte', force: { pv: 1.1, toucher: 1, degats: 1, dd: 1 },
         intro: 'Des galeries tapissées d\'os rongés. On entend hurler au loin.',
         rencontres: {
           facile: [
@@ -67,7 +67,7 @@ const CAMPAGNES = [
         }
       },
       {
-        nom: 'La Forteresse', theme: 'crypte', force: { pv: 1.35, toucher: 2, degats: 2, dd: 1 },
+        nom: 'La Forteresse', theme: 'crypte', force: { pv: 1.3, toucher: 1, degats: 2, dd: 1 },
         intro: 'Des murailles taillées dans la roche. Grukk vous attend sur son trône d\'os.',
         rencontres: {
           facile: [
@@ -130,8 +130,8 @@ const CAMPAGNES = [
             { avant: ['zombie', 'zombie'], arriere: ['cultiste', 'cultiste', 'mage_squelette'] }
           ],
           elite: [
-            { avant: ['ogre', 'ogre'], arriere: ['pretre_eclipse', 'mage_squelette'] },
-            { avant: ['zombie', 'zombie', 'zombie'], arriere: ['pretre_eclipse'] }
+            { avant: ['ogre', 'zombie'], arriere: ['pretre_eclipse'] },
+            { avant: ['zombie', 'zombie'], arriere: ['pretre_eclipse', 'cultiste'] }
           ],
           boss: [{ avant: ['chevalier_squelette', 'zombie'], arriere: ['pretre_eclipse'] }]
         }

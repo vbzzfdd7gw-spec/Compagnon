@@ -6,76 +6,96 @@
 const TYPES_NOEUDS = {
   combat: { nom: 'Combat', icone: '⚔️' },
   elite: { nom: 'Élite', icone: '💀' },
-  repos: { nom: 'Repos', icone: '🔥' },
+  repos: { nom: 'Feu de camp', icone: '🔥' },
+  marchand: { nom: 'Marchand', icone: '🛒' },
   tresor: { nom: 'Trésor', icone: '💰' },
   evenement: { nom: 'Événement', icone: '❓' },
   boss: { nom: 'Boss', icone: '👑' }
 };
 
 const CONFIG_CARTE = {
-  rangees: 8,          // 0..7 : 7 = boss, 6 = repos garanti
-  colonnes: 4,
-  poids: [            // tirage des rangées intermédiaires
-    { type: 'combat', poids: 44 },
-    { type: 'evenement', poids: 20 },
-    { type: 'tresor', poids: 11 },
-    { type: 'elite', poids: 14, rangMin: 3 },
-    { type: 'repos', poids: 11, rangMin: 2, rangMax: 4 }
-  ]
+  rangees: 10,         // 0..9 : 9 = boss, 8 = feu de camp garanti
+  colonnes: 5,
+  chemins: 6,          // nombre de chemins tracés de bas en haut (ils se croisent et se rejoignent)
+  poids: [             // tirage des salles intermédiaires
+    { type: 'combat', poids: 35 },
+    { type: 'evenement', poids: 21 },
+    { type: 'elite', poids: 15, rangMin: 3 },
+    { type: 'repos', poids: 13, rangMin: 3, rangMax: 6 },
+    { type: 'marchand', poids: 10, rangMin: 2, rangMax: 7 },
+    { type: 'tresor', poids: 5, rangMin: 2 }
+  ],
+  // Types qu'on ne veut pas deux fois de suite sur un même chemin
+  pasDeuxFois: ['elite', 'repos', 'marchand', 'tresor'],
+  minimum: { elite: 2, marchand: 1, repos: 1 }   // au moins autant par étage (hors feu final)
 };
 
 const Carte = {
   generer() {
     const R = CONFIG_CARTE.rangees, C = CONFIG_CARTE.colonnes;
-    const rangees = [];
+    const grille = {};                       // "r,c" → nœud
     let id = 0;
-    for (let r = 0; r < R; r++) {
-      let cols;
-      if (r === R - 1) cols = [1.5];
-      else {
-        const n = r === 0 ? 3 : 2 + Math.floor(Math.random() * 3); // 2 à 4
-        cols = Des.melanger([0, 1, 2, 3]).slice(0, n).sort((a, b) => a - b);
-      }
-      rangees.push(cols.map(col => ({ id: id++, rangee: r, col, type: null, liens: [], visite: false, decalage: (Math.random() - 0.5) * 22 })));
-    }
+    const noeud = (r, c) => {
+      const k = r + ',' + c;
+      if (!grille[k]) grille[k] = { id: id++, rangee: r, col: c, type: null, liens: [], visite: false, decalage: (Math.random() - 0.5) * 16 };
+      return grille[k];
+    };
+    const liens = new Set();                 // "r,c1>c2"
+    // Deux liens entre les mêmes rangées ne doivent pas se croiser
+    const croise = (r, c1, c2) => [...liens].some(l => {
+      const [rr, rest] = l.split(','); if (+rr !== r) return false;
+      const [a, b] = rest.split('>').map(Number);
+      return (a < c1 && b > c2) || (a > c1 && b < c2);
+    });
 
-    // Liens : chaque nœud vers le(s) plus proche(s) de la rangée suivante
-    for (let r = 0; r < R - 1; r++) {
-      const ici = rangees[r], suivante = rangees[r + 1];
-      for (const n of ici) {
-        const tries = suivante.slice().sort((a, b) => Math.abs(a.col - n.col) - Math.abs(b.col - n.col));
-        n.liens.push(tries[0].id);
-        if (tries[1] && Math.abs(tries[1].col - n.col) <= 1 && Math.random() < 0.55) n.liens.push(tries[1].id);
-      }
-      // Tout nœud de la rangée suivante doit avoir une arrivée
-      for (const s of suivante) {
-        if (!ici.some(n => n.liens.includes(s.id))) {
-          const proche = ici.slice().sort((a, b) => Math.abs(a.col - s.col) - Math.abs(b.col - s.col))[0];
-          proche.liens.push(s.id);
-        }
+    // Tracé des chemins (départs répartis sur la largeur)
+    const departs = Des.melanger([0, 1, 2, 3, 4, 0, 1, 2, 3, 4]).slice(0, CONFIG_CARTE.chemins);
+    if (new Set(departs).size < 3) departs.splice(0, 3, 0, 2, 4);
+    for (const d of departs) {
+      let c = d;
+      noeud(0, c);
+      for (let r = 0; r < R - 2; r++) {
+        const options = Des.melanger([c - 1, c, c + 1].filter(x => x >= 0 && x < C));
+        let suivant = options.find(x => !croise(r, c, x)) ?? c;
+        liens.add(`${r},${c}>${suivant}`);
+        noeud(r + 1, suivant);
+        c = suivant;
       }
     }
+    // Boss au sommet, relié à toute la rangée précédente
+    const boss = noeud(R - 1, (C - 1) / 2);
+    for (const l of liens) {
+      const [r, rest] = l.split(','); const [a, b] = rest.split('>').map(Number);
+      const n = grille[`${r},${a}`], m = grille[`${+r + 1},${b}`];
+      if (!n.liens.includes(m.id)) n.liens.push(m.id);
+    }
+    const tous = Object.values(grille);
+    tous.filter(n => n.rangee === R - 2).forEach(n => n.liens.push(boss.id));
+    const parId = {};
+    tous.forEach(n => { parId[n.id] = n; });
+    const parents = n => tous.filter(p => p.liens.includes(n.id));
 
-    // Types
-    for (const rangee of rangees) {
-      for (const n of rangee) {
-        const r = n.rangee;
-        if (r === R - 1) n.type = 'boss';
-        else if (r === R - 2) n.type = 'repos';
-        else if (r === 0) n.type = 'combat';
-        else {
-          const poss = CONFIG_CARTE.poids.filter(p => (p.rangMin === undefined || r >= p.rangMin) && (p.rangMax === undefined || r <= p.rangMax));
-          n.type = Des.pondere(poss).type;
-        }
-      }
+    // Types de salles
+    tous.sort((a, b) => a.rangee - b.rangee);
+    for (const n of tous) {
+      const r = n.rangee;
+      if (n === boss) { n.type = 'boss'; continue; }
+      if (r === R - 2) { n.type = 'repos'; continue; }
+      if (r === 0) { n.type = 'combat'; continue; }
+      const interdits = new Set(parents(n).map(p => p.type).filter(t => CONFIG_CARTE.pasDeuxFois.includes(t)));
+      if (r === R - 3) interdits.add('repos');            // pas de feu juste avant le feu final
+      const poss = CONFIG_CARTE.poids.filter(p => !interdits.has(p.type)
+        && (p.rangMin === undefined || r >= p.rangMin) && (p.rangMax === undefined || r <= p.rangMax));
+      n.type = Des.pondere(poss).type;
     }
-    // Au moins un trésor sur la carte
-    const tous = rangees.flat();
-    if (!tous.some(n => n.type === 'tresor')) {
-      const cand = tous.filter(n => n.type === 'combat' && n.rangee > 0);
-      if (cand.length) Des.hasard(cand).type = 'tresor';
+    // Minimums garantis (on transforme des combats ordinaires)
+    for (const [type, min] of Object.entries(CONFIG_CARTE.minimum)) {
+      const regle = CONFIG_CARTE.poids.find(p => p.type === type);
+      let manque = min - tous.filter(n => n.type === type && n.rangee < R - 2).length;
+      const cand = Des.melanger(tous.filter(n => n.type === 'combat' && n.rangee >= (regle.rangMin || 1) && n.rangee <= (regle.rangMax ?? R - 3)
+        && !parents(n).some(p => p.type === type) && !n.liens.some(i => parId[i].type === type)));
+      while (manque-- > 0 && cand.length) cand.pop().type = type;
     }
-
     return { noeuds: tous, position: null, rangees: R };
   },
 
@@ -88,14 +108,14 @@ const Carte = {
   },
 
   // Difficulté des combats selon la rangée
-  niveau(noeud) { return noeud.rangee <= 2 ? 'facile' : 'moyen'; },
+  niveau(noeud) { return noeud.rangee <= 3 ? 'facile' : 'moyen'; },
 
   // Rendu SVG (boss en haut, départ en bas)
   svg(carte) {
     const R = carte.rangees;
-    const L = 360, E = 68, H = R * E + 40;
+    const L = 340, E = 60, H = R * E + 40;
     const pos = n => ({
-      x: 45 + (n.col / 3) * (L - 90) + n.decalage,
+      x: 40 + (n.col / (CONFIG_CARTE.colonnes - 1)) * (L - 80) + n.decalage,
       y: H - 34 - n.rangee * E
     });
     const acc = this.accessibles(carte);

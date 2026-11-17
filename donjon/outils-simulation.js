@@ -57,7 +57,7 @@ function expedition(idC) {
   const camp = CAMPAGNES.find(c => c.id === idC);
   const ETAGES = camp.etages;
   const equipe = ORDRE_CLASSES.map(creerPJ);
-  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult }; let long = false;
+  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult, or: 30, equipe }; let long = false;
   const log = [];
   for (let etage = 0; etage < ETAGES.length; etage++) {
     const carte = Carte.generer();
@@ -74,6 +74,7 @@ function expedition(idC) {
         PERTES[etage + n.type] = PERTES[etage + n.type] || [];
         PERTES[etage + n.type].push(pvAvant - pvApres);
         if (r.fin !== 'victoire') return { ok: false, mort: (etage + 1) + ':' + n.type, log };
+        const [omin, omax] = GAINS_OR[n.type]; jeu.or += omin + Math.floor(Math.random() * (omax - omin + 1));
         if (n.type === 'boss') break;
         if (n.type === 'elite') jeu.potions++; else if (Math.random() < 0.3) jeu.potions++;
         const offres = Recompenses.generer(equipe, { elite: n.type === 'elite' });
@@ -89,12 +90,22 @@ function expedition(idC) {
           if (p.pv <= 0) p.pv = 1; p.peur = Math.max(0, p.peur - 10);
           while (p.desVie.restant > 0 && p.pv < p.pvMax * 0.7) { p.desVie.restant--; p.pv = Math.min(p.pvMax, p.pv + Math.max(1, Des.lancer('1d' + p.desVie.face).total + modCarac(p.caracs.CON))); }
         }
+      } else if (n.type === 'marchand') {
+        const stock = Marchand.generer(equipe);
+        const moy = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
+        const ordre = [moy < 0.6 ? 'soin' : null, 'objet', 'potion', 'amelioration', 'potion'].filter(Boolean);
+        for (const cat of ordre) {
+          const a = stock.find(x => x.categorie === cat && !x.vendu && jeu.or >= x.prix);
+          if (!a) continue;
+          jeu.or -= a.prix; Marchand.appliquer(a, jeu); if (!(a.quantite && --a.quantite > 0)) a.vendu = true;
+        }
       } else if (n.type === 'tresor') {
+        jeu.or += 45 + Math.floor(Math.random() * 26);
         jeu.potions++;
         const o = Recompenses.offreObjet(equipe); if (o) Recompenses.appliquer(o, equipe.find(p => p.id === o.pj));
       }
     }
-    if (etage < ETAGES.length - 1) { equipe.forEach(p => { monterNiveau(p); p.peur = 0; }); long = false; jeu.potions++; }
+    if (etage < ETAGES.length - 1) { equipe.forEach(p => { monterNiveau(p); p.peur = 0; }); long = false; jeu.potions++; jeu.or += 90; }
   }
   return { ok: true, log };
 }

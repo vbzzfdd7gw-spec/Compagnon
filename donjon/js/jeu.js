@@ -9,6 +9,8 @@ const Jeu = {
   equipe: [],
   carte: null,
   potions: 2,
+  or: 0,
+  marchand: null,
   etage: 0,
   campagne: 'crypte',
   peurMult: 1,
@@ -32,6 +34,7 @@ const Jeu = {
     this.equipe = ORDRE_CLASSES.map(creerPJ);
     this.carte = Carte.generer();
     this.potions = c.regles.potions ?? 2;
+    this.or = 30;
     this.etage = 0;
     Progression.noterRecord(c.id, 1);
     this.reposLongUtilise = false;
@@ -52,7 +55,7 @@ const Jeu = {
   sauvegarder() {
     try {
       localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
-        equipe: this.equipe, carte: this.carte, potions: this.potions, etage: this.etage, campagne: this.campagne,
+        equipe: this.equipe, carte: this.carte, potions: this.potions, or: this.or, etage: this.etage, campagne: this.campagne,
         reposLongUtilise: this.reposLongUtilise, stats: this.stats
       }));
     } catch (e) { /* stockage indisponible : on continue sans sauvegarde */ }
@@ -68,6 +71,7 @@ const Jeu = {
       Object.assign(this, d);
       this.etage = this.etage || 0;
       this.campagne = this.campagne || 'crypte';
+      this.or = this.or || 0;
       this.peurMult = Progression.campagne(this.campagne).regles.peurMult || 1;
       this.equipe.forEach(p => { p.niveau = p.niveau || 3; });
       // Sauvegardes d'avant les lignes : les deux premiers devant
@@ -123,6 +127,7 @@ const Jeu = {
       case 'boss': return this.lancerCombat(Des.hasard(this.rencontres().boss), 'boss');
       case 'repos': this.repos = { mode: null }; this.ecran = 'repos'; return Ui.rendu();
       case 'tresor': return this.ouvrirTresor();
+      case 'marchand': return this.ouvrirMarchand();
       case 'evenement':
         this.evenement = { def: Des.hasard(EVENEMENTS), resultat: null };
         this.ecran = 'evenement';
@@ -137,7 +142,7 @@ const Jeu = {
   dernierEtage() { return this.etage >= this.etages().length - 1; },
 
   // Boss d'étage vaincu : niveau supérieur, repos complet, nouvelle carte
-  etageSuivant() {
+  etageSuivant(gain = 0) {
     this.etage++;
     Progression.noterRecord(this.campagne, this.etage + 1);
     const lignes = [];
@@ -150,7 +155,7 @@ const Jeu = {
     this.carte = Carte.generer();
     const e = this.etageCourant();
     this.proposerRecompenses(Recompenses.generer(this.equipe, { elite: true }), `⬇️ ${e.nom}`,
-      `<i>${e.intro}</i><br><b>L'équipe monte au niveau ${this.equipe[0].niveau}</b> et récupère toutes ses forces.<div class="gains">${lignes.map(l => `<div>${l}</div>`).join('')}</div>Choisissez le butin du boss :`);
+      `<i>${e.intro}</i><br><b>L'équipe monte au niveau ${this.equipe[0].niveau}</b> et récupère toutes ses forces. 💰 +${gain} or.<div class="gains">${lignes.map(l => `<div>${l}</div>`).join('')}</div>Choisissez le butin du boss :`);
   },
 
   // ------------------------------------------------------- combat
@@ -175,7 +180,8 @@ const Jeu = {
       return Ui.rendu();
     }
     this.stats.combats++;
-    if (type === 'boss' && !this.dernierEtage()) { this.potions++; return this.etageSuivant(); }
+    const gain = this.gagnerOr(type);
+    if (type === 'boss' && !this.dernierEtage()) { this.potions++; return this.etageSuivant(gain); }
     if (type === 'boss') {
       this.debloquee = Progression.noterVictoire(this.campagne);
       this.finale = 'victoire';
@@ -183,9 +189,9 @@ const Jeu = {
       this.effacerSauvegarde();
       return Ui.rendu();
     }
-    let bonus = '';
-    if (type === 'elite') { this.potions++; bonus = 'Vous trouvez aussi une potion de soins.'; }
-    else if (Math.random() < 0.3) { this.potions++; bonus = 'Vous trouvez une potion de soins sur un cadavre.'; }
+    let bonus = `💰 +${gain} or. `;
+    if (type === 'elite') { this.potions++; bonus += 'Vous trouvez aussi une potion de soins.'; }
+    else if (Math.random() < 0.3) { this.potions++; bonus += 'Vous trouvez une potion de soins sur un cadavre.'; }
     this.proposerRecompenses(Recompenses.generer(this.equipe, { elite: type === 'elite' }),
       type === 'elite' ? 'Butin de l\'élite' : 'Récompense', bonus);
   },
@@ -217,7 +223,42 @@ const Jeu = {
 
   ouvrirTresor() {
     this.potions++;
-    this.proposerRecompenses(Recompenses.generer(this.equipe, { objetsSeulement: true }), 'Trésor', 'Le coffre contient aussi une potion de soins. Choisissez un objet magique :');
+    const gain = this.gagnerOr('tresor');
+    this.proposerRecompenses(Recompenses.generer(this.equipe, { objetsSeulement: true }), 'Trésor', `Le coffre contient 💰 ${gain} pièces d'or et une potion de soins. Choisissez un objet magique :`);
+  },
+
+  // ----------------------------------------------------------- or
+  gagnerOr(type) {
+    const [min, max] = GAINS_OR[type] || [0, 0];
+    const g = min + Math.floor(Math.random() * (max - min + 1));
+    this.or += g;
+    return g;
+  },
+
+  // ------------------------------------------------------ marchand
+  ouvrirMarchand() {
+    this.marchand = { stock: Marchand.generer(this.equipe) };
+    this.ecran = 'marchand';
+    Ui.rendu();
+  },
+
+  // oublier : action à remplacer quand le héros connaît déjà MAX_ACTIONS actions
+  acheter(index, oublier = null) {
+    const art = this.marchand.stock[index];
+    if (!art || art.vendu || this.or < art.prix) return;
+    if (art.categorie === 'action') {
+      const pj = this.equipe.find(p => p.id === art.pj);
+      if (pj.actions.length >= MAX_ACTIONS) {
+        if (!oublier) return Ui.choisirActionAOublier(index, pj, art, 'marchand');
+        pj.actions.splice(pj.actions.indexOf(oublier), 1);
+      }
+    }
+    this.or -= art.prix;
+    Marchand.appliquer(art, this);
+    if (art.quantite && --art.quantite > 0) art.vendu = false; else art.vendu = true;
+    Son.jouer('piece');
+    this.sauvegarder();
+    Ui.rendu();
   },
 
   // ---------------------------------------------------------- repos

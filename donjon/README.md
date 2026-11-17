@@ -19,7 +19,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/donnees/campagnes.js` | Les campagnes (étages, règles, déblocage) et la progression mémorisée entre les parties |
 | `js/son.js` | Sons et musique synthétisés, réglages (son, musique, vitesse) |
 | `js/combat.js` | Moteur de combat : initiative, attaques, sauvegardes, états, Peur, IA |
-| `js/carte.js` | Génération et dessin de la carte |
+| `js/carte.js` | Génération de la carte (`CONFIG_CARTE` : rangées, chemins, fréquence des salles, minimums) et dessin |
 | `js/jeu.js` | État de la partie, enchaînement des écrans, repos, sauvegarde |
 | `js/modeles3d.js` | Scène 3D cartoon : diorama, figurines chibi (`FIGURINES`), particules |
 | `js/ressources3d.js` | Chargement des modèles animés, équipement et couleurs de chaque personnage (`PERSOS3D`), décor KayKit |
@@ -32,6 +32,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une rencontre de `RENCONTRES` (`{ avant: [...], arriere: [...] }`).
 - **Une action** : une entrée dans `ACTIONS`, puis son identifiant dans `actions` ou `poolActions` d'une classe.
 - **Un objet** : une entrée dans `OBJETS` avec une fonction `appliquer(pj)`.
+- **Le marchand et l'or** : `Marchand` et `GAINS_OR` dans `objets.js`.
 - **Un événement** : un objet dans `EVENEMENTS` avec des `choix` qui ont une fonction `resoudre(jeu)`.
 - **Un effet spécial** : un type `'special'` et une fonction du même nom dans `SPECIAUX` (`combat.js`).
 - **Une figurine 3D** : une fonction dans `FIGURINES` (`modeles3d.js`) portant l'identifiant du monstre ou de la classe ; sans figurine, une boule grise s'affiche. Sans WebGL, le jeu affiche les emojis.
@@ -44,7 +45,7 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 
 `node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions complètes sans affichage (stratégie simple : soigner
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
-Réglage actuel : environ 50 % de victoires pour la Crypte, 36 % pour la Horde, 24 % pour l'Éclipse.
+Réglage actuel : environ 49 % de victoires pour la Crypte, 38 % pour la Horde, 23 % pour l'Éclipse.
 
 ## Crédits graphiques
 
