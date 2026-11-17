@@ -28,7 +28,7 @@ body {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 #app { max-width: 980px; margin: 0 auto; padding: 10px 12px 24px; min-height: 100vh; }
-h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; color: var(--or); margin: .4em 0; }
+h1, h2, h3 { font-family: "Cinzel", Georgia, "Times New Roman", serif; color: var(--or); margin: .4em 0; letter-spacing: .02em; }
 h2 { font-size: 1.35rem; }
 h3 { font-size: 1.05rem; }
 .petit { font-size: .82rem; color: var(--discret); }
@@ -73,7 +73,7 @@ h3 { font-size: 1.05rem; }
 .emplacements span { margin-right: 8px; }
 
 /* ---------- écrans plein écran (carte, combat) : rien ne défile ---------- */
-#app[data-ecran="carte"], #app[data-ecran="combat"] {
+#app[data-ecran="carte"], #app[data-ecran="combat"], #app[data-ecran="titre"] {
   height: 100vh; height: 100dvh; min-height: 0; overflow: hidden;
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column;
@@ -488,3 +488,41 @@ body { overscroll-behavior: none; }
 .ordre-choix { position: absolute; top: 4px; left: 6px; background: var(--or); color: #1a1208; border-radius: 50%; width: 18px; height: 18px; font-size: .7rem; font-weight: 800; display: grid; place-items: center; }
 .info-classe { position: absolute; top: 2px; right: 3px; background: none; border: none; font-size: .85rem; cursor: pointer; padding: 2px; }
 .boutons-compo { display: flex; gap: 8px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+
+/* ---------- accueil ---------- */
+#app[data-ecran="titre"] { padding: 0; max-width: none; }
+.accueil { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative;
+  background: radial-gradient(ellipse 120% 70% at 50% 0%, #3a2414 0%, #14110f 60%); }
+.logo-zone { text-align: center; padding: calc(16px + env(safe-area-inset-top)) 12px 4px; position: relative; z-index: 2; }
+.logo-titre { font-family: "Cinzel Decorative", "Cinzel", Georgia, serif; font-weight: 900; font-size: clamp(2.2rem, 11vw, 4rem); line-height: 1.05;
+  background: linear-gradient(180deg, #fff3c4 0%, #f2c45a 45%, #a8661c 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 #3a2208) drop-shadow(0 0 18px #f2a03c66); }
+.esperluette { font-size: .7em; vertical-align: .12em; }
+.logo-sous { font-family: "Cinzel", Georgia, serif; font-size: .78rem; letter-spacing: .22em; text-transform: uppercase; color: #c9a77a; margin-top: 4px; }
+.logo-sous::before, .logo-sous::after { content: '✦'; color: var(--or); margin: 0 .6em; opacity: .7; }
+.scene.vitrine { flex: 1; min-height: 160px; border: none; border-radius: 0; padding: 0 0 5vh; display: flex; flex-direction: column; justify-content: flex-end;
+  background: transparent; }
+.mode3d .scene.vitrine { background: #0e0a08; }
+.scene.vitrine::after { background: linear-gradient(180deg, #14110f 0%, transparent 18%, transparent 70%, #14110f 100%), radial-gradient(ellipse 80% 70% at 50% 55%, transparent 50%, #000a 100%); }
+.vitrine-rang { padding: 0 6% !important; min-height: 0 !important; }
+.vitrine-rang::before { display: none; }
+.vitrine .combattant { cursor: default; }
+.vitrine .figure { height: clamp(52px, 11vh, 110px); }
+.vitrine .sprite { font-size: clamp(2.6rem, 8vh, 4.5rem); }
+.vitrine .nom { font-family: "Cinzel", Georgia, serif; font-size: .7rem; color: #e8d6b8; }
+.accueil-bas { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 9px;
+  padding: 6px 16px calc(14px + env(safe-area-inset-bottom)); }
+.plaque { width: min(100%, 360px); font-family: "Cinzel", Georgia, serif; font-weight: 700; font-size: 1.05rem; letter-spacing: .06em; color: #f4e2c0;
+  padding: 13px 16px; border-radius: 10px; cursor: pointer; border: 1px solid #6b5236;
+  background: linear-gradient(180deg, #3b2c1f, #241a12); box-shadow: inset 0 1px 0 #ffffff1a, inset 0 0 0 3px #00000040, 0 4px 14px #0008; transition: transform .12s, filter .12s; }
+.plaque.principale { color: #2a1606; border-color: #f2c45a; text-shadow: 0 1px 0 #ffe9b066;
+  background: linear-gradient(180deg, #ffe08a 0%, #e0a43c 55%, #a8661c 100%); box-shadow: inset 0 1px 0 #fff6, inset 0 0 0 3px #7a4a1440, 0 0 22px #f2a03c55, 0 4px 14px #0008; }
+.plaque:hover { transform: translateY(-1px); filter: brightness(1.08); }
+.plaque:active { transform: translateY(1px); }
+.accueil-outils { display: flex; gap: 8px; }
+.accueil-outils .btn-icone { font-size: 1.05rem; padding: 5px 11px; border-radius: 10px; }
+.progression { display: flex; gap: 12px; margin-top: 2px; }
+.prog { display: flex; flex-direction: column; align-items: center; font-size: 1.35rem; line-height: 1.1; padding: 5px 9px; border-radius: 10px; border: 1px solid #3d3229; background: #0006; }
+.prog small { font-size: .6rem; color: #ffd04a; letter-spacing: .05em; }
+.prog.verrou { opacity: .45; }
+.prog.faite { border-color: var(--or); box-shadow: 0 0 10px #d8a64a44; }
