@@ -393,3 +393,11 @@ body { overscroll-behavior: none; }
 .ligne-action { padding: 5px 0; border-bottom: 1px dashed #3d322966; }
 .fiche-objets { margin-top: 8px; font-size: .84rem; }
 .etats-detail { background: var(--panneau2); border-radius: 8px; padding: 6px 8px; margin: 6px 0; font-size: .85rem; }
+
+/* ---------- figurines 3D ---------- */
+.canvas3d { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.mode3d .sprite { opacity: 0; }
+.mode3d .ombre { display: none; }
+.mode3d .combattant { background: transparent; }
+.mode3d .combattant.actif { background: #d8a64a14; }
+.mode3d .combattant .nom { text-shadow: 0 1px 2px #000, 0 0 3px #000; }

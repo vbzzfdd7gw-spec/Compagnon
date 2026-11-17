@@ -203,7 +203,10 @@ const Ui = {
     </div>`;
   },
 
-  apresRenduCombat() { this.majCombat(); },
+  apresRenduCombat() {
+    this.majCombat();
+    Modeles3D.attacher($('#scene'));
+  },
 
   majCombat() {
     const cb = Jeu.combat;
@@ -273,7 +276,7 @@ const Ui = {
     if (c.camp === 'pj' && peur >= 100) classes.push('panique');
     const etats = Object.keys(c.etats).map(e => `<span title="${ETATS[e].nom}">${ETATS[e].icone}</span>`).join('');
     const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
-    return `<div class="${classes.join(' ')}" data-id="${c.id}">
+    return `<div class="${classes.join(' ')}" data-id="${c.id}" data-modele="${c.camp === 'pj' ? c.classe : c.modele}">
       <span class="ca-badge">🛡${ca}</span>
       <div class="etats">${etats}</div>
       <div class="figure"><span class="sprite">${mort && c.camp === 'pj' ? '🪦' : c.icone}</span><span class="ombre"></span></div>
@@ -309,6 +312,7 @@ const Ui = {
         ann.className = 'annonce ' + e.camp;
         ann.innerHTML = `<span>${e.icone}</span> ${echapper(e.nom)}`;
         $('#milieu').replaceChildren(ann);
+        if (src && !e.melee) Modeles3D.flash(e.source, 0x5070ff);
         if (src) {
           src.classList.remove('elan', 'incante');
           void src.offsetWidth;
@@ -322,6 +326,7 @@ const Ui = {
         if (!el) break;
         this.majBarre(el, 'pv', e.pvApres, e.pvMax, `${e.pvApres}/${e.pvMax}`);
         el.classList.remove('touche'); void el.offsetWidth; el.classList.add('touche');
+        Modeles3D.flash(e.cible, 0xff2a1a);
         this.flotter(el, '−' + e.n, e.crit ? 'crit' : 'degats');
         if (e.crit) { const s = $('#scene'); s.classList.remove('tremble'); void s.offsetWidth; s.classList.add('tremble'); }
         break;
@@ -329,6 +334,7 @@ const Ui = {
         if (!el) break;
         this.majBarre(el, 'pv', e.pvApres, e.pvMax, `${e.pvApres}/${e.pvMax}`);
         el.classList.remove('a-terre', 'soigne'); void el.offsetWidth; el.classList.add('soigne');
+        Modeles3D.flash(e.cible, 0x40ff70);
         el.querySelector('.sprite').textContent = Jeu.equipe.find(p => p.id === e.cible)?.icone || el.querySelector('.sprite').textContent;
         this.flotter(el, '+' + e.n, 'soin');
         break;
@@ -581,6 +587,7 @@ const Ui = {
       if (d.choix !== undefined) return Jeu.choisirEvenement(parseInt(d.choix, 10));
       if (d.info) return this.infoCombattant(d.info);
     });
+    Modeles3D.init();
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { this.fermerModal(); if (this.selection) { this.selection = null; this.majCombat(); } } });
     this.rendu();
   },

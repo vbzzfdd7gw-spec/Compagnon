@@ -18,7 +18,9 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/combat.js` | Moteur de combat : initiative, attaques, sauvegardes, états, Peur, IA |
 | `js/carte.js` | Génération et dessin de la carte |
 | `js/jeu.js` | État de la partie, enchaînement des écrans, repos, sauvegarde |
+| `js/modeles3d.js` | Figurines 3D low-poly (une fonction par créature dans `FIGURINES`) |
 | `js/interface.js` | Affichage et clics |
+| `lib/three.min.js` | Three.js 0.149 (licence MIT), embarqué pour jouer hors ligne |
 
 ## Ajouter du contenu
 
@@ -27,6 +29,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Un objet** : une entrée dans `OBJETS` avec une fonction `appliquer(pj)`.
 - **Un événement** : un objet dans `EVENEMENTS` avec des `choix` qui ont une fonction `resoudre(jeu)`.
 - **Un effet spécial** : un type `'special'` et une fonction du même nom dans `SPECIAUX` (`combat.js`).
+- **Une figurine 3D** : une fonction dans `FIGURINES` (`modeles3d.js`) portant l'identifiant du monstre ou de la classe ; sans figurine, une boule grise s'affiche. Sans WebGL, le jeu affiche les emojis.
 - **Un état** (étourdi, béni…) : une entrée dans `ETATS` (`combat.js`).
 
 Les valeurs de Peur sont regroupées dans la constante `PEUR` (`combat.js`).
