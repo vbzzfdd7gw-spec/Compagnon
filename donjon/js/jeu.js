@@ -100,6 +100,7 @@ const Jeu = {
     const n = Carte.noeud(this.carte, id);
     this.carte.position = id;
     n.visite = true;
+    Son.jouer('pas');
     this.noeudActuel = n;
     this.stats.salles++;
     switch (n.type) {
@@ -121,6 +122,7 @@ const Jeu = {
     this.combat.type = type;
     this.combat.surMaj = () => Ui.majCombat();
     this.combat.surFin = r => this.finCombat(r);
+    this.combat.vitesse = Reglages.vitesse;
     this.ecran = 'combat';
     Ui.selection = null;
     Ui.rendu();

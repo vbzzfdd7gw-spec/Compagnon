@@ -308,7 +308,7 @@ const Modeles3D = {
         // États : à terre / mort / debout
         if ((aTerre || mort) && u.etat === 'debout') { u.etat = mort ? 'mort' : 'aterre'; u.tMort = performance.now(); jouerAnim(u, 'mort', false); }
         if (!aTerre && !mort && u.etat === 'aterre') { u.etat = 'debout'; jouerAnim(u, 'releve', true); }
-        u.mixer.update(dt);
+        u.mixer.update(dt * Reglages.vitesse);
         c.position.y = u.modele === 'morvagne' && u.etat === 'debout' ? 0.15 + Math.sin(s * 1.6) * 0.06 : 0;
       } else {
         const tombe = modele === 'tombe';

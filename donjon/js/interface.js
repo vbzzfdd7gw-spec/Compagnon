@@ -23,9 +23,22 @@ const Ui = {
       fin: () => this.ecranFin()
     };
     app.innerHTML = ecrans[Jeu.ecran]();
+    Son.ambiance(Jeu.ecran === 'combat' ? (Jeu.combat && Jeu.combat.type === 'boss' ? 'boss' : 'combat') : Jeu.ecran === 'fin' ? null : 'carte');
     app.dataset.ecran = Jeu.ecran;
     if (Jeu.ecran === 'carte') this.defilerCarte();
     if (Jeu.ecran === 'combat') this.apresRenduCombat();
+  },
+
+  // Boutons : sons, musique, (vitesse en combat)
+  boutonsAudio(vitesse = false) {
+    return `<button class="btn-icone ${Reglages.sons ? '' : 'off'}" data-clic="sons" title="Couper / remettre les sons">${Reglages.sons ? '🔊' : '🔇'}</button>`
+      + `<button class="btn-icone ${Reglages.musique ? '' : 'off'}" data-clic="musique" title="Couper / remettre la musique">🎵</button>`
+      + (vitesse ? `<button class="btn-icone ${Reglages.vitesse > 1 ? 'actif' : ''}" data-clic="vitesse" title="Vitesse des animations">⏩${Reglages.vitesse > 1 ? '×2' : ''}</button>` : '');
+  },
+  majBoutonsAudio() {
+    document.querySelectorAll('[data-clic="sons"]').forEach(b => { b.textContent = Reglages.sons ? '🔊' : '🔇'; b.classList.toggle('off', !Reglages.sons); });
+    document.querySelectorAll('[data-clic="musique"]').forEach(b => b.classList.toggle('off', !Reglages.musique));
+    document.querySelectorAll('[data-clic="vitesse"]').forEach(b => { b.textContent = '⏩' + (Reglages.vitesse > 1 ? '×2' : ''); b.classList.toggle('actif', Reglages.vitesse > 1); });
   },
 
   // ----------------------------------------------------------- titre
@@ -39,6 +52,7 @@ const Ui = {
         <button class="btn ${Jeu.sauvegardeExiste() ? '' : 'principal'}" data-clic="nouvelle">Nouvelle expédition</button>
         <button class="btn" data-clic="regles">Règles</button>
       </div>
+      <div class="audio-titre">${this.boutonsAudio()}</div>
       <div class="equipe-titre">${ORDRE_CLASSES.map(c => `<span title="${CLASSES[c].nom}">${CLASSES[c].icone}</span>`).join('')}</div>
     </div>`;
   },
@@ -71,6 +85,7 @@ const Ui = {
       <header class="barre">
         <div class="titre-carte"><b>Les Cryptes</b> <span class="discret">· choisissez une salle</span></div>
         <div class="boutons-barre">
+          ${this.boutonsAudio()}
           <button class="btn petit" data-clic="equipe">👥 Équipe</button>
           <button class="btn petit" data-clic="regles">?</button>
           <button class="btn petit discret" data-clic="abandonner" title="Abandonner">✕</button>
@@ -188,7 +203,7 @@ const Ui = {
   // ---------------------------------------------------------- combat
   ecranCombat() {
     return `<div class="ecran-combat">
-      <div class="ordre-ligne"><div class="ordre" id="ordre"></div><button class="btn-journal" data-clic="journal" title="Journal des dés">📜</button></div>
+      <div class="ordre-ligne"><div class="ordre" id="ordre"></div>${this.boutonsAudio(true)}<button class="btn-journal" data-clic="journal" title="Journal des dés">📜</button></div>
       <div class="scene" id="scene">
         <div class="torche g">🔥</div><div class="torche d">🔥</div>
         <div class="rangee-scene ennemi arriere" id="en-arriere" data-etiquette="Arrière"></div>
@@ -244,6 +259,7 @@ const Ui = {
     this.majBandeau(cb);
     if (cb.fini && cb.resultat === 'victoire' && this.victoireJouee !== cb) {
       this.victoireJouee = cb;
+      Son.jouer('victoire');
       setTimeout(() => Modeles3D.victoire && Modeles3D.actif && Modeles3D.victoire(cb.pjs.filter(p => p.pv > 0).map(p => p.id)), 400);
     }
     if (!evs.length) { this.affichage = null; return 0; }
@@ -297,7 +313,7 @@ const Ui = {
     let t = 0;
     for (const e of evs) {
       setTimeout(() => this.animer(e), t);
-      t += this.DUREES[e.t] || 200;
+      t += (this.DUREES[e.t] || 200) / Reglages.vitesse;
     }
     t += 150;
     this.finAnim = Date.now() + t;
@@ -316,6 +332,8 @@ const Ui = {
         ann.className = 'annonce ' + e.camp;
         ann.innerHTML = `<span>${e.icone}</span> ${echapper(e.nom)}`;
         $('#milieu').replaceChildren(ann);
+        Son.jouer(e.special === 'potion' ? 'potion' : (e.typeAct === 'soin' || e.typeAct === 'soutien') ? 'benediction'
+          : e.melee ? 'epee' : e.sort ? 'sort' : 'arc', e.typeDeg);
         if (Modeles3D.actif) {
           // Animation du personnage, regard vers la cible, projectile ou colonne de lumière
           const type = e.special === 'potion' ? 'potion' : e.special === 'invoquer' ? 'invoque'
@@ -336,7 +354,7 @@ const Ui = {
         if (e.distance && src && !Modeles3D.actif) for (const id of e.cibles) this.projectile(src, this.elem(id), e.icone);
         break;
       }
-      case 'jet': this.afficherDe(e); break;
+      case 'jet': this.afficherDe(e); Son.jouer('de'); break;
       case 'degats':
         if (!el) break;
         this.majBarre(el, 'pv', e.pvApres, e.pvMax, `${e.pvApres}/${e.pvMax}`);
@@ -344,6 +362,7 @@ const Ui = {
         Modeles3D.flash(e.cible, 0xff2a1a);
         Modeles3D.effet(e.cible, e.crit ? 'crit' : 'coup');
         Modeles3D.anim(e.cible, 'coup');
+        Son.jouer(e.crit ? 'metal' : 'coup');
         if (e.crit) Modeles3D.secousse(0.35);
         this.flotter(el, '−' + e.n, e.crit ? 'crit' : 'degats');
         if (e.crit) { const s = $('#scene'); s.classList.remove('tremble'); void s.offsetWidth; s.classList.add('tremble'); }
@@ -354,18 +373,20 @@ const Ui = {
         el.classList.remove('a-terre', 'soigne'); void el.offsetWidth; el.classList.add('soigne');
         Modeles3D.flash(e.cible, 0x40ff70);
         Modeles3D.colonne(e.cible, 'soin');
+        Son.jouer('soin');
         el.querySelector('.sprite').textContent = Jeu.equipe.find(p => p.id === e.cible)?.icone || el.querySelector('.sprite').textContent;
         this.flotter(el, '+' + e.n, 'soin');
         break;
       case 'texte':
         if (el) this.flotter(el, e.texte, e.classe);
-        if (e.texte === 'Raté') Modeles3D.anim(e.cible, 'esquive');
+        if (e.texte === 'Raté') { Modeles3D.anim(e.cible, 'esquive'); Son.jouer('rate'); }
         if (e.texte === 'Résiste') Modeles3D.anim(e.cible, 'bloque');
         break;
       case 'peur':
         if (!el) break;
         this.majBarre(el, 'peur', e.apres, 100, '');
         if (Math.abs(e.n) >= 10) this.flotter(el, (e.n > 0 ? '😨+' : '😌') + e.n, 'peur');
+        if (e.n >= 10) Son.jouer(e.apres >= 100 && e.avant < 100 ? 'panique' : 'peur');
         if (e.apres >= 100) el.classList.add('panique'); else el.classList.remove('panique');
         break;
       case 'deplacement': {
@@ -376,6 +397,7 @@ const Ui = {
         break;
       }
       case 'mort':
+        Son.jouer(e.pj ? 'chute' : 'mort');
         if (!el) break;
         el.classList.add(e.pj ? 'a-terre' : 'mort');
         if (e.pj) el.querySelector('.sprite').textContent = '🪦';
@@ -435,9 +457,22 @@ const Ui = {
   },
 
   panneauHtml(cb) {
-    if (cb.fini) return `<div class="attente">${cb.resultat === 'victoire' ? '🏆 Victoire !' : '💀 Défaite…'}</div>`;
+    if (cb.fini) {
+      if (cb.resultat === 'defaite' && this.defaiteJouee !== cb) { this.defaiteJouee = cb; Son.jouer('defaite'); }
+      return `<div class="attente">${cb.resultat === 'victoire' ? '🏆 Victoire !' : '💀 Défaite…'}</div>`;
+    }
     const a = cb.actif;
-    if (!a || !cb.attenteJoueur) return `<div class="attente">${a ? `${a.icone} Tour de <b>${echapper(a.nom)}</b>…` : '…'}</div>`;
+    if (!a || !cb.attenteJoueur) {
+      // Pendant le tour ennemi : aperçu des actions du prochain héros
+      const suivant = cb.prochainPJ();
+      const entete = `<div class="aide">${a ? `${a.icone} <b>${echapper(a.nom)}</b> agit…` : '…'}${suivant ? ` <span class="discret">· ensuite : ${suivant.icone} ${suivant.nom}</span>` : ''}</div>`;
+      if (!suivant) return entete;
+      const apercu = [...suivant.actions, ...ACTIONS_COMMUNES].map(id => {
+        const act = ACTIONS[id];
+        return `<div class="btn-action apercu ${act.commune ? 'commune' : ''}"><span class="ic">${act.icone}</span><span class="nm">${act.nom}</span><span class="pips-ligne">${this.pipsAction(act, true)}</span></div>`;
+      }).join('');
+      return `${entete}<div class="actions">${apercu}</div>`;
+    }
 
     const ids = [...a.actions, ...ACTIONS_COMMUNES];
     const boutons = ids.map(id => {
@@ -596,7 +631,9 @@ const Ui = {
 
   // -------------------------------------------------------- clics
   initialiser() {
+    document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
     document.addEventListener('click', e => {
+      Son.debloquer();
       const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info]');
       if (!t || t.disabled) return;
       const d = t.dataset;
@@ -604,7 +641,7 @@ const Ui = {
       if (d.action) return this.choisirAction(d.action);
       if (d.id && Jeu.ecran === 'combat') return this.cliquerCombattant(d.id);
       if (d.noeud !== undefined) return Jeu.choisirNoeud(parseInt(d.noeud, 10));
-      if (d.offre !== undefined) return Jeu.choisirRecompense(parseInt(d.offre, 10));
+      if (d.offre !== undefined) { Son.jouer('objet'); return Jeu.choisirRecompense(parseInt(d.offre, 10)); }
       if (d.oublier) { this.fermerModal(); return Jeu.choisirRecompense(parseInt(d.offreIndex, 10), d.oublier); }
       if (d.deVie) return Jeu.depenserDeVie(d.deVie);
       if (d.choix !== undefined) return Jeu.choisirEvenement(parseInt(d.choix, 10));
@@ -630,10 +667,17 @@ const Ui = {
       case 'fermer': return this.fermerModal();
       case 'confirmer': return this.confirmer();
       case 'journal': return this.journal();
+      case 'sons': Son.basculer('sons'); return this.majBoutonsAudio();
+      case 'musique': Son.basculer('musique'); return this.majBoutonsAudio();
+      case 'vitesse':
+        Reglages.vitesse = Reglages.vitesse > 1 ? 1 : 2;
+        Reglages.sauver();
+        if (Jeu.combat) Jeu.combat.vitesse = Reglages.vitesse;
+        return this.majBoutonsAudio();
       case 'annuler': this.selection = null; return this.majCombat();
       case 'passer': return Jeu.allerCarte();
-      case 'repos-court': return Jeu.reposCourt();
-      case 'repos-long': return Jeu.reposLong();
+      case 'repos-court': Son.jouer('feu'); return Jeu.reposCourt();
+      case 'repos-long': Son.jouer('feu'); return Jeu.reposLong();
       case 'carte': return Jeu.allerCarte();
       case 'fin-evenement': return Jeu.finEvenement();
       case 'titre': Jeu.ecran = 'titre'; return this.rendu();

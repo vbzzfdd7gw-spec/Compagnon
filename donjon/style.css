@@ -415,3 +415,13 @@ body { overscroll-behavior: none; }
 .mode3d .ca-badge { text-shadow: 0 1px 2px #000; color: #e8dccb; }
 .mode3d .combattant.actif .nom { color: #ffd98a; }
 .mode3d .scene { padding-top: 20px; }
+
+/* ---------- boutons son / musique / vitesse ---------- */
+.btn-icone { background: var(--panneau2); border: 1px solid var(--ligne); border-radius: 8px; font-size: .95rem; padding: 2px 7px; cursor: pointer; color: var(--texte); line-height: 1.5; flex-shrink: 0; }
+.btn-icone.off { opacity: .4; text-decoration: line-through; }
+.btn-icone.actif { border-color: var(--or); color: var(--or); }
+.ordre-ligne .btn-icone { font-size: .78rem; padding: 1px 4px; border-radius: 7px; }
+.ordre-ligne { gap: 4px; }
+.ordre-ligne .btn-journal { font-size: .9rem; padding: 1px 6px; }
+.audio-titre { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+.btn-action.apercu { opacity: .45; cursor: default; }
