@@ -15,7 +15,8 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/donnees/monstres.js` | Monstres, boss et listes de rencontres |
 | `js/donnees/objets.js` | Objets magiques, améliorations, génération des récompenses |
 | `js/donnees/evenements.js` | Événements à choix (cases ❓) |
-| `js/donnees/etages.js` | Les 3 étages : rencontres, boss, ambiance, puissance des monstres (`force`) |
+| `js/donnees/etages.js` | Les 3 étages de la première campagne : rencontres, boss, ambiance, puissance des monstres (`force`) |
+| `js/donnees/campagnes.js` | Les campagnes (étages, règles, déblocage) et la progression mémorisée entre les parties |
 | `js/son.js` | Sons et musique synthétisés, réglages (son, musique, vitesse) |
 | `js/combat.js` | Moteur de combat : initiative, attaques, sauvegardes, états, Peur, IA |
 | `js/carte.js` | Génération et dessin de la carte |
@@ -27,6 +28,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 
 ## Ajouter du contenu
 
+- **Une campagne** : une entrée dans `CAMPAGNES` avec ses `etages` et `apres` (campagne à terminer pour la débloquer).
 - **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une rencontre de `RENCONTRES` (`{ avant: [...], arriere: [...] }`).
 - **Une action** : une entrée dans `ACTIONS`, puis son identifiant dans `actions` ou `poolActions` d'une classe.
 - **Un objet** : une entrée dans `OBJETS` avec une fonction `appliquer(pj)`.
@@ -40,9 +42,9 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 
 ## Équilibrage
 
-`node outils-simulation.js 400` joue 400 expéditions complètes sans affichage (stratégie simple : soigner
+`node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions complètes sans affichage (stratégie simple : soigner
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
-Réglage actuel : environ 50 % de victoires, avec une difficulté qui monte d'étage en étage.
+Réglage actuel : environ 50 % de victoires pour la Crypte, 36 % pour la Horde, 24 % pour l'Éclipse.
 
 ## Crédits graphiques
 

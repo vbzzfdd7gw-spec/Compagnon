@@ -781,6 +781,12 @@ const FIGURINES = {
     );
   },
 
+  loup_alpha() {
+    const g = FIGURINES.loup();
+    g.traverse(o => { if (o.material && o.material.emissive && !o.material.emissive.getHex()) o.material = mat(o.material.color.clone().multiplyScalar(0.55).getHex()); });
+    return g;
+  },
+
   inconnu() { return G(F.boule(0.4, mat(0x888888), 0, 0.5, 0)); }
 };
 

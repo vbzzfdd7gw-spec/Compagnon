@@ -104,6 +104,11 @@ const PERSOS3D = {
     anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw', sort: 'Taunt', soutien: 'Taunt' } },
   chevalier_squelette: { glb: 'skeleton_warrior', armes: { droite: 'skeleton_blade', gauche: 'skeleton_shield_small_a' }, echelle: 1.3, recolorer: 'spectre',
     anims: { idle: 'Idle_Combat', attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Taunt', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
+  roi_gobelin: { glb: 'rogue', montrer: ['Knife', '1H_Crossbow'], echelle: 0.95, recolorer: 'roi_gobelin', anims: { attaque: '1H_Melee_Attack_Stab', tir: '1H_Ranged_Shoot', invoque: 'Taunt', soutien: 'Throw' } },
+  grukk_tyran: { glb: 'barbarian', montrer: ['2H_Axe'], cacher: ['Barbarian_Hat'], echelle: 1.6, recolorer: 'tyran',
+    anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw', sort: 'Taunt', soutien: 'Taunt' } },
+  pretre_eclipse: { glb: 'rogue_hooded', montrer: ['Knife'], recolorer: 'eclipse', anims: { sort: 'Spellcast_Shoot', soutien: 'Spellcast_Raise' } },
+  velkor: { glb: 'mage', montrer: ['2H_Staff'], echelle: 1.25, recolorer: 'eclipse', anims: { attaque: '1H_Melee_Attack_Stab', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Spellcast_Raise', idle: '2H_Melee_Idle' } },
   morvagne: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' }, echelle: 1.12, recolorer: 'necro',
     anims: { attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose', soutien: 'Taunt' } }
 };
@@ -125,6 +130,12 @@ const RECOLORATIONS = {
   grukk: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [80, 0.35, l * 0.7] : (s > 0.15 ? [h, s * 0.7, l * 0.75] : null),
   // Chevalier sans repos : os bleutés, armure sombre
   spectre: (h, s, l) => (s < 0.2 && l > 0.6) ? [200, 0.35, l * 0.9] : (s > 0.15 ? [215, s * 0.6, l * 0.6] : null),
+  // Roi gobelin : peau verte, tenue dorée
+  roi_gobelin: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [95, 0.5, l * 0.75] : (s > 0.15 ? [45, Math.min(1, s + 0.3), l * 0.9] : null),
+  // Grukk le Tyran : peau sombre, cuir rouge
+  tyran: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [70, 0.3, l * 0.55] : (s > 0.15 ? [0, Math.min(1, s + 0.2), l * 0.6] : null),
+  // Culte de l'Éclipse : noir et violet
+  eclipse: (h, s, l) => (h >= 10 && h <= 45 && l > 0.55) ? null : (s > 0.12 ? [270, Math.min(1, s + 0.2), l * 0.5] : null),
   // Nécromancienne : tenue violet profond
   necro: (h, s, l) => (s > 0.2 && h > 150 && h < 270) ? [280, Math.min(1, s + 0.15), l * 0.75] : null
 };

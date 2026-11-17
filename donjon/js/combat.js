@@ -544,6 +544,7 @@ class Combat {
   // discret = ne pas écrire de ligne dans le journal pour les petites variations
   modifierPeur(pj, n, discret = false) {
     if (pj.camp !== 'pj') return;
+    if (n > 0 && this.jeu && this.jeu.peurMult) n = Math.round(n * this.jeu.peurMult);
     if (n > 0 && pj.traits.peurReduite) n = Math.ceil(n / 2);
     const avant = pj.peur;
     pj.peur = Math.max(0, Math.min(100, pj.peur + n));
@@ -634,6 +635,11 @@ const SPECIAUX = {
       cb.log('→ ' + s.texte, s.reussite ? 'jet rate' : 'jet');
       if (!s.reussite) cb.appliquerEtat(e, 'etourdi', 2);
     }
+  },
+
+  // Soigne tous les alliés du lanceur (monstres)
+  soinAllies(cb, a, act) {
+    for (const e of cb.camp(a)) if (e.pv > 0) cb.resoudreSoin({}, { soin: act.soin }, e);
   },
 
   invoquer(cb, a, act) {
