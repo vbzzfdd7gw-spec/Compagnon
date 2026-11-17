@@ -9,11 +9,11 @@ for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/
 vm.runInContext(`
 function iaPJ(cb, a) {
   const dispo = id => cb.disponibilite(a, ACTIONS[id]).ok;
-  const ids = [...a.actions, ...ACTIONS_COMMUNES].filter(dispo);
+  const ids = [...a.actions, ...ACTIONS_COMMUNES, ...Object.keys(ACTIONS_SAC)].filter(id => id !== 'sac' && dispo(id));
   // 1) Soins si un allié est à terre ou bas
   const blesses = cb.pjs.filter(p => p.pv <= 0 || p.pv < p.pvMax * 0.35).sort((x, y) => x.pv / x.pvMax - y.pv / y.pvMax);
   if (blesses.length) {
-    for (const id of ['priere_soins', 'mot_guerison', 'soins', 'second_souffle', 'cri_ralliement', 'potion']) {
+    for (const id of ['priere_soins', 'mot_guerison', 'soins', 'second_souffle', 'cri_ralliement', 'potion_sup', 'potion']) {
       if (!ids.includes(id)) continue;
       const act = ACTIONS[id];
       if (id === 'second_souffle' && a.pv > a.pvMax * 0.5) continue;
@@ -29,6 +29,7 @@ function iaPJ(cb, a) {
     const act = ACTIONS[id];
     if (act.cible !== 'ennemi') continue;
     if (act.niveau && Math.random() < 0.45) continue;    // économiser les emplacements
+    if (act.consommable && Math.random() < 0.75) continue; // garder les consommables
     const cibles = cb.ciblesValides(a, act);
     if (!cibles.length) continue;
     const moy = act.degats ? Des.moyenne(act.degats) * (act.nbAttaques || 1) : 6;
@@ -57,7 +58,10 @@ function expedition(idC) {
   const camp = CAMPAGNES.find(c => c.id === idC);
   const ETAGES = camp.etages;
   const equipe = ORDRE_CLASSES.map(creerPJ);
-  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult, or: 30, equipe }; let long = false;
+  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult, or: 30, equipe, sac: {},
+    stock(c) { return c === 'potion' ? this.potions : (this.sac[c] || 0); },
+    ajouterStock(c, n = 1) { if (c === 'potion') this.potions += n; else this.sac[c] = (this.sac[c] || 0) + n; },
+    retirerStock(c) { if (c === 'potion') this.potions--; else this.sac[c]--; } }; let long = false;
   const log = [];
   for (let etage = 0; etage < ETAGES.length; etage++) {
     const carte = Carte.generer();
@@ -78,9 +82,10 @@ function expedition(idC) {
         if (n.type === 'boss') break;
         if (n.type === 'elite') jeu.potions++; else if (Math.random() < 0.3) jeu.potions++;
         const offres = Recompenses.generer(equipe, { elite: n.type === 'elite' });
+        const pjDe = o => equipe.find(p => p.id === o.pj);
         const o = offres.find(x => x.categorie !== 'action') || offres[0];
         const pj = equipe.find(p => p.id === o.pj);
-        if (o.categorie === 'action') { if (pj.actions.length >= MAX_ACTIONS) pj.actions.shift(); pj.actions.push(o.cle); } else Recompenses.appliquer(o, pj);
+        if (o.categorie === 'action') { if (pj.actions.length >= MAX_ACTIONS) pj.actions.shift(); pj.actions.push(o.cle); } else Recompenses.appliquer(o, pj, jeu);
       } else if (n.type === 'repos') {
         const moy = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
         if (!long && (moy < 0.55 || n.rangee >= 6)) {
@@ -93,16 +98,17 @@ function expedition(idC) {
       } else if (n.type === 'marchand') {
         const stock = Marchand.generer(equipe);
         const moy = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
-        const ordre = [moy < 0.6 ? 'soin' : null, 'objet', 'potion', 'amelioration', 'potion'].filter(Boolean);
+        const ordre = [moy < 0.6 ? 'soin' : null, 'objet', 'consommable', 'amelioration', 'consommable'].filter(Boolean);
         for (const cat of ordre) {
           const a = stock.find(x => x.categorie === cat && !x.vendu && jeu.or >= x.prix);
           if (!a) continue;
-          jeu.or -= a.prix; Marchand.appliquer(a, jeu); if (!(a.quantite && --a.quantite > 0)) a.vendu = true;
+          jeu.or -= a.prix; Marchand.appliquer(a, jeu); if (!(a.stock && --a.stock > 0)) a.vendu = true;
         }
       } else if (n.type === 'tresor') {
         jeu.or += 45 + Math.floor(Math.random() * 26);
         jeu.potions++;
-        const o = Recompenses.offreObjet(equipe); if (o) Recompenses.appliquer(o, equipe.find(p => p.id === o.pj));
+        const o = Recompenses.offreObjet(equipe, [], 'tresor'); if (o) Recompenses.appliquer(o, equipe.find(p => p.id === o.pj), jeu);
+        const x = Recompenses.offreConsommable(); jeu.ajouterStock(x.cle, x.quantite);
       }
     }
     if (etage < ETAGES.length - 1) { equipe.forEach(p => { monterNiveau(p); p.peur = 0; }); long = false; jeu.potions++; jeu.or += 90; }

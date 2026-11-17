@@ -10,6 +10,7 @@ const Jeu = {
   carte: null,
   potions: 2,
   or: 0,
+  sac: {},          // consommables autres que la potion : { cle: quantité }
   marchand: null,
   etage: 0,
   campagne: 'crypte',
@@ -35,6 +36,7 @@ const Jeu = {
     this.carte = Carte.generer();
     this.potions = c.regles.potions ?? 2;
     this.or = 30;
+    this.sac = {};
     this.etage = 0;
     Progression.noterRecord(c.id, 1);
     this.reposLongUtilise = false;
@@ -55,7 +57,7 @@ const Jeu = {
   sauvegarder() {
     try {
       localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
-        equipe: this.equipe, carte: this.carte, potions: this.potions, or: this.or, etage: this.etage, campagne: this.campagne,
+        equipe: this.equipe, carte: this.carte, potions: this.potions, or: this.or, sac: this.sac, etage: this.etage, campagne: this.campagne,
         reposLongUtilise: this.reposLongUtilise, stats: this.stats
       }));
     } catch (e) { /* stockage indisponible : on continue sans sauvegarde */ }
@@ -72,6 +74,7 @@ const Jeu = {
       this.etage = this.etage || 0;
       this.campagne = this.campagne || 'crypte';
       this.or = this.or || 0;
+      this.sac = this.sac || {};
       this.peurMult = Progression.campagne(this.campagne).regles.peurMult || 1;
       this.equipe.forEach(p => { p.niveau = p.niveau || 3; });
       // Sauvegardes d'avant les lignes : les deux premiers devant
@@ -154,7 +157,7 @@ const Jeu = {
     this.reposLongUtilise = false;
     this.carte = Carte.generer();
     const e = this.etageCourant();
-    this.proposerRecompenses(Recompenses.generer(this.equipe, { elite: true }), `⬇️ ${e.nom}`,
+    this.proposerRecompenses(Recompenses.generer(this.equipe, { boss: true }), `⬇️ ${e.nom}`,
       `<i>${e.intro}</i><br><b>L'équipe monte au niveau ${this.equipe[0].niveau}</b> et récupère toutes ses forces. 💰 +${gain} or.<div class="gains">${lignes.map(l => `<div>${l}</div>`).join('')}</div>Choisissez le butin du boss :`);
   },
 
@@ -216,7 +219,7 @@ const Jeu = {
       }
       pj.actions.push(offre.cle);
     } else {
-      Recompenses.appliquer(offre, pj);
+      Recompenses.appliquer(offre, pj, this);
     }
     this.allerCarte();
   },
@@ -224,13 +227,31 @@ const Jeu = {
   ouvrirTresor() {
     this.potions++;
     const gain = this.gagnerOr('tresor');
-    this.proposerRecompenses(Recompenses.generer(this.equipe, { objetsSeulement: true }), 'Trésor', `Le coffre contient 💰 ${gain} pièces d'or et une potion de soins. Choisissez un objet magique :`);
+    const extra = Recompenses.offreConsommable();
+    this.ajouterStock(extra.cle, extra.quantite);
+    this.proposerRecompenses(Recompenses.generer(this.equipe, { objetsSeulement: true }), 'Trésor', `Le coffre contient 💰 ${gain} pièces d'or, une potion de soins et ${extra.icone} ${extra.titre}. Choisissez un objet magique :`);
+  },
+
+  // ------------------------------------------------- consommables
+  stock(cle) { return cle === 'potion' ? this.potions : (this.sac[cle] || 0); },
+  ajouterStock(cle, n = 1) { if (cle === 'potion') this.potions += n; else this.sac[cle] = (this.sac[cle] || 0) + n; },
+  retirerStock(cle) { if (cle === 'potion') this.potions = Math.max(0, this.potions - 1); else this.sac[cle] = Math.max(0, (this.sac[cle] || 0) - 1); },
+
+  // Donner un objet d'un héros à un autre (hors combat)
+  donnerObjet(deId, aId, cle) {
+    const de = this.equipe.find(p => p.id === deId), a = this.equipe.find(p => p.id === aId), o = OBJETS[cle];
+    if (!de || !a || !de.objets.includes(cle) || a.objets.includes(cle)) return;
+    if (o.classes && !o.classes.includes(a.classe)) return;
+    retirerObjet(de, cle);
+    equiperObjet(a, cle);
+    this.sauvegarder();
   },
 
   // ----------------------------------------------------------- or
   gagnerOr(type) {
     const [min, max] = GAINS_OR[type] || [0, 0];
-    const g = min + Math.floor(Math.random() * (max - min + 1));
+    const mult = 1 + this.equipe.reduce((s, p) => s + (p.traits.orMult || 0), 0);
+    const g = Math.round((min + Math.floor(Math.random() * (max - min + 1))) * mult);
     this.or += g;
     return g;
   },
@@ -255,7 +276,7 @@ const Jeu = {
     }
     this.or -= art.prix;
     Marchand.appliquer(art, this);
-    if (art.quantite && --art.quantite > 0) art.vendu = false; else art.vendu = true;
+    if (art.stock && --art.stock > 0) art.vendu = false; else art.vendu = true;
     Son.jouer('piece');
     this.sauvegarder();
     Ui.rendu();

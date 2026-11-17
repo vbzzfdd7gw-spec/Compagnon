@@ -7,6 +7,10 @@
 // Une rencontre : { avant: [monstres], arriere: [monstres] }
 // =====================================================================
 
+// Renfort appliqué à tous les étages de toutes les campagnes (compense la
+// puissance des objets) : ajouté à la `force` de chaque étage.
+const RENFORT_GLOBAL = { pv: 0.15, toucher: 0, degats: 0, dd: 0 };
+
 const ETAGES = [
   {
     nom: 'Les Cryptes', theme: 'crypte', force: { pv: 1.3, toucher: 1, degats: 1, dd: 1 },

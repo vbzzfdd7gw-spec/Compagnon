@@ -5,7 +5,18 @@
 const $ = sel => document.querySelector(sel);
 const echapper = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+ACTIONS.sac_retour = {
+  nom: 'Fermer le sac', icone: '↩️', type: 'special', special: 'sac', commune: true,
+  depuis: ['avant', 'arriere'], cible: 'soi', vise: [], desc: 'Revenir aux actions.'
+};
+
+// Étiquette colorée de rareté
+function etiquetteRarete(r) {
+  return r ? `<span class="rarete" style="color:${RARETES[r].couleur};border-color:${RARETES[r].couleur}">${RARETES[r].nom}</span>` : '';
+}
+
 const Ui = {
+  modeSac: false,
   selection: null,   // identifiant de l'action choisie pendant le combat
   finAnim: 0,        // fin des animations en cours (horodatage)
   affichage: null,   // PV/Peur affichés pendant les animations
@@ -139,8 +150,13 @@ const Ui = {
         ${this.barre(p.peur, 100, 'peur', '')}
         ${this.emplacementsHtml(p, true)}
       </div>`).join('')}
-      <div class="potions">💰 ${Jeu.or} or · 🧴 ${Jeu.potions} potion${Jeu.potions > 1 ? 's' : ''} · 🛏 Repos long ${Jeu.reposLongUtilise ? 'utilisé' : 'disponible'} · touchez un héros pour sa fiche</div>
+      <div class="potions">💰 ${Jeu.or} or · 🧴 ${Jeu.potions} potion${Jeu.potions > 1 ? 's' : ''}${this.texteSac()} · 🛏 Repos long ${Jeu.reposLongUtilise ? 'utilisé' : 'disponible'} · touchez un héros pour sa fiche</div>
     </div>`;
+  },
+
+  texteSac() {
+    const t = Object.entries(Jeu.sac || {}).filter(([, n]) => n > 0).map(([k, n]) => `${CONSOMMABLES[k].icone}×${n}`).join(' ');
+    return t ? ' · ' + t : '';
   },
 
   barre(val, max, classe, texte) {
@@ -157,6 +173,7 @@ const Ui = {
   // ---------------------------------------------------- fiche équipe
   fenetreEquipe() {
     this.modal(`<h2>Équipe</h2>
+      <div class="sac-equipe">🎒 Sac : 🧴×${Jeu.potions}${this.texteSac().replace(' · ', ' ')} · 💰 ${Jeu.or} or</div>
       <p class="petit">Touchez la ligne d'un héros pour le placer à l'Avant (corps à corps, protège l'arrière) ou à l'Arrière (à l'abri du corps à corps).</p>
       ${Jeu.equipe.map(p => `<div class="fiche">
         <div class="fiche-tete">
@@ -166,11 +183,18 @@ const Ui = {
             <button class="btn mini ${p.ligne === 'arriere' ? 'principal' : ''}" data-clic="ligne" data-pj="${p.id}" ${p.ligne === 'arriere' ? 'disabled' : ''}>Arrière</button>
           </span>
         </div>
-        ${this.ficheDetails(p)}
+        ${this.ficheDetails(p, true)}
       </div>`).join('')}`);
   },
 
-  ficheDetails(p) {
+  ligneObjet(p, cle, avecDon) {
+    const o = OBJETS[cle];
+    const receveurs = avecDon ? Jeu.equipe.filter(x => x !== p && !x.objets.includes(cle) && (!o.classes || o.classes.includes(x.classe))) : [];
+    return `<div class="ligne-objet" style="border-left-color:${RARETES[o.rarete].couleur}">${o.icone} <b style="color:${RARETES[o.rarete].couleur}">${o.nom}</b> — ${o.desc}
+      ${receveurs.length ? `<div class="donner">Donner à : ${receveurs.map(x => `<button class="btn mini" data-clic="donner" data-de="${p.id}" data-a="${x.id}" data-objet="${cle}">${x.icone}</button>`).join(' ')}</div>` : ''}</div>`;
+  },
+
+  ficheDetails(p, avecDon = false) {
     const car = Object.entries(p.caracs).map(([k, v]) => `${k} ${v} (${signe(modCarac(v))})`).join(' · ');
     const sauv = Object.keys(p.caracs).map(k => `${k} ${signe(modCarac(p.caracs[k]) + (p.sauvegardes.includes(k) ? p.maitrise : 0) + p.bonusSauv)}`).join(' · ');
     return `<div class="fiche-stats">
@@ -183,7 +207,7 @@ const Ui = {
       <div class="petit">Sauvegardes : ${sauv}</div>
       ${CLASSES[p.classe].sournoise ? `<div class="petit">${CLASSES[p.classe].desc}</div>` : ''}
       <div class="fiche-actions">${p.actions.map(id => this.ligneAction(ACTIONS[id])).join('')}</div>
-      ${p.objets.length ? `<div class="fiche-objets">${p.objets.map(o => `<div>${OBJETS[o].icone} <b>${OBJETS[o].nom}</b> — ${OBJETS[o].desc}</div>`).join('')}</div>` : ''}`;
+      ${p.objets.length ? `<div class="fiche-objets">${p.objets.map(o => this.ligneObjet(p, o, avecDon)).join('')}</div>` : '<div class="petit">Aucun objet.</div>'}`;
   },
 
   ligneAction(a) {
@@ -266,6 +290,7 @@ const Ui = {
       return 0;
     }
     if (this.selection && (!cb.attenteJoueur || !cb.disponibilite(cb.actif, ACTIONS[this.selection]).ok)) this.selection = null;
+    if (!cb.attenteJoueur) this.modeSac = false;
 
     const evs = cb.evenements.splice(0);
     // Valeurs affichées avant animation : PV et Peur « d'avant »
@@ -507,11 +532,13 @@ const Ui = {
       return `${entete}<div class="actions">${apercu}</div>`;
     }
 
-    const ids = [...a.actions, ...ACTIONS_COMMUNES];
+    const ids = this.modeSac
+      ? [...Object.keys(ACTIONS_SAC).filter(k => Jeu.stock(ACTIONS_SAC[k].consommable) > 0), 'sac_retour']
+      : [...a.actions, ...ACTIONS_COMMUNES];
     const boutons = ids.map(id => {
       const act = ACTIONS[id];
       const d = cb.disponibilite(a, act);
-      const cout = act.niveau ? `niv${act.niveau}` : act.parCombat ? '1×' : act.special === 'potion' ? `×${Jeu.potions}` : '';
+      const cout = act.niveau ? `niv${act.niveau}` : act.parCombat ? '1×' : act.consommable ? `×${Jeu.stock(act.consommable)}` : '';
       return `<button class="btn-action ${act.commune ? 'commune' : ''} ${this.selection === id ? 'sel' : ''} ${d.ok ? '' : 'indispo'}" data-action="${id}">
         ${cout ? `<span class="cout-coin">${cout}</span>` : ''}
         <span class="ic">${act.icone}</span>
@@ -534,6 +561,11 @@ const Ui = {
   choisirAction(id) {
     const cb = Jeu.combat;
     if (!cb.attenteJoueur || Date.now() < this.finAnim) return;
+    if ((id === 'sac' || id === 'sac_retour') && (id === 'sac_retour' || cb.disponibilite(cb.actif, ACTIONS.sac).ok)) {
+      this.modeSac = id === 'sac';
+      this.selection = null;
+      return this.majCombat();
+    }
     const act = ACTIONS[id];
     const d = cb.disponibilite(cb.actif, act);
     if (!d.ok) { this.selection = null; this.raison = { nom: act.nom, texte: d.raison, desc: act.desc }; return this.majCombat(); }
@@ -549,6 +581,7 @@ const Ui = {
       const c = cibles.find(x => x.id === id);
       if (c && act.cible !== 'soi' && !act.zone) {
         this.selection = null;
+        this.modeSac = false;
         return cb.jouer(cb.actif, act, c);
       }
       if ((act.zone || act.cible === 'soi') && cibles.some(x => x.id === id)) return this.confirmer();
@@ -561,6 +594,7 @@ const Ui = {
     if (!this.selection) return;
     const act = ACTIONS[this.selection];
     this.selection = null;
+    this.modeSac = false;
     cb.jouer(cb.actif, act, null);
   },
 
@@ -574,17 +608,17 @@ const Ui = {
 
   // ------------------------------------------------------ récompense
   ecranRecompense() {
-    const libelles = { objet: 'Objet magique', action: 'Nouvelle action', amelioration: 'Amélioration' };
+    const libelles = { objet: 'Objet magique', action: 'Nouvelle action', amelioration: 'Amélioration', consommable: 'Consommable' };
     return `<div class="ecran-centre">
       <h2>${Jeu.titreOffres}</h2>
       ${Jeu.sousTitreOffres ? `<div class="sous-titre-offres">${Jeu.sousTitreOffres}</div>` : '<p>Choisissez une récompense.</p>'}
       <div class="offres">${Jeu.offres.map((o, i) => {
         const pj = Jeu.equipe.find(p => p.id === o.pj);
-        return `<button class="offre ${o.categorie}" data-offre="${i}">
-          <span class="cat">${libelles[o.categorie]}</span>
+        return `<button class="offre ${o.categorie} ${o.rarete ? 'r-' + o.rarete : ''}" data-offre="${i}">
+          <span class="cat">${libelles[o.categorie]} ${etiquetteRarete(o.rarete)}</span>
           <span class="gros">${o.icone}</span>
           <b>${o.titre}</b>
-          <span class="pour">pour ${pj.icone} ${pj.nom}</span>
+          ${pj ? `<span class="pour">pour ${pj.icone} ${pj.nom}</span>` : '<span class="pour">🎒 pour le sac</span>'}
           <span class="desc">${o.desc}</span>
           ${o.categorie === 'action' ? `<span class="pips-demo">${this.pipsAction(ACTIONS[o.cle])}</span>` : ''}
         </button>`;
@@ -603,7 +637,7 @@ const Ui = {
 
   // -------------------------------------------------------- marchand
   ecranMarchand() {
-    const libelles = { objet: 'Objet magique', action: 'Nouvelle action', amelioration: 'Amélioration', potion: 'Consommable', soin: 'Service', encens: 'Service' };
+    const libelles = { objet: 'Objet magique', action: 'Nouvelle action', amelioration: 'Amélioration', consommable: 'Consommable', soin: 'Service', encens: 'Service' };
     return `<div class="ecran-centre">
       <h2>🛒 Le marchand</h2>
       <p class="recit">Un colporteur borgne a étalé ses marchandises sur une couverture. « Tout se paie, l'ami. »</p>
@@ -611,9 +645,9 @@ const Ui = {
       <div class="etal">${Jeu.marchand.stock.map((a, i) => {
         const pj = a.pj ? Jeu.equipe.find(p => p.id === a.pj) : null;
         const trop = Jeu.or < a.prix;
-        return `<div class="article ${a.vendu ? 'vendu' : ''}">
+        return `<div class="article ${a.vendu ? 'vendu' : ''} ${a.rarete ? 'r-' + a.rarete : ''}">
           <span class="gros">${a.icone}</span>
-          <span class="art-corps"><span class="cat">${libelles[a.categorie]}${a.quantite ? ` · ${a.quantite} en stock` : ''}</span>
+          <span class="art-corps"><span class="cat">${libelles[a.categorie]} ${etiquetteRarete(a.rarete)}${a.stock ? ` · ${a.stock} en stock` : ''}</span>
             <b>${a.titre}</b>${pj ? ` <span class="pour">pour ${pj.icone} ${pj.nom}</span>` : ''}
             <span class="desc">${a.desc}</span></span>
           <button class="btn ${trop || a.vendu ? '' : 'principal'} petit prix" data-achat="${i}" ${trop || a.vendu ? 'disabled' : ''}>${a.vendu ? 'Vendu' : `${a.prix} 💰`}</button>
@@ -724,6 +758,7 @@ const Ui = {
       case 'regles': return this.regles();
       case 'equipe': return this.fenetreEquipe();
       case 'ligne': Jeu.changerLignePJ(t.dataset.pj); this.fenetreEquipe(); return this.rendu();
+      case 'donner': Jeu.donnerObjet(t.dataset.de, t.dataset.a, t.dataset.objet); Son.jouer('objet'); this.rendu(); return this.fenetreEquipe();
       case 'abandonner':
         if (confirm('Abandonner l\'expédition ?')) { Jeu.effacerSauvegarde(); Jeu.ecran = 'titre'; this.rendu(); }
         return;
