@@ -191,3 +191,36 @@ const Recompenses = {
     // Les actions sont gérées par jeu.js (choix éventuel d'une action à oublier)
   }
 };
+
+// ---------------------------------------------------------------------
+// Or et marchand
+// ---------------------------------------------------------------------
+const GAINS_OR = { combat: [12, 22], elite: [35, 55], boss: [80, 100], tresor: [45, 70] };
+
+const Marchand = {
+  // Stock : potions, 2 objets magiques, 1 amélioration, 1 action, 2 services
+  generer(equipe) {
+    const stock = [{ categorie: 'potion', icone: '🧴', titre: 'Potion de soins', desc: 'Rend 2d4+2 PV en combat.', prix: 20, quantite: 3 }];
+    const o1 = Recompenses.offreObjet(equipe);
+    const o2 = Recompenses.offreObjet(equipe, o1 ? [o1.cle] : []);
+    for (const o of [o1, o2]) if (o) stock.push({ ...o, prix: 70 + Math.floor(Math.random() * 30) });
+    const a = Recompenses.offreAction(equipe);
+    if (a) stock.push({ ...a, prix: 60 + Math.floor(Math.random() * 15) });
+    const am = Recompenses.offreAmelioration(equipe);
+    stock.push({ ...am, prix: 50 + Math.floor(Math.random() * 15) });
+    stock.push({ categorie: 'soin', icone: '⛑️', titre: 'Soins du guérisseur', desc: 'Toute l\'équipe récupère la moitié de ses PV max (relève les héros à terre).', prix: 35 });
+    stock.push({ categorie: 'encens', icone: '🕯️', titre: 'Encens apaisant', desc: 'Toute l\'équipe perd 30 points de Peur.', prix: 25 });
+    return stock;
+  },
+
+  appliquer(art, jeu) {
+    const pj = art.pj ? jeu.equipe.find(p => p.id === art.pj) : null;
+    switch (art.categorie) {
+      case 'potion': jeu.potions++; break;
+      case 'action': pj.actions.push(art.cle); break;
+      case 'objet': case 'amelioration': Recompenses.appliquer(art, pj); break;
+      case 'soin': jeu.equipe.forEach(p => { p.pv = Math.min(p.pvMax, Math.max(0, p.pv) + Math.ceil(p.pvMax / 2)); }); break;
+      case 'encens': jeu.equipe.forEach(p => { p.peur = Math.max(0, p.peur - 30); }); break;
+    }
+  }
+};

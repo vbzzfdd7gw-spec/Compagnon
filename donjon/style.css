@@ -441,3 +441,16 @@ body { overscroll-behavior: none; }
 .camp-resume { font-size: .84rem; color: #d9cbb8; }
 .camp-infos { font-size: .75rem; color: var(--discret); }
 .deblocage { margin: 14px auto; padding: 10px 14px; border: 2px solid var(--or); border-radius: 12px; background: #4a382055; max-width: 420px; animation: apparait .4s; }
+
+/* ---------- marchand ---------- */
+.bourse { font-size: 1.05rem; margin: 6px 0 10px; color: var(--or); }
+.etal { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.article { display: grid; grid-template-columns: 40px 1fr auto; gap: 8px; align-items: center; text-align: left;
+  background: var(--panneau); border: 1px solid var(--ligne); border-radius: 12px; padding: 7px 9px; }
+.article .gros { font-size: 1.7rem; text-align: center; }
+.article.vendu { opacity: .4; }
+.art-corps { display: flex; flex-direction: column; min-width: 0; font-size: .86rem; }
+.art-corps .cat { font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; color: var(--discret); }
+.art-corps .pour { color: var(--or); font-size: .78rem; }
+.art-corps .desc { color: #d9cbb8; font-size: .78rem; }
+.prix { white-space: nowrap; min-width: 64px; }

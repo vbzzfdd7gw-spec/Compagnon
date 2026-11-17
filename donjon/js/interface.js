@@ -21,7 +21,8 @@ const Ui = {
       repos: () => this.ecranRepos(),
       evenement: () => this.ecranEvenement(),
       fin: () => this.ecranFin(),
-      campagnes: () => this.ecranCampagnes()
+      campagnes: () => this.ecranCampagnes(),
+      marchand: () => this.ecranMarchand()
     };
     app.innerHTML = ecrans[Jeu.ecran]();
     Son.ambiance(Jeu.ecran === 'combat' ? (Jeu.combat && Jeu.combat.type === 'boss' ? 'boss' : 'combat') : Jeu.ecran === 'fin' ? null : 'carte');
@@ -130,7 +131,7 @@ const Ui = {
         ${this.barre(p.peur, 100, 'peur', '')}
         ${this.emplacementsHtml(p, true)}
       </div>`).join('')}
-      <div class="potions">🧴 ${Jeu.potions} potion${Jeu.potions > 1 ? 's' : ''} · 🛏 Repos long ${Jeu.reposLongUtilise ? 'utilisé' : 'disponible'} · touchez un héros pour sa fiche</div>
+      <div class="potions">💰 ${Jeu.or} or · 🧴 ${Jeu.potions} potion${Jeu.potions > 1 ? 's' : ''} · 🛏 Repos long ${Jeu.reposLongUtilise ? 'utilisé' : 'disponible'} · touchez un héros pour sa fiche</div>
     </div>`;
   },
 
@@ -585,11 +586,34 @@ const Ui = {
     </div>`;
   },
 
-  choisirActionAOublier(index, pj, offre) {
+  choisirActionAOublier(index, pj, offre, source = 'recompense') {
     this.modal(`<h2>${pj.icone} ${pj.nom} connaît déjà ${MAX_ACTIONS} actions</h2>
       <p>Pour apprendre <b>${offre.titre}</b>, choisissez l'action à oublier :</p>
-      <div class="liste-oubli">${pj.actions.map(id => `<button class="btn bloc" data-oublier="${id}" data-offre-index="${index}">${this.ligneAction(ACTIONS[id])}</button>`).join('')}</div>
+      <div class="liste-oubli">${pj.actions.map(id => `<button class="btn bloc" data-oublier="${id}" data-offre-index="${index}" data-source="${source}">${this.ligneAction(ACTIONS[id])}</button>`).join('')}</div>
       <button class="btn" data-clic="fermer">Annuler</button>`);
+  },
+
+  // -------------------------------------------------------- marchand
+  ecranMarchand() {
+    const libelles = { objet: 'Objet magique', action: 'Nouvelle action', amelioration: 'Amélioration', potion: 'Consommable', soin: 'Service', encens: 'Service' };
+    return `<div class="ecran-centre">
+      <h2>🛒 Le marchand</h2>
+      <p class="recit">Un colporteur borgne a étalé ses marchandises sur une couverture. « Tout se paie, l'ami. »</p>
+      <div class="bourse">💰 <b>${Jeu.or}</b> pièces d'or</div>
+      <div class="etal">${Jeu.marchand.stock.map((a, i) => {
+        const pj = a.pj ? Jeu.equipe.find(p => p.id === a.pj) : null;
+        const trop = Jeu.or < a.prix;
+        return `<div class="article ${a.vendu ? 'vendu' : ''}">
+          <span class="gros">${a.icone}</span>
+          <span class="art-corps"><span class="cat">${libelles[a.categorie]}${a.quantite ? ` · ${a.quantite} en stock` : ''}</span>
+            <b>${a.titre}</b>${pj ? ` <span class="pour">pour ${pj.icone} ${pj.nom}</span>` : ''}
+            <span class="desc">${a.desc}</span></span>
+          <button class="btn ${trop || a.vendu ? '' : 'principal'} petit prix" data-achat="${i}" ${trop || a.vendu ? 'disabled' : ''}>${a.vendu ? 'Vendu' : `${a.prix} 💰`}</button>
+        </div>`;
+      }).join('')}</div>
+      <button class="btn" data-clic="carte">Reprendre la route</button>
+      ${this.resumeEquipe()}
+    </div>`;
   },
 
   // ----------------------------------------------------------- repos
@@ -659,7 +683,7 @@ const Ui = {
     document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
     document.addEventListener('click', e => {
       Son.debloquer();
-      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne]');
+      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat]');
       if (!t || t.disabled) return;
       const d = t.dataset;
       if (d.clic) return this.clic(d.clic, t);
@@ -667,7 +691,11 @@ const Ui = {
       if (d.id && Jeu.ecran === 'combat') return this.cliquerCombattant(d.id);
       if (d.noeud !== undefined) return Jeu.choisirNoeud(parseInt(d.noeud, 10));
       if (d.offre !== undefined) { Son.jouer('objet'); return Jeu.choisirRecompense(parseInt(d.offre, 10)); }
-      if (d.oublier) { this.fermerModal(); return Jeu.choisirRecompense(parseInt(d.offreIndex, 10), d.oublier); }
+      if (d.oublier) {
+        this.fermerModal();
+        return d.source === 'marchand' ? Jeu.acheter(parseInt(d.offreIndex, 10), d.oublier) : Jeu.choisirRecompense(parseInt(d.offreIndex, 10), d.oublier);
+      }
+      if (d.achat !== undefined) return Jeu.acheter(parseInt(d.achat, 10));
       if (d.deVie) return Jeu.depenserDeVie(d.deVie);
       if (d.choix !== undefined) return Jeu.choisirEvenement(parseInt(d.choix, 10));
       if (d.info) return this.infoCombattant(d.info);

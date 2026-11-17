@@ -141,6 +141,7 @@ const Son = {
       case 'objet': [784, 988, 1175, 1568].forEach((f, i) => this.osc('sine', f, f, t + i * 0.06, 0.5, 0.1)); break;
       case 'pas': [0, 0.22].forEach(d => this.souffle(t + d, 0.1, 0.25, 'lowpass', 500, 200, 1)); break;
       case 'feu': this.souffle(t, 1.2, 0.2, 'lowpass', 800, 400, 1); break;
+      case 'piece': [1568, 2093].forEach((f, i) => { this.osc('square', f, f, t + i * 0.07, 0.25, 0.05, null, { type: 'highpass', f: 900 }); this.osc('sine', f * 2, f * 2, t + i * 0.07, 0.4, 0.04); }); break;
     }
   },
 
