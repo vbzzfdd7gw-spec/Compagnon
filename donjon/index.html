@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Police chargée sans bloquer l'affichage (hors ligne : police de secours) -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 <style>
   /* Écran de chargement : visible dès la première image, avant tout script */
   #ecran-chargement { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
@@ -36,28 +36,53 @@
   <div class="ec-texte" id="ec-texte">Le donjon s'éveille…</div>
   <div class="ec-barre"><i id="ec-prog"></i></div>
 </div>
+<script>
+  // Barre de chargement : avance en continu vers l'étape en cours (jamais figée),
+  // et l'écran se ferme quoi qu'il arrive (sécurité).
+  window.VERSION_JEU = '3';
+  (function () {
+    var barre = document.getElementById('ec-prog'), aff = 2, cible = 6;
+    function fermer() {
+      var el = document.getElementById('ecran-chargement');
+      if (!el || EC.fini) return;
+      EC.fini = true; barre.style.width = '100%';
+      setTimeout(function () { el.classList.add('fini'); setTimeout(function () { el.remove(); }, 900); }, 250);
+    }
+    window.EC = { fini: false, fermer: fermer, cible: function (v) { cible = Math.max(cible, v); } };
+    (function tic() {
+      if (EC.fini) return;
+      var plafond = Math.min(98, cible + 8);
+      aff += (plafond - aff) * 0.012 + 0.01;
+      barre.style.width = Math.min(aff, plafond).toFixed(1) + '%';
+      requestAnimationFrame(tic);
+    })();
+    // Si le jeu ne prend pas la main (fichiers d'une ancienne version…) : on ferme
+    window.addEventListener('load', function () { setTimeout(function () { if (!window.EcranChargement) fermer(); }, 1500); });
+    setTimeout(fermer, 30000);
+  })();
+</script>
 <div id="app"></div>
 <div id="modal"></div>
 
 <!-- Ordre de chargement : 3D (Three.js, MIT), outils, données, moteur, carte, partie, figurines, interface -->
-<script defer src="lib/three.min.js"></script>
-<script defer src="lib/GLTFLoader.js"></script>
-<script defer src="lib/SkeletonUtils.js"></script>
-<script defer src="js/son.js"></script>
-<script defer src="js/des.js"></script>
-<script defer src="js/donnees/actions.js"></script>
-<script defer src="js/donnees/classes.js"></script>
-<script defer src="js/donnees/monstres.js"></script>
-<script defer src="js/donnees/objets.js"></script>
-<script defer src="js/donnees/evenements.js"></script>
-<script defer src="js/donnees/etages.js"></script>
-<script defer src="js/donnees/campagnes.js"></script>
-<script defer src="js/combat.js"></script>
-<script defer src="js/carte.js"></script>
-<script defer src="js/jeu.js"></script>
-<script defer src="js/modeles3d.js"></script>
-<script defer src="js/ressources3d.js"></script>
-<script defer src="js/interface.js"></script>
+<script defer src="lib/three.min.js?v=3" onload="EC.cible(14)"></script>
+<script defer src="lib/GLTFLoader.js?v=3"></script>
+<script defer src="lib/SkeletonUtils.js?v=3"></script>
+<script defer src="js/son.js?v=3"></script>
+<script defer src="js/des.js?v=3"></script>
+<script defer src="js/donnees/actions.js?v=3"></script>
+<script defer src="js/donnees/classes.js?v=3"></script>
+<script defer src="js/donnees/monstres.js?v=3"></script>
+<script defer src="js/donnees/objets.js?v=3"></script>
+<script defer src="js/donnees/evenements.js?v=3"></script>
+<script defer src="js/donnees/etages.js?v=3"></script>
+<script defer src="js/donnees/campagnes.js?v=3"></script>
+<script defer src="js/combat.js?v=3"></script>
+<script defer src="js/carte.js?v=3"></script>
+<script defer src="js/jeu.js?v=3"></script>
+<script defer src="js/modeles3d.js?v=3"></script>
+<script defer src="js/ressources3d.js?v=3"></script>
+<script defer src="js/interface.js?v=3" onload="EC.cible(20)"></script>
 <script>
   // Hors connexion (uniquement servi en http/https, pas en ouvrant le fichier)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
