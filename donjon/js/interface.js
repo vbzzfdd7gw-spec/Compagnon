@@ -312,7 +312,7 @@ const Ui = {
         ann.className = 'annonce ' + e.camp;
         ann.innerHTML = `<span>${e.icone}</span> ${echapper(e.nom)}`;
         $('#milieu').replaceChildren(ann);
-        if (src && !e.melee) Modeles3D.flash(e.source, 0x5070ff);
+        if (src && !e.melee) { Modeles3D.flash(e.source, 0x5070ff); Modeles3D.effet(e.source, 'sort'); }
         if (src) {
           src.classList.remove('elan', 'incante');
           void src.offsetWidth;
@@ -327,6 +327,7 @@ const Ui = {
         this.majBarre(el, 'pv', e.pvApres, e.pvMax, `${e.pvApres}/${e.pvMax}`);
         el.classList.remove('touche'); void el.offsetWidth; el.classList.add('touche');
         Modeles3D.flash(e.cible, 0xff2a1a);
+        Modeles3D.effet(e.cible, e.crit ? 'crit' : 'coup');
         this.flotter(el, '−' + e.n, e.crit ? 'crit' : 'degats');
         if (e.crit) { const s = $('#scene'); s.classList.remove('tremble'); void s.offsetWidth; s.classList.add('tremble'); }
         break;
@@ -335,6 +336,7 @@ const Ui = {
         this.majBarre(el, 'pv', e.pvApres, e.pvMax, `${e.pvApres}/${e.pvMax}`);
         el.classList.remove('a-terre', 'soigne'); void el.offsetWidth; el.classList.add('soigne');
         Modeles3D.flash(e.cible, 0x40ff70);
+        Modeles3D.effet(e.cible, 'soin');
         el.querySelector('.sprite').textContent = Jeu.equipe.find(p => p.id === e.cible)?.icone || el.querySelector('.sprite').textContent;
         this.flotter(el, '+' + e.n, 'soin');
         break;
