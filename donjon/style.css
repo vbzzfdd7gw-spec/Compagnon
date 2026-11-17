@@ -394,10 +394,24 @@ body { overscroll-behavior: none; }
 .fiche-objets { margin-top: 8px; font-size: .84rem; }
 .etats-detail { background: var(--panneau2); border-radius: 8px; padding: 6px 8px; margin: 6px 0; font-size: .85rem; }
 
-/* ---------- figurines 3D ---------- */
+/* ---------- scène 3D cartoon ---------- */
 .canvas3d { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.mode3d .scene { background: #120d0a; }
+.mode3d .scene::after {           /* vignette sombre sur les bords */
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, #0008 100%);
+}
+.mode3d .torche { display: none; }
 .mode3d .sprite { opacity: 0; }
 .mode3d .ombre { display: none; }
-.mode3d .combattant { background: transparent; }
-.mode3d .combattant.actif { background: #d8a64a14; }
-.mode3d .combattant .nom { text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+.mode3d .rangee-scene.ennemi.avant, .mode3d .rangee-scene.pj.avant { border: none; }
+.mode3d .rangee-scene.a-portee { background: transparent; }
+.mode3d .rangee-scene::before { color: #ffffff55; text-shadow: 0 1px 2px #000; }
+.mode3d .rangee-scene.avant::before { color: #ffd98aaa; }
+.mode3d .combattant, .mode3d .combattant.actif, .mode3d .combattant.en-zone { background: transparent; border-color: transparent; box-shadow: none; }
+.mode3d .combattant.ciblable { border-color: transparent; animation: none; }
+.mode3d .combattant.ciblable::after { display: none; }
+.mode3d .combattant .nom { text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+.mode3d .ca-badge { text-shadow: 0 1px 2px #000; color: #e8dccb; }
+.mode3d .combattant.actif .nom { color: #ffd98a; }
+.mode3d .scene { padding-top: 20px; }

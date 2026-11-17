@@ -18,7 +18,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/combat.js` | Moteur de combat : initiative, attaques, sauvegardes, états, Peur, IA |
 | `js/carte.js` | Génération et dessin de la carte |
 | `js/jeu.js` | État de la partie, enchaînement des écrans, repos, sauvegarde |
-| `js/modeles3d.js` | Figurines 3D low-poly (une fonction par créature dans `FIGURINES`) |
+| `js/modeles3d.js` | Scène 3D cartoon : diorama, figurines chibi (`FIGURINES`), particules |
 | `js/interface.js` | Affichage et clics |
 | `lib/three.min.js` | Three.js 0.149 (licence MIT), embarqué pour jouer hors ligne |
 
