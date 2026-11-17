@@ -4,7 +4,9 @@
 // fonction `resoudre(jeu)` qui renvoie { lignes: [...], recompense? }.
 //   recompense : 'normal' | 'objets' → affiche l'écran de récompense ensuite
 // Utilitaires de jeu disponibles : jeu.pj(classe), jeu.debout(),
-//   jeu.test(pj, carac, dd), jeu.soigner(pj, n), jeu.blesser(pj, n),
+//   jeu.meilleur(carac) (héros debout le plus doué), jeu.lanceur() (héros
+//   debout avec un emplacement de niveau 1), jeu.test(pj, carac, dd),
+//   jeu.soigner(pj, n), jeu.blesser(pj, n),
 //   jeu.peur(pj, n), jeu.potions
 // =====================================================================
 
@@ -15,10 +17,10 @@ const EVENEMENTS = [
     texte: 'Un autel couvert de cire noire luit faiblement. Une présence semble attendre une prière.',
     choix: [
       {
-        texte: 'Le Clerc prie (SAG DD 12)',
-        condition: j => j.pj('clerc').pv > 0,
+        texte: 'Le héros le plus sage prie (SAG DD 12)',
+        condition: j => !!j.meilleur('SAG'),
         resoudre(j) {
-          const c = j.pj('clerc');
+          const c = j.meilleur('SAG');
           const t = j.test(c, 'SAG', 12, true);
           if (t.reussite) {
             j.debout().forEach(p => j.peur(p, -25));
@@ -44,27 +46,27 @@ const EVENEMENTS = [
     texte: 'Un coffre bardé de fer. Des aiguilles dépassent de la serrure.',
     choix: [
       {
-        texte: 'Le Roublard crochète (DEX DD 13)',
-        condition: j => j.pj('roublard').pv > 0,
+        texte: 'Le héros le plus adroit crochète (DEX DD 13)',
+        condition: j => !!j.meilleur('DEX'),
         resoudre(j) {
-          const r = j.pj('roublard');
+          const r = j.meilleur('DEX');
           const t = j.test(r, 'DEX', 13, true);
           if (t.reussite) return { lignes: [t.texte, 'Clic ! Le coffre s\'ouvre sans un bruit.'], recompense: 'objets' };
           const d = Des.lancer('2d6');
           j.blesser(r, d.total);
-          return { lignes: [t.texte, `Une aiguille empoisonnée ! Le Roublard subit ${d.texte} dégâts.`] };
+          return { lignes: [t.texte, `Une aiguille empoisonnée ! ${r.nom} subit ${d.texte} dégâts.`] };
         }
       },
       {
-        texte: 'Le Guerrier force le coffre (FOR DD 15)',
-        condition: j => j.pj('guerrier').pv > 0,
+        texte: 'Le héros le plus fort force le coffre (FOR DD 15)',
+        condition: j => !!j.meilleur('FOR'),
         resoudre(j) {
-          const g = j.pj('guerrier');
+          const g = j.meilleur('FOR');
           const t = j.test(g, 'FOR', 15, false);
           if (t.reussite) return { lignes: [t.texte, 'Le couvercle cède !'], recompense: 'normal' };
           const d = Des.lancer('1d10');
           j.blesser(g, d.total);
-          return { lignes: [t.texte, `Le piège se déclenche : ${d.texte} dégâts au Guerrier.`] };
+          return { lignes: [t.texte, `Le piège se déclenche : ${d.texte} dégâts à ${g.nom}.`] };
         }
       },
       { texte: 'Ne pas y toucher', resoudre: () => ({ lignes: ['Prudence est mère de sûreté.'] }) }
@@ -76,10 +78,10 @@ const EVENEMENTS = [
     texte: 'Un aventurier agonise contre un mur. « Aidez-moi… je vous récompenserai. »',
     choix: [
       {
-        texte: 'Le Clerc dépense un emplacement de niveau 1 pour le soigner',
-        condition: j => j.pj('clerc').pv > 0 && j.pj('clerc').emplacements[1].restant > 0,
+        texte: 'Un lanceur de sorts dépense un emplacement de niveau 1 pour le soigner',
+        condition: j => !!j.lanceur(),
         resoudre(j) {
-          j.pj('clerc').emplacements[1].restant--;
+          j.lanceur().emplacements[1].restant--;
           j.debout().forEach(p => j.peur(p, -10));
           return { lignes: ['Le voyageur se relève et vous offre son équipement. Toute l\'équipe perd 10 Peur.'], recompense: 'normal' };
         }
@@ -142,14 +144,15 @@ const EVENEMENTS = [
     texte: 'Des grimoires moisis s\'empilent dans une alcôve inondée.',
     choix: [
       {
-        texte: 'Le Magicien étudie (INT DD 13)',
-        condition: j => j.pj('magicien').pv > 0,
+        texte: 'Le héros le plus érudit étudie (INT DD 13)',
+        condition: j => !!j.meilleur('INT'),
         resoudre(j) {
-          const m = j.pj('magicien');
+          const m = j.meilleur('INT');
           const t = j.test(m, 'INT', 13, true);
           if (t.reussite) {
             for (const niv in m.emplacements) m.emplacements[niv].restant = m.emplacements[niv].max;
-            return { lignes: [t.texte, 'Le Magicien récupère tous ses emplacements de sorts.'] };
+            if (!Object.keys(m.emplacements).length) j.soigner(m, 20);
+            return { lignes: [t.texte, `${m.nom} récupère tous ses emplacements de sorts${Object.keys(m.emplacements).length ? '' : ' (il n\'en a pas… mais gagne 20 PV)'}.`] };
           }
           j.peur(m, 20);
           return { lignes: [t.texte, 'Des glyphes interdits brûlent ses yeux : +20 Peur.'] };

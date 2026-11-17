@@ -33,7 +33,8 @@ const Ui = {
       evenement: () => this.ecranEvenement(),
       fin: () => this.ecranFin(),
       campagnes: () => this.ecranCampagnes(),
-      marchand: () => this.ecranMarchand()
+      marchand: () => this.ecranMarchand(),
+      composition: () => this.ecranComposition()
     };
     app.innerHTML = ecrans[Jeu.ecran]();
     Son.ambiance(Jeu.ecran === 'combat' ? (Jeu.combat && Jeu.combat.type === 'boss' ? 'boss' : 'combat') : Jeu.ecran === 'fin' ? null : 'carte');
@@ -112,6 +113,55 @@ const Ui = {
       }).join('')}</div>
       <button class="btn" data-clic="titre">Retour</button>
     </div>`;
+  },
+
+  // ------------------------------------------- composition d'équipe
+  ecranComposition() {
+    const choix = Jeu.composition, c = Progression.campagne(Jeu.campagneChoisie);
+    const conseils = [];
+    if (choix.length === 4) {
+      if (!choix.some(k => CLASSES[k].ligne === 'avant')) conseils.push('⚠️ Personne pour tenir la ligne Avant : vos héros fragiles seront exposés au corps à corps.');
+      if (!choix.some(k => SOIGNEURS.includes(k))) conseils.push('⚠️ Aucun soigneur : seuls les potions et les feux de camp vous soigneront.');
+      if (choix.filter(k => CLASSES[k].ligne === 'avant').length >= 4) conseils.push('⚠️ Que des combattants de front : aucun soutien à distance.');
+      if (!conseils.length) conseils.push('✅ Équipe équilibrée : un front solide et de quoi soigner.');
+    } else conseils.push(`Choisissez encore ${4 - choix.length} héros.`);
+    return `<div class="ecran-centre">
+      <h2>Composez votre équipe</h2>
+      <p class="discret">${c.icone} ${c.nom} — touchez 4 héros. ℹ️ pour le détail des capacités.</p>
+      <div class="emplacements-equipe">${[0, 1, 2, 3].map(i => {
+        const k = choix[i];
+        return k ? `<span class="place pleine" data-classe="${k}">${CLASSES[k].icone}<small>${CLASSES[k].nom}</small></span>` : '<span class="place">?</span>';
+      }).join('')}</div>
+      <div class="conseils">${conseils.map(t => `<div>${t}</div>`).join('')}</div>
+      <div class="grille-classes">${TOUTES_CLASSES.map(k => {
+        const cl = CLASSES[k], pris = choix.includes(k);
+        return `<div class="carte-classe ${pris ? 'prise' : ''} ${!pris && choix.length >= 4 ? 'pleine' : ''}" data-classe="${k}" style="--c:${cl.couleur}">
+          ${pris ? `<span class="ordre-choix">${choix.indexOf(k) + 1}</span>` : ''}
+          <button class="info-classe" data-info-classe="${k}" title="Détails">ℹ️</button>
+          <span class="cl-icone">${cl.icone}</span>
+          <b>${cl.nom}</b>
+          <span class="cl-role">${cl.role}</span>
+          <span class="cl-stats">❤️ ${cl.pv} · 🛡 ${cl.ca} · ${cl.ligne === 'avant' ? 'Avant' : 'Arrière'}</span>
+        </div>`;
+      }).join('')}</div>
+      <div class="boutons-compo">
+        <button class="btn" data-clic="campagnes">← Campagnes</button>
+        <button class="btn" data-clic="aleatoire">🎲 Aléatoire</button>
+        <button class="btn principal" data-clic="partir" ${choix.length === 4 ? '' : 'disabled'}>Partir ▶</button>
+      </div>
+    </div>`;
+  },
+
+  ficheClasse(k) {
+    const cl = CLASSES[k];
+    const emp = Object.entries(cl.emplacements).map(([n, v]) => `${v}× niv.${n}`).join(', ');
+    this.modal(`<h2>${cl.icone} ${cl.nom}</h2>
+      <p><b>${cl.role}</b> — ${cl.desc}</p>
+      <div class="fiche-stats"><span>❤️ ${cl.pv} PV</span><span>🛡 CA ${cl.ca}</span><span>⚔️ Att +${cl.bonusArme}</span>${cl.ddSort ? `<span>✨ DD ${cl.ddSort}</span>` : ''}<span>🎲 d${cl.deVie}</span>${emp ? `<span>Sorts : ${emp}</span>` : ''}</div>
+      <h3>Actions de départ</h3>
+      <div class="fiche-actions">${cl.actions.map(id => this.ligneAction(ACTIONS[id])).join('')}</div>
+      <h3>À débloquer</h3>
+      <div class="fiche-actions">${cl.poolActions.map(id => this.ligneAction(ACTIONS[id])).join('')}</div>`);
   },
 
   // ----------------------------------------------------------- carte
@@ -353,7 +403,7 @@ const Ui = {
     if (c.boss) classes.push('boss');
     if (c.camp === 'pj' && peur >= 100) classes.push('panique');
     const etats = Object.keys(c.etats).map(e => `<span title="${ETATS[e].nom}">${ETATS[e].icone}</span>`).join('');
-    const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
+    const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0) + (c.etats.ecorce ? 3 : 0);
     return `<div class="${classes.join(' ')}" data-id="${c.id}" data-modele="${c.camp === 'pj' ? c.classe : c.modele}">
       <span class="ca-badge">🛡${ca}</span>
       <div class="etats">${etats}</div>
@@ -725,7 +775,7 @@ const Ui = {
     document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
     document.addEventListener('click', e => {
       Son.debloquer();
-      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat]');
+      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat],[data-classe],[data-info-classe]');
       if (!t || t.disabled) return;
       const d = t.dataset;
       if (d.clic) return this.clic(d.clic, t);
@@ -741,7 +791,9 @@ const Ui = {
       if (d.deVie) return Jeu.depenserDeVie(d.deVie);
       if (d.choix !== undefined) return Jeu.choisirEvenement(parseInt(d.choix, 10));
       if (d.info) return this.infoCombattant(d.info);
-      if (d.campagne) return Jeu.nouvellePartie(d.campagne);
+      if (d.campagne) return Jeu.choisirCampagne(d.campagne);
+      if (d.classe) return Jeu.basculerClasse(d.classe);
+      if (d.infoClasse) return this.ficheClasse(d.infoClasse);
     });
     Modeles3D.init();
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { this.fermerModal(); if (this.selection) { this.selection = null; this.majCombat(); } } });
@@ -779,6 +831,9 @@ const Ui = {
       case 'carte': return Jeu.allerCarte();
       case 'fin-evenement': return Jeu.finEvenement();
       case 'titre': Jeu.ecran = 'titre'; return this.rendu();
+      case 'aleatoire': return Jeu.equipeAleatoire();
+      case 'partir': return Jeu.partir();
+      case 'campagnes': Jeu.ecran = 'campagnes'; return this.rendu();
     }
   }
 };

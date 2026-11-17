@@ -11,7 +11,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 |---|---|
 | `js/des.js` | Lancers de dés (`Des.lancer('2d6+3')`, `Des.d20(avantage)`) |
 | `js/donnees/actions.js` | Toutes les actions des PJ (format documenté en tête de fichier) |
-| `js/donnees/classes.js` | Les 4 classes : stats, actions de départ, actions à débloquer |
+| `js/donnees/classes.js` | Les 10 classes (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`) |
 | `js/donnees/monstres.js` | Monstres, boss et listes de rencontres |
 | `js/donnees/objets.js` | Objets magiques, améliorations, génération des récompenses |
 | `js/donnees/evenements.js` | Événements à choix (cases ❓) |
@@ -30,6 +30,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 
 - **Une campagne** : une entrée dans `CAMPAGNES` avec ses `etages` et `apres` (campagne à terminer pour la débloquer).
 - **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une rencontre de `RENCONTRES` (`{ avant: [...], arriere: [...] }`).
+- **Une classe** : une entrée dans `CLASSES` (avec `role`), son identifiant dans `TOUTES_CLASSES`, ses gains dans `PROGRESSION`, son apparence dans `PERSOS3D` (`ressources3d.js`).
 - **Une action** : une entrée dans `ACTIONS`, puis son identifiant dans `actions` ou `poolActions` d'une classe.
 - **Un objet** : une entrée dans `OBJETS` avec sa `rarete` et ses effets dans `mods` (bonus chiffrés et `traits` lus par le moteur de combat ; liste en tête de `objets.js`). Les objets peuvent ainsi être donnés d'un héros à l'autre.
 - **Un consommable** : une entrée dans `CONSOMMABLES` (`objets.js`) et l'action correspondante dans `ACTIONS_SAC` (`actions.js`).
@@ -44,7 +45,8 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 
 ## Équilibrage
 
-`node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions complètes sans affichage (stratégie simple : soigner
+`node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions avec l'équipe de base ;
+`node outils-simulation.js 1500 crypte classes` joue avec des équipes aléatoires (au moins un héros de front et un soigneur) et affiche le taux de victoire de chaque classe. Il joue 400 expéditions complètes sans affichage (stratégie simple : soigner
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
 Réglage actuel : environ 50 % de victoires pour la Crypte, 36 % pour la Horde, 20 % pour l'Éclipse.
 `RENFORT_GLOBAL` (`etages.js`) ajuste la puissance de tous les monstres d'un coup.

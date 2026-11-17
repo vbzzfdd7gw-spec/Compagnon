@@ -243,6 +243,207 @@ const ACTIONS = {
     desc: 'Niv. 3. Tous les ennemis : sauvegarde de DEX, 8d6 feu (moitié si réussite).'
   },
 
+  // -------------------------------- BARBARE ---------------------------
+  hache_2m: {
+    nom: 'Hache à deux mains', icone: '🪓', type: 'attaque', arme: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d12+3', typeDeg: 'tranchant',
+    desc: 'Corps à corps. 1d12+3 tranchant.'
+  },
+  rage: {
+    nom: 'Rage', icone: '😡', type: 'soutien', parCombat: 2,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    etat: { nom: 'rage', duree: 3 }, peur: -10,
+    desc: '3 tours : +2 aux dégâts d\'arme, moitié des dégâts physiques reçus. −10 Peur. Deux fois par combat.'
+  },
+  frappe_temeraire: {
+    nom: 'Frappe téméraire', icone: '💥', type: 'attaque', arme: true, avantage: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d12+3', typeDeg: 'tranchant', etatLanceur: { nom: 'temeraire', duree: 1 },
+    desc: 'Attaque avec avantage (1d12+3), mais les ennemis ont avantage contre vous jusqu\'à votre prochain tour.'
+  },
+  hachette: {
+    nom: 'Hachette lancée', icone: '🪃', type: 'attaque', arme: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    jet: 'arme', degats: '1d6+3', typeDeg: 'tranchant',
+    desc: 'À distance. 1d6+3 tranchant.'
+  },
+  fureur: {
+    nom: 'Tourbillon de fureur', icone: '🌪️', type: 'attaque', arme: true, zone: true, parCombat: 1,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d12+3', typeDeg: 'tranchant',
+    desc: 'Frappe chaque ennemi de la ligne Avant (1d12+3). Une fois par combat.'
+  },
+  coup_tete: {
+    nom: 'Coup de tête', icone: '🐏', type: 'attaque', arme: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d6+3', typeDeg: 'contondant',
+    effetSiTouche: { etat: 'etourdi', duree: 1, sauvegarde: { carac: 'CON', dd: 13 } },
+    desc: '1d6+3. Si touché : sauvegarde de CON DD 13 ou étourdi 1 tour.'
+  },
+
+  // -------------------------------- PALADIN ---------------------------
+  chatiment: {
+    nom: 'Châtiment divin', icone: '⚡', type: 'attaque', arme: true, niveau: 1,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d8+1d8+3', typeDeg: 'radiant',
+    desc: 'Niv. 1. Épée chargée de lumière : 1d8+3 +1d8 radiant.'
+  },
+  imposition: {
+    nom: 'Imposition des mains', icone: '🤲', type: 'soin', parCombat: 1,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'],
+    soin: '2d6+3', peur: -10,
+    desc: 'Un allié (même à terre) récupère 2d6+3 PV. Une fois par combat.'
+  },
+  faveur_divine: {
+    nom: 'Serment de protection', icone: '🛡️', type: 'soutien', niveau: 1,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
+    etat: { nom: 'ecorce', duree: 3 },
+    desc: 'Niv. 1. Un allié gagne +3 CA pendant 3 tours.'
+  },
+
+  // -------------------------------- RÔDEUR ----------------------------
+  arc_long: {
+    nom: 'Arc long', icone: '🏹', type: 'attaque', arme: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    jet: 'arme', degats: '1d8+3', typeDeg: 'perforant',
+    desc: 'À distance. 1d8+3 perforant.'
+  },
+  epees_jumelles: {
+    nom: 'Épées jumelles', icone: '⚔️', type: 'attaque', arme: true, nbAttaques: 2,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d6+2', typeDeg: 'tranchant',
+    desc: 'Deux coups au corps à corps, 1d6+2 chacun.'
+  },
+  marque_chasseur: {
+    nom: 'Marque du chasseur', icone: '🎯', type: 'special', special: 'marque', niveau: 1,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    desc: 'Niv. 1. Marque un ennemi : vos attaques contre lui infligent +1d6 jusqu\'à la fin du combat.'
+  },
+  volee: {
+    nom: 'Volée de flèches', icone: '🌧️', type: 'attaque', arme: true, zone: true, parCombat: 1,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    jet: 'arme', degats: '1d8+3', typeDeg: 'perforant',
+    desc: 'Une flèche sur chaque ennemi (1d8+3). Une fois par combat.'
+  },
+  tir_precis: {
+    nom: 'Tir précis', icone: '🎯', type: 'attaque', arme: true, avantage: true,
+    depuis: ['arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    jet: 'arme', degats: '1d8+3', typeDeg: 'perforant',
+    desc: 'Depuis l\'arrière, tir avec avantage. 1d8+3.'
+  },
+  piege: {
+    nom: 'Piège à mâchoires', icone: '🪤', type: 'sauvegarde', niveau: 1, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
+    carac: 'DEX', dd: 'sort', degats: '2d6', typeDeg: 'perforant', moitie: false,
+    effetSiEchec: { etat: 'renverse', duree: 1 },
+    desc: 'Niv. 1. Ligne Avant : sauvegarde de DEX ou 2d6 et renversé.'
+  },
+
+  // --------------------------------- BARDE ----------------------------
+  moquerie: {
+    nom: 'Moquerie cruelle', icone: '🤡', type: 'sauvegarde', sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'SAG', dd: 'sort', degats: '1d6', typeDeg: 'psychique', moitie: false,
+    effetSiEchec: { etat: 'entrave', duree: 1 },
+    desc: 'Tour de magie. Sauvegarde de SAG ou 1d6 psychique et désavantage à sa prochaine attaque.'
+  },
+  inspiration: {
+    nom: 'Inspiration bardique', icone: '🎵', type: 'soutien',
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
+    etat: { nom: 'inspire', duree: 99 }, peur: -5,
+    desc: 'Un allié ajoute 1d6 à sa prochaine attaque ou sauvegarde. −5 Peur.'
+  },
+  murmure: {
+    nom: 'Murmure dissonant', icone: '🎶', type: 'sauvegarde', niveau: 1, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'SAG', dd: 'sort', degats: '3d6', typeDeg: 'psychique', moitie: true,
+    desc: 'Niv. 1. Sauvegarde de SAG, 3d6 psychique (moitié si réussite).'
+  },
+  chant_courage: {
+    nom: 'Chant de courage', icone: '🎻', type: 'soin', zone: true, parCombat: 2,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
+    soin: '1d4', peur: -15,
+    desc: 'Tous les alliés : 1d4 PV et −15 Peur. Deux fois par combat.'
+  },
+  hypnose: {
+    nom: 'Motif hypnotique', icone: '🌀', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'SAG', dd: 'sort', moitie: false, effetSiEchec: { etat: 'etourdi', duree: 1 },
+    desc: 'Niv. 3. Tous les ennemis : sauvegarde de SAG ou étourdis 1 tour.'
+  },
+
+  // --------------------------------- DRUIDE ---------------------------
+  gourdin: {
+    nom: 'Gourdin magique', icone: '🪵', type: 'attaque',
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'sort', degats: '1d8+3', typeDeg: 'contondant',
+    desc: 'Corps à corps imprégné de magie (bonus de sort). 1d8+3.'
+  },
+  flammeche: {
+    nom: 'Flammèche', icone: '🔥', type: 'attaque', sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    jet: 'sort', degats: '1d10', typeDeg: 'feu',
+    desc: 'Tour de magie. Attaque de sort, 1d10 feu.'
+  },
+  enchevetrement: {
+    nom: 'Enchevêtrement', icone: '🌿', type: 'sauvegarde', niveau: 1, zone: true, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
+    carac: 'FOR', dd: 'sort', degats: '1d8', typeDeg: 'perforant', moitie: false, effetSiEchec: { etat: 'entrave', duree: 2 },
+    desc: 'Niv. 1. Ligne Avant : sauvegarde de FOR ou 1d8 et entravés (désavantage) 2 tours.'
+  },
+  rayon_lune: {
+    nom: 'Rayon de lune', icone: '🌙', type: 'sauvegarde', niveau: 2, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'CON', dd: 'sort', degats: '2d10', typeDeg: 'radiant', moitie: true,
+    desc: 'Niv. 2. Sauvegarde de CON, 2d10 radiant (moitié si réussite).'
+  },
+  peau_ecorce: {
+    nom: 'Peau d\'écorce', icone: '🌳', type: 'soutien', niveau: 2,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
+    etat: { nom: 'ecorce', duree: 4 },
+    desc: 'Niv. 2. Un allié gagne +3 CA pendant 4 tours.'
+  },
+  appel_foudre: {
+    nom: 'Appel de la foudre', icone: '🌩️', type: 'sauvegarde', niveau: 3, sort: true, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'DEX', dd: 'sort', degats: '4d10', typeDeg: 'tonnerre', moitie: true,
+    desc: 'Niv. 3. Sauvegarde de DEX, 4d10 tonnerre (moitié si réussite).'
+  },
+
+  // ---------------------------------- MOINE ---------------------------
+  arts_martiaux: {
+    nom: 'Arts martiaux', icone: '👊', type: 'attaque', arme: true, nbAttaques: 2,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d6+3', typeDeg: 'contondant',
+    desc: 'Deux coups à mains nues, 1d6+3 chacun.'
+  },
+  deluge: {
+    nom: 'Déluge de coups', icone: '🥋', type: 'attaque', arme: true, nbAttaques: 3, parCombat: 1,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d6+3', typeDeg: 'contondant',
+    desc: 'Trois coups rapides, 1d6+3 chacun. Une fois par combat (ki).'
+  },
+  frappe_etourdissante: {
+    nom: 'Frappe étourdissante', icone: '💫', type: 'attaque', arme: true, parCombat: 1,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d6+3', typeDeg: 'contondant',
+    effetSiTouche: { etat: 'etourdi', duree: 1, sauvegarde: { carac: 'CON', dd: 13 } },
+    desc: '1d6+3. Si touché : sauvegarde de CON DD 13 ou étourdi. Une fois par combat (ki).'
+  },
+  defense_patiente: {
+    nom: 'Défense patiente', icone: '🧘', type: 'soutien',
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    etat: { nom: 'esquive', duree: 1 }, peur: -10,
+    desc: 'Les attaques contre vous ont désavantage jusqu\'à votre prochain tour. −10 Peur.'
+  },
+  coup_pied_vol: {
+    nom: 'Coup de pied volant', icone: '🦶', type: 'attaque', arme: true, deplacement: 'avant',
+    depuis: ['arriere'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '2d6+3', typeDeg: 'contondant',
+    desc: 'Depuis l\'arrière : bondit en ligne Avant et frappe. 2d6+3.'
+  },
+
   // ------------------------- ACTIONS COMMUNES ------------------------
   changer_ligne: {
     nom: 'Changer de ligne', icone: '↕️', type: 'special', special: 'changer_ligne', commune: true,

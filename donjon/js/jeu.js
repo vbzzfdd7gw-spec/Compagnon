@@ -27,12 +27,15 @@ const Jeu = {
   finale: null,
 
   // --------------------------------------------------------- partie
-  nouvellePartie(idCampagne = 'crypte') {
+  nouvellePartie(idCampagne = 'crypte', classes = ORDRE_CLASSES) {
     const c = Progression.campagne(idCampagne);
     this.campagne = c.id;
     this.peurMult = c.regles.peurMult || 1;
     this.debloquee = null;
-    this.equipe = ORDRE_CLASSES.map(creerPJ);
+    this.equipe = classes.map(creerPJ);
+    // Au moins un héros en ligne Avant et un en ligne Arrière
+    if (!this.equipe.some(p => p.ligne === 'avant')) this.equipe[0].ligne = 'avant';
+    if (!this.equipe.some(p => p.ligne === 'arriere')) this.equipe[this.equipe.length - 1].ligne = 'arriere';
     this.carte = Carte.generer();
     this.potions = c.regles.potions ?? 2;
     this.or = 30;
@@ -90,6 +93,41 @@ const Jeu = {
 
   // ------------------------------------------------ utilitaires PJ
   pj(classe) { return this.equipe.find(p => p.classe === classe); },
+  // Héros debout le plus doué dans une caractéristique (événements)
+  meilleur(carac) {
+    return this.debout().sort((a, b) => b.caracs[carac] - a.caracs[carac])[0] || null;
+  },
+  lanceur() { return this.debout().find(p => p.emplacements[1] && p.emplacements[1].restant > 0) || null; },
+
+  // ------------------------------------------- composition d'équipe
+  choisirCampagne(id) {
+    this.campagneChoisie = id;
+    this.composition = Reglages.equipe && Reglages.equipe.length === 4 && Reglages.equipe.every(c => CLASSES[c]) ? Reglages.equipe.slice() : ORDRE_CLASSES.slice();
+    this.ecran = 'composition';
+    Ui.rendu();
+  },
+  basculerClasse(c) {
+    const i = this.composition.indexOf(c);
+    if (i >= 0) this.composition.splice(i, 1);
+    else if (this.composition.length < 4) this.composition.push(c);
+    Ui.rendu();
+  },
+  equipeAleatoire() {
+    // Toujours au moins un héros de front et un soigneur
+    const fronts = TOUTES_CLASSES.filter(c => CLASSES[c].ligne === 'avant');
+    const choix = [Des.hasard(fronts)];
+    const soins = SOIGNEURS.filter(c => !choix.includes(c));
+    choix.push(Des.hasard(soins));
+    for (const c of Des.melanger(TOUTES_CLASSES)) if (choix.length < 4 && !choix.includes(c)) choix.push(c);
+    this.composition = choix;
+    Ui.rendu();
+  },
+  partir() {
+    if (this.composition.length !== 4) return;
+    Reglages.equipe = this.composition.slice();
+    Reglages.sauver();
+    this.nouvellePartie(this.campagneChoisie, this.composition);
+  },
   debout() { return this.equipe.filter(p => p.pv > 0); },
 
   soigner(pj, n) { pj.pv = Math.min(pj.pvMax, Math.max(0, pj.pv) + n); },

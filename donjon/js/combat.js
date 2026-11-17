@@ -17,6 +17,11 @@ const ETATS = {
   esquive: { nom: 'Esquive', icone: '🌪️', desc: 'Les attaques contre lui ont désavantage.', finDebut: true },
   bouclier: { nom: 'Bouclier', icone: '🔰', desc: '+5 CA.', finDebut: true },
   cache: { nom: 'Caché', icone: '🌑', desc: 'Prochaine attaque avec avantage.', permanent: true },
+  rage: { nom: 'Rage', icone: '😡', desc: '+2 aux dégâts d\'arme, moitié des dégâts tranchants, perforants et contondants.' },
+  temeraire: { nom: 'Téméraire', icone: '🎯', desc: 'Les attaques contre lui ont avantage.', finDebut: true },
+  inspire: { nom: 'Inspiré', icone: '🎵', desc: '+1d6 à la prochaine attaque ou sauvegarde.', permanent: true },
+  ecorce: { nom: 'Peau d\'écorce', icone: '🌳', desc: '+3 CA.' },
+  marque: { nom: 'Marqué', icone: '🎯', desc: 'Le chasseur qui l\'a marqué inflige +1d6 dégâts.', permanent: true },
   voile: { nom: 'Voile d\'ombre', icone: '🌫️', desc: 'La prochaine attaque qui le toucherait rate.', permanent: true }
 };
 
@@ -330,6 +335,7 @@ class Combat {
       cibles: cibles.map(c => c.id), melee: act.cible === 'ennemi' && !distance, distance,
       typeAct: act.type, typeDeg: act.typeDeg, sort: !!act.sort, special: act.special || null });
 
+    if (act.etatLanceur) this.appliquerEtat(a, act.etatLanceur.nom, act.etatLanceur.duree);
     switch (act.type) {
       case 'attaque':
         for (const c of cibles) {
@@ -377,6 +383,7 @@ class Combat {
     if (a.etats.empoisonne) dv.push('empoisonné');
     if (a.etats.entrave) dv.push('gelé');
     if (c.etats.esquive) dv.push('cible en esquive');
+    if (c.etats.temeraire) av.push('cible téméraire');
     const mode = (av.length && !dv.length) ? 1 : (dv.length && !av.length) ? -1 : 0;
     return { mode, av, dv };
   }
@@ -396,7 +403,8 @@ class Combat {
     let total = r.nat + bonus;
     let txt = `${r.texte} ${signe(bonus)}`;
     if (a.etats.benit) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
-    const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
+    if (a.etats.inspire) { const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete a.etats.inspire; }
+    const ca = c.ca + (c.etats.ecorce ? 3 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
     const critique = r.nat >= ((a.traits && a.traits.critMin) || 20);
     let touche = critique || (r.nat !== 1 && total >= ca);
     // Cape de l'ombre : la première attaque qui toucherait rate
@@ -422,6 +430,8 @@ class Combat {
     let degats = d.total;
     let dTxt = d.texte;
     if (act.arme && a.bonusDegats) { degats += a.bonusDegats; dTxt += ` +${a.bonusDegats} (objet)`; }
+    if (act.arme && a.etats.rage) { degats += 2; dTxt += ' +2 (rage)'; }
+    if (c.etats.marque && c.marquePar === a.id) { const m = Des.lancer('1d6', critique); degats += m.total; dTxt += ` + marque ${m.texte}`; }
     if (act.arme && a.traits && a.traits.armeElem) {
       const e = Des.lancer(a.traits.armeElem.des, critique);
       degats += e.total;
@@ -488,7 +498,8 @@ class Combat {
 
   bonusSauvegarde(c, carac) {
     if (c.camp === 'pj') {
-      return modCarac(c.caracs[carac]) + (c.sauvegardes.includes(carac) ? c.maitrise : 0) + c.bonusSauv;
+      const aura = this.pjs.some(p => p.pv > 0 && p.traits && p.traits.aura) ? 1 : 0;
+      return modCarac(c.caracs[carac]) + (c.sauvegardes.includes(carac) ? c.maitrise : 0) + c.bonusSauv + aura;
     }
     const m = this.modele(c);
     if (m.sauvegardesBonus && m.sauvegardesBonus[carac] !== undefined) return m.sauvegardesBonus[carac];
@@ -503,6 +514,7 @@ class Combat {
     let total = r.nat + bonus;
     let txt = `${r.texte} ${signe(bonus)}`;
     if (c.etats.benit) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
+    if (c.etats.inspire) { const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete c.etats.inspire; }
     const reussite = total >= dd;
     this.evt({ t: 'jet', source: c.id, cible: c.id, nat: r.nat, total, libelle: `${c.nom} · sauvegarde ${carac}`,
       contre: `DD ${dd}`, res: reussite ? 'reussite' : 'echec', mode, sauvegarde: true });
@@ -580,6 +592,9 @@ class Combat {
       else if (m.resist && m.resist.includes(type)) { n = Math.floor(n / 2); note = ' (résistance ÷2)'; }
       else if (m.vuln && m.vuln.includes(type)) { n = n * 2; note = ' (vulnérable ×2)'; }
       if (note) this.log(`→ ${this.nomHtml(c)}${note} : ${n} dégâts.`, 'jet');
+    } else if (c.etats && c.etats.rage && ['tranchant', 'perforant', 'contondant'].includes(type)) {
+      n = Math.floor(n / 2);
+      this.log(`→ 😡 ${this.nomHtml(c)} encaisse grâce à sa rage (÷2) : ${n} dégâts.`, 'jet');
     } else if (c.traits && c.traits.resist && c.traits.resist.includes(type)) {
       n = Math.floor(n / 2);
       this.log(`→ ${this.nomHtml(c)} résiste (${type}, ÷2) : ${n} dégâts.`, 'jet');
@@ -687,6 +702,12 @@ const SPECIAUX = {
     cb.resoudreSoin({}, act, cible);
   },
   sac() { /* ouvert par l'interface, jamais exécuté */ },
+
+  marque(cb, a, act, cible) {
+    for (const e of cb.ennemis) if (e.marquePar === a.id) { delete e.etats.marque; e.marquePar = null; }
+    cible.marquePar = a.id;
+    cb.appliquerEtat(cible, 'marque', 99);
+  },
 
   sommeil(cb, a, act, cibles) {
     const d = Des.lancer('5d8');

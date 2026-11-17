@@ -8,12 +8,12 @@
 // =====================================================================
 
 const Reglages = {
-  sons: true, musique: true, vitesse: 1,
+  sons: true, musique: true, vitesse: 1, equipe: null,
   charger() {
     try { Object.assign(this, JSON.parse(localStorage.getItem('donjon-reglages') || '{}')); } catch (e) { /* rien */ }
   },
   sauver() {
-    try { localStorage.setItem('donjon-reglages', JSON.stringify({ sons: this.sons, musique: this.musique, vitesse: this.vitesse })); } catch (e) { /* rien */ }
+    try { localStorage.setItem('donjon-reglages', JSON.stringify({ sons: this.sons, musique: this.musique, vitesse: this.vitesse, equipe: this.equipe })); } catch (e) { /* rien */ }
   }
 };
 Reglages.charger();

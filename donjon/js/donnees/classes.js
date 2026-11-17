@@ -12,7 +12,7 @@ const MAX_ACTIONS = 5;
 
 const CLASSES = {
   guerrier: {
-    nom: 'Guerrier', icone: '🛡️', couleur: '#c0553a', ligne: 'avant',
+    nom: 'Guerrier', icone: '🛡️', couleur: '#c0553a', ligne: 'avant', role: 'Front · protège',
     pv: 28, ca: 18,
     caracs: { FOR: 16, DEX: 12, CON: 14, INT: 10, SAG: 12, CHA: 10 },
     maitrise: 2, bonusArme: 5, bonusSort: 0, ddSort: 0,
@@ -22,7 +22,7 @@ const CLASSES = {
     desc: 'Tient la première ligne. Robuste, protège ses alliés.'
   },
   clerc: {
-    nom: 'Clerc', icone: '✝️', couleur: '#d8b04a', ligne: 'avant',
+    nom: 'Clerc', icone: '✝️', couleur: '#d8b04a', ligne: 'avant', role: 'Soins · soutien',
     pv: 24, ca: 18,
     caracs: { FOR: 14, DEX: 10, CON: 14, INT: 10, SAG: 16, CHA: 12 },
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
@@ -32,8 +32,8 @@ const CLASSES = {
     desc: 'Soigne, bénit et calme la Peur. Emplacements de sorts limités.'
   },
   roublard: {
-    nom: 'Roublard', icone: '🗡️', couleur: '#5f9b6a', ligne: 'arriere',
-    pv: 21, ca: 14,
+    nom: 'Roublard', icone: '🗡️', couleur: '#5f9b6a', ligne: 'arriere', role: 'Dégâts · sournois',
+    pv: 24, ca: 15,
     caracs: { FOR: 10, DEX: 16, CON: 12, INT: 13, SAG: 12, CHA: 12 },
     maitrise: 2, bonusArme: 5, bonusSort: 0, ddSort: 0,
     sauvegardes: ['DEX', 'INT'], deVie: 8, emplacements: {},
@@ -43,18 +43,82 @@ const CLASSES = {
     desc: 'Attaque sournoise (+2d6) une fois par tour : avec avantage, ou si la cible est en ligne Avant et qu\'un autre allié debout est en ligne Avant.'
   },
   magicien: {
-    nom: 'Magicien', icone: '🔮', couleur: '#6b72d6', ligne: 'arriere',
-    pv: 16, ca: 12,
+    nom: 'Magicien', icone: '🔮', couleur: '#6b72d6', ligne: 'arriere', role: 'Dégâts de zone',
+    pv: 20, ca: 13,
     caracs: { FOR: 8, DEX: 14, CON: 12, INT: 16, SAG: 12, CHA: 10 },
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 6, emplacements: { 1: 4, 2: 2 },
     actions: ['trait_feu', 'projectile_magique', 'mains_brulantes', 'rayon_ardent'],
     poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'bouclier_sort', 'boule_feu'],
     desc: 'Fragile mais dévastateur depuis l\'arrière. Emplacements de sorts limités.'
+  },
+  barbare: {
+    nom: 'Barbare', icone: '🪓', couleur: '#b5562f', ligne: 'avant', role: 'Front · encaisse',
+    pv: 34, ca: 14,
+    caracs: { FOR: 16, DEX: 14, CON: 16, INT: 8, SAG: 12, CHA: 10 },
+    maitrise: 2, bonusArme: 5, bonusSort: 0, ddSort: 0,
+    sauvegardes: ['FOR', 'CON'], deVie: 12, emplacements: {},
+    actions: ['hache_2m', 'rage', 'frappe_temeraire', 'hachette'],
+    poolActions: ['fureur', 'coup_tete', 'cri_ralliement'],
+    desc: 'Beaucoup de PV. Sa rage augmente ses dégâts et divise par deux les coups physiques reçus.'
+  },
+  paladin: {
+    nom: 'Paladin', icone: '⚜️', couleur: '#e0c060', ligne: 'avant', role: 'Front · soutien',
+    pv: 24, ca: 17, traits: { aura: true },
+    caracs: { FOR: 16, DEX: 10, CON: 14, INT: 8, SAG: 10, CHA: 16 },
+    maitrise: 2, bonusArme: 5, bonusSort: 5, ddSort: 13,
+    sauvegardes: ['SAG', 'CHA'], deVie: 10, emplacements: { 1: 2 },
+    actions: ['epee_longue', 'chatiment', 'imposition', 'benediction'],
+    poolActions: ['faveur_divine', 'defi', 'renvoi', 'soins'],
+    desc: 'Aura de protection : +1 aux sauvegardes de toute l\'équipe tant qu\'il est debout. Châtiment divin dévastateur.'
+  },
+  rodeur: {
+    nom: 'Rôdeur', icone: '🏹', couleur: '#5f8b3a', ligne: 'arriere', role: 'Distance · traque',
+    pv: 24, ca: 15,
+    caracs: { FOR: 12, DEX: 16, CON: 14, INT: 10, SAG: 14, CHA: 8 },
+    maitrise: 2, bonusArme: 5, bonusSort: 4, ddSort: 12,
+    sauvegardes: ['FOR', 'DEX'], deVie: 10, emplacements: { 1: 3 },
+    actions: ['arc_long', 'epees_jumelles', 'marque_chasseur', 'volee'],
+    poolActions: ['tir_precis', 'piege', 'pas_lateral'],
+    desc: 'Tireur régulier. Sa Marque du chasseur ajoute 1d6 à toutes ses attaques contre la cible.'
+  },
+  barde: {
+    nom: 'Barde', icone: '🎻', couleur: '#c0508a', ligne: 'arriere', role: 'Soutien · contrôle',
+    pv: 21, ca: 14,
+    caracs: { FOR: 8, DEX: 14, CON: 12, INT: 12, SAG: 10, CHA: 16 },
+    maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
+    sauvegardes: ['DEX', 'CHA'], deVie: 8, emplacements: { 1: 4, 2: 2 },
+    actions: ['rapiere', 'moquerie', 'inspiration', 'mot_guerison'],
+    poolActions: ['murmure', 'chant_courage', 'sommeil', 'hypnose'],
+    desc: 'Inspire ses alliés (+1d6), affaiblit les ennemis, soigne et calme la Peur.'
+  },
+  druide: {
+    nom: 'Druide', icone: '🌿', couleur: '#4f9a6a', ligne: 'arriere', role: 'Soins · contrôle',
+    pv: 28, ca: 16,
+    caracs: { FOR: 10, DEX: 12, CON: 14, INT: 12, SAG: 16, CHA: 10 },
+    maitrise: 2, bonusArme: 3, bonusSort: 5, ddSort: 13,
+    sauvegardes: ['INT', 'SAG'], deVie: 8, emplacements: { 1: 4, 2: 2 },
+    actions: ['flammeche', 'soins', 'enchevetrement', 'rayon_lune'],
+    poolActions: ['gourdin', 'peau_ecorce', 'vague_tonnante', 'appel_foudre'],
+    desc: 'Soigne, entrave les ennemis et frappe avec la magie de la nature.'
+  },
+  moine: {
+    nom: 'Moine', icone: '👊', couleur: '#d08a30', ligne: 'avant', role: 'Front · mobile',
+    pv: 22, ca: 16,
+    caracs: { FOR: 10, DEX: 16, CON: 14, INT: 10, SAG: 16, CHA: 8 },
+    maitrise: 2, bonusArme: 5, bonusSort: 0, ddSort: 0,
+    sauvegardes: ['FOR', 'DEX'], deVie: 8, emplacements: {},
+    actions: ['arts_martiaux', 'deluge', 'frappe_etourdissante', 'defense_patiente'],
+    poolActions: ['coup_pied_vol', 'pas_lateral', 'coup_tete'],
+    desc: 'Plusieurs coups par tour, étourdit ses cibles et esquive facilement.'
   }
 };
 
+// Équipe par défaut, et ordre d'affichage de toutes les classes
 const ORDRE_CLASSES = ['guerrier', 'clerc', 'roublard', 'magicien'];
+const TOUTES_CLASSES = ['guerrier', 'barbare', 'paladin', 'moine', 'clerc', 'druide', 'barde', 'roublard', 'rodeur', 'magicien'];
+// Classes capables de soigner (pour les conseils de composition)
+const SOIGNEURS = ['clerc', 'paladin', 'druide', 'barde'];
 
 // Crée un personnage jouable à partir de sa classe
 function creerPJ(idClasse) {
@@ -76,7 +140,7 @@ function creerPJ(idClasse) {
     peur: 0,
     etats: {},
     usages: {},
-    traits: {}
+    traits: { ...(c.traits || {}) }
   };
 }
 
@@ -91,16 +155,16 @@ function creerPJ(idClasse) {
 // ---------------------------------------------------------------------
 const PROGRESSION = {
   4: {
-    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5 },
-    emplacements: { clerc: { 2: 1 }, magicien: { 2: 1 } },
-    bonus: { guerrier: 'arme', roublard: 'arme', clerc: 'sort', magicien: 'sort' }
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6 },
+    emplacements: { clerc: { 2: 1 }, magicien: { 2: 1 }, barde: { 2: 1 }, druide: { 2: 1 }, paladin: { 1: 1 }, rodeur: { 1: 1 } },
+    bonus: { guerrier: 'arme', roublard: 'arme', clerc: 'sort', magicien: 'sort', barbare: 'arme', paladin: 'arme', rodeur: 'arme', barde: 'sort', druide: 'sort', moine: 'arme' }
   },
   5: {
-    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5 },
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6 },
     maitrise: true,
-    emplacements: { clerc: { 3: 2 }, magicien: { 3: 2 } },
-    traits: { guerrier: { attaqueSupp: true }, roublard: { sournoise: '3d6' } },
-    sort: { magicien: 'boule_feu', clerc: 'esprits_gardiens' }
+    emplacements: { clerc: { 3: 2 }, magicien: { 3: 2 }, barde: { 3: 2 }, druide: { 3: 2 }, paladin: { 2: 2 }, rodeur: { 2: 2 } },
+    traits: { guerrier: { attaqueSupp: true }, roublard: { sournoise: '3d6' }, barbare: { attaqueSupp: true }, paladin: { attaqueSupp: true }, rodeur: { attaqueSupp: true } },
+    sort: { magicien: 'boule_feu', clerc: 'esprits_gardiens', barde: 'hypnose', druide: 'appel_foudre' }
   }
 };
 
