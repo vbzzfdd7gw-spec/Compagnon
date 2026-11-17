@@ -1,14 +1,14 @@
 // =====================================================================
-// Scène 3D « cartoon » : diorama de donjon + figurines chibi.
+// Scène 3D « cartoon » : diorama de donjon + personnages animés.
 //
 // Un canvas WebGL occupe toute la scène de combat, derrière les cartes HTML
 // (noms, PV, états). Chaque carte reste la référence : le point au pied de sa
-// figure est projeté sur le sol 3D et la figurine y est placée. Les
+// figure est projeté sur le sol 3D et le personnage y est placé. Les
 // animations CSS des cartes (élan, respiration) déplacent donc la figurine.
 //
-// Ajouter une figurine : une fonction dans FIGURINES qui renvoie un
-// THREE.Group, pieds en y = 0, tourné vers +z, environ 1,75 de haut.
-// Sans WebGL, le jeu garde les emojis.
+// Personnages et décor : modèles KayKit (voir ressources3d.js). En attendant
+// leur chargement, ou sans eux, des figurines dessinées en code (FIGURINES)
+// les remplacent. Sans WebGL, le jeu garde les emojis.
 // =====================================================================
 
 const Modeles3D = {
@@ -20,26 +20,30 @@ const Modeles3D = {
   enCours: false,
   taille: { w: 0, h: 0 },
   decor: null,
+  decorKK: null,
   particules: null,
+  projectiles: [],
+  secousseForce: 0,
 
   init() {
     try {
       if (!window.THREE) return false;
       const r = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
       r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      r.setClearColor(0x120d0a, 1);
+      r.setClearColor(0x0e0a08, 1);
       r.outputEncoding = THREE.sRGBEncoding;
       r.shadowMap.enabled = true;
       r.shadowMap.type = THREE.PCFSoftShadowMap;
       r.domElement.className = 'canvas3d';
       this.renderer = r;
       this.couleurTmp = new THREE.Color();
+      this.horloge = performance.now();
 
       const sc = new THREE.Scene();
-      sc.fog = new THREE.Fog(0x120d0a, 15, 30);
+      sc.fog = new THREE.Fog(0x0e0a08, 15, 30);
       this.scene = sc;
-      sc.add(new THREE.HemisphereLight(0xffe2c0, 0x2a1a12, 0.4));
-      const cle = new THREE.DirectionalLight(0xfff0dd, 0.7);
+      sc.add(new THREE.HemisphereLight(0xffe2c0, 0x2a1a12, 0.38));
+      const cle = new THREE.DirectionalLight(0xfff0dd, 0.62);
       cle.position.set(2.5, 9, 5);
       cle.castShadow = true;
       cle.shadow.mapSize.set(1024, 1024);
@@ -54,7 +58,8 @@ const Modeles3D = {
       sc.add(contre);
 
       this.camera = new THREE.PerspectiveCamera(34, 1, 0.1, 60);
-      this.camera.position.set(0, 8.2, 9.6);
+      this.posCamera = new THREE.Vector3(0, 8.2, 9.6);
+      this.camera.position.copy(this.posCamera);
       this.camera.lookAt(0, 0, -0.3);
       this.camera.updateMatrixWorld();
 
@@ -64,6 +69,11 @@ const Modeles3D = {
       this.particules = new Particules(sc);
       this.actif = true;
       document.body.classList.add('mode3d');
+      // Modèles animés en arrière-plan
+      if (THREE.GLTFLoader && THREE.SkeletonUtils) {
+        Ressources3D.quandPret.push(() => { this.taille = { w: 0, h: 0 }; });
+        Ressources3D.charger();
+      }
       return true;
     } catch (e) {
       console.warn('3D indisponible', e);
@@ -85,15 +95,58 @@ const Modeles3D = {
 
   flash(id, couleur) { if (this.actif) this.flashs[id] = { t0: performance.now(), couleur }; },
 
+  secousse(f) { this.secousseForce = Math.max(this.secousseForce, f); },
+
+  // Joue une animation sur un combattant : attaque, tir, sort, soutien, coup, esquive, bloque, potion, invoque, victoire
+  anim(id, type) {
+    const g = this.parId[id];
+    if (!g || !g.userData.mixer) return;
+    jouerAnim(g.userData, type, true);
+  },
+
+  // Tourne un combattant vers un autre pendant son action
+  regarder(id, cibleId) {
+    const g = this.parId[id], c = this.parId[cibleId];
+    if (!g || !c || g === c) return;
+    g.userData.regard = { yaw: Math.atan2(c.position.x - g.position.x, c.position.z - g.position.z), jusqu: performance.now() + 1500 };
+  },
+
+  // Projectile magique ou flèche entre deux combattants
+  projectile(sourceId, cibleId, style) {
+    const a = this.parId[sourceId], b = this.parId[cibleId];
+    if (!a || !b || !this.actif) return;
+    const couleur = COULEURS_DEGATS[style] || [1, 1, 1];
+    const fleche = style === 'perforant' || style === 'tranchant' || style === 'contondant';
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturePoint(), color: new THREE.Color(...couleur), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const t = fleche ? 0.18 : 0.55 * a.scale.y;
+    sp.scale.set(t, t, 1);
+    this.scene.add(sp);
+    const depart = a.position.clone(); depart.y += 0.95 * a.scale.y;
+    const arrivee = b.position.clone(); arrivee.y += 0.85 * b.scale.y;
+    this.projectiles.push({ sp, depart, arrivee, t0: performance.now(), duree: fleche ? 280 : 380, couleur, fleche });
+  },
+
+  // Colonne de lumière (soin, sort à jet de sauvegarde)
+  colonne(id, style) {
+    const g = this.parId[id];
+    if (!g || !this.actif) return;
+    const couleur = COULEURS_DEGATS[style] || [0.5, 1, 0.6];
+    for (let i = 0; i < 26; i++) {
+      const p = g.position.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.7 * g.scale.y, 2.4 * g.scale.y + Math.random() * 0.6, (Math.random() - 0.5) * 0.7 * g.scale.y));
+      this.particules.emettre(p, new THREE.Vector3(0, -3.5 * g.scale.y, 0), couleur, 0.55, 0, 0.16);
+    }
+    this.effet(id, style === 'soin' ? 'soin' : 'sort', couleur);
+  },
+
   // Effets de particules sur un combattant : 'coup', 'crit', 'soin', 'sort'
-  effet(id, type) {
+  effet(id, type, couleurForcee) {
     if (!this.actif) return;
     const g = this.parId[id];
     if (!g) return;
     const p = g.position.clone();
     p.y += 0.9 * g.scale.y;
-    const n = { coup: 14, crit: 34, soin: 18, sort: 12 }[type] || 10;
-    const couleur = { coup: [1, 0.45, 0.2], crit: [1, 0.85, 0.3], soin: [0.4, 1, 0.5], sort: [0.5, 0.65, 1] }[type];
+    const n = { coup: 14, crit: 34, soin: 18, sort: 14 }[type] || 10;
+    const couleur = couleurForcee || { coup: [1, 0.45, 0.2], crit: [1, 0.85, 0.3], soin: [0.4, 1, 0.5], sort: [0.5, 0.65, 1] }[type];
     for (let i = 0; i < n; i++) {
       const v = type === 'soin'
         ? new THREE.Vector3((Math.random() - 0.5) * 0.8, 1.2 + Math.random() * 1.2, (Math.random() - 0.5) * 0.8)
@@ -102,6 +155,8 @@ const Modeles3D = {
       this.particules.emettre(depart, v.multiplyScalar(g.scale.y), couleur, type === 'crit' ? 0.9 : 0.6, type === 'soin' ? -0.6 : 6, type === 'crit' ? 0.22 : 0.15);
     }
   },
+
+  victoire(ids) { ids.forEach(id => this.anim(id, 'victoire')); },
 
   // Point du sol sous un pixel du canvas
   pointSol(px, py) {
@@ -113,30 +168,45 @@ const Modeles3D = {
 
   obtenir(cle, modele) {
     let g = this.cache.get(cle);
-    if (!g) {
-      const fab = FIGURINES[modele] || FIGURINES.inconnu;
-      g = new THREE.Group();
-      const corps = fab();
+    if (g) return g;
+    g = new THREE.Group();
+    const glb = construireGLB(modele);
+    let corps;
+    if (glb) {
+      corps = new THREE.Group();
+      corps.add(glb.objet);
+    } else {
+      corps = (FIGURINES[modele] || FIGURINES.inconnu)();
       ajouterContours(corps);
       corps.traverse(o => { if (o.isMesh && !o.userData.contour) o.castShadow = true; });
-      g.add(corps);
-      const anneau = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 32), new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.9, depthWrite: false }));
-      anneau.rotation.x = -Math.PI / 2;
-      anneau.position.y = 0.02;
-      anneau.visible = false;
-      anneau.material.userData.anneau = true;
-      g.add(anneau);
-      g.userData = { corps, anneau, mats: [], phase: Math.random() * 6, chute: 0, modele };
-      g.traverse(o => { if (o.material) g.userData.mats.push(o.material); });
-      this.scene.add(g);
-      this.cache.set(cle, g);
     }
+    g.add(corps);
+    const anneau = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 32), new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.9, depthWrite: false }));
+    anneau.rotation.x = -Math.PI / 2;
+    anneau.position.y = 0.03;
+    anneau.visible = false;
+    anneau.material.userData.anneau = true;
+    g.add(anneau);
+    g.userData = { corps, anneau, mats: [], phase: Math.random() * 6, chute: 0, modele, etat: 'debout', yaw: null };
+    if (glb) {
+      Object.assign(g.userData, { mixer: glb.mixer, anims: glb.anims });
+      glb.mixer.addEventListener('finished', e => finAnim(g.userData, e.action));
+      jouerBase(g.userData, true);
+    }
+    g.traverse(o => { if (o.material) g.userData.mats.push(o.material); });
+    this.scene.add(g);
+    this.cache.set(cle, g);
     return g;
   },
 
   liberer(g) {
     this.scene.remove(g);
-    g.traverse(o => { if (o.geometry && !o.userData.contour) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    const glb = !!g.userData.mixer;
+    if (glb) g.userData.mixer.stopAllAction();
+    g.traverse(o => {
+      if (o.material) o.material.dispose();
+      if (o.geometry && !glb && !o.userData.contour) o.geometry.dispose();
+    });
   },
 
   redimensionner(w, h) {
@@ -144,10 +214,32 @@ const Modeles3D = {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.camera.position.copy(this.posCamera);
     this.camera.updateMatrixWorld();
-    // Décor placé d'après les bords visibles du sol
     const pt = (x, y) => this.pointSol(x * w, y * h) || new THREE.Vector3();
     placerDecor(this.decor, { g: pt(0.06, 0.5), d: pt(0.94, 0.5), hg: pt(0.02, 0.06), hd: pt(0.98, 0.06), bg: pt(0.02, 0.97), bd: pt(0.98, 0.97), c: pt(0.5, 0.5) });
+    // Décor KayKit : reconstruit d'après le cadrage
+    if (Ressources3D.gltf.donjon) {
+      if (this.decorKK) { this.scene.remove(this.decorKK.groupe); }
+      const zMur = pt(0.5, 0.03).z - 0.2;
+      const bords = z => this.largeurA(z);
+      this.decorKK = construireDecorKK(this.scene, zMur, bords);
+      this.decor.piliers.forEach(p => { p.visible = false; });
+      this.decor.front.visible = false;
+      this.decor.solProc.visible = false;
+    }
+  },
+
+  // Demi-largeur visible du sol à la profondeur z
+  largeurA(z) {
+    let ybas = 0, yhaut = this.taille.h;
+    for (let i = 0; i < 20; i++) {          // recherche de la ligne d'écran qui touche ce z
+      const ym = (ybas + yhaut) / 2;
+      const p = this.pointSol(this.taille.w / 2, ym);
+      if (!p || p.z < z) ybas = ym; else yhaut = ym;
+    }
+    const p = this.pointSol(0, (ybas + yhaut) / 2);
+    return p ? Math.abs(p.x) : 3;
   },
 
   boucle(t) {
@@ -170,13 +262,16 @@ const Modeles3D = {
     const vus = new Set();
     this.parId = {};
     const tanFov = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const glbPret = !!Ressources3D.gltf.skeleton_warrior;
 
     for (const el of canvas.parentElement.querySelectorAll('.combattant')) {
       const fig = el.querySelector('.figure'), spr = el.querySelector('.sprite');
       if (!fig || !spr) continue;
-      const tombe = el.classList.contains('a-terre');
-      const modele = tombe ? 'tombe' : el.dataset.modele;
-      const cle = el.dataset.id + ':' + modele;
+      const aTerre = el.classList.contains('a-terre'), mort = el.classList.contains('mort');
+      let modele = el.dataset.modele;
+      const anime = glbPret && PERSOS3D[modele] && Ressources3D.gltf[PERSOS3D[modele].glb];
+      if (!anime && aTerre) modele = 'tombe';
+      const cle = el.dataset.id + ':' + modele + (anime ? ':a' : '');
       vus.add(cle);
       const g = this.obtenir(cle, modele);
       this.parId[el.dataset.id] = g;
@@ -186,72 +281,174 @@ const Modeles3D = {
       const fr = fig.getBoundingClientRect(), sr = spr.getBoundingClientRect();
       const dx = (sr.left + sr.width / 2) - (fr.left + fr.width / 2);
       const dy = (sr.top + sr.height / 2) - (fr.top + fr.height / 2);
-      const px = fr.left + fr.width / 2 + dx - zone.left;
-      const py = fr.bottom + dy - zone.top - 2;
-      const p = this.pointSol(px, py);
+      const p = this.pointSol(fr.left + fr.width / 2 + dx - zone.left, fr.bottom + dy - zone.top - 2);
       if (!p) { g.visible = false; continue; }
       g.position.copy(p);
-
-      // Échelle : la figurine occupe la hauteur prévue par la carte
       const boss = el.classList.contains('boss');
       const hPx = fr.height * (boss ? 1.6 : 1.75);
-      const dist = this.camera.position.distanceTo(p);
-      const mondeParPx = 2 * dist * tanFov / this.taille.h;
-      g.scale.setScalar(hPx * mondeParPx / 1.75 * 0.95);
+      const mondeParPx = 2 * this.camera.position.distanceTo(p) * tanFov / this.taille.h;
+      g.scale.setScalar(hPx * mondeParPx / 1.75 * (anime ? 1.05 : 0.95));
+      u.derniere = { pos: g.position.clone(), echelle: g.scale.x };
 
-      // Orientation et animation
       const pj = el.classList.contains('pj');
       const actif = el.classList.contains('actif');
-      let base = pj ? -0.35 : 0.25;  // tous tournés vers le joueur, légèrement vers le camp adverse
-      if (u.modele === 'loup') base = 0.8;
-      if (tombe) base = 0;
       const c = u.corps;
-      c.rotation.y = base + (tombe ? 0 : Math.sin(s * 0.9 + u.phase) * 0.1);
-      const rebond = tombe ? 0 : (actif ? Math.abs(Math.sin(s * 5)) * 0.12 : Math.abs(Math.sin(s * 2 + u.phase)) * 0.025);
-      c.position.y = rebond + (u.modele === 'morvagne' ? 0.18 + Math.sin(s * 1.6) * 0.07 : 0);
-      const ecrase = tombe ? 0 : Math.sin(s * (actif ? 10 : 4) + u.phase) * (actif ? 0.04 : 0.02);
-      c.scale.set(1 - ecrase * 0.5, 1 + ecrase, 1 - ecrase * 0.5);
+
+      // Orientation : héros de trois quarts vers les ennemis, ennemis vers les héros
+      let base = pj ? 2.15 : 0.2;
+      if (u.modele === 'loup') base = pj ? base : 0.8;
+      if (!anime && aTerre) base = 0;
+      if (u.regard && performance.now() < u.regard.jusqu) base = u.regard.yaw;
+      if (u.yaw === null) u.yaw = base;
+      let diff = ((base - u.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      u.yaw += diff * Math.min(1, dt * 8);
+      c.rotation.y = u.yaw;
+
+      if (anime) {
+        // États : à terre / mort / debout
+        if ((aTerre || mort) && u.etat === 'debout') { u.etat = mort ? 'mort' : 'aterre'; u.tMort = performance.now(); jouerAnim(u, 'mort', false); }
+        if (!aTerre && !mort && u.etat === 'aterre') { u.etat = 'debout'; jouerAnim(u, 'releve', true); }
+        u.mixer.update(dt);
+        c.position.y = u.modele === 'morvagne' && u.etat === 'debout' ? 0.15 + Math.sin(s * 1.6) * 0.06 : 0;
+      } else {
+        const tombe = modele === 'tombe';
+        const rebond = tombe ? 0 : (actif ? Math.abs(Math.sin(s * 5)) * 0.12 : Math.abs(Math.sin(s * 2 + u.phase)) * 0.025);
+        c.position.y = rebond + (u.modele === 'morvagne' ? 0.18 + Math.sin(s * 1.6) * 0.07 : 0);
+        const ecrase = tombe ? 0 : Math.sin(s * (actif ? 10 : 4) + u.phase) * (actif ? 0.04 : 0.02);
+        c.scale.set(1 - ecrase * 0.5, 1 + ecrase, 1 - ecrase * 0.5);
+        if (mort) u.chute = Math.min(1, u.chute + dt * 3);
+        c.rotation.x = -u.chute * Math.PI / 2;
+      }
       c.position.x = el.classList.contains('panique') ? Math.sin(s * 45) * 0.03 : 0;
-      // Chute à la mort
-      if (el.classList.contains('mort')) u.chute = Math.min(1, u.chute + dt * 3);
-      c.rotation.x = -u.chute * Math.PI / 2;
 
       // Anneau au sol
       const an = u.anneau;
       const ciblable = el.classList.contains('ciblable'), enZone = el.classList.contains('en-zone');
-      an.visible = actif || ciblable || enZone;
+      an.visible = (actif || ciblable || enZone) && !mort;
       an.material.color.setHex(ciblable ? 0xff6a4a : enZone ? 0xffb04a : 0xffd98a);
       an.scale.setScalar(ciblable ? 1 + Math.sin(s * 6) * 0.08 : 1);
 
-      // Opacité (carte + bande hors de portée) et flash
+      // Opacité : bande hors de portée ; mort = fondu après l'animation de chute
       const bande = el.closest('.rangee-scene');
-      const opacite = parseFloat(getComputedStyle(el).opacity) * (bande ? parseFloat(getComputedStyle(bande).opacity) : 1);
-      const f = this.flashs[el.dataset.id];
-      let intensite = 0, couleur = 0;
-      if (f) {
-        const age = (performance.now() - f.t0) / 1000;
-        if (age < 0.45) { intensite = 1 - age / 0.45; couleur = f.couleur; } else delete this.flashs[el.dataset.id];
-      }
-      for (const m of u.mats) {
-        if (m.userData.anneau) { m.opacity = 0.85 * opacite; continue; }
-        if (m.emissive) {
-          if (!m.userData.emissiveBase) m.userData.emissiveBase = m.emissive.clone();
-          m.emissive.copy(m.userData.emissiveBase);
-          if (intensite > 0) m.emissive.lerp(this.couleurTmp.setHex(couleur), intensite * 0.8);
-        }
-        const transp = opacite < 0.99;
-        if (m.transparent !== transp) { m.transparent = transp; m.needsUpdate = true; }
-        m.opacity = opacite;
-      }
-      g.visible = opacite > 0.02;
+      let opacite = bande ? parseFloat(getComputedStyle(bande).opacity) : 1;
+      if (anime) {
+        if (u.etat === 'mort') opacite *= fonduMort(u);
+      } else opacite *= parseFloat(getComputedStyle(el).opacity);
+      this.appliquerMateriaux(g, el.dataset.id, opacite);
     }
-    for (const [cle, g] of this.cache) if (!vus.has(cle)) { this.liberer(g); this.cache.delete(cle); }
+    // Les morts qui ont quitté l'écran finissent leur chute puis s'effacent
+    for (const [cle, g] of this.cache) {
+      if (vus.has(cle)) continue;
+      const u = g.userData;
+      if (u.etat === 'mort' && u.mixer && fonduMort(u) > 0.01) {
+        g.position.copy(u.derniere.pos);
+        u.mixer.update(dt);
+        this.appliquerMateriaux(g, null, fonduMort(u));
+        continue;
+      }
+      this.liberer(g);
+      this.cache.delete(cle);
+    }
 
+    this.majProjectiles();
     animerDecor(this.decor, s, this.particules);
+    animerDecorKK(this.decorKK, s, this.particules);
     this.particules.maj(dt);
+
+    // Secousse de caméra (critiques)
+    if (this.secousseForce > 0.001) {
+      const f = this.secousseForce;
+      this.camera.position.set(this.posCamera.x + (Math.random() - 0.5) * f, this.posCamera.y + (Math.random() - 0.5) * f, this.posCamera.z + (Math.random() - 0.5) * f * 0.5);
+      this.secousseForce *= Math.pow(0.02, dt);
+    } else this.camera.position.copy(this.posCamera);
     this.renderer.render(this.scene, this.camera);
+  },
+
+  appliquerMateriaux(g, id, opacite) {
+    const u = g.userData;
+    const f = id && this.flashs[id];
+    let intensite = 0, couleur = 0;
+    if (f) {
+      const age = (performance.now() - f.t0) / 1000;
+      if (age < 0.45) { intensite = 1 - age / 0.45; couleur = f.couleur; } else delete this.flashs[id];
+    }
+    for (const m of u.mats) {
+      if (m.userData.anneau) { m.opacity = 0.85 * opacite; continue; }
+      if (m.emissive) {
+        if (!m.userData.emissiveBase) m.userData.emissiveBase = m.emissive.clone();
+        m.emissive.copy(m.userData.emissiveBase);
+        if (intensite > 0) m.emissive.lerp(this.couleurTmp.setHex(couleur), intensite * 0.8);
+      }
+      const transp = opacite < 0.99;
+      if (m.transparent !== transp) { m.transparent = transp; m.needsUpdate = true; }
+      m.opacity = opacite;
+    }
+    g.visible = opacite > 0.02;
+  },
+
+  majProjectiles() {
+    const now = performance.now();
+    this.projectiles = this.projectiles.filter(pr => {
+      const k = Math.min(1, (now - pr.t0) / pr.duree);
+      const pos = pr.depart.clone().lerp(pr.arrivee, k);
+      pos.y += Math.sin(k * Math.PI) * (pr.fleche ? 0.35 : 0.25);
+      pr.sp.position.copy(pos);
+      if (!pr.fleche || Math.random() < 0.5) this.particules.emettre(pos, new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.2) * 0.4, (Math.random() - 0.5) * 0.4), pr.couleur, pr.fleche ? 0.15 : 0.35, 0, pr.fleche ? 0.05 : 0.14);
+      if (k >= 1) {
+        this.scene.remove(pr.sp);
+        pr.sp.material.dispose();
+        if (!pr.fleche) for (let i = 0; i < 16; i++) this.particules.emettre(pr.arrivee, new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2.5, (Math.random() - 0.5) * 3), pr.couleur, 0.5, 5, 0.16);
+        return false;
+      }
+      return true;
+    });
   }
 };
+
+const COULEURS_DEGATS = {
+  feu: [1, 0.5, 0.12], froid: [0.55, 0.9, 1], force: [0.85, 0.45, 1], radiant: [1, 0.88, 0.45], 'nécrotique': [0.45, 1, 0.5],
+  psychique: [0.95, 0.4, 1], tonnerre: [0.6, 0.75, 1], poison: [0.6, 1, 0.3], perforant: [1, 0.95, 0.8], tranchant: [1, 0.95, 0.8], contondant: [1, 0.95, 0.8], soin: [0.45, 1, 0.55]
+};
+
+// --- Animations des personnages KayKit ---
+function jouerAnim(u, type, retourAuto) {
+  const clip = Ressources3D.clip(u.anims[type]);
+  if (!clip || !u.mixer) return;
+  const a = u.mixer.clipAction(clip);
+  a.reset();
+  a.setLoop(THREE.LoopOnce, 1);
+  a.clampWhenFinished = true;
+  a.timeScale = type === 'mort' || type === 'releve' ? 1 : 1.25;
+  a.enabled = true;
+  if (u.action && u.action !== a) a.crossFadeFrom(u.action, 0.12, false);
+  a.play();
+  u.action = a;
+  u.retourAuto = retourAuto;
+}
+function jouerBase(u, immediat) {
+  const nom = u.etat === 'debout' ? u.anims.idle : u.anims.poseMort;
+  const clip = Ressources3D.clip(nom) || Ressources3D.clip('Idle');
+  if (!clip) return;
+  const a = u.mixer.clipAction(clip);
+  a.reset();
+  a.setLoop(u.etat === 'debout' ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+  a.clampWhenFinished = true;
+  a.timeScale = 1;
+  a.enabled = true;
+  if (!immediat && u.action && u.action !== a) a.crossFadeFrom(u.action, 0.2, false);
+  if (u.etat === 'debout') a.time = Math.random() * clip.duration;
+  a.play();
+  u.action = a;
+  u.retourAuto = false;
+}
+function finAnim(u, action) {
+  if (action !== u.action) return;
+  if (u.retourAuto || u.etat !== 'debout') { if (u.retourAuto) jouerBase(u, false); }
+}
+function fonduMort(u) {
+  const age = (performance.now() - (u.tMort || 0)) / 1000;
+  return age < 1.6 ? 1 : Math.max(0, 1 - (age - 1.6) / 0.6);
+}
 
 // ---------------------------------------------------------------------
 // Matériaux cartoon : ombrage en 3 aplats + contour noir
@@ -668,12 +865,13 @@ function construireDecor(sc) {
   sol.rotation.x = -Math.PI / 2;
   sol.receiveShadow = true;
   sc.add(sol);
+  // (référencé pour être caché quand les dalles KayKit sont chargées)
   // Ligne de front : rangée de petits cailloux
   const front = new THREE.Group();
   const caillou = mat(0x5a4e46);
   for (let i = -6; i <= 6; i++) front.add(F.boule(0.08 + Math.random() * 0.06, caillou, i * 0.55 + (Math.random() - 0.5) * 0.2, 0.03, (Math.random() - 0.5) * 0.15, 0, 0, 0, 1, 0.5, 1));
   sc.add(front);
-  const d = { braseros: [brasero(), brasero()], piliers: [pilier(), pilier(), pilier(), pilier()], front, os: [] };
+  const d = { braseros: [brasero(), brasero()], piliers: [pilier(), pilier(), pilier(), pilier()], front, os: [], solProc: sol };
   d.braseros.forEach(b => sc.add(b));
   d.piliers.forEach(p => sc.add(p));
   const os = mat(0xe8e0c8);
