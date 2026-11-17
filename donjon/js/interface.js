@@ -121,7 +121,15 @@ const Ui = {
     </div>`;
   },
 
-  defilerCarte() {},
+  // Centre la carte sur les salles accessibles (la carte défile dans son cadre)
+  defilerCarte() {
+    const c = $('.carte-conteneur'), cibles = [...document.querySelectorAll('.noeud.accessible, .noeud.actuel')];
+    if (!c || !cibles.length) return;
+    const rc = c.getBoundingClientRect();
+    const ys = cibles.map(n => { const r = n.getBoundingClientRect(); return r.top + r.height / 2; });
+    const milieu = ys.reduce((a, b) => a + b, 0) / ys.length;
+    c.scrollTop += milieu - rc.top - rc.height * 0.55;
+  },
 
   resumeEquipe() {
     return `<div class="resume-equipe">

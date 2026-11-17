@@ -110,8 +110,8 @@ const CAMPAGNES = [
             { avant: ['zombie', 'squelette'], arriere: ['pretre_eclipse'] }
           ],
           elite: [
-            { avant: ['zombie', 'zombie'], arriere: ['pretre_eclipse'] },
-            { avant: ['ogre'], arriere: ['pretre_eclipse', 'cultiste'] }
+            { avant: ['zombie', 'squelette'], arriere: ['pretre_eclipse'] },
+            { avant: ['ogre'], arriere: ['pretre_eclipse'] }
           ],
           boss: [{ avant: ['squelette', 'squelette'], arriere: ['pretre_eclipse', 'pretre_eclipse'] }]
         }

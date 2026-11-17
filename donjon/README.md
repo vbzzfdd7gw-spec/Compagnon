@@ -45,7 +45,7 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 
 `node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions complètes sans affichage (stratégie simple : soigner
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
-Réglage actuel : environ 49 % de victoires pour la Crypte, 38 % pour la Horde, 23 % pour l'Éclipse.
+Réglage actuel : environ 50 % de victoires pour la Crypte, 38 % pour la Horde, 22 % pour l'Éclipse.
 
 ## Crédits graphiques
 

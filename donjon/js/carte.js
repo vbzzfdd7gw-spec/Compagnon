@@ -14,20 +14,21 @@ const TYPES_NOEUDS = {
 };
 
 const CONFIG_CARTE = {
-  rangees: 10,         // 0..9 : 9 = boss, 8 = feu de camp garanti
+  rangees: 15,         // 0..14 : 14 = boss, 13 = feu de camp garanti
+  rangeeTresor: 7,     // rangée de trésors au milieu de l'étage
   colonnes: 5,
   chemins: 6,          // nombre de chemins tracés de bas en haut (ils se croisent et se rejoignent)
   poids: [             // tirage des salles intermédiaires
     { type: 'combat', poids: 35 },
     { type: 'evenement', poids: 21 },
-    { type: 'elite', poids: 15, rangMin: 3 },
-    { type: 'repos', poids: 13, rangMin: 3, rangMax: 6 },
-    { type: 'marchand', poids: 10, rangMin: 2, rangMax: 7 },
-    { type: 'tresor', poids: 5, rangMin: 2 }
+    { type: 'elite', poids: 15, rangMin: 4 },
+    { type: 'repos', poids: 13, rangMin: 3, rangMax: 11 },
+    { type: 'marchand', poids: 10, rangMin: 2, rangMax: 12 },
+    { type: 'tresor', poids: 4, rangMin: 2 }
   ],
   // Types qu'on ne veut pas deux fois de suite sur un même chemin
   pasDeuxFois: ['elite', 'repos', 'marchand', 'tresor'],
-  minimum: { elite: 2, marchand: 1, repos: 1 }   // au moins autant par étage (hors feu final)
+  minimum: { elite: 3, marchand: 2, repos: 2 }   // au moins autant par étage (hors feu final)
 };
 
 const Carte = {
@@ -82,8 +83,10 @@ const Carte = {
       if (n === boss) { n.type = 'boss'; continue; }
       if (r === R - 2) { n.type = 'repos'; continue; }
       if (r === 0) { n.type = 'combat'; continue; }
+      if (r === CONFIG_CARTE.rangeeTresor) { n.type = 'tresor'; continue; }
       const interdits = new Set(parents(n).map(p => p.type).filter(t => CONFIG_CARTE.pasDeuxFois.includes(t)));
       if (r === R - 3) interdits.add('repos');            // pas de feu juste avant le feu final
+      if (r === CONFIG_CARTE.rangeeTresor - 1 || r === CONFIG_CARTE.rangeeTresor + 1) interdits.add('tresor');
       const poss = CONFIG_CARTE.poids.filter(p => !interdits.has(p.type)
         && (p.rangMin === undefined || r >= p.rangMin) && (p.rangMax === undefined || r <= p.rangMax));
       n.type = Des.pondere(poss).type;
@@ -108,12 +111,12 @@ const Carte = {
   },
 
   // Difficulté des combats selon la rangée
-  niveau(noeud) { return noeud.rangee <= 3 ? 'facile' : 'moyen'; },
+  niveau(noeud) { return noeud.rangee <= 4 ? 'facile' : 'moyen'; },
 
   // Rendu SVG (boss en haut, départ en bas)
   svg(carte) {
     const R = carte.rangees;
-    const L = 340, E = 60, H = R * E + 40;
+    const L = 340, E = 64, H = R * E + 40;
     const pos = n => ({
       x: 40 + (n.col / (CONFIG_CARTE.colonnes - 1)) * (L - 80) + n.decalage,
       y: H - 34 - n.rangee * E
