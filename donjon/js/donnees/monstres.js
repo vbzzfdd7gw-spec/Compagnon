@@ -67,45 +67,56 @@ const MONSTRES = {
     ]
   },
 
+  mage_squelette: {
+    nom: 'Mage squelette', icone: '🦴', pv: 18, ca: 12, mortVivant: true,
+    caracs: { FOR: 8, DEX: 14, CON: 12, INT: 14, SAG: 10, CHA: 6 },
+    vuln: ['contondant'], immun: ['poison'], immunEtats: ['empoisonne'],
+    actions: [
+      { nom: 'Trait nécrotique', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 5, degats: '2d8', typeDeg: 'nécrotique', sort: true, poids: 3 },
+      { nom: 'Main glaciale', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 12, degats: '1d8', typeDeg: 'froid', moitie: false, sort: true,
+        effetSiEchec: { etat: 'entrave', duree: 1 }, poids: 1 }
+    ]
+  },
+
   // ------------------------------- BOSS --------------------------------
+  grukk: {
+    nom: 'Grukk le Brise-Os', icone: '👹', pv: 72, ca: 13, boss: true,
+    caracs: { FOR: 20, DEX: 8, CON: 18, INT: 6, SAG: 9, CHA: 8 },
+    sauvegardesBonus: { FOR: 7, CON: 6 },
+    actions: [
+      { nom: 'Massue colossale', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 7, degats: '2d10+5', typeDeg: 'contondant', poids: 3 },
+      { nom: 'Balayage', type: 'sauvegarde', zone: true, depuis: ['avant'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 14, degats: '2d6+5', typeDeg: 'contondant', moitie: true,
+        effetSiEchec: { etat: 'renverse', duree: 1 }, poids: 2, recharge: 3 },
+      { nom: 'Rugissement', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 13, degats: '1d6', typeDeg: 'psychique', moitie: false,
+        effetSiEchec: { peur: 20 }, poids: 1, recharge: 4 },
+      { nom: 'Rocher', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 7, degats: '2d8+5', typeDeg: 'contondant', poids: 1 }
+    ]
+  },
+  chevalier_squelette: {
+    nom: 'Le Chevalier sans repos', icone: '⚔️', pv: 68, ca: 16, boss: true, actionsParTour: 2, mortVivant: true,
+    caracs: { FOR: 18, DEX: 11, CON: 16, INT: 10, SAG: 12, CHA: 14 },
+    sauvegardesBonus: { FOR: 7, CON: 6, SAG: 4 },
+    resist: ['nécrotique', 'perforant'], immun: ['poison'], immunEtats: ['empoisonne'],
+    actions: [
+      { nom: 'Lame funeste', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 8, degats: '1d10+5', typeDeg: 'tranchant', poids: 4 },
+      { nom: 'Coup de pavois', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 8, degats: '1d6+5', typeDeg: 'contondant',
+        effetSiTouche: { etat: 'etourdi', duree: 1, sauvegarde: { carac: 'CON', dd: 15 } }, poids: 1, recharge: 3 },
+      { nom: 'Regard d\'outre-tombe', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 14, degats: '2d8', typeDeg: 'nécrotique', moitie: true,
+        effetSiEchec: { peur: 15 }, poids: 2 },
+      { nom: 'Relever les morts', type: 'special', special: 'invoquer', invocation: 'squelette', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
   morvagne: {
-    nom: 'Morvagne la Nécromancienne', icone: '☠️', pv: 85, ca: 15, boss: true, actionsParTour: 2,
+    nom: 'Morvagne la Nécromancienne', icone: '☠️', pv: 120, ca: 16, boss: true, actionsParTour: 2,
     caracs: { FOR: 10, DEX: 14, CON: 14, INT: 18, SAG: 14, CHA: 12 },
     sauvegardesBonus: { INT: 7, SAG: 5 },
     resist: ['nécrotique'],
     actions: [
       { nom: 'Bâton d\'os', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d8+3', typeDeg: 'contondant', poids: 2 },
-      { nom: 'Rayon nécrotique', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 7, degats: '2d8+2', typeDeg: 'nécrotique', poids: 3 },
+      { nom: 'Rayon nécrotique', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 7, degats: '3d8+2', typeDeg: 'nécrotique', poids: 3 },
       { nom: 'Vague d\'effroi', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
         carac: 'SAG', dd: 14, degats: '2d6', typeDeg: 'psychique', moitie: true, effetSiEchec: { peur: 20 }, poids: 2, recharge: 3 },
       { nom: 'Relever les morts', type: 'special', special: 'invoquer', invocation: 'squelette', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 3, parCombat: 2 }
     ]
   }
-};
-
-// Rencontres : ligne Avant (corps à corps) et ligne Arrière (tireurs, lanceurs).
-// `facile` pour les premières rangées de la carte, `moyen` ensuite.
-const RENCONTRES = {
-  facile: [
-    { avant: ['gobelin', 'gobelin'], arriere: ['gobelin'] },
-    { avant: ['loup', 'loup'], arriere: [] },
-    { avant: ['squelette'], arriere: ['squelette'] },
-    { avant: ['zombie'], arriere: ['cultiste'] },
-    { avant: ['loup', 'gobelin'], arriere: ['gobelin'] }
-  ],
-  moyen: [
-    { avant: ['zombie', 'squelette'], arriere: ['cultiste'] },
-    { avant: ['loup', 'loup'], arriere: ['gobelin', 'gobelin'] },
-    { avant: ['squelette', 'squelette'], arriere: ['squelette', 'cultiste'] },
-    { avant: ['zombie', 'zombie'], arriere: ['cultiste'] },
-    { avant: ['gobelin', 'gobelin'], arriere: ['cultiste', 'cultiste'] }
-  ],
-  elite: [
-    { avant: ['ogre'], arriere: ['gobelin', 'gobelin'] },
-    { avant: ['zombie', 'ogre'], arriere: ['cultiste'] },
-    { avant: ['loup', 'ogre', 'loup'], arriere: [] }
-  ],
-  boss: [
-    { avant: ['squelette', 'squelette'], arriere: ['morvagne'] }
-  ]
 };

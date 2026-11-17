@@ -425,3 +425,5 @@ body { overscroll-behavior: none; }
 .ordre-ligne .btn-journal { font-size: .9rem; padding: 1px 6px; }
 .audio-titre { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
 .btn-action.apercu { opacity: .45; cursor: default; }
+.sous-titre-offres { margin: 6px 0; font-size: .9rem; }
+.sous-titre-offres .gains { text-align: left; background: var(--panneau); border: 1px solid var(--ligne); border-radius: 10px; padding: 6px 10px; margin: 8px 0; font-size: .8rem; }

@@ -133,6 +133,13 @@ const ACTIONS = {
     desc: 'Une fois par combat. Chaque mort-vivant : sauvegarde de SAG ou étourdi 2 tours.'
   },
 
+  esprits_gardiens: {
+    nom: 'Esprits gardiens', icone: '👼', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'SAG', dd: 'sort', degats: '3d8', typeDeg: 'radiant', moitie: true,
+    desc: 'Niv. 3. Tous les ennemis : sauvegarde de SAG, 3d8 radiant (moitié si réussite).'
+  },
+
   // ------------------------------- ROUBLARD ---------------------------
   rapiere: {
     nom: 'Rapière', icone: '🗡️', type: 'attaque', arme: true, sournoise: true,
@@ -227,6 +234,13 @@ const ACTIONS = {
     depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
     etat: { nom: 'bouclier', duree: 1 },
     desc: 'Niv. 1. +5 CA jusqu\'à votre prochain tour.'
+  },
+
+  boule_feu: {
+    nom: 'Boule de feu', icone: '💥', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'DEX', dd: 'sort', degats: '8d6', typeDeg: 'feu', moitie: true,
+    desc: 'Niv. 3. Tous les ennemis : sauvegarde de DEX, 8d6 feu (moitié si réussite).'
   },
 
   // ------------------------- ACTIONS COMMUNES ------------------------
