@@ -467,3 +467,24 @@ body { overscroll-behavior: none; }
 .donner { margin-top: 3px; font-size: .76rem; color: var(--discret); }
 .donner .btn.mini { padding: 1px 6px; }
 .sac-equipe { background: var(--panneau2); border-radius: 8px; padding: 6px 9px; font-size: .86rem; margin-bottom: 6px; }
+
+/* ---------- composition d'équipe ---------- */
+.emplacements-equipe { display: flex; gap: 8px; justify-content: center; margin: 8px 0; }
+.place { width: 62px; height: 62px; border: 2px dashed var(--ligne); border-radius: 12px; display: grid; place-items: center; font-size: 1.6rem; color: var(--discret); cursor: pointer; }
+.place.pleine { border-style: solid; border-color: var(--or); background: #4a382044; display: flex; flex-direction: column; justify-content: center; }
+.place small { font-size: .55rem; color: var(--texte); }
+.conseils { font-size: .82rem; margin: 6px 0 10px; min-height: 1.2em; }
+.grille-classes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+@media (min-width: 640px) { .grille-classes { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.carte-classe { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 6px 7px; background: var(--panneau);
+  border: 2px solid var(--ligne); border-top: 4px solid var(--c); border-radius: 12px; cursor: pointer; transition: transform .12s, border-color .12s; }
+.carte-classe:hover { transform: translateY(-2px); }
+.carte-classe.prise { border-color: var(--or); background: #4a382055; box-shadow: 0 0 10px #d8a64a44; }
+.carte-classe.pleine { opacity: .45; }
+.cl-icone { font-size: 1.8rem; }
+.carte-classe b { font-size: .92rem; }
+.cl-role { font-size: .7rem; color: var(--or); }
+.cl-stats { font-size: .68rem; color: var(--discret); }
+.ordre-choix { position: absolute; top: 4px; left: 6px; background: var(--or); color: #1a1208; border-radius: 50%; width: 18px; height: 18px; font-size: .7rem; font-weight: 800; display: grid; place-items: center; }
+.info-classe { position: absolute; top: 2px; right: 3px; background: none; border: none; font-size: .85rem; cursor: pointer; padding: 2px; }
+.boutons-compo { display: flex; gap: 8px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }

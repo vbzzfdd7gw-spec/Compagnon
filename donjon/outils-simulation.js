@@ -13,7 +13,7 @@ function iaPJ(cb, a) {
   // 1) Soins si un allié est à terre ou bas
   const blesses = cb.pjs.filter(p => p.pv <= 0 || p.pv < p.pvMax * 0.35).sort((x, y) => x.pv / x.pvMax - y.pv / y.pvMax);
   if (blesses.length) {
-    for (const id of ['priere_soins', 'mot_guerison', 'soins', 'second_souffle', 'cri_ralliement', 'potion_sup', 'potion']) {
+    for (const id of ['priere_soins', 'imposition', 'mot_guerison', 'soins', 'second_souffle', 'cri_ralliement', 'potion_sup', 'potion']) {
       if (!ids.includes(id)) continue;
       const act = ACTIONS[id];
       if (id === 'second_souffle' && a.pv > a.pvMax * 0.5) continue;
@@ -23,6 +23,13 @@ function iaPJ(cb, a) {
       return [act, c];
     }
   }
+  // 1 bis) Capacités de soutien utiles
+  if (ids.includes('rage') && !a.etats.rage) return [ACTIONS.rage, null];
+  if (ids.includes('marque_chasseur') && !cb.ennemis.some(e => e.marquePar === a.id && e.pv > 0)) {
+    const cs = cb.ciblesValides(a, ACTIONS.marque_chasseur).sort((x, y) => y.pv - x.pv); if (cs.length) return [ACTIONS.marque_chasseur, cs[0]];
+  }
+  if (ids.includes('inspiration') && Math.random() < 0.3) { const cs = cb.ciblesValides(a, ACTIONS.inspiration).filter(p => !p.etats.inspire && p !== a); if (cs.length) return [ACTIONS.inspiration, cs[0]]; }
+  if (ids.includes('chant_courage') && cb.pjs.some(p => p.peur >= 60)) return [ACTIONS.chant_courage, null];
   // 2) Attaque : meilleure espérance de dégâts sur la cible la plus fragile
   let meilleur = null, score = -1;
   for (const id of ids) {
@@ -32,7 +39,7 @@ function iaPJ(cb, a) {
     if (act.consommable && Math.random() < 0.75) continue; // garder les consommables
     const cibles = cb.ciblesValides(a, act);
     if (!cibles.length) continue;
-    const moy = act.degats ? Des.moyenne(act.degats) * (act.nbAttaques || 1) : 6;
+    const moy = act.degats ? Des.moyenne(act.degats) * (act.nbAttaques || 1) : (act.effetSiEchec ? 7 : 2);
     const s = moy * (act.zone ? cibles.length : 1) * (act.type === 'auto' ? 1.2 : 0.65) + (act.sournoise ? 4 : 0);
     if (s > score) { score = s; meilleur = [act, act.zone ? null : cibles.sort((x, y) => x.pv - y.pv)[0]]; }
   }
@@ -54,10 +61,12 @@ function combattre(equipe, rencontre, jeu, force) {
   file.length = 0;
   return { fin, rounds: cb.round };
 }
-function expedition(idC) {
+function expedition(idC, classes) {
   const camp = CAMPAGNES.find(c => c.id === idC);
   const ETAGES = camp.etages;
-  const equipe = ORDRE_CLASSES.map(creerPJ);
+  const equipe = (classes || ORDRE_CLASSES).map(creerPJ);
+  if (!equipe.some(p => p.ligne === 'avant')) equipe[0].ligne = 'avant';
+  if (!equipe.some(p => p.ligne === 'arriere')) equipe[3].ligne = 'arriere';
   const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult, or: 30, equipe, sac: {},
     stock(c) { return c === 'potion' ? this.potions : (this.sac[c] || 0); },
     ajouterStock(c, n = 1) { if (c === 'potion') this.potions += n; else this.sac[c] = (this.sac[c] || 0) + n; },
@@ -119,6 +128,24 @@ var PERTES = {};
 `, ctx);
 const N = parseInt(process.argv[2] || '200');
 const CAMP = process.argv[3] || 'crypte';
+const MODE = process.argv[4] || '';     // 'classes' : équipes aléatoires et bilan par classe
+if (MODE === 'classes') {
+  const stats = {}; let total = 0;
+  const toutes = vm.runInContext('TOUTES_CLASSES', ctx);
+  for (let i = 0; i < N; i++) {
+    // Équipe « raisonnable » : au moins un héros de front et un soigneur
+    let equipe;
+    do { equipe = toutes.slice().sort(() => Math.random() - 0.5).slice(0, 4); }
+    while (!equipe.some(c => vm.runInContext(`CLASSES['${c}'].ligne`, ctx) === 'avant') || !equipe.some(c => vm.runInContext('SOIGNEURS', ctx).includes(c)));
+    const r = vm.runInContext(`expedition('${CAMP}', ${JSON.stringify(equipe)})`, ctx);
+    total += r.ok ? 1 : 0;
+    for (const c of equipe) { stats[c] = stats[c] || { n: 0, v: 0 }; stats[c].n++; stats[c].v += r.ok ? 1 : 0; }
+  }
+  console.log(`Équipes aléatoires : ${Math.round(total / N * 100)} % de victoires (${N} expéditions)`);
+  for (const [c, x] of Object.entries(stats).sort((a, b) => b[1].v / b[1].n - a[1].v / a[1].n))
+    console.log(`  ${c.padEnd(9)} ${String(Math.round(x.v / x.n * 100)).padStart(3)} %  (dans ${x.n} équipes)`);
+  process.exit(0);
+}
 let gagne = 0; const morts = {};
 for (let i = 0; i < N; i++) {
   const r = vm.runInContext(`expedition('${CAMP}')`, ctx);

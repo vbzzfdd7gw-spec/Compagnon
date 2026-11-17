@@ -92,6 +92,12 @@ const PERSOS3D = {
     anims: { attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', soutien: 'Spellcast_Raise' } },
   roublard: { glb: 'rogue_hooded', montrer: ['Knife', 'Knife_Offhand'], anims: { attaque: 'Dualwield_Melee_Attack_Stab', tir: 'Throw', soutien: 'Block' } },
   magicien: { glb: 'mage', montrer: ['2H_Staff'], anims: { attaque: 'Spellcast_Shoot', idle: '2H_Melee_Idle' } },
+  barbare: { glb: 'barbarian', montrer: ['2H_Axe'], anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw', soutien: 'Taunt' } },
+  paladin: { glb: 'knight', montrer: ['1H_Sword', 'Badge_Shield'], cacher: ['Knight_Helmet'], recolorer: 'paladin', anims: { soutien: 'Spellcast_Raise', sort: 'Spellcast_Shoot' } },
+  rodeur: { glb: 'rogue', montrer: ['Knife', '1H_Crossbow'], recolorer: 'rodeur', anims: { attaque: 'Dualwield_Melee_Attack_Stab', tir: '1H_Ranged_Shoot', sort: 'Spellcast_Shoot' } },
+  barde: { glb: 'rogue', montrer: ['Knife'], recolorer: 'barde', anims: { attaque: '1H_Melee_Attack_Stab', sort: 'Spellcast_Shoot', soutien: 'Cheer' } },
+  druide: { glb: 'mage', montrer: ['2H_Staff'], cacher: ['Mage_Hat'], recolorer: 'druide', anims: { attaque: '1H_Melee_Attack_Chop', idle: '2H_Melee_Idle' } },
+  moine: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], recolorer: 'moine', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', tir: 'Unarmed_Melee_Attack_Punch_A', soutien: 'Block' } },
   gobelin: { glb: 'rogue', montrer: ['Knife'], echelle: 0.78, recolorer: 'gobelin', anims: { attaque: '1H_Melee_Attack_Stab', tir: 'Throw' } },
   zombie: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], recolorer: 'zombie', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A' } },
   ogre: { glb: 'barbarian', montrer: ['2H_Axe'], cacher: ['Barbarian_Hat'], echelle: 1.3, recolorer: 'ogre', anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw' } },
@@ -126,6 +132,12 @@ const RECOLORATIONS = {
   gobelin: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [95, 0.5, l * 0.75] : (s > 0.15 ? [30, s * 0.6, l * 0.8] : null),
   zombie: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [100, 0.25, l * 0.72] : (s > 0.1 ? [h, s * 0.3, l * 0.7] : null),
   ogre: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [28, 0.5, l * 0.78] : null,
+  // Héros supplémentaires
+  paladin: (h, s, l) => (s < 0.22 && l > 0.3 && l < 0.92) ? [45, 0.6, Math.min(0.9, l * 1.05)] : (h > 190 && h < 260 && s > 0.2 ? [0, 0, Math.min(0.95, l * 1.4)] : null),
+  rodeur: (h, s, l) => (h >= 10 && h <= 45 && l > 0.55) ? null : (s > 0.15 ? [100, s * 0.6, l * 0.75] : null),
+  barde: (h, s, l) => (h >= 10 && h <= 45 && l > 0.55) ? null : (s > 0.15 ? [330, Math.min(1, s + 0.2), l * 0.95] : null),
+  druide: (h, s, l) => (h > 200 && s > 0.15) ? [105, s * 0.7, l * 0.85] : null,
+  moine: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? null : (s > 0.12 ? [28, Math.min(1, s + 0.3), l * 1.05] : null),
   // Grukk : peau gris-vert de brute
   grukk: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [80, 0.35, l * 0.7] : (s > 0.15 ? [h, s * 0.7, l * 0.75] : null),
   // Chevalier sans repos : os bleutés, armure sombre
