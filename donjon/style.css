@@ -454,3 +454,16 @@ body { overscroll-behavior: none; }
 .art-corps .pour { color: var(--or); font-size: .78rem; }
 .art-corps .desc { color: #d9cbb8; font-size: .78rem; }
 .prix { white-space: nowrap; min-width: 64px; }
+
+/* ---------- raretés, sac, inventaire ---------- */
+.rarete { font-size: .62rem; border: 1px solid; border-radius: 4px; padding: 0 4px; margin-left: 4px; letter-spacing: .04em; vertical-align: middle; }
+.offre.r-rare { border-color: #6aa8ff88; }
+.offre.r-legendaire { border-color: #ffad3b; box-shadow: 0 0 14px #ffad3b44; }
+.offre.r-maudit { border-color: #c060ff99; box-shadow: 0 0 12px #c060ff33; }
+.article.r-rare { border-color: #6aa8ff77; }
+.article.r-legendaire { border-color: #ffad3b; }
+.article.r-maudit { border-color: #c060ff88; }
+.ligne-objet { border-left: 3px solid; padding: 3px 0 3px 7px; margin: 4px 0; font-size: .84rem; }
+.donner { margin-top: 3px; font-size: .76rem; color: var(--discret); }
+.donner .btn.mini { padding: 1px 6px; }
+.sac-equipe { background: var(--panneau2); border-radius: 8px; padding: 6px 9px; font-size: .86rem; margin-bottom: 6px; }

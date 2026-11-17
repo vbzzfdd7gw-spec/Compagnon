@@ -249,10 +249,10 @@ const ACTIONS = {
     depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
     desc: 'Passez de la ligne Avant à la ligne Arrière, ou l\'inverse.'
   },
-  potion: {
-    nom: 'Potion de soins', icone: '🧴', type: 'special', special: 'potion', commune: true,
-    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], inclureATerre: true,
-    desc: 'Vous ou un allié (même à terre) récupère 2d4+2 PV.'
+  sac: {
+    nom: 'Sac', icone: '🎒', type: 'special', special: 'sac', commune: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    desc: 'Ouvre le sac : potions, bombes, parchemins…'
   },
   esquiver: {
     nom: 'Esquiver', icone: '🛡', type: 'soutien', commune: true,
@@ -262,4 +262,41 @@ const ACTIONS = {
   }
 };
 
-const ACTIONS_COMMUNES = ['changer_ligne', 'potion', 'esquiver'];
+const ACTIONS_COMMUNES = ['changer_ligne', 'sac', 'esquiver'];
+
+// Consommables (utilisés depuis le sac ; `consommable` = clé du stock, voir CONSOMMABLES)
+const ACTIONS_SAC = {
+  potion: {
+    nom: 'Potion de soins', icone: '🧴', type: 'soin', consommable: 'potion', special: 'potion',
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], inclureATerre: true,
+    soin: '2d4+2', desc: 'Un allié (même à terre) récupère 2d4+2 PV.'
+  },
+  potion_sup: {
+    nom: 'Potion supérieure', icone: '🍷', type: 'soin', consommable: 'potion_sup', special: 'potion',
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], inclureATerre: true,
+    soin: '4d4+4', desc: 'Un allié (même à terre) récupère 4d4+4 PV.'
+  },
+  elixir_courage: {
+    nom: 'Élixir de courage', icone: '🧉', type: 'soin', consommable: 'elixir_courage', special: 'potion',
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
+    soin: '0', peur: -40, desc: 'Un allié perd 40 Peur.'
+  },
+  bombe: {
+    nom: 'Bombe incendiaire', icone: '💣', type: 'sauvegarde', consommable: 'bombe', zone: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
+    carac: 'DEX', dd: 13, degats: '2d6+2', typeDeg: 'feu', moitie: true,
+    desc: 'Ligne Avant ennemie : sauvegarde de DEX DD 13, 2d6+2 feu (moitié si réussite).'
+  },
+  parchemin_feu: {
+    nom: 'Parchemin de boule de feu', icone: '📜', type: 'sauvegarde', consommable: 'parchemin_feu', zone: true, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'DEX', dd: 14, degats: '6d6', typeDeg: 'feu', moitie: true,
+    desc: 'Tous les ennemis : sauvegarde de DEX DD 14, 6d6 feu (moitié si réussite).'
+  },
+  eau_benite: {
+    nom: 'Eau bénite', icone: '💧', type: 'auto', consommable: 'eau_benite',
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    degats: '3d6', typeDeg: 'radiant', desc: 'Un ennemi : 3d6 radiant, touche automatiquement.'
+  }
+};
+Object.assign(ACTIONS, ACTIONS_SAC);

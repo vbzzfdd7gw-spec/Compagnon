@@ -16,7 +16,8 @@ const ETATS = {
   defi: { nom: 'Défi', icone: '📣', desc: '+2 CA, attire les attaques.', finDebut: true },
   esquive: { nom: 'Esquive', icone: '🌪️', desc: 'Les attaques contre lui ont désavantage.', finDebut: true },
   bouclier: { nom: 'Bouclier', icone: '🔰', desc: '+5 CA.', finDebut: true },
-  cache: { nom: 'Caché', icone: '🌑', desc: 'Prochaine attaque avec avantage.', permanent: true }
+  cache: { nom: 'Caché', icone: '🌑', desc: 'Prochaine attaque avec avantage.', permanent: true },
+  voile: { nom: 'Voile d\'ombre', icone: '🌫️', desc: 'La prochaine attaque qui le toucherait rate.', permanent: true }
 };
 
 const PEUR = {
@@ -34,6 +35,7 @@ class Combat {
     this.jeu = jeu;
     // Puissance des monstres selon l'étage : { pv, toucher, degats, dd, ca }
     this.force = Object.assign({ pv: 1, toucher: 0, degats: 0, dd: 0, ca: 0 }, force || {});
+    if (typeof RENFORT_GLOBAL !== 'undefined') for (const k in RENFORT_GLOBAL) this.force[k] = (this.force[k] || 0) + RENFORT_GLOBAL[k];
     this.pjs = equipe;                 // chaque combattant a une `ligne` : 'avant' ou 'arriere'
     this.ennemis = [];
     this.journal = [];
@@ -126,13 +128,27 @@ class Combat {
       pj.etats = {};
       pj.usages = {};
       if (pj.pv <= 0) this.log(`${this.nomHtml(pj)} est toujours à terre (0 PV) : soignez-le pour qu'il se relève.`, 'mauvais');
-      if (pj.traits.cacheDebut && pj.pv > 0) pj.etats.cache = 99;
+      if (pj.pv <= 0) continue;
+      const t = pj.traits;
+      if (t.cacheDebut) pj.etats.cache = 99;
+      if (t.voile) pj.etats.voile = 99;
+      if (t.phenix) pj.usages.phenixDispo = true;
+      if (t.manaDebut && pj.emplacements[1] && pj.emplacements[1].restant < pj.emplacements[1].max) {
+        pj.emplacements[1].restant++;
+        this.log(`🔮 ${this.nomHtml(pj)} récupère un emplacement de sort (pierre de mana).`, 'bon');
+      }
+      if (t.peurDebut) { this.log(`🪓 Une malédiction murmure à ${this.nomHtml(pj)}…`, 'mauvais'); this.modifierPeur(pj, t.peurDebut); }
+    }
+    // Encensoir / relique : toute l'équipe bénie 2 tours
+    if (this.pjs.some(p => p.pv > 0 && p.traits.benitDebut)) {
+      this.log('🪔 Un parfum sacré se répand : l\'équipe est bénie.', 'bon');
+      for (const p of this.pjs) if (p.pv > 0) p.etats.benit = 3;
     }
     // Initiative
     const tous = [...this.pjs, ...this.ennemis];
     const lignes = [];
     for (const c of tous) {
-      const mod = modCarac(c.caracs.DEX);
+      const mod = modCarac(c.caracs.DEX) + ((c.traits && c.traits.init) || 0);
       const r = Des.d20();
       c.initiative = r.nat + mod + Math.random() * 0.1; // départage
       lignes.push(`${c.nom} ${r.texte}${signe(mod)} = <b>${r.nat + mod}</b>`);
@@ -167,7 +183,13 @@ class Combat {
     if (c.traits && c.traits.regen && c.pv < c.pvMax) {
       const avant = c.pv;
       c.pv = Math.min(c.pvMax, c.pv + c.traits.regen);
-      this.log(`💍 ${this.nomHtml(c)} récupère ${c.pv - avant} PV (anneau).`, 'bon');
+      this.log(`💍 ${this.nomHtml(c)} récupère ${c.pv - avant} PV (objet).`, 'bon');
+    }
+    if (c.traits && c.traits.saigne && c.pv > 1) {
+      const perte = Math.min(c.traits.saigne, c.pv - 1);
+      c.pv -= perte;
+      this.log(`🩸 L'anneau de sang prélève ${perte} PV à ${this.nomHtml(c)}.`, 'mauvais');
+      this.evt({ t: 'degats', cible: c.id, n: perte, crit: false, pvAvant: c.pv + perte, pvApres: c.pv, pvMax: c.pvMax });
     }
 
     if (c.etats.etourdi || c.etats.endormi) {
@@ -239,7 +261,8 @@ class Combat {
     if (action.niveau && !this.emplacementDispo(acteur, action.niveau)) return { ok: false, raison: 'Plus d\'emplacement' };
     if (action.parCombat && (acteur.usages[action.nom] || 0) >= action.parCombat) return { ok: false, raison: 'Déjà utilisée' };
     if (action.recharge && acteur.recharges && acteur.recharges[action.nom] > 0) return { ok: false, raison: 'En recharge' };
-    if (action.special === 'potion' && this.jeu.potions <= 0) return { ok: false, raison: 'Aucune potion' };
+    if (action.consommable && this.jeu.stock(action.consommable) <= 0) return { ok: false, raison: 'Épuisé' };
+    if (action.special === 'sac') return Object.keys(ACTIONS_SAC).some(k => this.jeu.stock(ACTIONS_SAC[k].consommable) > 0) ? { ok: true } : { ok: false, raison: 'Sac vide' };
     if (action.special === 'invoquer' && this.ennemis.filter(e => e.pv > 0).length >= 4) return { ok: false, raison: 'Pas de place' };
     if (action.cible !== 'soi' && this.ciblesValides(acteur, action).length === 0) return { ok: false, raison: 'Aucune cible' };
     return { ok: true };
@@ -284,6 +307,13 @@ class Combat {
       coutTxt = ` <span class="cout">(emplacement niv. ${n})</span>`;
     }
     if (act.parCombat) a.usages[act.nom] = (a.usages[act.nom] || 0) + 1;
+    if (act.consommable) this.jeu.retirerStock(act.consommable);
+    if (act.niveau && a.traits && a.traits.sangSort && a.pv > 1) {
+      const perte = Math.min(a.traits.sangSort, a.pv - 1);
+      a.pv -= perte;
+      this.log(`📕 Le grimoire interdit draine ${perte} PV à ${this.nomHtml(a)}.`, 'mauvais');
+      this.evt({ t: 'degats', cible: a.id, n: perte, crit: false, pvAvant: a.pv + perte, pvApres: a.pv, pvMax: a.pvMax });
+    }
     if (act.recharge) a.recharges[act.nom] = act.recharge;
 
     if (act.deplacement === 'avant' && a.ligne !== 'avant') {
@@ -367,8 +397,15 @@ class Combat {
     let txt = `${r.texte} ${signe(bonus)}`;
     if (a.etats.benit) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
     const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
-    const critique = r.nat === 20;
-    const touche = critique || (r.nat !== 1 && total >= ca);
+    const critique = r.nat >= ((a.traits && a.traits.critMin) || 20);
+    let touche = critique || (r.nat !== 1 && total >= ca);
+    // Cape de l'ombre : la première attaque qui toucherait rate
+    if (touche && c.etats.voile) {
+      delete c.etats.voile;
+      this.log(`→ 🌫️ ${this.nomHtml(c)} se dissout dans l'ombre : l'attaque passe à travers !`, 'bon');
+      this.evt({ t: 'texte', cible: c.id, texte: 'Raté', classe: 'rate' });
+      return false;
+    }
     const raisons = [...av.map(x => '+' + x), ...dv.map(x => '−' + x)].join(', ');
     const pre = numero ? `#${numero} ` : '';
     let ligne = `→ ${pre}🎲 ${txt} = <b>${total}</b> contre CA ${ca}${raisons ? ` <span class="cout">(${raisons})</span>` : ''} : `;
@@ -385,6 +422,11 @@ class Combat {
     let degats = d.total;
     let dTxt = d.texte;
     if (act.arme && a.bonusDegats) { degats += a.bonusDegats; dTxt += ` +${a.bonusDegats} (objet)`; }
+    if (act.arme && a.traits && a.traits.armeElem) {
+      const e = Des.lancer(a.traits.armeElem.des, critique);
+      degats += e.total;
+      dTxt += ` + ${e.texte} ${a.traits.armeElem.type}`;
+    }
     // Attaque sournoise
     if (act.sournoise && !a.sournoiseUtilisee && a.classe === 'roublard' && this.sournoisePossible(a, c, mode)) {
       const s = Des.lancer((a.traits && a.traits.sournoise) || CLASSES.roublard.sournoise, critique);
@@ -396,10 +438,36 @@ class Combat {
 
     if (critique) this.peurCritique(a, c);
     this.infliger(c, degats, act.typeDeg, a, critique);
+    this.effetsApresCoup(a, act, c, degats);
 
     if (act.effetSiTouche && c.pv > 0) this.appliquerEffet(a, act.effetSiTouche, c);
     if (act.recul && c.pv > 0) this.reculer(c, act.recul);
     return true;
+  }
+
+  // Effets d'objets après un coup réussi
+  effetsApresCoup(a, act, c, degats) {
+    const t = a.traits || {}, tc = c.traits || {};
+    // Lame vampirique
+    if (t.vol && act.arme && a.pv > 0) {
+      const gain = Math.min(6, Math.ceil(degats / 2), a.pvMax - a.pv);
+      if (gain > 0) { a.pv += gain; this.log(`→ 🩸 ${this.nomHtml(a)} draine ${gain} PV.`, 'bon'); this.evt({ t: 'soin', cible: a.id, n: gain, pvAvant: a.pv - gain, pvApres: a.pv, pvMax: a.pvMax }); }
+    }
+    // Bâton de foudre : l'éclair rebondit sur un autre ennemi
+    if (t.arcEclair && act.sort && act.type === 'attaque') {
+      const autres = this.adversaires(a).filter(e => e.pv > 0 && e !== c);
+      if (autres.length) {
+        const b = Des.hasard(autres), d = Des.lancer(t.arcEclair);
+        this.log(`→ ⚡ L'éclair rebondit sur ${this.nomHtml(b)} : ${d.texte} tonnerre.`, 'jet');
+        this.infliger(b, d.total, 'tonnerre', a, false);
+      }
+    }
+    // Armure à épines : l'attaquant au corps à corps se blesse
+    if (tc.epines && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && a.pv > 0) {
+      const d = Des.lancer(tc.epines);
+      this.log(`→ 🌵 Les épines de ${this.nomHtml(c)} blessent ${this.nomHtml(a)} : ${d.texte}.`, 'jet');
+      this.infliger(a, d.total, 'perforant', c, false);
+    }
   }
 
   sournoisePossible(a, c, mode) {
@@ -512,6 +580,9 @@ class Combat {
       else if (m.resist && m.resist.includes(type)) { n = Math.floor(n / 2); note = ' (résistance ÷2)'; }
       else if (m.vuln && m.vuln.includes(type)) { n = n * 2; note = ' (vulnérable ×2)'; }
       if (note) this.log(`→ ${this.nomHtml(c)}${note} : ${n} dégâts.`, 'jet');
+    } else if (c.traits && c.traits.resist && c.traits.resist.includes(type)) {
+      n = Math.floor(n / 2);
+      this.log(`→ ${this.nomHtml(c)} résiste (${type}, ÷2) : ${n} dégâts.`, 'jet');
     }
     if (n <= 0) { this.evt({ t: 'texte', cible: c.id, texte: 'Immunisé', classe: 'rate' }); return; }
     const pvAvant = Math.max(0, c.pv);
@@ -532,6 +603,12 @@ class Combat {
         this.evt({ t: 'mort', cible: c.id });
         this.log(`☠ ${this.nomHtml(c)} est vaincu !`, 'bon');
         if (source && source.camp === 'pj') this.modifierPeur(source, PEUR.ennemiTue, true);
+      } else if (c.usages && c.usages.phenixDispo) {
+        // Amulette du phénix
+        c.usages.phenixDispo = false;
+        c.pv = Math.min(10, c.pvMax);
+        this.log(`🐦‍🔥 ${this.nomHtml(c)} renaît de ses cendres avec ${c.pv} PV !`, 'bon');
+        this.evt({ t: 'soin', cible: c.id, n: c.pv, pvAvant: 0, pvApres: c.pv, pvMax: c.pvMax });
       } else {
         c.etats = {};
         this.evt({ t: 'mort', cible: c.id, pj: true });
@@ -547,7 +624,7 @@ class Combat {
     if (n > 0 && this.jeu && this.jeu.peurMult) n = Math.round(n * this.jeu.peurMult);
     if (n > 0 && pj.traits.peurReduite) n = Math.ceil(n / 2);
     const avant = pj.peur;
-    pj.peur = Math.max(0, Math.min(100, pj.peur + n));
+    pj.peur = Math.max((pj.traits && pj.traits.peurMin) || 0, Math.min(100, pj.peur + n));
     const diff = pj.peur - avant;
     if (diff === 0) return;
     this.evt({ t: 'peur', cible: pj.id, n: diff, avant, apres: pj.peur });
@@ -607,9 +684,9 @@ const SPECIAUX = {
   },
 
   potion(cb, a, act, cible) {
-    cb.jeu.potions--;
-    cb.resoudreSoin({}, { soin: '2d4+2' }, cible);
+    cb.resoudreSoin({}, act, cible);
   },
+  sac() { /* ouvert par l'interface, jamais exécuté */ },
 
   sommeil(cb, a, act, cibles) {
     const d = Des.lancer('5d8');

@@ -31,7 +31,8 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Une campagne** : une entrée dans `CAMPAGNES` avec ses `etages` et `apres` (campagne à terminer pour la débloquer).
 - **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une rencontre de `RENCONTRES` (`{ avant: [...], arriere: [...] }`).
 - **Une action** : une entrée dans `ACTIONS`, puis son identifiant dans `actions` ou `poolActions` d'une classe.
-- **Un objet** : une entrée dans `OBJETS` avec une fonction `appliquer(pj)`.
+- **Un objet** : une entrée dans `OBJETS` avec sa `rarete` et ses effets dans `mods` (bonus chiffrés et `traits` lus par le moteur de combat ; liste en tête de `objets.js`). Les objets peuvent ainsi être donnés d'un héros à l'autre.
+- **Un consommable** : une entrée dans `CONSOMMABLES` (`objets.js`) et l'action correspondante dans `ACTIONS_SAC` (`actions.js`).
 - **Le marchand et l'or** : `Marchand` et `GAINS_OR` dans `objets.js`.
 - **Un événement** : un objet dans `EVENEMENTS` avec des `choix` qui ont une fonction `resoudre(jeu)`.
 - **Un effet spécial** : un type `'special'` et une fonction du même nom dans `SPECIAUX` (`combat.js`).
@@ -45,7 +46,8 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 
 `node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions complètes sans affichage (stratégie simple : soigner
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
-Réglage actuel : environ 50 % de victoires pour la Crypte, 38 % pour la Horde, 22 % pour l'Éclipse.
+Réglage actuel : environ 50 % de victoires pour la Crypte, 36 % pour la Horde, 20 % pour l'Éclipse.
+`RENFORT_GLOBAL` (`etages.js`) ajuste la puissance de tous les monstres d'un coup.
 
 ## Crédits graphiques
 
