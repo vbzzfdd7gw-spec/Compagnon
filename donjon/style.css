@@ -87,11 +87,11 @@ body { overscroll-behavior: none; }
 .titre-carte { font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .boutons-barre { display: flex; gap: 5px; flex-shrink: 0; }
 .carte-conteneur {
-  flex: 1; min-height: 0; display: flex; justify-content: center;
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   background: radial-gradient(ellipse at center, #2a2119, #14110f 78%);
   border: 1px solid var(--ligne); border-radius: 14px; padding: 4px;
 }
-.carte-svg { height: 100%; width: 100%; display: block; }
+.carte-svg { width: 100%; max-width: 440px; height: auto; display: block; margin: 0 auto; }
 .carte-svg .lien { stroke: #4a3d31; stroke-width: 2.5; stroke-dasharray: 5 5; }
 .carte-svg .lien.parcouru { stroke: var(--or); stroke-dasharray: none; stroke-width: 3; }
 .carte-svg .lien.possible { stroke: #e9c98a; stroke-dasharray: none; }
