@@ -9,6 +9,7 @@ const Jeu = {
   equipe: [],
   carte: null,
   potions: 2,
+  etage: 0,
   reposLongUtilise: false,
   combat: null,
   offres: null,
@@ -24,6 +25,7 @@ const Jeu = {
     this.equipe = ORDRE_CLASSES.map(creerPJ);
     this.carte = Carte.generer();
     this.potions = 2;
+    this.etage = 0;
     this.reposLongUtilise = false;
     this.stats = { combats: 0, ennemis: 0, salles: 0 };
     this.allerCarte();
@@ -42,7 +44,7 @@ const Jeu = {
   sauvegarder() {
     try {
       localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
-        equipe: this.equipe, carte: this.carte, potions: this.potions,
+        equipe: this.equipe, carte: this.carte, potions: this.potions, etage: this.etage,
         reposLongUtilise: this.reposLongUtilise, stats: this.stats
       }));
     } catch (e) { /* stockage indisponible : on continue sans sauvegarde */ }
@@ -56,6 +58,8 @@ const Jeu = {
     try {
       const d = JSON.parse(localStorage.getItem(CLE_SAUVEGARDE));
       Object.assign(this, d);
+      this.etage = this.etage || 0;
+      this.equipe.forEach(p => { p.niveau = p.niveau || 3; });
       // Sauvegardes d'avant les lignes : les deux premiers devant
       this.equipe.forEach((p, i) => { if (!p.ligne) p.ligne = i < 2 ? 'avant' : 'arriere'; });
       this.allerCarte();
@@ -104,9 +108,9 @@ const Jeu = {
     this.noeudActuel = n;
     this.stats.salles++;
     switch (n.type) {
-      case 'combat': return this.lancerCombat(Des.hasard(RENCONTRES[Carte.niveau(n)]), 'combat');
-      case 'elite': return this.lancerCombat(Des.hasard(RENCONTRES.elite), 'elite');
-      case 'boss': return this.lancerCombat(Des.hasard(RENCONTRES.boss), 'boss');
+      case 'combat': return this.lancerCombat(Des.hasard(this.rencontres()[Carte.niveau(n)]), 'combat');
+      case 'elite': return this.lancerCombat(Des.hasard(this.rencontres().elite), 'elite');
+      case 'boss': return this.lancerCombat(Des.hasard(this.rencontres().boss), 'boss');
       case 'repos': this.repos = { mode: null }; this.ecran = 'repos'; return Ui.rendu();
       case 'tresor': return this.ouvrirTresor();
       case 'evenement':
@@ -116,9 +120,28 @@ const Jeu = {
     }
   },
 
+  rencontres() { return ETAGES[this.etage].rencontres; },
+  dernierEtage() { return this.etage >= ETAGES.length - 1; },
+
+  // Boss d'étage vaincu : niveau supérieur, repos complet, nouvelle carte
+  etageSuivant() {
+    this.etage++;
+    const lignes = [];
+    for (const pj of this.equipe) {
+      const gains = monterNiveau(pj);
+      pj.peur = 0;
+      lignes.push(`${pj.icone} <b>${pj.nom}</b> niveau ${pj.niveau} : ${gains.join(', ')}`);
+    }
+    this.reposLongUtilise = false;
+    this.carte = Carte.generer();
+    const e = ETAGES[this.etage];
+    this.proposerRecompenses(Recompenses.generer(this.equipe, { elite: true }), `⬇️ ${e.nom}`,
+      `<i>${e.intro}</i><br><b>L'équipe monte au niveau ${this.equipe[0].niveau}</b> et récupère toutes ses forces.<div class="gains">${lignes.map(l => `<div>${l}</div>`).join('')}</div>Choisissez le butin du boss :`);
+  },
+
   // ------------------------------------------------------- combat
   lancerCombat(rencontre, type) {
-    this.combat = new Combat(this.equipe, rencontre, this);
+    this.combat = new Combat(this.equipe, rencontre, this, ETAGES[this.etage].force);
     this.combat.type = type;
     this.combat.surMaj = () => Ui.majCombat();
     this.combat.surFin = r => this.finCombat(r);
@@ -138,6 +161,7 @@ const Jeu = {
       return Ui.rendu();
     }
     this.stats.combats++;
+    if (type === 'boss' && !this.dernierEtage()) { this.potions++; return this.etageSuivant(); }
     if (type === 'boss') {
       this.finale = 'victoire';
       this.ecran = 'fin';

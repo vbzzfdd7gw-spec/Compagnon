@@ -158,6 +158,18 @@ const Modeles3D = {
 
   victoire(ids) { ids.forEach(id => this.anim(id, 'victoire')); },
 
+  // Ambiance de l'étage : brouillard, teinte du sol, couleur des lumières
+  theme(nom) {
+    if (!this.actif) return;
+    const t = THEMES_3D[nom] || THEMES_3D.crypte;
+    this.themeCourant = t;
+    this.scene.fog.color.setHex(t.brouillard);
+    this.renderer.setClearColor(t.brouillard, 1);
+    this.scene.children.forEach(o => { if (o.isHemisphereLight) { o.color.setHex(t.ciel); o.intensity = t.ambiance; } });
+    this.decor.braseros.forEach(b => b.userData.lum.color.setHex(t.flamme));
+    this.taille = { w: 0, h: 0 };   // reconstruit le décor
+  },
+
   // Point du sol sous un pixel du canvas
   pointSol(px, py) {
     const ndc = new THREE.Vector2(px / this.taille.w * 2 - 1, -(py / this.taille.h * 2 - 1));
@@ -223,7 +235,7 @@ const Modeles3D = {
       if (this.decorKK) { this.scene.remove(this.decorKK.groupe); }
       const zMur = pt(0.5, 0.03).z - 0.2;
       const bords = z => this.largeurA(z);
-      this.decorKK = construireDecorKK(this.scene, zMur, bords);
+      this.decorKK = construireDecorKK(this.scene, zMur, bords, this.themeCourant || THEMES_3D.crypte);
       this.decor.piliers.forEach(p => { p.visible = false; });
       this.decor.front.visible = false;
       this.decor.solProc.visible = false;
@@ -403,6 +415,12 @@ const Modeles3D = {
       return true;
     });
   }
+};
+
+const THEMES_3D = {
+  crypte: { brouillard: 0x0e0a08, ciel: 0xffe2c0, ambiance: 0.38, sol: 0x8f8072, flamme: 0xff9a40 },
+  grotte: { brouillard: 0x08100e, ciel: 0xb8e0d0, ambiance: 0.33, sol: 0x6f7a62, flamme: 0x9aff7a },
+  sanctuaire: { brouillard: 0x12060c, ciel: 0xffb0c8, ambiance: 0.36, sol: 0x8a6a72, flamme: 0xd070ff }
 };
 
 const COULEURS_DEGATS = {

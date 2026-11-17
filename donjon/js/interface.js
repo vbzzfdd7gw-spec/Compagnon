@@ -83,7 +83,7 @@ const Ui = {
   ecranCarte() {
     return `<div class="ecran-carte">
       <header class="barre">
-        <div class="titre-carte"><b>Les Cryptes</b> <span class="discret">· choisissez une salle</span></div>
+        <div class="titre-carte"><b>${ETAGES[Jeu.etage].nom}</b> <span class="discret">· étage ${Jeu.etage + 1}/${ETAGES.length} · niv. ${Jeu.equipe[0].niveau || 3}</span></div>
         <div class="boutons-barre">
           ${this.boutonsAudio()}
           <button class="btn petit" data-clic="equipe">👥 Équipe</button>
@@ -128,7 +128,7 @@ const Ui = {
       <p class="petit">Touchez la ligne d'un héros pour le placer à l'Avant (corps à corps, protège l'arrière) ou à l'Arrière (à l'abri du corps à corps).</p>
       ${Jeu.equipe.map(p => `<div class="fiche">
         <div class="fiche-tete">
-          <b>${p.icone} ${p.nom}</b>
+          <b>${p.icone} ${p.nom}</b> <span class="discret">niv. ${p.niveau || 3}</span>
           <span class="fleches">
             <button class="btn mini ${p.ligne === 'avant' ? 'principal' : ''}" data-clic="ligne" data-pj="${p.id}" ${p.ligne === 'avant' ? 'disabled' : ''}>Avant</button>
             <button class="btn mini ${p.ligne === 'arriere' ? 'principal' : ''}" data-clic="ligne" data-pj="${p.id}" ${p.ligne === 'arriere' ? 'disabled' : ''}>Arrière</button>
@@ -220,6 +220,7 @@ const Ui = {
 
   apresRenduCombat() {
     this.majCombat();
+    Modeles3D.theme(ETAGES[Jeu.etage].theme);
     Modeles3D.attacher($('#scene'));
   },
 
@@ -544,7 +545,7 @@ const Ui = {
     const libelles = { objet: 'Objet magique', action: 'Nouvelle action', amelioration: 'Amélioration' };
     return `<div class="ecran-centre">
       <h2>${Jeu.titreOffres}</h2>
-      ${Jeu.sousTitreOffres ? `<p>${Jeu.sousTitreOffres}</p>` : '<p>Choisissez une récompense.</p>'}
+      ${Jeu.sousTitreOffres ? `<div class="sous-titre-offres">${Jeu.sousTitreOffres}</div>` : '<p>Choisissez une récompense.</p>'}
       <div class="offres">${Jeu.offres.map((o, i) => {
         const pj = Jeu.equipe.find(p => p.id === o.pj);
         return `<button class="offre ${o.categorie}" data-offre="${i}">
@@ -611,7 +612,7 @@ const Ui = {
       <div class="logo">${v ? '👑' : '🪦'}</div>
       <h1>${v ? 'Victoire !' : 'L\'expédition a échoué'}</h1>
       <p>${v ? 'Morvagne la Nécromancienne n\'est plus. Les cryptes retrouvent le silence.' : 'Les ténèbres des cryptes ont englouti votre équipe.'}</p>
-      <p>Salles explorées : ${Jeu.stats.salles} · Combats gagnés : ${Jeu.stats.combats}</p>
+      <p>Étage atteint : ${Jeu.etage + 1}/${ETAGES.length} (${ETAGES[Jeu.etage].nom}) · Salles explorées : ${Jeu.stats.salles} · Combats gagnés : ${Jeu.stats.combats}</p>
       <button class="btn principal" data-clic="nouvelle">Nouvelle expédition</button>
       <button class="btn" data-clic="titre">Écran titre</button>
     </div>`;

@@ -142,7 +142,7 @@ const Recompenses = {
     const possibles = [];
     for (const pj of equipe) {
       for (const cle of CLASSES[pj.classe].poolActions) {
-        if (!pj.actions.includes(cle)) possibles.push({ pj, cle });
+        if (!pj.actions.includes(cle) && (pj.niveau || 3) >= (ACTIONS[cle].niveauMin || 0)) possibles.push({ pj, cle });
       }
     }
     if (!possibles.length) return null;

@@ -8,7 +8,7 @@
 //   ligne           : ligne de départ ('avant' ou 'arriere')
 // =====================================================================
 
-const MAX_ACTIONS = 4;
+const MAX_ACTIONS = 5;
 
 const CLASSES = {
   guerrier: {
@@ -28,7 +28,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['SAG', 'CHA'], deVie: 8, emplacements: { 1: 4, 2: 2 },
     actions: ['masse', 'flamme_sacree', 'soins', 'benediction'],
-    poolActions: ['mot_guerison', 'paroles_espoir', 'priere_soins', 'renvoi'],
+    poolActions: ['mot_guerison', 'paroles_espoir', 'priere_soins', 'renvoi', 'esprits_gardiens'],
     desc: 'Soigne, bénit et calme la Peur. Emplacements de sorts limités.'
   },
   roublard: {
@@ -49,7 +49,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 6, emplacements: { 1: 4, 2: 2 },
     actions: ['trait_feu', 'projectile_magique', 'mains_brulantes', 'rayon_ardent'],
-    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'bouclier_sort'],
+    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'bouclier_sort', 'boule_feu'],
     desc: 'Fragile mais dévastateur depuis l\'arrière. Emplacements de sorts limités.'
   }
 };
@@ -70,6 +70,7 @@ function creerPJ(idClasse) {
     sauvegardes: c.sauvegardes.slice(),
     desVie: { face: c.deVie, restant: 3, max: 3 },
     emplacements,
+    niveau: 3,
     actions: c.actions.slice(),
     objets: [],
     peur: 0,
@@ -77,4 +78,67 @@ function creerPJ(idClasse) {
     usages: {},
     traits: {}
   };
+}
+
+// ---------------------------------------------------------------------
+// Montée de niveau (après chaque boss d'étage)
+//   pv          : PV gagnés par classe
+//   emplacements: emplacements de sorts gagnés { niveau: nombre }
+//   maitrise    : +1 au bonus de maîtrise (attaques, DD, sauvegardes maîtrisées)
+//   bonus       : +1 arme ou sort
+//   traits      : capacités (attaqueSupp, sournoise)
+//   sort        : sort appris (s'il reste de la place, sinon proposé en récompense)
+// ---------------------------------------------------------------------
+const PROGRESSION = {
+  4: {
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5 },
+    emplacements: { clerc: { 2: 1 }, magicien: { 2: 1 } },
+    bonus: { guerrier: 'arme', roublard: 'arme', clerc: 'sort', magicien: 'sort' }
+  },
+  5: {
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5 },
+    maitrise: true,
+    emplacements: { clerc: { 3: 2 }, magicien: { 3: 2 } },
+    traits: { guerrier: { attaqueSupp: true }, roublard: { sournoise: '3d6' } },
+    sort: { magicien: 'boule_feu', clerc: 'esprits_gardiens' }
+  }
+};
+
+// Applique le niveau suivant ; renvoie la liste des gains (texte)
+function monterNiveau(pj) {
+  const niv = (pj.niveau || 3) + 1;
+  const p = PROGRESSION[niv];
+  if (!p) return [];
+  pj.niveau = niv;
+  const gains = [];
+  const pv = p.pv[pj.classe] || 0;
+  pj.pvMax += pv; pj.pv = pj.pvMax;
+  pj.desVie.max += 1; pj.desVie.restant = pj.desVie.max;
+  gains.push(`+${pv} PV`);
+  if (p.maitrise) {
+    pj.maitrise += 1; pj.bonusArme += 1;
+    if (pj.ddSort) { pj.bonusSort += 1; pj.ddSort += 1; }
+    gains.push('maîtrise +3 (+1 attaques et DD)');
+  }
+  const b = p.bonus && p.bonus[pj.classe];
+  if (b === 'arme') { pj.bonusArme += 1; gains.push('+1 au toucher'); }
+  if (b === 'sort') { pj.bonusSort += 1; pj.ddSort += 1; gains.push('+1 sorts et DD'); }
+  for (const [n, k] of Object.entries((p.emplacements && p.emplacements[pj.classe]) || {})) {
+    if (!pj.emplacements[n]) pj.emplacements[n] = { max: 0, restant: 0 };
+    pj.emplacements[n].max += k;
+    gains.push(`+${k} emplacement${k > 1 ? 's' : ''} niv. ${n}`);
+  }
+  for (const n in pj.emplacements) pj.emplacements[n].restant = pj.emplacements[n].max;
+  const t = p.traits && p.traits[pj.classe];
+  if (t) {
+    Object.assign(pj.traits, t);
+    if (t.attaqueSupp) gains.push('Attaque supplémentaire (2 coups avec les armes)');
+    if (t.sournoise) gains.push(`attaque sournoise ${t.sournoise}`);
+  }
+  const sort = p.sort && p.sort[pj.classe];
+  if (sort && !pj.actions.includes(sort)) {
+    if (pj.actions.length < MAX_ACTIONS) { pj.actions.push(sort); gains.push(`nouveau sort : ${ACTIONS[sort].nom}`); }
+    else gains.push(`${ACTIONS[sort].nom} peut maintenant être appris en récompense`);
+  }
+  return gains;
 }

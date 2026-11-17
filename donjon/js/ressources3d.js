@@ -98,6 +98,12 @@ const PERSOS3D = {
   cultiste: { glb: 'rogue_hooded', montrer: ['Knife'], recolorer: 'cultiste', anims: { attaque: '1H_Melee_Attack_Stab', sort: 'Spellcast_Shoot' } },
   squelette: { glb: 'skeleton_warrior', armes: { droite: 'skeleton_blade', gauche: 'skeleton_shield_small_a' },
     anims: { idle: 'Idle_Combat', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
+  mage_squelette: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' },
+    anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
+  grukk: { glb: 'barbarian', montrer: ['2H_Axe'], cacher: ['Barbarian_Hat'], echelle: 1.45, recolorer: 'grukk',
+    anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw', sort: 'Taunt', soutien: 'Taunt' } },
+  chevalier_squelette: { glb: 'skeleton_warrior', armes: { droite: 'skeleton_blade', gauche: 'skeleton_shield_small_a' }, echelle: 1.3, recolorer: 'spectre',
+    anims: { idle: 'Idle_Combat', attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Taunt', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
   morvagne: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' }, echelle: 1.12, recolorer: 'necro',
     anims: { attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose', soutien: 'Taunt' } }
 };
@@ -115,6 +121,10 @@ const RECOLORATIONS = {
   gobelin: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [95, 0.5, l * 0.75] : (s > 0.15 ? [30, s * 0.6, l * 0.8] : null),
   zombie: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [100, 0.25, l * 0.72] : (s > 0.1 ? [h, s * 0.3, l * 0.7] : null),
   ogre: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [28, 0.5, l * 0.78] : null,
+  // Grukk : peau gris-vert de brute
+  grukk: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [80, 0.35, l * 0.7] : (s > 0.15 ? [h, s * 0.7, l * 0.75] : null),
+  // Chevalier sans repos : os bleutés, armure sombre
+  spectre: (h, s, l) => (s < 0.2 && l > 0.6) ? [200, 0.35, l * 0.9] : (s > 0.15 ? [215, s * 0.6, l * 0.6] : null),
   // Nécromancienne : tenue violet profond
   necro: (h, s, l) => (s > 0.2 && h > 150 && h < 270) ? [280, Math.min(1, s + 0.15), l * 0.75] : null
 };
@@ -244,7 +254,7 @@ function piece(nom, x, z, ry = 0, ech = ECHELLE_DECOR) {
 }
 
 // Construit le décor ; zMur = position du mur du fond, bords = fonction(zMonde) → demi-largeur visible
-function construireDecorKK(scene, zMur, bords) {
+function construireDecorKK(scene, zMur, bords, theme) {
   const groupe = new THREE.Group();
   const S = ECHELLE_DECOR, T = 4 * S;
   // Sol : dalles de 2 × 2
@@ -258,7 +268,7 @@ function construireDecorKK(scene, zMur, bords) {
     (r < 0.05 ? rocs : normales).push(m4(x, z, ry));
   }
   const dalles = [...instancierPiece('floor_tile_large', normales, false), ...instancierPiece('floor_tile_large_rocks', rocs, false)]
-  dalles.forEach(o => { o.material = o.material.clone(); o.material.color.setHex(0x8f8072); groupe.add(o); });
+  dalles.forEach(o => { o.material = o.material.clone(); o.material.color.setHex(theme.sol); groupe.add(o); });
 
   // Mur du fond
   const types = ['wall', 'wall_arched', 'wall', 'wall_cracked', 'wall', 'wall_arched', 'wall_broken'];
@@ -288,10 +298,10 @@ function construireDecorKK(scene, zMur, bords) {
   // Lumière et flamme des torches murales
   const flammes = [];
   for (const t of torches) {
-    const lum = new THREE.PointLight(0xff9a40, 1.4, 6, 1.7);
+    const lum = new THREE.PointLight(theme.flamme, 1.4, 6, 1.7);
     lum.position.set(t.position.x, 2.0, zMur + 0.7);
     groupe.add(lum);
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturePoint(), color: 0xffa040, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturePoint(), color: theme.flamme, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
     sp.scale.set(0.9, 1.2, 1);
     sp.position.set(t.position.x, 1.85, zMur + 0.52);
     groupe.add(sp);

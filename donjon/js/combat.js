@@ -30,8 +30,10 @@ const PEUR = {
 
 class Combat {
   // rencontre : { avant: [ids], arriere: [ids] }
-  constructor(equipe, rencontre, jeu) {
+  constructor(equipe, rencontre, jeu, force) {
     this.jeu = jeu;
+    // Puissance des monstres selon l'étage : { pv, toucher, degats, dd, ca }
+    this.force = Object.assign({ pv: 1, toucher: 0, degats: 0, dd: 0, ca: 0 }, force || {});
     this.pjs = equipe;                 // chaque combattant a une `ligne` : 'avant' ou 'arriere'
     this.ennemis = [];
     this.journal = [];
@@ -63,12 +65,20 @@ class Combat {
   }
 
   creerMonstre(id, suffixe = '') {
-    const d = MONSTRES[id];
+    const d = MONSTRES[id], f = this.force || { pv: 1, toucher: 0, degats: 0, dd: 0, ca: 0 };
+    const pv = Math.round(d.pv * f.pv);
+    const actions = d.actions.map(a => {
+      const b = { ...a };
+      if (typeof a.jet === 'number') b.jet = a.jet + f.toucher;
+      if (typeof a.dd === 'number') b.dd = a.dd + f.dd;
+      if (a.degats && f.degats) b.degats = a.degats + '+' + f.degats;
+      return b;
+    });
     return {
       id: 'm' + (++this.compteur), modele: id, camp: 'ennemi',
       nom: d.nom + suffixe, icone: d.icone,
-      pv: d.pv, pvMax: d.pv, ca: d.ca, caracs: d.caracs,
-      actions: d.actions, etats: {}, usages: {}, recharges: {},
+      pv, pvMax: pv, ca: d.ca + f.ca, caracs: d.caracs,
+      actions, etats: {}, usages: {}, recharges: {},
       boss: !!d.boss, elite: !!d.elite
     };
   }
@@ -293,9 +303,11 @@ class Combat {
     switch (act.type) {
       case 'attaque':
         for (const c of cibles) {
-          for (let i = 0; i < (act.nbAttaques || 1); i++) {
+          // Attaque supplémentaire (Guerrier niv. 5) : deux coups avec les armes
+          const nb = act.nbAttaques || (act.arme && !act.zone && a.traits && a.traits.attaqueSupp ? 2 : 1);
+          for (let i = 0; i < nb; i++) {
             if (c.pv <= 0) break;
-            this.resoudreAttaque(a, act, c, act.nbAttaques > 1 ? i + 1 : 0);
+            this.resoudreAttaque(a, act, c, nb > 1 ? i + 1 : 0);
           }
         }
         break;
@@ -375,7 +387,7 @@ class Combat {
     if (act.arme && a.bonusDegats) { degats += a.bonusDegats; dTxt += ` +${a.bonusDegats} (objet)`; }
     // Attaque sournoise
     if (act.sournoise && !a.sournoiseUtilisee && a.classe === 'roublard' && this.sournoisePossible(a, c, mode)) {
-      const s = Des.lancer(CLASSES.roublard.sournoise, critique);
+      const s = Des.lancer((a.traits && a.traits.sournoise) || CLASSES.roublard.sournoise, critique);
       degats += s.total;
       dTxt += ` + sournoise ${s.texte}`;
       a.sournoiseUtilisee = true;
