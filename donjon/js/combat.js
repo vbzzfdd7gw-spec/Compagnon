@@ -275,7 +275,8 @@ class Combat {
     const cibles = act.zone ? this.ciblesValides(a, act) : (act.cible === 'soi' ? [a] : [cible]);
     const distance = act.cible === 'ennemi' && (act.sort || act.vise.includes('arriere') || act.type === 'sauvegarde' || act.type === 'auto');
     this.evt({ t: 'action', source: a.id, camp: a.camp, nom: act.nom, icone: act.icone || '✦',
-      cibles: cibles.map(c => c.id), melee: act.cible === 'ennemi' && !distance, distance });
+      cibles: cibles.map(c => c.id), melee: act.cible === 'ennemi' && !distance, distance,
+      typeAct: act.type, typeDeg: act.typeDeg, sort: !!act.sort, special: act.special || null });
 
     switch (act.type) {
       case 'attaque':

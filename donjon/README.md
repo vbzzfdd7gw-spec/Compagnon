@@ -19,6 +19,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/carte.js` | Génération et dessin de la carte |
 | `js/jeu.js` | État de la partie, enchaînement des écrans, repos, sauvegarde |
 | `js/modeles3d.js` | Scène 3D cartoon : diorama, figurines chibi (`FIGURINES`), particules |
+| `js/ressources3d.js` | Chargement des modèles animés, équipement et couleurs de chaque personnage (`PERSOS3D`), décor KayKit |
 | `js/interface.js` | Affichage et clics |
 | `lib/three.min.js` | Three.js 0.149 (licence MIT), embarqué pour jouer hors ligne |
 
@@ -33,3 +34,12 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Un état** (étourdi, béni…) : une entrée dans `ETATS` (`combat.js`).
 
 Les valeurs de Peur sont regroupées dans la constante `PEUR` (`combat.js`).
+
+## Crédits graphiques
+
+Personnages, animations et décor : packs **KayKit** de Kay Lousberg (Adventurers, Skeletons, Dungeon Remastered),
+licence CC0 — https://kaylousberg.com. Les fichiers `modeles/*.js` sont ces modèles allégés (animations triées,
+géométrie compressée) puis emballés en base64 pour fonctionner aussi en ouvrant `index.html` directement.
+Le script `modeles/construire.mjs` (gltf-transform) les régénère.
+
+Moteur 3D : three.js r149 (licence MIT), avec GLTFLoader et SkeletonUtils convertis en scripts classiques.
