@@ -40,6 +40,7 @@ const Ui = {
     Son.ambiance(Jeu.ecran === 'combat' ? (Jeu.combat && Jeu.combat.type === 'boss' ? 'boss' : 'combat') : Jeu.ecran === 'fin' ? null : 'carte');
     app.dataset.ecran = Jeu.ecran;
     if (Jeu.ecran === 'carte') this.defilerCarte();
+    if (Jeu.ecran === 'titre') Modeles3D.attacher($('#scene'), { vitrine: true });
     if (Jeu.ecran === 'combat') this.apresRenduCombat();
   },
 
@@ -57,17 +58,30 @@ const Ui = {
 
   // ----------------------------------------------------------- titre
   ecranTitre() {
-    return `<div class="titre-ecran">
-      <div class="logo">🕯️</div>
-      <h1>Cryptes &amp; Dés</h1>
-      <p class="sous-titre">Un roguelike au tour par tour, règles D&amp;D 5e</p>
-      <div class="pile-boutons">
-        ${Jeu.sauvegardeExiste() ? '<button class="btn principal" data-clic="continuer">Continuer l\'expédition</button>' : ''}
-        <button class="btn ${Jeu.sauvegardeExiste() ? '' : 'principal'}" data-clic="nouvelle">Nouvelle expédition</button>
-        <button class="btn" data-clic="regles">Règles</button>
+    const equipe = (Reglages.equipe && Reglages.equipe.every(c => CLASSES[c])) ? Reglages.equipe : ORDRE_CLASSES;
+    const sauve = Jeu.sauvegardeExiste();
+    return `<div class="accueil">
+      <div class="logo-zone">
+        <div class="logo-titre">Cryptes <span class="esperluette">&amp;</span> Dés</div>
+        <div class="logo-sous">Roguelike · D&amp;D 5e</div>
       </div>
-      <div class="audio-titre">${this.boutonsAudio()}</div>
-      <div class="equipe-titre">${ORDRE_CLASSES.map(c => `<span title="${CLASSES[c].nom}">${CLASSES[c].icone}</span>`).join('')}</div>
+      <div class="scene vitrine" id="scene">
+        <div class="rangee-scene pj avant vitrine-rang">${equipe.map(k => `<div class="combattant pj" data-id="v-${k}" data-modele="${k}">
+          <div class="figure"><span class="sprite">${CLASSES[k].icone}</span></div>
+          <div class="nom">${CLASSES[k].nom}</div></div>`).join('')}</div>
+      </div>
+      <div class="accueil-bas">
+        ${sauve ? '<button class="plaque principale" data-clic="continuer">▶ Continuer l\'expédition</button>' : ''}
+        <button class="plaque ${sauve ? '' : 'principale'}" data-clic="nouvelle">⚔️ Nouvelle expédition</button>
+        <div class="accueil-outils">
+          <button class="btn-icone" data-clic="regles" title="Règles">📖</button>
+          ${this.boutonsAudio()}
+        </div>
+        <div class="progression">${CAMPAGNES.map(c => {
+          const ok = Progression.debloquee(c), v = Progression.victoires(c);
+          return `<span class="prog ${ok ? '' : 'verrou'} ${v ? 'faite' : ''}" title="${c.nom}">${ok ? c.icone : '🔒'}<small>${v ? '✅' : '★'.repeat(c.difficulte)}</small></span>`;
+        }).join('')}</div>
+      </div>
     </div>`;
   },
 

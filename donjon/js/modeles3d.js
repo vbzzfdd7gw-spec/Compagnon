@@ -82,8 +82,18 @@ const Modeles3D = {
     }
   },
 
-  attacher(sceneEl) {
+  // opts.vitrine : écran d'accueil (caméra basse qui tourne autour de l'équipe)
+  attacher(sceneEl, opts = {}) {
     if (!this.actif || !sceneEl) return;
+    this.vitrine = !!opts.vitrine;
+    if (this.vitrine) {
+      this.posCamera.set(0, 3.6, 9.2);
+      this.theme('crypte');
+    } else {
+      this.posCamera.set(0, 8.2, 9.6);
+      this.camera.position.copy(this.posCamera);
+      this.camera.lookAt(0, 0, -0.3);
+    }
     sceneEl.prepend(this.renderer.domElement);
     this.taille = { w: 0, h: 0 };
     if (!this.enCours) {
@@ -227,7 +237,9 @@ const Modeles3D = {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.camera.position.copy(this.posCamera);
+    if (this.vitrine) this.camera.lookAt(0, 0.5, -1.2);
     this.camera.updateMatrixWorld();
+    if (this.vitrine) return this.decorVitrine();
     const pt = (x, y) => this.pointSol(x * w, y * h) || new THREE.Vector3();
     placerDecor(this.decor, { g: pt(0.06, 0.5), d: pt(0.94, 0.5), hg: pt(0.02, 0.06), hd: pt(0.98, 0.06), bg: pt(0.02, 0.97), bd: pt(0.98, 0.97), c: pt(0.5, 0.5) });
     // Décor KayKit : reconstruit d'après le cadrage
@@ -239,6 +251,22 @@ const Modeles3D = {
       this.decor.piliers.forEach(p => { p.visible = false; });
       this.decor.front.visible = false;
       this.decor.solProc.visible = false;
+    }
+  },
+
+  // Décor de l'accueil : mur au fond, braseros de part et d'autre de l'équipe
+  decorVitrine() {
+    const d = this.decor;
+    d.braseros[0].position.set(-3.1, 0, 0.6);
+    d.braseros[1].position.set(3.1, 0, 0.6);
+    d.piliers.forEach((p, i) => p.position.set(i % 2 ? 4.6 : -4.6, 0, i < 2 ? -2.6 : 1.8));
+    d.front.visible = false;
+    d.os.forEach((o, i) => o.position.set([-2, 1.6, -1.2, 2.4][i], 0.04, [1.8, 2.2, -1, -0.6][i]));
+    if (Ressources3D.gltf.donjon) {
+      if (this.decorKK) this.scene.remove(this.decorKK.groupe);
+      this.decorKK = construireDecorKK(this.scene, -2.6, () => 5.5, this.themeCourant || THEMES_3D.crypte, 3);
+      d.piliers.forEach(p => { p.visible = false; });
+      d.solProc.visible = false;
     }
   },
 
@@ -271,6 +299,11 @@ const Modeles3D = {
     if (Math.abs(this.taille.w - zone.width) > 0.5 || Math.abs(this.taille.h - zone.height) > 0.5) this.redimensionner(zone.width, zone.height);
 
     const s = t / 1000;
+    if (this.vitrine) {
+      this.camera.position.set(Math.sin(s * 0.18) * 1.6, this.posCamera.y + Math.sin(s * 0.27) * 0.15, this.posCamera.z);
+      this.camera.lookAt(0, 0.5, -1.2);
+      this.camera.updateMatrixWorld();
+    }
     const vus = new Set();
     this.parId = {};
     const tanFov = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
@@ -307,7 +340,7 @@ const Modeles3D = {
       const c = u.corps;
 
       // Orientation : héros de trois quarts vers les ennemis, ennemis vers les héros
-      let base = pj ? 2.15 : 0.2;
+      let base = this.vitrine ? Math.sin(s * 0.4 + u.phase) * 0.15 : (pj ? 2.15 : 0.2);
       if (u.modele === 'loup') base = pj ? base : 0.8;
       if (!anime && aTerre) base = 0;
       if (u.regard && performance.now() < u.regard.jusqu) base = u.regard.yaw;
@@ -368,11 +401,16 @@ const Modeles3D = {
     this.particules.maj(dt);
 
     // Secousse de caméra (critiques)
-    if (this.secousseForce > 0.001) {
+    if (this.vitrine) { /* caméra déjà placée */ } else if (this.secousseForce > 0.001) {
       const f = this.secousseForce;
       this.camera.position.set(this.posCamera.x + (Math.random() - 0.5) * f, this.posCamera.y + (Math.random() - 0.5) * f, this.posCamera.z + (Math.random() - 0.5) * f * 0.5);
       this.secousseForce *= Math.pow(0.02, dt);
     } else this.camera.position.copy(this.posCamera);
+    // Accueil : de temps en temps, un héros salue
+    if (this.vitrine && Math.random() < 0.004) {
+      const g = Object.values(this.parId)[Math.floor(Math.random() * 4)];
+      if (g && g.userData.mixer && !g.userData.retourAuto) jouerAnim(g.userData, Math.random() < 0.5 ? 'victoire' : 'soutien', true);
+    }
     this.renderer.render(this.scene, this.camera);
   },
 

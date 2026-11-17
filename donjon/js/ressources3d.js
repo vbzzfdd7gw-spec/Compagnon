@@ -277,7 +277,7 @@ function piece(nom, x, z, ry = 0, ech = ECHELLE_DECOR) {
 }
 
 // Construit le décor ; zMur = position du mur du fond, bords = fonction(zMonde) → demi-largeur visible
-function construireDecorKK(scene, zMur, bords, theme) {
+function construireDecorKK(scene, zMur, bords, theme, rangsMur = 1) {
   const groupe = new THREE.Group();
   const S = ECHELLE_DECOR, T = 4 * S;
   // Sol : dalles de 2 × 2
@@ -295,7 +295,13 @@ function construireDecorKK(scene, zMur, bords, theme) {
 
   // Mur du fond
   const types = ['wall', 'wall_arched', 'wall', 'wall_cracked', 'wall', 'wall_arched', 'wall_broken'];
-  for (let i = -5; i <= 5; i++) groupe.add(piece(types[(i + 7) % types.length], i * T, zMur));
+  for (let k = 0; k < rangsMur; k++) {
+    for (let i = -5; i <= 5; i++) {
+      const m = piece(k ? 'wall' : types[(i + 7) % types.length], i * T, zMur - k * 0.05);
+      m.position.y = k * T;
+      groupe.add(m);
+    }
+  }
   // Piliers, torches et bannières sur le mur
   const torches = [];
   for (const x of [-T * 1.5, T * 1.5]) {
