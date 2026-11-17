@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cryptes &amp; Dés</title>
+<meta name="description" content="Roguelike au tour par tour : équipe en rangs, carte à embranchements, règles D&D 5e.">
+<meta name="theme-color" content="#14110f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+
+<!-- Ordre de chargement : outils, données, moteur, carte, partie, interface -->
+<script src="js/des.js"></script>
+<script src="js/donnees/actions.js"></script>
+<script src="js/donnees/classes.js"></script>
+<script src="js/donnees/monstres.js"></script>
+<script src="js/donnees/objets.js"></script>
+<script src="js/donnees/evenements.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/carte.js"></script>
+<script src="js/jeu.js"></script>
+<script src="js/interface.js"></script>
+<script>
+  // Hors connexion (uniquement servi en http/https, pas en ouvrant le fichier)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
