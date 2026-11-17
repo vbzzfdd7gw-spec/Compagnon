@@ -29,9 +29,10 @@ const PEUR = {
 };
 
 class Combat {
-  constructor(equipe, idsMonstres, jeu) {
+  // rencontre : { avant: [ids], arriere: [ids] }
+  constructor(equipe, rencontre, jeu) {
     this.jeu = jeu;
-    this.pjs = equipe;                 // tableau ordonné : index 0 = rang 1
+    this.pjs = equipe;                 // chaque combattant a une `ligne` : 'avant' ou 'arriere'
     this.ennemis = [];
     this.journal = [];
     this.evenements = [];              // événements à animer par l'interface
@@ -47,13 +48,16 @@ class Combat {
     this.surFin = () => {};
     this.delaiMonstre = 450;
 
+    const liste = [...rencontre.avant.map(id => [id, 'avant']), ...rencontre.arriere.map(id => [id, 'arriere'])];
     const noms = {};
-    idsMonstres.forEach(id => { noms[id] = (noms[id] || 0) + 1; });
+    liste.forEach(([id]) => { noms[id] = (noms[id] || 0) + 1; });
     const lettres = {};
-    for (const id of idsMonstres) {
+    for (const [id, ligne] of liste) {
       let suffixe = '';
       if (noms[id] > 1) { lettres[id] = (lettres[id] || 0) + 1; suffixe = ' ' + 'ABCDEF'[lettres[id] - 1]; }
-      this.ennemis.push(this.creerMonstre(id, suffixe));
+      const m = this.creerMonstre(id, suffixe);
+      m.ligne = ligne;
+      this.ennemis.push(m);
     }
   }
 
@@ -84,7 +88,19 @@ class Combat {
   }
   camp(c) { return c.camp === 'pj' ? this.pjs : this.ennemis; }
   adversaires(c) { return c.camp === 'pj' ? this.ennemis : this.pjs; }
-  rang(c) { return this.camp(c).indexOf(c) + 1; }
+  ligne(c) { return c.ligne; }
+  nomLigne(l) { return l === 'avant' ? 'Avant' : 'Arrière'; }
+  // Lignes réellement atteignables dans un groupe : si personne n'est debout
+  // en ligne Avant, la ligne Arrière est exposée au corps à corps.
+  lignesAtteignables(groupe, vise) {
+    if (vise.includes('avant') && !vise.includes('arriere') && !groupe.some(c => c.ligne === 'avant' && c.pv > 0)) return ['avant', 'arriere'];
+    return vise;
+  }
+  deplacer(c, ligne) {
+    if (c.ligne === ligne) return;
+    c.ligne = ligne;
+    this.evt({ t: 'deplacement', cible: c.id, ligne });
+  }
   debout(c) { return c.pv > 0; }
   nomHtml(c) { return `<b class="${c.camp === 'pj' ? 'n-pj' : 'n-en'}">${c.nom}</b>`; }
   panique(c) { return c.camp === 'pj' && c.peur >= 100; }
@@ -197,8 +213,7 @@ class Combat {
   // ------------------------------------------------- disponibilité
   // Renvoie { ok, raison }
   disponibilite(acteur, action) {
-    const r = this.rang(acteur);
-    if (!action.rangsLanceur.includes(r)) return { ok: false, raison: `Depuis rang ${action.rangsLanceur.join(', ')}` };
+    if (!action.depuis.includes(acteur.ligne)) return { ok: false, raison: `Seulement depuis la ligne ${this.nomLigne(action.depuis[0])}` };
     if (action.niveau && !this.emplacementDispo(acteur, action.niveau)) return { ok: false, raison: 'Plus d\'emplacement' };
     if (action.parCombat && (acteur.usages[action.nom] || 0) >= action.parCombat) return { ok: false, raison: 'Déjà utilisée' };
     if (action.recharge && acteur.recharges && acteur.recharges[action.nom] > 0) return { ok: false, raison: 'En recharge' };
@@ -217,14 +232,11 @@ class Combat {
   ciblesValides(acteur, action) {
     if (action.cible === 'soi') return [acteur];
     const groupe = action.cible === 'ennemi' ? this.adversaires(acteur) : this.camp(acteur);
-    const rA = this.rang(acteur);
-    return groupe.filter((c, i) => {
-      const r = i + 1;
-      if (!action.rangsCibles.includes(r)) return false;
+    const lignes = action.cible === 'ennemi' ? this.lignesAtteignables(groupe, action.vise) : action.vise;
+    return groupe.filter(c => {
+      if (!lignes.includes(c.ligne)) return false;
       if (action.cible === 'ennemi') return c.pv > 0;
       // alliés
-      if (c === acteur && action.adjacent && !action.inclureSoi) return false;
-      if (action.adjacent && Math.abs(r - rA) > 1) return false;
       if (action.vivantsSeulement && c.pv <= 0) return false;
       if (c.pv <= 0 && !(action.type === 'soin' || action.inclureATerre)) return false;
       return true;
@@ -252,18 +264,16 @@ class Combat {
     if (act.parCombat) a.usages[act.nom] = (a.usages[act.nom] || 0) + 1;
     if (act.recharge) a.recharges[act.nom] = act.recharge;
 
-    if (act.deplacement === 'avant' && this.rang(a) > 1) {
-      const groupe = this.camp(a);
-      groupe.splice(groupe.indexOf(a), 1);
-      groupe.unshift(a);
-      this.log(`${this.nomHtml(a)} s'élance au rang 1 !`);
+    if (act.deplacement === 'avant' && a.ligne !== 'avant') {
+      this.deplacer(a, 'avant');
+      this.log(`${this.nomHtml(a)} s'élance en ligne Avant !`);
     }
 
     const cibleTxt = (act.zone || act.cible === 'soi' || !cible) ? '' : ` sur ${this.nomHtml(cible)}`;
     this.log(`${act.icone || '▶'} ${this.nomHtml(a)} utilise <i>${act.nom}</i>${cibleTxt}${coutTxt}`, 'action');
 
     const cibles = act.zone ? this.ciblesValides(a, act) : (act.cible === 'soi' ? [a] : [cible]);
-    const distance = act.cible === 'ennemi' && (act.sort || !act.rangsLanceur.includes(1) || act.type === 'sauvegarde' || act.type === 'auto');
+    const distance = act.cible === 'ennemi' && (act.sort || act.vise.includes('arriere') || act.type === 'sauvegarde' || act.type === 'auto');
     this.evt({ t: 'action', source: a.id, camp: a.camp, nom: act.nom, icone: act.icone || '✦',
       cibles: cibles.map(c => c.id), melee: act.cible === 'ennemi' && !distance, distance });
 
@@ -370,9 +380,8 @@ class Combat {
   sournoisePossible(a, c, mode) {
     if (mode > 0) return true;
     if (mode < 0) return false;
-    const rc = this.rang(c);
-    if (rc > 2) return false;
-    return this.pjs.some((p, i) => p !== a && p.pv > 0 && i < 2);
+    if (c.ligne !== 'avant') return false;
+    return this.pjs.some(p => p !== a && p.pv > 0 && p.ligne === 'avant');
   }
 
   peurCritique(a, c) {
@@ -464,14 +473,10 @@ class Combat {
     this.log(`→ ${this.nomHtml(c)} : ${ETATS[nom].icone} ${ETATS[nom].nom}.`, 'etat');
   }
 
-  reculer(c, n) {
-    const g = this.camp(c);
-    const i = g.indexOf(c);
-    const j = Math.min(g.length - 1, i + n);
-    if (j === i) return;
-    g.splice(i, 1);
-    g.splice(j, 0, c);
-    this.log(`→ ${this.nomHtml(c)} est repoussé au rang ${j + 1}.`, 'etat');
+  reculer(c) {
+    if (c.ligne === 'arriere') return;
+    this.deplacer(c, 'arriere');
+    this.log(`→ ${this.nomHtml(c)} est repoussé en ligne Arrière.`, 'etat');
   }
 
   infliger(c, n, type, source, critique) {
@@ -536,12 +541,9 @@ class Combat {
       this.nettoyer();
       const options = m.actions.filter(act => this.disponibilite(m, act).ok);
       if (!options.length) {
-        const r = this.rang(m);
-        if (r > 1) {
-          const g = this.ennemis;
-          g.splice(r - 1, 1);
-          g.splice(r - 2, 0, m);
-          this.log(`${this.nomHtml(m)} avance au rang ${r - 1}.`);
+        if (m.ligne === 'arriere') {
+          this.deplacer(m, 'avant');
+          this.log(`${this.nomHtml(m)} avance en ligne Avant.`);
         } else {
           this.log(`${this.nomHtml(m)} hésite.`);
         }
@@ -572,11 +574,10 @@ class Combat {
 // Actions spéciales : fonction(combat, acteur, action, cible, cibles)
 // =====================================================================
 const SPECIAUX = {
-  changer_place(cb, a, act, cible) {
-    const g = cb.camp(a);
-    const i = g.indexOf(a), j = g.indexOf(cible);
-    g[i] = cible; g[j] = a;
-    cb.log(`→ ${cb.nomHtml(a)} passe au rang ${j + 1}, ${cb.nomHtml(cible)} au rang ${i + 1}.`);
+  changer_ligne(cb, a) {
+    const l = a.ligne === 'avant' ? 'arriere' : 'avant';
+    cb.deplacer(a, l);
+    cb.log(`→ ${cb.nomHtml(a)} passe en ligne ${cb.nomLigne(l)}.`);
   },
 
   potion(cb, a, act, cible) {
@@ -613,9 +614,10 @@ const SPECIAUX = {
   invoquer(cb, a, act) {
     const m = cb.creerMonstre(act.invocation, ' relevé');
     m.initiative = 0;
+    m.ligne = 'avant';
     cb.ennemis.unshift(m);
     cb.ordre.push(m);
-    cb.log(`→ Un ${cb.nomHtml(m)} surgit du sol au rang 1 !`, 'mauvais');
+    cb.log(`→ Un ${cb.nomHtml(m)} surgit du sol en ligne Avant !`, 'mauvais');
     for (const p of cb.pjs) if (p.pv > 0) cb.modifierPeur(p, 5, true);
   }
 };
