@@ -34,7 +34,8 @@ class Combat {
     this.pjs = equipe;                 // tableau ordonné : index 0 = rang 1
     this.ennemis = [];
     this.journal = [];
-    this.flottants = [];               // nombres flottants pour l'affichage
+    this.evenements = [];              // événements à animer par l'interface
+    this.finAnim = 0;
     this.round = 0;
     this.ordre = [];
     this.indexTour = -1;
@@ -44,7 +45,7 @@ class Combat {
     this.compteur = 0;
     this.surMaj = () => {};
     this.surFin = () => {};
-    this.delaiMonstre = 750;
+    this.delaiMonstre = 450;
 
     const noms = {};
     idsMonstres.forEach(id => { noms[id] = (noms[id] || 0) + 1; });
@@ -69,7 +70,18 @@ class Combat {
 
   // ------------------------------------------------------------ outils
   log(html, classe = '') { this.journal.push({ html, classe }); }
-  maj() { this.surMaj(); }
+  // L'interface renvoie la durée (ms) des animations lancées
+  maj() {
+    const d = this.surMaj() || 0;
+    if (d) this.finAnim = Date.now() + d;
+    return d;
+  }
+  resteAnim() { return Math.max(0, this.finAnim - Date.now()); }
+  evt(e) { this.evenements.push(e); }
+  // Retire les ennemis morts (gardés le temps de l'animation)
+  nettoyer() {
+    for (let i = this.ennemis.length - 1; i >= 0; i--) if (this.ennemis[i].pv <= 0) this.ennemis.splice(i, 1);
+  }
   camp(c) { return c.camp === 'pj' ? this.pjs : this.ennemis; }
   adversaires(c) { return c.camp === 'pj' ? this.ennemis : this.pjs; }
   rang(c) { return this.camp(c).indexOf(c) + 1; }
@@ -111,6 +123,7 @@ class Combat {
 
   prochainTour() {
     if (this.fini) return;
+    this.nettoyer();
     this.indexTour++;
     if (this.indexTour >= this.ordre.length) return this.nouveauRound();
     const c = this.ordre[this.indexTour];
@@ -131,8 +144,9 @@ class Combat {
 
     if (c.etats.etourdi || c.etats.endormi) {
       this.log(`${ETATS[c.etats.etourdi ? 'etourdi' : 'endormi'].icone} ${this.nomHtml(c)} ${c.etats.etourdi ? 'est étourdi' : 'dort'} et perd son tour.`);
-      this.maj();
-      return setTimeout(() => this.finTour(c), this.delaiMonstre * 0.7);
+      this.evt({ t: 'texte', cible: c.id, texte: ETATS[c.etats.etourdi ? 'etourdi' : 'endormi'].icone, classe: 'etat' });
+      const d = this.maj();
+      return setTimeout(() => this.finTour(c), d + 500);
     }
 
     if (c.camp === 'pj') {
@@ -157,7 +171,7 @@ class Combat {
   }
 
   verifierFin() {
-    if (this.ennemis.length === 0) {
+    if (this.ennemis.every(e => e.pv <= 0)) {
       this.fini = true;
       this.resultat = 'victoire';
       this.log('🏆 <b>Victoire !</b> La Peur de l\'équipe diminue.', 'titre bon');
@@ -166,7 +180,7 @@ class Combat {
         pj.etats = {};
       }
       this.maj();
-      setTimeout(() => this.surFin('victoire'), 900);
+      setTimeout(() => this.surFin('victoire'), this.resteAnim() + 900);
       return true;
     }
     if (this.pjs.every(p => p.pv <= 0)) {
@@ -174,7 +188,7 @@ class Combat {
       this.resultat = 'defaite';
       this.log('💀 <b>Toute l\'équipe est à terre…</b>', 'titre mauvais');
       this.maj();
-      setTimeout(() => this.surFin('defaite'), 1200);
+      setTimeout(() => this.surFin('defaite'), this.resteAnim() + 1200);
       return true;
     }
     return false;
@@ -189,7 +203,7 @@ class Combat {
     if (action.parCombat && (acteur.usages[action.nom] || 0) >= action.parCombat) return { ok: false, raison: 'Déjà utilisée' };
     if (action.recharge && acteur.recharges && acteur.recharges[action.nom] > 0) return { ok: false, raison: 'En recharge' };
     if (action.special === 'potion' && this.jeu.potions <= 0) return { ok: false, raison: 'Aucune potion' };
-    if (action.special === 'invoquer' && this.ennemis.length >= 4) return { ok: false, raison: 'Pas de place' };
+    if (action.special === 'invoquer' && this.ennemis.filter(e => e.pv > 0).length >= 4) return { ok: false, raison: 'Pas de place' };
     if (action.cible !== 'soi' && this.ciblesValides(acteur, action).length === 0) return { ok: false, raison: 'Aucune cible' };
     return { ok: true };
   }
@@ -222,9 +236,9 @@ class Combat {
     if (this.fini || this.actif !== acteur || !this.attenteJoueur) return;
     this.attenteJoueur = false;
     this.executer(acteur, action, cible);
-    this.maj();
+    const d = this.maj();
     if (this.verifierFin()) return;
-    setTimeout(() => this.finTour(acteur), 350);
+    setTimeout(() => this.finTour(acteur), d + 250);
   }
 
   executer(a, act, cible) {
@@ -249,12 +263,15 @@ class Combat {
     this.log(`${act.icone || '▶'} ${this.nomHtml(a)} utilise <i>${act.nom}</i>${cibleTxt}${coutTxt}`, 'action');
 
     const cibles = act.zone ? this.ciblesValides(a, act) : (act.cible === 'soi' ? [a] : [cible]);
+    const distance = act.cible === 'ennemi' && (act.sort || !act.rangsLanceur.includes(1) || act.type === 'sauvegarde' || act.type === 'auto');
+    this.evt({ t: 'action', source: a.id, camp: a.camp, nom: act.nom, icone: act.icone || '✦',
+      cibles: cibles.map(c => c.id), melee: act.cible === 'ennemi' && !distance, distance });
 
     switch (act.type) {
       case 'attaque':
         for (const c of cibles) {
           for (let i = 0; i < (act.nbAttaques || 1); i++) {
-            if (c.pv <= 0 || !this.camp(c).includes(c)) break;
+            if (c.pv <= 0) break;
             this.resoudreAttaque(a, act, c, act.nbAttaques > 1 ? i + 1 : 0);
           }
         }
@@ -320,9 +337,11 @@ class Combat {
     const raisons = [...av.map(x => '+' + x), ...dv.map(x => '−' + x)].join(', ');
     const pre = numero ? `#${numero} ` : '';
     let ligne = `→ ${pre}🎲 ${txt} = <b>${total}</b> contre CA ${ca}${raisons ? ` <span class="cout">(${raisons})</span>` : ''} : `;
+    this.evt({ t: 'jet', source: a.id, cible: c.id, nat: r.nat, total, libelle: `${act.nom}${numero ? ' #' + numero : ''}`,
+      contre: `CA ${ca}`, res: critique ? 'crit' : touche ? 'touche' : 'rate', mode });
     if (!touche) {
       this.log(ligne + (r.nat === 1 ? '<b>échec critique</b>, raté.' : 'raté.'), 'jet rate');
-      this.flottant(c, 'Raté', 'rate');
+      this.evt({ t: 'texte', cible: c.id, texte: 'Raté', classe: 'rate' });
       return false;
     }
     ligne += critique ? '<b class="crit">CRITIQUE !</b>' : 'touché.';
@@ -343,7 +362,7 @@ class Combat {
     if (critique) this.peurCritique(a, c);
     this.infliger(c, degats, act.typeDeg, a, critique);
 
-    if (act.effetSiTouche && c.pv > 0 && this.camp(c).includes(c)) this.appliquerEffet(a, act.effetSiTouche, c);
+    if (act.effetSiTouche && c.pv > 0) this.appliquerEffet(a, act.effetSiTouche, c);
     if (act.recul && c.pv > 0) this.reculer(c, act.recul);
     return true;
   }
@@ -383,6 +402,8 @@ class Combat {
     let txt = `${r.texte} ${signe(bonus)}`;
     if (c.etats.benit) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
     const reussite = total >= dd;
+    this.evt({ t: 'jet', source: c.id, cible: c.id, nat: r.nat, total, libelle: `${c.nom} · sauvegarde ${carac}`,
+      contre: `DD ${dd}`, res: reussite ? 'reussite' : 'echec', mode, sauvegarde: true });
     return { reussite, texte: `${this.nomHtml(c)} sauvegarde de ${carac} : 🎲 ${txt} = <b>${total}</b> contre DD ${dd}${mode < 0 ? ' <span class="cout">(−paniqué)</span>' : ''} → ${reussite ? 'réussite' : '<b>échec</b>'}` };
   }
 
@@ -393,7 +414,7 @@ class Combat {
     if (act.degats) {
       if (s.reussite && !act.moitie) {
         this.log(ligne + '. Aucun dégât.', 'jet rate');
-        this.flottant(c, 'Résiste', 'rate');
+        this.evt({ t: 'texte', cible: c.id, texte: 'Résiste', classe: 'rate' });
       } else {
         const d = Des.lancer(act.degats);
         const total = s.reussite ? Math.floor(d.total / 2) : d.total;
@@ -403,7 +424,7 @@ class Combat {
     } else {
       this.log(ligne, 'jet');
     }
-    if (!s.reussite && act.effetSiEchec && c.pv > 0 && this.camp(c).includes(c)) this.appliquerEffet(a, act.effetSiEchec, c, true);
+    if (!s.reussite && act.effetSiEchec && c.pv > 0) this.appliquerEffet(a, act.effetSiEchec, c, true);
   }
 
   resoudreSoin(a, act, c) {
@@ -415,7 +436,7 @@ class Combat {
       const avant = Math.max(0, c.pv);
       c.pv = Math.min(c.pvMax, avant + total);
       this.log(`→ ${this.nomHtml(c)} récupère ${d.texte}${a.bonusSoin && act.sort ? ` +${a.bonusSoin}` : ''} → <b>${c.pv - avant}</b> PV${etaitATerre ? ' et <b>se relève</b> !' : ''}`, 'jet bon');
-      this.flottant(c, '+' + (c.pv - avant), 'soin');
+      this.evt({ t: 'soin', cible: c.id, n: c.pv - avant, pvAvant: avant, pvApres: c.pv, pvMax: c.pvMax });
     }
     if (act.peur && c.pv > 0) this.modifierPeur(c, act.peur);
   }
@@ -439,6 +460,7 @@ class Combat {
       return;
     }
     c.etats[nom] = Math.max(c.etats[nom] || 0, duree);
+    this.evt({ t: 'texte', cible: c.id, texte: ETATS[nom].icone + ' ' + ETATS[nom].nom, classe: 'etat' });
     this.log(`→ ${this.nomHtml(c)} : ${ETATS[nom].icone} ${ETATS[nom].nom}.`, 'etat');
   }
 
@@ -461,26 +483,28 @@ class Combat {
       else if (m.vuln && m.vuln.includes(type)) { n = n * 2; note = ' (vulnérable ×2)'; }
       if (note) this.log(`→ ${this.nomHtml(c)}${note} : ${n} dégâts.`, 'jet');
     }
-    if (n <= 0) return;
+    if (n <= 0) { this.evt({ t: 'texte', cible: c.id, texte: 'Immunisé', classe: 'rate' }); return; }
+    const pvAvant = Math.max(0, c.pv);
     c.pv -= n;
-    this.flottant(c, '−' + n, critique ? 'crit' : 'degats');
+    this.evt({ t: 'degats', cible: c.id, n, crit: critique, pvAvant, pvApres: Math.max(0, c.pv), pvMax: c.pvMax });
     if (c.etats.endormi) { delete c.etats.endormi; this.log(`→ ${this.nomHtml(c)} se réveille !`, 'etat'); }
 
     if (c.pv <= 0 && m && m.robustesse && type !== 'radiant' && !critique) {
       const dd = 5 + n;
       const s = this.jetSauvegarde(c, 'CON', dd);
       this.log(`→ Robustesse des morts-vivants : ${s.texte}`, 'jet');
-      if (s.reussite) { c.pv = 1; this.log(`→ ${this.nomHtml(c)} refuse de tomber (1 PV) !`, 'mauvais'); return; }
+      if (s.reussite) { c.pv = 1; this.evt({ t: 'soin', cible: c.id, n: 1, pvAvant: 0, pvApres: 1, pvMax: c.pvMax }); this.log(`→ ${this.nomHtml(c)} refuse de tomber (1 PV) !`, 'mauvais'); return; }
     }
 
     if (c.pv <= 0) {
       c.pv = 0;
       if (c.camp === 'ennemi') {
-        this.ennemis.splice(this.ennemis.indexOf(c), 1);
+        this.evt({ t: 'mort', cible: c.id });
         this.log(`☠ ${this.nomHtml(c)} est vaincu !`, 'bon');
         if (source && source.camp === 'pj') this.modifierPeur(source, PEUR.ennemiTue, true);
       } else {
         c.etats = {};
+        this.evt({ t: 'mort', cible: c.id, pj: true });
         this.log(`⚠️ ${this.nomHtml(c)} tombe <b>à terre</b> !`, 'mauvais');
         for (const p of this.pjs) if (p !== c && p.pv > 0) this.modifierPeur(p, PEUR.allieATerre);
       }
@@ -495,12 +519,12 @@ class Combat {
     pj.peur = Math.max(0, Math.min(100, pj.peur + n));
     const diff = pj.peur - avant;
     if (diff === 0) return;
+    this.evt({ t: 'peur', cible: pj.id, n: diff, avant, apres: pj.peur });
     if (!discret) this.log(`${diff > 0 ? '😨' : '😌'} ${this.nomHtml(pj)} Peur ${diff > 0 ? '+' : ''}${diff} (${pj.peur}/100)`, diff > 0 ? 'peur' : 'bon');
     if (avant < 100 && pj.peur >= 100) this.log(`😱 ${this.nomHtml(pj)} est <b>PANIQUÉ</b> : désavantage aux attaques et sauvegardes !`, 'mauvais');
     if (avant >= 100 && pj.peur < 100) this.log(`${this.nomHtml(pj)} reprend ses esprits.`, 'bon');
   }
 
-  flottant(c, texte, type) { this.flottants.push({ id: c.id, texte, type }); }
 
   // ------------------------------------------------------ IA monstre
   tourMonstre(m) {
@@ -509,6 +533,7 @@ class Combat {
     let i = 0;
     const agir = () => {
       if (this.fini || m.pv <= 0 || !this.ennemis.includes(m)) return this.finTour(m);
+      this.nettoyer();
       const options = m.actions.filter(act => this.disponibilite(m, act).ok);
       if (!options.length) {
         const r = this.rang(m);
@@ -525,11 +550,11 @@ class Combat {
         const cible = act.zone || act.cible === 'soi' ? null : this.choisirCible(m, act);
         this.executer(m, act, cible);
       }
-      this.maj();
+      const d = this.maj();
       if (this.verifierFin()) return;
       i++;
-      if (i < nb) setTimeout(agir, this.delaiMonstre);
-      else setTimeout(() => this.finTour(m), 300);
+      if (i < nb) setTimeout(agir, d + 400);
+      else setTimeout(() => this.finTour(m), d + 250);
     };
     agir();
   }

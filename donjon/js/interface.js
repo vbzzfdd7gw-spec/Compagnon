@@ -7,6 +7,9 @@ const echapper = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&
 
 const Ui = {
   selection: null,   // identifiant de l'action choisie pendant le combat
+  finAnim: 0,        // fin des animations en cours (horodatage)
+  affichage: null,   // PV/Peur affichés pendant les animations
+  raison: null,      // message quand on touche une action indisponible
 
   rendu() {
     const app = $('#app');
@@ -43,7 +46,7 @@ const Ui = {
   regles() {
     this.modal(`<h2>Règles</h2>
       <h3>Rangs</h3>
-      <p>Votre équipe est alignée en 4 rangs (1 = devant). Chaque action indique depuis quels rangs elle s'utilise et quels rangs elle vise :
+      <p>Votre équipe (en bas) et les ennemis (en haut) sont alignés en 4 rangs, le rang 1 à gauche (devant). Chaque action indique depuis quels rangs elle s'utilise et quels rangs elle vise :
       <span class="pips-demo">${this.pips([1, 2], 'lanceur')} ▸ ${this.pips([1, 2], 'cible')}</span> = utilisable depuis les rangs 1-2, vise les rangs ennemis 1-2.
       Quand un ennemi meurt, ceux de derrière avancent.</p>
       <h3>Combat</h3>
@@ -64,34 +67,30 @@ const Ui = {
   ecranCarte() {
     return `<div class="ecran-carte">
       <header class="barre">
-        <div><b>Étage 1</b> · Les Cryptes</div>
+        <div class="titre-carte"><b>Les Cryptes</b> <span class="discret">· choisissez une salle</span></div>
         <div class="boutons-barre">
-          <button class="btn petit" data-clic="equipe">Équipe</button>
+          <button class="btn petit" data-clic="equipe">👥 Équipe</button>
           <button class="btn petit" data-clic="regles">?</button>
-          <button class="btn petit discret" data-clic="abandonner">Abandonner</button>
+          <button class="btn petit discret" data-clic="abandonner" title="Abandonner">✕</button>
         </div>
       </header>
-      <p class="consigne">Choisissez votre prochaine salle (cercles lumineux).</p>
       <div class="carte-conteneur">${Carte.svg(Jeu.carte)}</div>
       <div class="legende">${Object.values(TYPES_NOEUDS).map(t => `<span>${t.icone} ${t.nom}</span>`).join('')}</div>
       ${this.resumeEquipe()}
     </div>`;
   },
 
-  defilerCarte() {
-    const cible = $('.noeud.accessible');
-    if (cible) cible.scrollIntoView({ block: 'center' });
-  },
+  defilerCarte() {},
 
   resumeEquipe() {
     return `<div class="resume-equipe">
       ${Jeu.equipe.map((p, i) => `<div class="mini-pj ${p.pv <= 0 ? 'a-terre' : ''}" data-info="${p.id}">
-        <div class="mini-tete"><span class="rang-badge">R${i + 1}</span> ${p.icone} ${p.nom}</div>
+        <div class="mini-tete"><span class="rang-badge">${i + 1}</span><span class="mini-ic">${p.pv <= 0 ? '🪦' : p.icone}</span></div>
         ${this.barre(p.pv, p.pvMax, 'pv', `${p.pv}/${p.pvMax}`)}
-        ${this.barre(p.peur, 100, 'peur', `Peur ${p.peur}`)}
-        ${this.emplacementsHtml(p)}
+        ${this.barre(p.peur, 100, 'peur', '')}
+        ${this.emplacementsHtml(p, true)}
       </div>`).join('')}
-      <div class="potions">🧴 ${Jeu.potions} potion${Jeu.potions > 1 ? 's' : ''} · Repos long : ${Jeu.reposLongUtilise ? 'utilisé' : 'disponible'}</div>
+      <div class="potions">🧴 ${Jeu.potions} potion${Jeu.potions > 1 ? 's' : ''} · 🛏 Repos long ${Jeu.reposLongUtilise ? 'utilisé' : 'disponible'} · touchez un héros pour sa fiche</div>
     </div>`;
   },
 
@@ -100,10 +99,10 @@ const Ui = {
     return `<div class="barre-jauge ${classe}${classe === 'peur' && val >= 100 ? ' max' : ''}"><span style="width:${pct}%"></span><em>${texte}</em></div>`;
   },
 
-  emplacementsHtml(p) {
+  emplacementsHtml(p, court = false) {
     const niv = Object.keys(p.emplacements);
-    if (!niv.length) return '';
-    return `<div class="emplacements">${niv.map(n => `<span>niv.${n} ${'●'.repeat(p.emplacements[n].restant)}${'○'.repeat(p.emplacements[n].max - p.emplacements[n].restant)}</span>`).join(' ')}</div>`;
+    if (!niv.length) return court ? '<div class="emplacements vide"></div>' : '';
+    return `<${court ? 'span' : 'div'} class="emplacements${court ? ' court' : ''}">${niv.map(n => `<span title="Emplacements de niveau ${n}">${court ? '' : 'niv.'}${n}:${'●'.repeat(p.emplacements[n].restant)}${'○'.repeat(p.emplacements[n].max - p.emplacements[n].restant)}</span>`).join(' ')}</${court ? 'span' : 'div'}>`;
   },
 
   // ---------------------------------------------------- fiche équipe
@@ -144,14 +143,14 @@ const Ui = {
 
   // Points de rang façon « ○○●● ▸ ●●○○ »
   pips(rangs, sens) {
-    const ordre = sens === 'lanceur' ? [4, 3, 2, 1] : [1, 2, 3, 4];
+    const ordre = [1, 2, 3, 4];
     return `<span class="pips ${sens}">${ordre.map(r => `<i class="${rangs.includes(r) ? 'on' : ''}" title="Rang ${r}"></i>`).join('')}</span>`;
   },
 
-  pipsAction(a) {
+  pipsAction(a, court = false) {
     let cible = '';
     if (a.cible === 'soi') cible = '<span class="tag-cible">soi</span>';
-    else if (a.cible === 'allie') cible = `<span class="tag-cible allie">${a.adjacent ? 'adjacent' : 'allié' + (a.zone ? 's' : '')}</span>`;
+    else if (a.cible === 'allie') cible = `<span class="tag-cible allie">${a.adjacent ? (court ? 'voisin' : 'allié adjacent') : (a.zone ? 'alliés' : 'allié')}</span>`;
     else cible = this.pips(a.rangsCibles, 'cible') + (a.zone ? '<span class="tag-cible">zone</span>' : '');
     return `${this.pips(a.rangsLanceur, 'lanceur')} ▸ ${cible}`;
   },
@@ -187,10 +186,16 @@ const Ui = {
   // ---------------------------------------------------------- combat
   ecranCombat() {
     return `<div class="ecran-combat">
-      <div class="ordre" id="ordre"></div>
-      <div class="champ" id="champ"></div>
+      <div class="ordre-ligne"><div class="ordre" id="ordre"></div><button class="btn-journal" data-clic="journal" title="Journal des dés">📜</button></div>
+      <div class="scene" id="scene">
+        <div class="torche g">🔥</div><div class="torche d">🔥</div>
+        <div class="camp camp-en" id="camp-en"></div>
+        <div class="milieu" id="milieu"></div>
+        <div class="camp camp-pj" id="camp-pj"></div>
+        <div class="calque" id="calque"></div>
+      </div>
+      <div class="bandeau" id="bandeau" data-clic="journal"></div>
       <div class="panneau" id="panneau"></div>
-      <div class="journal" id="journal"></div>
     </div>`;
   },
 
@@ -198,95 +203,224 @@ const Ui = {
 
   majCombat() {
     const cb = Jeu.combat;
-    if (!cb || Jeu.ecran !== 'combat') return;
-    // Si l'action sélectionnée n'est plus valable, on l'annule
+    if (!cb || Jeu.ecran !== 'combat' || !$('#scene')) return 0;
+    // Pendant une animation, on reporte le rafraîchissement
+    if (Date.now() < this.finAnim) {
+      clearTimeout(this.tMaj);
+      this.tMaj = setTimeout(() => this.majCombat(), this.finAnim - Date.now() + 20);
+      return 0;
+    }
     if (this.selection && (!cb.attenteJoueur || !cb.disponibilite(cb.actif, ACTIONS[this.selection]).ok)) this.selection = null;
 
-    $('#ordre').innerHTML = this.ordreHtml(cb);
-    $('#champ').innerHTML = `
-      <div class="camp camp-pj">${cb.pjs.map((p, i) => this.carteCombattant(p, i + 1, cb)).join('')}</div>
-      <div class="vs">⚔</div>
-      <div class="camp camp-en">${cb.ennemis.map((e, i) => this.carteCombattant(e, i + 1, cb)).join('')}</div>`;
-    $('#panneau').innerHTML = this.panneauHtml(cb);
-    const j = $('#journal');
-    j.innerHTML = cb.journal.slice(-120).map(l => `<div class="l ${l.classe}">${l.html}</div>`).join('');
-    j.scrollTop = j.scrollHeight;
-
-    // Nombres flottants
-    for (const f of cb.flottants) {
-      const el = document.querySelector(`.combattant[data-id="${f.id}"]`);
-      if (!el) continue;
-      const s = document.createElement('span');
-      s.className = 'flottant ' + f.type;
-      s.textContent = f.texte;
-      el.appendChild(s);
-      if (f.type === 'degats' || f.type === 'crit') el.classList.add('touche');
+    const evs = cb.evenements.splice(0);
+    // Valeurs affichées avant animation : PV et Peur « d'avant »
+    const pvAff = {}, peurAff = {}, vivants = new Set();
+    for (const e of evs) {
+      if ((e.t === 'degats' || e.t === 'soin') && !(e.cible in pvAff)) pvAff[e.cible] = e.pvAvant;
+      if (e.t === 'peur' && !(e.cible in peurAff)) peurAff[e.cible] = e.avant;
+      if (e.t === 'mort') vivants.add(e.cible);
     }
-    cb.flottants = [];
+    this.affichage = { pvAff, peurAff, vivants };
+
+    $('#ordre').innerHTML = this.ordreHtml(cb);
+    $('#camp-en').innerHTML = cb.ennemis.map((e, i) => this.carteCombattant(e, i + 1, cb)).join('');
+    $('#camp-pj').innerHTML = cb.pjs.map((p, i) => this.carteCombattant(p, i + 1, cb)).join('');
+    $('#panneau').innerHTML = this.panneauHtml(cb);
+    this.majBandeau(cb);
+    if (!evs.length) { this.affichage = null; return 0; }
+    return this.jouerAnimations(evs);
+  },
+
+  majBandeau(cb) {
+    const actions = cb.journal.filter(l => l.classe.includes('action') || l.classe.includes('titre'));
+    const derniere = actions[actions.length - 1];
+    $('#bandeau').innerHTML = `<span class="bandeau-texte">${derniere ? derniere.html : ''}</span><span class="bandeau-plus">📜 Détail des dés</span>`;
   },
 
   ordreHtml(cb) {
-    const restants = cb.ordre.slice(cb.indexTour).filter(c => c.pv > 0 && (c.camp === 'pj' || cb.ennemis.includes(c)));
-    return `<span class="round">Round ${cb.round}</span>` + restants.map((c, i) =>
-      `<span class="puce ${c.camp} ${i === 0 && cb.actif === c ? 'actif' : ''}">${c.icone} ${echapper(c.nom)}</span>`).join('');
+    const restants = cb.ordre.slice(Math.max(0, cb.indexTour)).filter(c => c.pv > 0 && (c.camp === 'pj' || cb.ennemis.includes(c)));
+    return `<span class="round">R${cb.round}</span>` + restants.map((c, i) =>
+      `<span class="puce ${c.camp} ${i === 0 && cb.actif === c ? 'actif' : ''}" title="${echapper(c.nom)}">${c.icone}</span>`).join('');
   },
 
   carteCombattant(c, rang, cb) {
+    const aff = this.affichage || { pvAff: {}, peurAff: {}, vivants: new Set() };
+    const pv = c.id in aff.pvAff ? aff.pvAff[c.id] : Math.max(0, c.pv);
+    const peur = c.id in aff.peurAff ? aff.peurAff[c.id] : c.peur;
+    const mort = c.pv <= 0 && !aff.vivants.has(c.id) && !(aff.pvAff[c.id] > 0);
     const act = this.selection ? ACTIONS[this.selection] : null;
-    const ciblable = act && act.cible !== 'soi' && !act.zone && cb.ciblesValides(cb.actif, act).includes(c);
-    const enZone = act && act.zone && cb.ciblesValides(cb.actif, act).includes(c);
+    const valides = act ? cb.ciblesValides(cb.actif, act) : [];
+    const ciblable = act && act.cible !== 'soi' && !act.zone && valides.includes(c);
+    const enZone = act && ((act.zone && valides.includes(c)) || (act.cible === 'soi' && c === cb.actif));
     const classes = ['combattant', c.camp];
     if (cb.actif === c) classes.push('actif');
     if (ciblable) classes.push('ciblable');
-    if (enZone || (act && act.cible === 'soi' && c === cb.actif)) classes.push('en-zone');
-    if (c.pv <= 0) classes.push('a-terre');
+    if (enZone) classes.push('en-zone');
+    if (mort) classes.push(c.camp === 'pj' ? 'a-terre' : 'mort');
     if (c.boss) classes.push('boss');
-    if (c.camp === 'pj' && c.peur >= 100) classes.push('panique');
+    if (c.camp === 'pj' && peur >= 100) classes.push('panique');
     const etats = Object.keys(c.etats).map(e => `<span title="${ETATS[e].nom}">${ETATS[e].icone}</span>`).join('');
+    const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
     return `<div class="${classes.join(' ')}" data-id="${c.id}">
-      <div class="rang-badge">R${rang}</div>
-      <div class="portrait">${c.pv <= 0 ? '🪦' : c.icone}</div>
-      <div class="nom">${echapper(c.nom)}</div>
-      ${this.barre(Math.max(0, c.pv), c.pvMax, 'pv', `${Math.max(0, c.pv)}/${c.pvMax}`)}
-      ${c.camp === 'pj' ? this.barre(c.peur, 100, 'peur', `Peur ${c.peur}`) : ''}
-      <div class="ca">CA ${c.ca}${c.etats.defi ? '+2' : ''}${c.etats.bouclier ? '+5' : ''}</div>
+      <div class="badges"><span class="rang-badge">${rang}</span><span class="ca-badge">🛡${ca}</span></div>
       <div class="etats">${etats}</div>
+      <div class="figure"><span class="sprite">${mort && c.camp === 'pj' ? '🪦' : c.icone}</span><span class="ombre"></span></div>
+      <div class="nom">${echapper(c.nom)}</div>
+      ${this.barre(pv, c.pvMax, 'pv', `${pv}/${c.pvMax}`)}
+      ${c.camp === 'pj' ? this.barre(peur, 100, 'peur', '') : ''}
     </div>`;
+  },
+
+  // ------------------------------------------------------ animations
+  DUREES: { action: 420, jet: 900, degats: 420, soin: 420, texte: 260, mort: 380, peur: 120 },
+
+  jouerAnimations(evs) {
+    let t = 0;
+    for (const e of evs) {
+      setTimeout(() => this.animer(e), t);
+      t += this.DUREES[e.t] || 200;
+    }
+    t += 150;
+    this.finAnim = Date.now() + t;
+    setTimeout(() => { this.affichage = null; }, t);
+    return t;
+  },
+
+  elem(id) { return document.querySelector(`.combattant[data-id="${id}"]`); },
+
+  animer(e) {
+    const el = e.cible !== undefined ? this.elem(e.cible) : null;
+    switch (e.t) {
+      case 'action': {
+        const src = this.elem(e.source);
+        const ann = document.createElement('div');
+        ann.className = 'annonce ' + e.camp;
+        ann.innerHTML = `<span>${e.icone}</span> ${echapper(e.nom)}`;
+        $('#milieu').replaceChildren(ann);
+        if (src) {
+          src.classList.remove('elan', 'incante');
+          void src.offsetWidth;
+          src.classList.add(e.melee ? 'elan' : 'incante');
+        }
+        if (e.distance && src) for (const id of e.cibles) this.projectile(src, this.elem(id), e.icone);
+        break;
+      }
+      case 'jet': this.afficherDe(e); break;
+      case 'degats':
+        if (!el) break;
+        this.majBarre(el, 'pv', e.pvApres, e.pvMax, `${e.pvApres}/${e.pvMax}`);
+        el.classList.remove('touche'); void el.offsetWidth; el.classList.add('touche');
+        this.flotter(el, '−' + e.n, e.crit ? 'crit' : 'degats');
+        if (e.crit) { const s = $('#scene'); s.classList.remove('tremble'); void s.offsetWidth; s.classList.add('tremble'); }
+        break;
+      case 'soin':
+        if (!el) break;
+        this.majBarre(el, 'pv', e.pvApres, e.pvMax, `${e.pvApres}/${e.pvMax}`);
+        el.classList.remove('a-terre', 'soigne'); void el.offsetWidth; el.classList.add('soigne');
+        el.querySelector('.sprite').textContent = Jeu.equipe.find(p => p.id === e.cible)?.icone || el.querySelector('.sprite').textContent;
+        this.flotter(el, '+' + e.n, 'soin');
+        break;
+      case 'texte': if (el) this.flotter(el, e.texte, e.classe); break;
+      case 'peur':
+        if (!el) break;
+        this.majBarre(el, 'peur', e.apres, 100, '');
+        if (Math.abs(e.n) >= 10) this.flotter(el, (e.n > 0 ? '😨+' : '😌') + e.n, 'peur');
+        if (e.apres >= 100) el.classList.add('panique'); else el.classList.remove('panique');
+        break;
+      case 'mort':
+        if (!el) break;
+        el.classList.add(e.pj ? 'a-terre' : 'mort');
+        if (e.pj) el.querySelector('.sprite').textContent = '🪦';
+        break;
+    }
+  },
+
+  majBarre(el, classe, val, max, texte) {
+    const b = el.querySelector('.barre-jauge.' + classe);
+    if (!b) return;
+    b.querySelector('span').style.width = Math.max(0, Math.min(100, val / max * 100)) + '%';
+    b.querySelector('em').textContent = texte;
+    b.classList.toggle('max', classe === 'peur' && val >= 100);
+  },
+
+  flotter(el, texte, classe) {
+    const s = document.createElement('span');
+    s.className = 'flottant ' + classe;
+    s.textContent = texte;
+    el.appendChild(s);
+    setTimeout(() => s.remove(), 1300);
+  },
+
+  projectile(src, dst, icone) {
+    if (!src || !dst) return;
+    const scene = $('#scene').getBoundingClientRect();
+    const a = src.querySelector('.figure').getBoundingClientRect(), b = dst.querySelector('.figure').getBoundingClientRect();
+    const p = document.createElement('div');
+    p.className = 'projectile';
+    p.textContent = icone;
+    p.style.left = (a.left + a.width / 2 - scene.left) + 'px';
+    p.style.top = (a.top + a.height / 2 - scene.top) + 'px';
+    $('#calque').appendChild(p);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      p.style.left = (b.left + b.width / 2 - scene.left) + 'px';
+      p.style.top = (b.top + b.height / 2 - scene.top) + 'px';
+    }));
+    setTimeout(() => p.remove(), 520);
+  },
+
+  // Gros d20 au centre de la scène
+  afficherDe(e) {
+    const m = $('#milieu');
+    const libRes = { crit: 'CRITIQUE !', touche: 'Touché', rate: 'Raté', reussite: 'Réussi', echec: 'Échec' }[e.res];
+    const bon = e.sauvegarde ? null : (e.res !== 'rate');
+    const classeRes = e.res === 'crit' ? 'crit' : (e.res === 'rate' || e.res === 'reussite' && !e.sauvegarde) ? 'non' : (e.res === 'echec' || e.res === 'reussite') ? e.res : 'oui';
+    const bonus = e.total - e.nat;
+    m.innerHTML = `<div class="de-jet ${classeRes}${e.nat === 20 ? ' nat20' : ''}${e.nat === 1 ? ' nat1' : ''}">
+      <svg viewBox="0 0 100 100" class="d20"><polygon points="50,3 93,27 93,73 50,97 7,73 7,27"/><polygon class="face" points="50,22 76,66 24,66"/>
+        <text x="50" y="${e.nat >= 10 ? 58 : 58}" class="num">?</text></svg>
+      <div class="de-info"><div class="de-lib">${echapper(e.libelle)}${e.mode ? (e.mode > 0 ? ' <span class="av">avantage</span>' : ' <span class="dv">désavantage</span>') : ''}</div>
+      <div class="de-calc"><b class="tot">…</b> ${bonus ? `<span class="petit">(${e.nat}${signe(bonus)})</span>` : ''} vs ${e.contre}</div>
+      <div class="de-res">${libRes}</div></div></div>`;
+    const num = m.querySelector('.num'), tot = m.querySelector('.tot'), box = m.querySelector('.de-jet');
+    let n = 0;
+    const roule = setInterval(() => { num.textContent = 1 + Math.floor(Math.random() * 20); if (++n > 6) { clearInterval(roule); num.textContent = e.nat; tot.textContent = e.total; box.classList.add('pose'); } }, 45);
   },
 
   panneauHtml(cb) {
     if (cb.fini) return `<div class="attente">${cb.resultat === 'victoire' ? '🏆 Victoire !' : '💀 Défaite…'}</div>`;
     const a = cb.actif;
-    if (!a || !cb.attenteJoueur) return `<div class="attente">${a ? `Tour de <b>${echapper(a.nom)}</b>…` : '…'}</div>`;
+    if (!a || !cb.attenteJoueur) return `<div class="attente">${a ? `${a.icone} Tour de <b>${echapper(a.nom)}</b>…` : '…'}</div>`;
 
     const ids = [...a.actions, ...ACTIONS_COMMUNES];
     const boutons = ids.map(id => {
       const act = ACTIONS[id];
       const d = cb.disponibilite(a, act);
-      const cout = act.niveau ? `<span class="cout">niv.${act.niveau}</span>` : act.parCombat ? `<span class="cout">1/combat</span>` : act.special === 'potion' ? `<span class="cout">×${Jeu.potions}</span>` : '';
-      return `<button class="btn-action ${act.commune ? 'commune' : ''} ${this.selection === id ? 'sel' : ''}" data-action="${id}" ${d.ok ? '' : 'disabled'}>
+      const cout = act.niveau ? `niv${act.niveau}` : act.parCombat ? '1×' : act.special === 'potion' ? `×${Jeu.potions}` : '';
+      return `<button class="btn-action ${act.commune ? 'commune' : ''} ${this.selection === id ? 'sel' : ''} ${d.ok ? '' : 'indispo'}" data-action="${id}">
+        ${cout ? `<span class="cout-coin">${cout}</span>` : ''}
         <span class="ic">${act.icone}</span>
-        <span class="nm">${act.nom}${cout}</span>
-        <span class="pips-ligne">${this.pipsAction(act)}</span>
-        ${d.ok ? '' : `<span class="raison">${d.raison}</span>`}
+        <span class="nm">${act.nom}</span>
+        <span class="pips-ligne">${this.pipsAction(act, true)}</span>
       </button>`;
     }).join('');
 
-    let aide = `<b>${a.icone} ${a.nom}</b> (rang ${cb.rang(a)}) — choisissez une action.`;
-    if (a.peur >= 100) aide += ' <span class="mauvais">😱 Paniqué : désavantage.</span>';
+    let aide = `<b>${a.icone} ${a.nom}</b> · rang ${cb.rang(a)}${a.peur >= 100 ? ' · <span class="mauvais">😱 paniqué</span>' : ''} ${this.emplacementsHtml(a, true)}<br><span class="discret">Choisissez une action.</span>`;
+    if (this.raison) { aide = `<span class="mauvais">⛔ ${this.raison.nom} : ${this.raison.texte}</span><br><span class="discret">${this.raison.desc}</span>`; this.raison = null; }
     if (this.selection) {
       const act = ACTIONS[this.selection];
-      aide = `<b>${act.icone} ${act.nom}</b> : ${act.desc}<br>`;
-      if (act.cible === 'soi' || act.zone) aide += `<button class="btn principal petit" data-clic="confirmer">Lancer</button> <button class="btn petit" data-clic="annuler">Annuler</button>`;
-      else aide += `<span class="indice">👆 Touchez une cible en surbrillance.</span> <button class="btn petit" data-clic="annuler">Annuler</button>`;
+      const zone = act.cible === 'soi' || act.zone;
+      aide = `<div class="aide-sel"><div><b>${act.icone} ${act.nom}</b> <span class="discret">${act.desc}</span></div>
+        ${zone ? `<button class="btn principal petit" data-clic="confirmer">Lancer ▶</button>` : `<span class="indice">👆 Touchez une cible</span>`}</div>`;
     }
-    return `<div class="aide">${aide}</div>${this.emplacementsHtml(a)}<div class="actions">${boutons}</div>`;
+    return `<div class="aide">${aide}</div><div class="actions">${boutons}</div>`;
   },
 
   choisirAction(id) {
     const cb = Jeu.combat;
-    if (!cb.attenteJoueur) return;
-    if (!cb.disponibilite(cb.actif, ACTIONS[id]).ok) return;
+    if (!cb.attenteJoueur || Date.now() < this.finAnim) return;
+    const act = ACTIONS[id];
+    const d = cb.disponibilite(cb.actif, act);
+    if (!d.ok) { this.selection = null; this.raison = { nom: act.nom, texte: d.raison, desc: act.desc }; return this.majCombat(); }
     this.selection = this.selection === id ? null : id;
     this.majCombat();
   },
@@ -312,6 +446,14 @@ const Ui = {
     const act = ACTIONS[this.selection];
     this.selection = null;
     cb.jouer(cb.actif, act, null);
+  },
+
+  journal() {
+    const cb = Jeu.combat;
+    if (!cb) return;
+    this.modal(`<h2>📜 Journal du combat</h2><div class="journal">${cb.journal.map(l => `<div class="l ${l.classe}">${l.html}</div>`).join('')}</div>`);
+    const j = document.querySelector('.modal-boite');
+    j.scrollTop = j.scrollHeight;
   },
 
   // ------------------------------------------------------ récompense
@@ -439,6 +581,7 @@ const Ui = {
         return;
       case 'fermer': return this.fermerModal();
       case 'confirmer': return this.confirmer();
+      case 'journal': return this.journal();
       case 'annuler': this.selection = null; return this.majCombat();
       case 'passer': return Jeu.allerCarte();
       case 'repos-court': return Jeu.reposCourt();
