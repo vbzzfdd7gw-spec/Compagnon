@@ -47,6 +47,7 @@ class Combat {
     this.surMaj = () => {};
     this.surFin = () => {};
     this.delaiMonstre = 450;
+    this.vitesse = 1;                  // 2 = animations accélérées
 
     const liste = [...rencontre.avant.map(id => [id, 'avant']), ...rencontre.arriere.map(id => [id, 'arriere'])];
     const noms = {};
@@ -81,6 +82,7 @@ class Combat {
     return d;
   }
   resteAnim() { return Math.max(0, this.finAnim - Date.now()); }
+  attente(ms) { return ms / (this.vitesse || 1); }
   evt(e) { this.evenements.push(e); }
   // Retire les ennemis morts (gardés le temps de l'animation)
   nettoyer() {
@@ -162,7 +164,7 @@ class Combat {
       this.log(`${ETATS[c.etats.etourdi ? 'etourdi' : 'endormi'].icone} ${this.nomHtml(c)} ${c.etats.etourdi ? 'est étourdi' : 'dort'} et perd son tour.`);
       this.evt({ t: 'texte', cible: c.id, texte: ETATS[c.etats.etourdi ? 'etourdi' : 'endormi'].icone, classe: 'etat' });
       const d = this.maj();
-      return setTimeout(() => this.finTour(c), d + 500);
+      return setTimeout(() => this.finTour(c), d + this.attente(500));
     }
 
     if (c.camp === 'pj') {
@@ -170,7 +172,7 @@ class Combat {
       this.maj(); // attente du joueur
     } else {
       this.maj();
-      setTimeout(() => this.tourMonstre(c), this.delaiMonstre);
+      setTimeout(() => this.tourMonstre(c), this.attente(this.delaiMonstre));
     }
   }
 
@@ -196,7 +198,7 @@ class Combat {
         pj.etats = {};
       }
       this.maj();
-      setTimeout(() => this.surFin('victoire'), this.resteAnim() + 900);
+      setTimeout(() => this.surFin('victoire'), this.resteAnim() + this.attente(900));
       return true;
     }
     if (this.pjs.every(p => p.pv <= 0)) {
@@ -204,10 +206,20 @@ class Combat {
       this.resultat = 'defaite';
       this.log('💀 <b>Toute l\'équipe est à terre…</b>', 'titre mauvais');
       this.maj();
-      setTimeout(() => this.surFin('defaite'), this.resteAnim() + 1200);
+      setTimeout(() => this.surFin('defaite'), this.resteAnim() + this.attente(1200));
       return true;
     }
     return false;
+  }
+
+  // Prochain héros debout dans l'ordre d'initiative (pour l'aperçu)
+  prochainPJ() {
+    const n = this.ordre.length;
+    for (let k = 1; k <= n; k++) {
+      const c = this.ordre[(this.indexTour + k) % n];
+      if (c && c.camp === 'pj' && c.pv > 0) return c;
+    }
+    return null;
   }
 
   // ------------------------------------------------- disponibilité
@@ -250,7 +262,7 @@ class Combat {
     this.executer(acteur, action, cible);
     const d = this.maj();
     if (this.verifierFin()) return;
-    setTimeout(() => this.finTour(acteur), d + 250);
+    setTimeout(() => this.finTour(acteur), d + this.attente(250));
   }
 
   executer(a, act, cible) {
@@ -556,8 +568,8 @@ class Combat {
       const d = this.maj();
       if (this.verifierFin()) return;
       i++;
-      if (i < nb) setTimeout(agir, d + 400);
-      else setTimeout(() => this.finTour(m), d + 250);
+      if (i < nb) setTimeout(agir, d + this.attente(400));
+      else setTimeout(() => this.finTour(m), d + this.attente(250));
     };
     agir();
   }
