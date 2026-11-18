@@ -744,19 +744,20 @@ const Ui = {
 
   // ------------------------------------------------------ événement
   ecranEvenement() {
-    const e = Jeu.evenement;
-    const d = e.def;
+    const e = Jeu.evenement, d = e.def, choix = Jeu.choixEvenement();
+    const histo = e.historique.length ? `<div class="lignes">${e.historique.map(l => `<div>${l}</div>`).join('')}</div>` : '';
+    const texte = c => typeof c.texte === 'function' ? c.texte(Jeu) : c.texte;
     let bas;
-    if (!e.resultat) {
-      bas = `<div class="pile-boutons">${d.choix.map((c, i) => {
+    if (choix) {
+      bas = `<div class="pile-boutons">${choix.map((c, i) => {
         const ok = !c.condition || c.condition(Jeu);
-        return `<button class="btn" data-choix="${i}" ${ok ? '' : 'disabled'}>${c.texte}</button>`;
+        return `<button class="btn ${c.risque ? 'risque' : ''}" data-choix="${i}" ${ok ? '' : 'disabled'}>${texte(c)}</button>`;
       }).join('')}</div>`;
     } else {
-      bas = `<div class="lignes">${e.resultat.lignes.map(l => `<div>${l}</div>`).join('')}</div>
-        <button class="btn principal" data-clic="fin-evenement">Continuer</button>`;
+      const r = e.resultat;
+      bas = `<button class="btn principal" data-clic="fin-evenement">${r && r.combat ? '⚔️ Combattre !' : 'Continuer'}</button>`;
     }
-    return `<div class="ecran-centre"><h2>❓ ${d.titre}</h2><p class="recit">${d.texte}</p>${bas}${this.resumeEquipe()}</div>`;
+    return `<div class="ecran-centre"><h2>${d.icone || '❓'} ${d.titre}</h2><p class="recit">${d.texte}</p>${histo}${bas}${this.resumeEquipe()}</div>`;
   },
 
   // ------------------------------------------------------------- fin

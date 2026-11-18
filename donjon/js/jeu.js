@@ -41,6 +41,7 @@ const Jeu = {
     this.or = 30;
     this.sac = {};
     this.etage = 0;
+    this.evenementsVus = [];
     Progression.noterRecord(c.id, 1);
     this.reposLongUtilise = false;
     this.stats = { combats: 0, ennemis: 0, salles: 0 };
@@ -60,7 +61,7 @@ const Jeu = {
   sauvegarder() {
     try {
       localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
-        equipe: this.equipe, carte: this.carte, potions: this.potions, or: this.or, sac: this.sac, etage: this.etage, campagne: this.campagne,
+        equipe: this.equipe, carte: this.carte, potions: this.potions, or: this.or, sac: this.sac, evenementsVus: this.evenementsVus, etage: this.etage, campagne: this.campagne,
         reposLongUtilise: this.reposLongUtilise, stats: this.stats
       }));
     } catch (e) { /* stockage indisponible : on continue sans sauvegarde */ }
@@ -78,6 +79,7 @@ const Jeu = {
       this.campagne = this.campagne || 'crypte';
       this.or = this.or || 0;
       this.sac = this.sac || {};
+      this.evenementsVus = this.evenementsVus || [];
       this.peurMult = Progression.campagne(this.campagne).regles.peurMult || 1;
       this.equipe.forEach(p => { p.niveau = p.niveau || 3; });
       // Sauvegardes d'avant les lignes : les deux premiers devant
@@ -170,7 +172,7 @@ const Jeu = {
       case 'tresor': return this.ouvrirTresor();
       case 'marchand': return this.ouvrirMarchand();
       case 'evenement':
-        this.evenement = { def: Des.hasard(EVENEMENTS), resultat: null };
+        this.evenement = { def: this.tirerEvenement(), resultat: null, historique: [], donnees: {} };
         this.ecran = 'evenement';
         return Ui.rendu();
     }
@@ -358,10 +360,26 @@ const Jeu = {
   },
 
   // ------------------------------------------------------ événement
+  // Tire un événement pas encore vu pendant l'expédition (et disponible)
+  tirerEvenement() {
+    let poss = EVENEMENTS.filter(e => !this.evenementsVus.includes(e.id) && (!e.disponible || e.disponible(this)));
+    if (!poss.length) { this.evenementsVus = []; poss = EVENEMENTS.filter(e => !e.disponible || e.disponible(this)); }
+    const e = Des.hasard(poss);
+    this.evenementsVus.push(e.id);
+    return e;
+  },
+  choixEvenement() {
+    const e = this.evenement;
+    return (e.resultat && e.resultat.choix) || (!e.resultat ? e.def.choix : null);
+  },
   choisirEvenement(i) {
-    const ch = this.evenement.def.choix[i];
-    if (ch.condition && !ch.condition(this)) return;
-    this.evenement.resultat = ch.resoudre(this);
+    const liste = this.choixEvenement();
+    const ch = liste && liste[i];
+    if (!ch || (ch.condition && !ch.condition(this))) return;
+    const r = ch.resoudre(this) || { lignes: [] };
+    this.evenement.historique.push(...(r.lignes || []));
+    this.evenement.resultat = r;
+    Son.jouer(r.son || 'clic');
     Ui.rendu();
   },
 
@@ -370,8 +388,61 @@ const Jeu = {
     if (this.equipe.every(p => p.pv <= 0)) {
       this.finale = 'defaite'; this.ecran = 'fin'; this.effacerSauvegarde(); return Ui.rendu();
     }
+    if (r && r.combat) return this.lancerCombat(r.combat, r.typeCombat || 'elite');
     if (r && r.recompense === 'objets') return this.proposerRecompenses(Recompenses.generer(this.equipe, { objetsSeulement: true }), 'Trouvaille');
     if (r && r.recompense === 'normal') return this.proposerRecompenses(Recompenses.generer(this.equipe), 'Trouvaille');
     this.allerCarte();
+  },
+
+  // ----------------------------------------- utilitaires d'événements
+  etat() { return this.evenement.donnees; },
+  heros(filtre = p => p.pv > 0) { return Des.hasard(this.equipe.filter(filtre)) || this.equipe[0]; },
+  nomObjet(cle) { const o = OBJETS[cle]; return `${o.icone} <b style="color:${RARETES[o.rarete].couleur}">${o.nom}</b>`; },
+  rencontreElite() { return Des.hasard(this.rencontres().elite); },
+  rencontreFacile() { return Des.hasard(this.rencontres().facile); },
+  gagnerOrFixe(n) { this.or = Math.max(0, this.or + n); return n >= 0 ? `💰 +${n} or.` : `💰 ${n} or.`; },
+  pvMax(pj, n) { pj.pvMax = Math.max(1, pj.pvMax + n); pj.pv = Math.min(pj.pvMax, pj.pv + Math.max(0, n)); },
+  blesserPct(pct) { this.equipe.forEach(p => { if (p.pv > 0) this.blesser(p, Math.max(1, Math.round(p.pvMax * pct))); }); },
+  objetsPortes(filtre = () => true) {
+    const l = [];
+    for (const p of this.equipe) for (const cle of p.objets) if (filtre(OBJETS[cle], cle)) l.push({ pj: p, cle });
+    return l;
+  },
+
+  // Donne un objet aléatoire de la (des) rareté(s) voulue(s) ; renvoie une ligne de texte
+  donnerObjet(rarete, pj = null) {
+    const rar = Array.isArray(rarete) ? rarete : [rarete];
+    const heros = pj ? [pj] : this.equipe;
+    const poss = [];
+    for (const [cle, o] of Object.entries(OBJETS)) {
+      if (!rar.includes(o.rarete)) continue;
+      for (const h of heros) if ((!o.classes || o.classes.includes(h.classe)) && !h.objets.includes(cle)) poss.push([cle, h]);
+    }
+    if (!poss.length) return pj ? this.donnerObjet(rarete) : this.gagnerOrFixe(50) + ' (aucun objet disponible, compensation en or)';
+    const [cle, h] = Des.hasard(poss);
+    equiperObjet(h, cle);
+    Son.jouer('objet');
+    return `${h.icone} <b>${h.nom}</b> reçoit ${this.nomObjet(cle)} — ${OBJETS[cle].desc}`;
+  },
+  // Retire un objet porté ; renvoie { pj, cle } ou null
+  retirerObjetAleatoire(filtre = () => true) {
+    const l = this.objetsPortes(filtre);
+    if (!l.length) return null;
+    const x = Des.hasard(l);
+    retirerObjet(x.pj, x.cle);
+    return x;
+  },
+  // Remplace un objet par un objet de rareté supérieure (maudit → rare)
+  ameliorerObjet() {
+    const suivante = { commun: 'rare', rare: 'legendaire', maudit: 'rare' };
+    const x = this.retirerObjetAleatoire(o => suivante[o.rarete]);
+    if (!x) return null;
+    return [`${x.pj.icone} ${x.pj.nom} perd ${this.nomObjet(x.cle)}…`, this.donnerObjet(suivante[OBJETS[x.cle].rarete], x.pj)];
+  },
+  // Remplace un objet par un autre de même rareté
+  transformerObjet(pj = null) {
+    const x = this.retirerObjetAleatoire((o, cle) => !pj || pj.objets.includes(cle));
+    if (!x) return null;
+    return [`${x.pj.icone} ${x.pj.nom} perd ${this.nomObjet(x.cle)}…`, this.donnerObjet(OBJETS[x.cle].rarete, x.pj)];
   }
 };

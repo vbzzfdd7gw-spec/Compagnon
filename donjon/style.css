@@ -538,3 +538,6 @@ body { overscroll-behavior: none; }
 .chargement3d.fini { opacity: 0; }
 .logo-zone { opacity: 0; transform: translateY(-6px); transition: opacity .7s ease, transform .7s ease; }
 .polices .logo-zone { opacity: 1; transform: none; }
+
+.btn.risque { border-color: #8a3a2a; }
+.btn.risque:hover:not(:disabled) { border-color: #ef7a6a; }

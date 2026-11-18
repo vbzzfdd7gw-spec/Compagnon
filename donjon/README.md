@@ -35,7 +35,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Un objet** : une entrée dans `OBJETS` avec sa `rarete` et ses effets dans `mods` (bonus chiffrés et `traits` lus par le moteur de combat ; liste en tête de `objets.js`). Les objets peuvent ainsi être donnés d'un héros à l'autre.
 - **Un consommable** : une entrée dans `CONSOMMABLES` (`objets.js`) et l'action correspondante dans `ACTIONS_SAC` (`actions.js`).
 - **Le marchand et l'or** : `Marchand` et `GAINS_OR` dans `objets.js`.
-- **Un événement** : un objet dans `EVENEMENTS` avec des `choix` qui ont une fonction `resoudre(jeu)`.
+- **Un événement** : un objet dans `EVENEMENTS` avec des `choix` qui ont une fonction `resoudre(jeu)`. `resoudre` peut renvoyer une suite de `choix` (événement en plusieurs étapes) ou un `combat`. Les utilitaires (donner, retirer, améliorer ou transformer un objet, or, PV max…) sont listés en tête de `evenements.js`.
 - **Un effet spécial** : un type `'special'` et une fonction du même nom dans `SPECIAUX` (`combat.js`).
 - **Une figurine 3D** : une fonction dans `FIGURINES` (`modeles3d.js`) portant l'identifiant du monstre ou de la classe ; sans figurine, une boule grise s'affiche. Sans WebGL, le jeu affiche les emojis.
 - **Un état** (étourdi, béni…) : une entrée dans `ETATS` (`combat.js`).
