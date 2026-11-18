@@ -1,14 +1,93 @@
 // =====================================================================
 // Événements (cases ❓ de la carte).
-// Chaque choix a `texte`, une `condition(jeu)` facultative et une
-// fonction `resoudre(jeu)` qui renvoie { lignes: [...], recompense? }.
+// Un événement : { id, icone, titre, texte, choix, disponible?(jeu) }.
+// Chaque choix a `texte` (chaîne ou fonction(jeu)), une `condition(jeu)`
+// facultative, `risque` (bordure rouge) et une fonction `resoudre(jeu)` qui
+// renvoie { lignes: [...], choix?, combat?, recompense? } :
+//   choix      : suite de l'événement (nouveaux choix)
+//   combat     : rencontre à combattre ensuite (élite par défaut)
 //   recompense : 'normal' | 'objets' → affiche l'écran de récompense ensuite
+// Un même événement ne revient pas deux fois dans une expédition.
 // Utilitaires de jeu disponibles : jeu.pj(classe), jeu.debout(),
 //   jeu.meilleur(carac) (héros debout le plus doué), jeu.lanceur() (héros
 //   debout avec un emplacement de niveau 1), jeu.test(pj, carac, dd),
 //   jeu.soigner(pj, n), jeu.blesser(pj, n),
-//   jeu.peur(pj, n), jeu.potions
+//   jeu.peur(pj, n), jeu.potions, jeu.or, jeu.heros() (héros debout au hasard)
+// Objets : jeu.donnerObjet(rareté(s), pj?), jeu.retirerObjetAleatoire(filtre),
+//   jeu.ameliorerObjet(), jeu.transformerObjet(pj?), jeu.objetsPortes(filtre),
+//   jeu.nomObjet(cle) ; autres : jeu.gagnerOrFixe(n), jeu.pvMax(pj, n),
+//   jeu.blesserPct(p), jeu.ajouterStock(cle, n), jeu.rencontreElite()
 // =====================================================================
+
+// ---------------------------------------------------------------------
+// Événements en plusieurs étapes : les suites sont construites par ces
+// fonctions (l'état de l'événement en cours est dans jeu.etat()).
+// ---------------------------------------------------------------------
+function misePuits(j) { return j.etat().mise || 25; }
+function puitsChoix() {
+  return [
+    {
+      texte: j => `Jeter ${misePuits(j)} or dans le puits`,
+      condition: j => j.or >= misePuits(j),
+      resoudre(j) {
+        const mise = misePuits(j);
+        j.gagnerOrFixe(-mise);
+        j.etat().mise = mise + 15;
+        const r = Des.d20(), lignes = [`🎲 ${r.texte}`];
+        if (r.nat <= 8) lignes.push('Plouf. Rien ne se passe.');
+        else if (r.nat <= 14) { j.ajouterStock('potion_sup', 1); lignes.push('Une bulle remonte : 🍷 une potion de soins supérieure !'); }
+        else if (r.nat <= 19) lignes.push('L\'eau scintille !', j.donnerObjet('rare'));
+        else lignes.push('Le puits s\'illumine d\'or !', j.donnerObjet('legendaire'));
+        return { lignes, choix: puitsChoix() };
+      }
+    },
+    { texte: 'Partir', resoudre: () => ({ lignes: ['Vous laissez le puits à ses murmures.'] }) }
+  ];
+}
+
+const COUT_PAGES = [0, 3, 6, 10];
+function lirePage(j, n) {
+  const e = j.etat();
+  if (!e.lecteur) e.lecteur = j.meilleur('INT') || j.heros();
+  const h = e.lecteur, cout = COUT_PAGES[n];
+  j.blesser(h, cout);
+  const textes = ['', 'Les mots rampent sur la page… impossible de détourner les yeux.', 'Le livre boit votre sang. Il en réclame encore.', 'La dernière page s\'ouvre sur un trésor caché entre les feuillets !'];
+  const lignes = [`📕 ${h.nom} lit la page ${n} : −${cout} PV. ${textes[n]}`];
+  if (h.pv <= 0) return { lignes: [...lignes, `${h.nom} s'effondre, vidé de ses forces.`] };
+  if (n === 3) return { lignes: [...lignes, j.donnerObjet('legendaire', h)] };
+  return {
+    lignes,
+    choix: [
+      { texte: `Lire la page ${n + 1} (−${COUT_PAGES[n + 1]} PV)`, risque: true, resoudre: jj => lirePage(jj, n + 1) },
+      {
+        texte: n === 2 ? 'Refermer le livre (en gardant le marque-page : objet commun)' : 'Refermer le livre',
+        resoudre: jj => ({ lignes: n === 2 ? ['Vous arrachez le marque-page d\'argent.', jj.donnerObjet('commun', h)] : ['Le livre se referme en soupirant.'] })
+      }
+    ]
+  };
+}
+
+function cadavreChoix() {
+  return [
+    {
+      texte: j => `Fouiller le sac (risque d'embuscade : ${j.etat().risque || 25} %)`, risque: true,
+      resoudre(j) {
+        const e = j.etat(), risque = e.risque || 25;
+        if (!e.butin) e.butin = Des.melanger(['or', 'objet', 'rien', 'potion']);
+        if (Math.random() * 100 < risque) return { lignes: ['Un grognement derrière vous… le meurtrier est revenu !'], combat: j.rencontreElite() };
+        e.risque = risque + 25;
+        const b = e.butin.pop(), lignes = [];
+        if (b === 'or') lignes.push('Une bourse bien remplie !', j.gagnerOrFixe(45));
+        else if (b === 'objet') lignes.push(j.donnerObjet(Des.hasard(['rare', 'rare', 'commun', 'maudit'])));
+        else if (b === 'potion') { j.ajouterStock('potion', 2); lignes.push('🧴 Deux potions de soins.'); }
+        else lignes.push('Rien d\'intéressant dans cette poche.');
+        if (!e.butin.length) return { lignes: [...lignes, 'Le sac est vide.'] };
+        return { lignes, choix: cadavreChoix() };
+      }
+    },
+    { texte: 'Partir sans traîner', resoudre: () => ({ lignes: ['Vous vous éloignez prudemment.'] }) }
+  ];
+}
 
 const EVENEMENTS = [
   {
@@ -159,6 +238,304 @@ const EVENEMENTS = [
         }
       },
       { texte: 'Repartir', resoudre: () => ({ lignes: ['Les livres retournent à leur silence.'] }) }
+    ]
+  },
+  // ===================================================================
+  // Événements à risque et à objets (choix en plusieurs étapes possibles :
+  // `resoudre` peut renvoyer `choix` pour proposer une suite, ou `combat`
+  // pour déclencher un affrontement).
+  // ===================================================================
+  {
+    id: 'idole', icone: '🗿',
+    titre: 'L\'idole d\'or',
+    texte: 'Sur un socle de pierre trône une idole d\'or aux yeux de rubis. Les dalles autour sont étrangement propres…',
+    choix: [
+      {
+        texte: 'S\'emparer de l\'idole', risque: true,
+        resoudre(j) {
+          const ligne = j.donnerObjet(Math.random() < 0.5 ? 'legendaire' : 'rare');
+          return {
+            lignes: [ligne, '<b>CLAC !</b> Le plafond commence à s\'effondrer et un grondement monte du couloir !'],
+            choix: [
+              {
+                texte: '🏃 Fuir à toutes jambes (toute l\'équipe perd 20 % de ses PV)',
+                resoudre(j) { j.blesserPct(0.2); return { lignes: ['Vous plongez hors de la salle sous une pluie de pierres.'] }; }
+              },
+              {
+                texte: '🤸 Le plus adroit désamorce le mécanisme (DEX DD 15)',
+                condition: j => !!j.meilleur('DEX'),
+                resoudre(j) {
+                  const h = j.meilleur('DEX'), t = j.test(h, 'DEX', 15, true);
+                  if (t.reussite) return { lignes: [t.texte, 'Le mécanisme se bloque dans un grincement. Personne n\'est blessé.'] };
+                  const d = Des.lancer('4d6'); j.blesser(h, d.total);
+                  return { lignes: [t.texte, `Raté ! ${h.nom} est écrasé : ${d.texte} dégâts.`] };
+                }
+              },
+              {
+                texte: '⚔️ Affronter le gardien qui arrive',
+                resoudre(j) { return { lignes: ['Une silhouette massive surgit de l\'ombre…'], combat: j.rencontreElite() }; }
+              }
+            ]
+          };
+        }
+      },
+      { texte: 'Laisser l\'idole tranquille', resoudre: () => ({ lignes: ['Certains trésors ne valent pas le risque.'] }) }
+    ]
+  },
+  {
+    id: 'puits', icone: '🪙',
+    titre: 'Le puits aux souhaits',
+    texte: 'Un vieux puits couvert de mousse. Au fond, des centaines de pièces scintillent. Une inscription : « Donne, et il te sera rendu. »',
+    choix: puitsChoix()
+  },
+  {
+    id: 'grimoire', icone: '📕',
+    titre: 'Le grimoire qui murmure',
+    texte: 'Un livre relié de peau est posé sur un lutrin. Il s\'ouvre tout seul quand vous approchez, et une voix vous invite à lire…',
+    choix: [
+      { texte: 'Lire la première page (−3 PV au lecteur)', risque: true, resoudre: j => lirePage(j, 1) },
+      { texte: 'Brûler le livre', resoudre(j) { j.debout().forEach(p => j.peur(p, -10)); return { lignes: ['Le livre hurle en se consumant. Étrangement, vous vous sentez plus léger (−10 Peur).'] }; } }
+    ]
+  },
+  {
+    id: 'forgeron', icone: '⚒️',
+    titre: 'Le forgeron spectral',
+    texte: 'Une enclume résonne dans le noir. Un nain fantomatique martèle une lame qui n\'existe pas. « Apportez-moi du métal, voyageurs. »',
+    choix: [
+      {
+        texte: '✨ Améliorer un objet au hasard (30 or) : il devient plus rare',
+        condition: j => j.or >= 30 && j.objetsPortes(o => o.rarete !== 'legendaire').length > 0,
+        resoudre(j) { j.gagnerOrFixe(-30); return { lignes: ['Le marteau s\'abat dans une gerbe d\'étincelles bleues…', ...j.ameliorerObjet()] }; }
+      },
+      {
+        texte: '🩸 Forger une arme maudite (un objet maudit et 40 or)', risque: true,
+        resoudre(j) { return { lignes: [j.donnerObjet('maudit'), j.gagnerOrFixe(40), '« Elle a soif… prenez-en soin. »'] }; }
+      },
+      { texte: 'Partir', resoudre: () => ({ lignes: ['Le fantôme reprend son ouvrage sans un regard.'] }) }
+    ]
+  },
+  {
+    id: 'pacte', icone: '😈',
+    titre: 'Le cercle d\'invocation',
+    texte: 'Dans un pentacle de sang séché, un diablotin ricane. « Un marché, mortels ? Puissance contre… un petit quelque chose. »',
+    choix: [
+      {
+        texte: 'Accepter le pacte (un objet légendaire et un objet maudit)', risque: true,
+        resoudre(j) {
+          const h = j.heros();
+          return { lignes: [j.donnerObjet('legendaire', h), j.donnerObjet('maudit', h), '« Marché conclu ! » Le diablotin disparaît dans une odeur de soufre.'] };
+        }
+      },
+      {
+        texte: 'Le héros le plus charismatique le bannit (CHA DD 14)',
+        condition: j => !!j.meilleur('CHA'),
+        resoudre(j) {
+          const h = j.meilleur('CHA'), t = j.test(h, 'CHA', 14, true);
+          if (t.reussite) return { lignes: [t.texte, 'Le diablotin est renvoyé dans les Abysses et abandonne son trésor.', j.donnerObjet('rare')] };
+          j.debout().forEach(p => j.peur(p, 25));
+          return { lignes: [t.texte, 'Il éclate de rire et vous maudit en s\'évanouissant : toute l\'équipe gagne 25 Peur.'] };
+        }
+      },
+      { texte: 'Effacer le cercle et partir', resoudre: () => ({ lignes: ['Le ricanement s\'éteint lentement.'] }) }
+    ]
+  },
+  {
+    id: 'cadavre', icone: '💀',
+    titre: 'L\'aventurier mort',
+    texte: 'Un aventurier gît contre le mur, son sac encore plein. Des traces de griffes fraîches marquent le sol… son meurtrier rôde peut-être encore.',
+    choix: cadavreChoix()
+  },
+  {
+    id: 'roue', icone: '🎡',
+    titre: 'La roue du destin',
+    texte: 'Un gnome en habit de forain se tient près d\'une immense roue peinte. « Un tour gratuit ! La fortune sourit aux audacieux ! »',
+    choix: [
+      {
+        texte: 'Faire tourner la roue',
+        resoudre(j) {
+          const r = Des.d(6);
+          const lignes = [`🎲 La roue s'arrête sur la case ${r}…`];
+          if (r === 1) lignes.push(j.gagnerOrFixe(80), 'Une pluie de pièces !');
+          else if (r === 2) lignes.push('Un objet tombe de la roue !', j.donnerObjet('rare'));
+          else if (r === 3) { j.equipe.forEach(p => { p.pv = p.pvMax; }); lignes.push('Une lumière dorée : toute l\'équipe récupère tous ses PV.'); }
+          else if (r === 4) lignes.push('Un rire sinistre… La roue vous offre un « cadeau ».', j.donnerObjet('maudit'));
+          else if (r === 5) { j.blesserPct(0.15); lignes.push('La roue explose ! Toute l\'équipe perd 15 % de ses PV.'); }
+          else { j.ajouterStock('potion_sup', 2); lignes.push('🍷 Deux potions de soins supérieures !'); }
+          return { lignes };
+        }
+      },
+      { texte: 'Décliner poliment', resoudre: () => ({ lignes: ['« Dommage ! » Le gnome disparaît avec sa roue.'] }) }
+    ]
+  },
+  {
+    id: 'temple', icone: '🕍',
+    titre: 'Le temple de lumière',
+    texte: 'Un sanctuaire intact, baigné d\'une lumière douce. Une prêtresse aveugle vous accueille : « Les ténèbres pèsent sur vous. »',
+    choix: [
+      {
+        texte: '🕊️ Purifier un objet maudit (il disparaît)',
+        condition: j => j.objetsPortes(o => o.rarete === 'maudit').length > 0,
+        resoudre(j) {
+          const x = j.retirerObjetAleatoire(o => o.rarete === 'maudit');
+          return { lignes: [`La malédiction se dissipe : ${x.pj.nom} se libère de ${j.nomObjet(x.cle)}.`] };
+        }
+      },
+      {
+        texte: '🙏 Faire un don de 40 or (toute l\'équipe récupère la moitié de ses PV)',
+        condition: j => j.or >= 40,
+        resoudre(j) { j.gagnerOrFixe(-40); j.equipe.forEach(p => j.soigner(p, Math.ceil(p.pvMax / 2))); return { lignes: ['Une chaleur bienfaisante vous enveloppe.'] }; }
+      },
+      { texte: '🧘 Méditer (toute l\'équipe perd 40 Peur)', resoudre(j) { j.equipe.forEach(p => j.peur(p, -40)); return { lignes: ['Le silence apaise vos esprits.'] }; } }
+    ]
+  },
+  {
+    id: 'champignons', icone: '🍄',
+    titre: 'Le cercle de champignons',
+    texte: 'Des champignons phosphorescents dessinent un cercle parfait. L\'air y est doux et sucré.',
+    choix: [
+      {
+        texte: 'Un héros en mange un', risque: true,
+        resoudre(j) {
+          const h = j.heros(), r = Des.d(4);
+          if (r === 1) { j.pvMax(h, 6); return { lignes: [`${h.nom} se sent revigoré : +6 PV maximum.`] }; }
+          if (r === 2) { const d = Des.lancer('2d6'); j.blesser(h, d.total); return { lignes: [`${h.nom} est pris de convulsions : ${d.texte} dégâts.`] }; }
+          if (r === 3) return { lignes: [`${h.nom} a une vision et trouve quelque chose sous la mousse !`, j.donnerObjet(['commun', 'rare'], h)] };
+          j.peur(h, 30); return { lignes: [`${h.nom} voit des choses horribles… +30 Peur.`] };
+        }
+      },
+      { texte: 'Cueillir quelques champignons (2 élixirs de courage)', resoudre(j) { j.ajouterStock('elixir_courage', 2); return { lignes: ['🧉 Vous en tirez deux élixirs de courage.'] }; } },
+      { texte: 'Contourner le cercle', resoudre: () => ({ lignes: ['Mieux vaut ne pas déranger les fées.'] }) }
+    ]
+  },
+  {
+    id: 'bonneteau', icone: '🥤',
+    titre: 'Le gnome tricheur',
+    texte: 'Un gnome fait glisser trois gobelets sur un tonneau. « Trouvez la bille, doublez votre mise ! Facile, facile ! »',
+    choix: [
+      {
+        texte: 'Miser 30 or',
+        condition: j => j.or >= 30,
+        resoudre(j) {
+          if (Math.random() < 0.4) return { lignes: ['Gagné ! « Grmbl… » ', j.gagnerOrFixe(30)] };
+          j.gagnerOrFixe(-30);
+          return { lignes: ['Perdu ! Le gnome empoche vos 30 pièces avec un sourire.'] };
+        }
+      },
+      {
+        texte: 'Démasquer la triche (SAG DD 14)',
+        condition: j => !!j.meilleur('SAG'),
+        resoudre(j) {
+          const h = j.meilleur('SAG'), t = j.test(h, 'SAG', 14, true);
+          if (t.reussite) return { lignes: [t.texte, 'Pris la main dans le sac ! Le gnome s\'enfuit en abandonnant son butin.', j.gagnerOrFixe(40), j.donnerObjet('commun')] };
+          const perte = Math.min(j.or, 20); j.gagnerOrFixe(-perte);
+          return { lignes: [t.texte, `Pendant la dispute, il vous fait les poches : −${perte} or.`] };
+        }
+      },
+      { texte: 'Passer votre chemin', resoudre: () => ({ lignes: ['« Radins ! »'] }) }
+    ]
+  },
+  {
+    id: 'miroir', icone: '🪞',
+    titre: 'Le miroir des âmes',
+    texte: 'Un grand miroir au cadre d\'argent. Votre reflet ne vous ressemble pas tout à fait… il porte d\'autres objets.',
+    choix: [
+      {
+        texte: 'Échanger avec son reflet (un objet devient un autre de même rareté)',
+        condition: j => j.objetsPortes().length > 0,
+        resoudre(j) { return { lignes: ['Le reflet tend la main à travers la glace…', ...j.transformerObjet()] }; }
+      },
+      {
+        texte: 'Briser le miroir (80 or, mais un objet maudit)', risque: true,
+        resoudre(j) { return { lignes: ['Des éclats d\'argent jonchent le sol, et des pièces avec eux.', j.gagnerOrFixe(80), j.donnerObjet('maudit')] }; }
+      },
+      { texte: 'Détourner le regard', resoudre: () => ({ lignes: ['Votre reflet vous fixe longtemps après votre départ.'] }) }
+    ]
+  },
+  {
+    id: 'foyer', icone: '🔥',
+    titre: 'Les esprits du foyer',
+    texte: 'Des petites flammes dansent dans un âtre ancien. Elles réclament une offrande en crépitant joyeusement.',
+    choix: [
+      {
+        texte: 'Offrir un objet au hasard',
+        condition: j => j.objetsPortes().length > 0,
+        resoudre(j) {
+          const x = j.retirerObjetAleatoire();
+          const r = OBJETS[x.cle].rarete, lignes = [`${x.pj.nom} jette ${j.nomObjet(x.cle)} dans les flammes…`];
+          if (r === 'maudit') lignes.push('Les esprits dévorent la malédiction avec délice et vous récompensent !', j.donnerObjet('rare', x.pj));
+          else if (r === 'legendaire') { j.equipe.forEach(p => { j.pvMax(p, 8); p.pv = p.pvMax; }); lignes.push('Un brasier d\'extase ! Toute l\'équipe : +8 PV maximum et soins complets.'); }
+          else if (r === 'rare') { j.equipe.forEach(p => j.pvMax(p, 4)); lignes.push('Les flammes grandissent : toute l\'équipe gagne +4 PV maximum.'); }
+          else { j.equipe.forEach(p => j.soigner(p, Math.ceil(p.pvMax / 2))); lignes.push('Une douce chaleur : toute l\'équipe récupère la moitié de ses PV.'); }
+          return { lignes };
+        }
+      },
+      { texte: 'Se réchauffer un instant (−15 Peur)', resoudre(j) { j.equipe.forEach(p => j.peur(p, -15)); return { lignes: ['Le crépitement apaise les cœurs.'] }; } }
+    ]
+  },
+  {
+    id: 'colporteur', icone: '🎒',
+    titre: 'Le colporteur des ombres',
+    texte: 'Un homme encapuchonné ouvre son manteau : des dizaines de babioles y pendent. « Tout a un prix… pas toujours en or. »',
+    choix: [
+      {
+        texte: '📦 Boîte mystère (50 or) : un objet de n\'importe quelle rareté',
+        condition: j => j.or >= 50,
+        resoudre(j) {
+          j.gagnerOrFixe(-50);
+          const r = Des.pondere([{ r: 'commun', poids: 35 }, { r: 'rare', poids: 35 }, { r: 'legendaire', poids: 12 }, { r: 'maudit', poids: 18 }]).r;
+          return { lignes: ['Vous ouvrez la boîte…', j.donnerObjet(r)] };
+        }
+      },
+      {
+        texte: '❤️ Payer de sa vie : un héros perd 6 PV maximum, objet légendaire', risque: true,
+        resoudre(j) { const h = j.heros(); j.pvMax(h, -6); return { lignes: [`${h.nom} sent une part de lui s'en aller (−6 PV maximum).`, j.donnerObjet('legendaire', h)] }; }
+      },
+      {
+        texte: '🪙 Revendre un objet maudit (45 or)',
+        condition: j => j.objetsPortes(o => o.rarete === 'maudit').length > 0,
+        resoudre(j) { const x = j.retirerObjetAleatoire(o => o.rarete === 'maudit'); return { lignes: [`Il rachète ${j.nomObjet(x.cle)} avec gourmandise.`, j.gagnerOrFixe(45)] }; }
+      },
+      { texte: 'Refuser', resoudre: () => ({ lignes: ['Il disparaît dans un pan d\'ombre.'] }) }
+    ]
+  },
+  {
+    id: 'duel', icone: '🤺',
+    titre: 'Le chevalier déchu',
+    texte: 'Un chevalier à l\'armure rouillée vous barre le passage. « Un duel d\'honneur ! Le vainqueur prend l\'arme du vaincu. »',
+    choix: [
+      {
+        texte: 'Le héros le plus fort accepte (FOR DD 15)',
+        condition: j => !!j.meilleur('FOR'),
+        resoudre(j) {
+          const h = j.meilleur('FOR'), t = j.test(h, 'FOR', 15, true);
+          if (t.reussite) return { lignes: [t.texte, '« Bien combattu… » Il vous tend son arme en s\'inclinant.', j.donnerObjet(['rare', 'legendaire'], h)] };
+          const d = Des.lancer('2d8'); j.blesser(h, d.total);
+          return { lignes: [t.texte, `${h.nom} est terrassé : ${d.texte} dégâts. Le chevalier s'éloigne sans un mot.`] };
+        }
+      },
+      {
+        texte: 'Attaquer à quatre (combat, sans honneur : +15 Peur)', risque: true,
+        resoudre(j) { j.debout().forEach(p => j.peur(p, 15)); return { lignes: ['« Lâches ! » Il appelle ses compagnons d\'armes.'], combat: j.rencontreElite() }; }
+      },
+      { texte: 'Refuser le duel', resoudre: () => ({ lignes: ['Il crache par terre et vous laisse passer.'] }) }
+    ]
+  },
+  {
+    id: 'armurerie', icone: '🛡️',
+    titre: 'L\'armurerie abandonnée',
+    texte: 'Des râteliers d\'armes rouillées couvrent les murs. Au fond, derrière une herse à moitié levée, quelque chose brille.',
+    choix: [
+      { texte: 'Prendre ce qui est à portée (un objet commun)', resoudre(j) { return { lignes: [j.donnerObjet('commun')] }; } },
+      {
+        texte: 'Se glisser sous la herse (DEX DD 13) : un objet rare',
+        condition: j => !!j.meilleur('DEX'),
+        resoudre(j) {
+          const h = j.meilleur('DEX'), t = j.test(h, 'DEX', 13, true);
+          if (t.reussite) return { lignes: [t.texte, j.donnerObjet('rare')] };
+          const d = Des.lancer('2d6'); j.blesser(h, d.total);
+          return { lignes: [t.texte, `La herse retombe ! ${h.nom} subit ${d.texte} dégâts, mais attrape quand même quelque chose.`, j.donnerObjet('commun')] };
+        }
+      }
     ]
   }
 ];
