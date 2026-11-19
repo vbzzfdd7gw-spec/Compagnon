@@ -117,6 +117,7 @@ const PERSOS3D = {
   barde: { glb: 'rogue', montrer: ['Knife'], recolorer: 'barde', anims: { attaque: '1H_Melee_Attack_Stab', sort: 'Spellcast_Shoot', soutien: 'Cheer' } },
   druide: { glb: 'mage', montrer: ['2H_Staff'], cacher: ['Mage_Hat'], recolorer: 'druide', anims: { attaque: '1H_Melee_Attack_Chop', idle: '2H_Melee_Idle' } },
   moine: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], recolorer: 'moine', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', tir: 'Unarmed_Melee_Attack_Punch_A', soutien: 'Block' } },
+  occultiste: { glb: 'mage', montrer: ['1H_Wand', 'Spellbook_open'], recolorer: 'occulte', anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', soutien: 'Spellcast_Raise' } },
   gobelin: { glb: 'rogue', montrer: ['Knife'], echelle: 0.78, recolorer: 'gobelin', anims: { attaque: '1H_Melee_Attack_Stab', tir: 'Throw' } },
   zombie: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], recolorer: 'zombie', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A' } },
   ogre: { glb: 'barbarian', montrer: ['2H_Axe'], cacher: ['Barbarian_Hat'], echelle: 1.3, recolorer: 'ogre', anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw' } },
@@ -167,6 +168,7 @@ const RECOLORATIONS = {
   kobold: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [12, 0.6, l * 0.7] : (s > 0.15 ? [30, s * 0.5, l * 0.6] : null),
   gnoll: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [38, 0.55, l * 0.72] : (s > 0.15 ? [25, s * 0.6, l * 0.65] : null),
   hobgobelin: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [22, 0.75, l * 0.75] : (s < 0.22 && l > 0.3 ? [0, 0.15, l * 0.55] : (s > 0.15 ? [355, Math.min(1, s + 0.3), l * 0.7] : null)),
+  occulte: (h, s, l) => (h > 200 && s > 0.15) ? [160, Math.min(1, s + 0.1), l * 0.55] : null,
   // Grukk : peau gris-vert de brute
   grukk: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [80, 0.35, l * 0.7] : (s > 0.15 ? [h, s * 0.7, l * 0.75] : null),
   // Chevalier sans repos : os bleutés, armure sombre

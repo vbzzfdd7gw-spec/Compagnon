@@ -25,8 +25,8 @@ function iaPJ(cb, a) {
   }
   // 1 bis) Capacités de soutien utiles
   if (ids.includes('rage') && !a.etats.rage) return [ACTIONS.rage, null];
-  if (ids.includes('marque_chasseur') && !cb.ennemis.some(e => e.marquePar === a.id && e.pv > 0)) {
-    const cs = cb.ciblesValides(a, ACTIONS.marque_chasseur).sort((x, y) => y.pv - x.pv); if (cs.length) return [ACTIONS.marque_chasseur, cs[0]];
+  for (const mq of ['marque_chasseur', 'malefice']) if (ids.includes(mq) && !cb.ennemis.some(e => e.marquePar === a.id && e.pv > 0)) {
+    const cs = cb.ciblesValides(a, ACTIONS[mq]).sort((x, y) => y.pv - x.pv); if (cs.length) return [ACTIONS[mq], cs[0]];
   }
   if (ids.includes('inspiration') && Math.random() < 0.3) { const cs = cb.ciblesValides(a, ACTIONS.inspiration).filter(p => !p.etats.inspire && p !== a); if (cs.length) return [ACTIONS.inspiration, cs[0]]; }
   if (ids.includes('chant_courage') && cb.pjs.some(p => p.peur >= 60)) return [ACTIONS.chant_courage, null];
@@ -108,6 +108,7 @@ function expedition(idC, classes) {
           }
         } else for (const p of equipe) {
           if (p.pv <= 0) p.pv = 1; p.peur = Math.max(0, p.peur - 15); if (p.peur < 50) p.crise = null;
+          if (CLASSES[p.classe].pacte) for (const k in p.emplacements) p.emplacements[k].restant = p.emplacements[k].max;
           while (p.desVie.restant > 0 && p.pv < p.pvMax * 0.7) { p.desVie.restant--; p.pv = Math.min(p.pvMax, p.pv + Math.max(1, Des.lancer('1d' + p.desVie.face).total + modCarac(p.caracs.CON))); }
         }
       } else if (n.type === 'marchand') {
