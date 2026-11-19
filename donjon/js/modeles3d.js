@@ -345,6 +345,7 @@ const Modeles3D = {
       // Orientation : héros de trois quarts vers les ennemis, ennemis vers les héros
       let base = this.vitrine ? Math.sin(s * 0.4 + u.phase) * 0.15 : (pj ? 2.15 : 0.2);
       if (u.modele === 'loup') base = pj ? base : 0.8;
+      if (['dragonnet', 'ignaroth', 'dracoliche'].includes(u.modele)) base = pj ? base : 0.55;
       if (!anime && aTerre) base = 0;
       if (u.regard && performance.now() < u.regard.jusqu) base = u.regard.yaw;
       if (u.yaw === null) u.yaw = base;
@@ -461,7 +462,10 @@ const Modeles3D = {
 const THEMES_3D = {
   crypte: { brouillard: 0x0e0a08, ciel: 0xffe2c0, ambiance: 0.38, sol: 0x8f8072, flamme: 0xff9a40 },
   grotte: { brouillard: 0x08100e, ciel: 0xb8e0d0, ambiance: 0.33, sol: 0x6f7a62, flamme: 0x9aff7a },
-  sanctuaire: { brouillard: 0x12060c, ciel: 0xffb0c8, ambiance: 0.36, sol: 0x8a6a72, flamme: 0xd070ff }
+  sanctuaire: { brouillard: 0x12060c, ciel: 0xffb0c8, ambiance: 0.36, sol: 0x8a6a72, flamme: 0xd070ff },
+  volcan: { brouillard: 0x1a0603, ciel: 0xff9a6a, ambiance: 0.42, sol: 0x6a3a2a, flamme: 0xff5a1a },
+  toiles: { brouillard: 0x0a0812, ciel: 0xa8a0d8, ambiance: 0.3, sol: 0x5a5468, flamme: 0x8a7aff },
+  abime: { brouillard: 0x050a08, ciel: 0x8affc0, ambiance: 0.3, sol: 0x4a5a50, flamme: 0x4aff9a }
 };
 
 const COULEURS_DEGATS = {
@@ -828,8 +832,82 @@ const FIGURINES = {
     return g;
   },
 
+  araignee() { return figurineAraignee(0x4a3a44, 0x7a2a3a, 1); },
+  reine_araignee() { return figurineAraignee(0x2a1a34, 0xb040d0, 1.45, true); },
+  dragonnet() { return figurineDragon(0xa82418, 0xe8a040, 0xffd84a, 1.25); },
+  ignaroth() { return figurineDragon(0x9a1810, 0xf0a838, 0xffe060, 1.9, true); },
+  dracoliche() { return figurineDragon(0xd8d2bc, 0x4a4a3a, 0x7dff9a, 1.9, true, true); },
+
   inconnu() { return G(F.boule(0.4, mat(0x888888), 0, 0.5, 0)); }
 };
+
+// Araignée cartoon : abdomen, céphalothorax, 8 pattes articulées, yeux brillants
+function figurineAraignee(corps, motif, ech = 1, couronne = false) {
+  const c = mat(corps), m = mat(motif), patte = mat(corps);
+  const pattes = [];
+  for (let i = 0; i < 4; i++) for (const cote of [-1, 1]) {
+    const z = 0.28 - i * 0.2, ang = (i - 1.5) * 0.35;
+    const g = G(
+      F.capsule(0.05, 0.42, patte, 0, 0.21, 0, 0, 0, 0),
+      P(F.capsule(0.04, 0.42, patte), 0, 0.42, 0, 0, 0, -cote * 2.3)
+    );
+    g.position.set(cote * 0.22, 0.38, z);
+    g.rotation.set(0, cote * ang, -cote * 1.1);
+    pattes.push(g);
+  }
+  const g = G(
+    pattes,
+    F.boule(0.42, c, 0, 0.55, -0.45, 0, 0, 0, 1, 0.85, 1.15),
+    F.boule(0.16, m, 0, 0.78, -0.5), F.boule(0.1, m, 0, 0.72, -0.18),
+    F.boule(0.26, c, 0, 0.5, 0.18),
+    yeuxLueur(0.62, 0.38, 0.08, 0.045, 0xff3a3a, 0xc01010),
+    yeuxLueur(0.7, 0.34, 0.15, 0.03, 0xff3a3a, 0xc01010),
+    F.cone(0.04, 0.14, mat(0x1a1010), -0.07, 0.38, 0.4, Math.PI * 0.85, 0, 0), F.cone(0.04, 0.14, mat(0x1a1010), 0.07, 0.38, 0.4, Math.PI * 0.85, 0, 0),
+    couronne ? [0, 1, 2, 3, 4].map(i => F.cone(0.04, 0.14, mat(0xf2b84a), (i - 2) * 0.07, 0.8, 0.12)) : []
+  );
+  g.scale.setScalar(ech);
+  return g;
+}
+
+// Dragon cartoon : corps, cou, tête à museau, cornes, ailes, queue
+function figurineDragon(peau, ventre, oeil, ech = 1, grand = false, squelette = false) {
+  const p = mat(peau), v = mat(ventre), corne = mat(squelette ? 0x8a8a7a : 0xf4ead0), dent = mat(0xffffff), griffe = mat(0x2a1a14);
+  const aile = new THREE.MeshToonMaterial({ color: squelette ? 0x3a3a30 : ventre, gradientMap: degradeToon(), side: THREE.DoubleSide, transparent: squelette, opacity: squelette ? 0.7 : 1 });
+  const membrane = new THREE.MeshToonMaterial({ color: peau, gradientMap: degradeToon(), side: THREE.DoubleSide });
+  // Aile : membrane festonnée tendue sur un os
+  const forme = new THREE.Shape();
+  forme.moveTo(0, 0); forme.lineTo(0.5, 0.75); forme.lineTo(1.25, 0.9); forme.quadraticCurveTo(1.05, 0.5, 1.15, 0.2);
+  forme.quadraticCurveTo(0.85, 0.25, 0.82, -0.05); forme.quadraticCurveTo(0.55, 0.05, 0.45, -0.3); forme.quadraticCurveTo(0.25, -0.1, 0, 0);
+  const geo = new THREE.ShapeGeometry(forme, 8);
+  const faireAile = cote => {
+    const g = G(sansContour(new THREE.Mesh(geo, aile)),
+      sansContour(P(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 1.0, 6), membrane), 0.42, 0.42, 0.01, 0, 0, -0.62)));
+    g.position.set(cote * 0.16, 0.92, -0.12);
+    g.rotation.set(-0.15, cote > 0 ? -0.35 : Math.PI + 0.35, cote * 0.15);
+    return g;
+  };
+  const queue = [0, 1, 2, 3, 4].map(i => F.capsule(0.15 - i * 0.025, 0.22, p, 0, 0.4 + Math.sin(i * 0.9) * 0.05, -0.55 - i * 0.24, -1.45, 0, 0));
+  const g = G(
+    [[-0.2, 0.28], [0.2, 0.28], [-0.22, -0.28], [0.22, -0.28]].map(([x, z]) => G(F.capsule(0.11, 0.22, p, x, 0.22, z), F.boule(0.09, griffe, x, 0.05, z + 0.06, 0, 0, 0, 1.1, 0.5, 1.3))),
+    F.boule(0.4, p, 0, 0.58, 0, 0, 0, 0, 1, 0.92, 1.35),
+    F.boule(0.3, v, 0, 0.5, 0.18, 0, 0, 0, 0.92, 0.85, 0.85),
+    [0, 1, 2, 3].map(i => F.cone(0.07, 0.18, corne, 0, 0.98 - i * 0.04, 0.12 - i * 0.22, -0.25, 0, 0)),
+    F.capsule(0.15, 0.42, p, 0, 0.98, 0.36, 0.75, 0, 0),
+    F.boule(0.26, p, 0, 1.3, 0.55, 0, 0, 0, 1, 0.88, 1.05),
+    F.boite(0.3, 0.2, 0.36, p, 0, 1.22, 0.84),
+    F.boite(0.26, 0.08, 0.3, v, 0, 1.11, 0.84),
+    F.boule(0.03, mat(0x1a0a08), -0.07, 1.3, 1.02), F.boule(0.03, mat(0x1a0a08), 0.07, 1.3, 1.02),
+    F.cone(0.06, 0.42, corne, -0.13, 1.55, 0.36, -0.95, 0, 0.25), F.cone(0.06, 0.42, corne, 0.13, 1.55, 0.36, -0.95, 0, -0.25),
+    F.cone(0.04, 0.2, corne, -0.24, 1.38, 0.45, -0.5, 0, 0.9), F.cone(0.04, 0.2, corne, 0.24, 1.38, 0.45, -0.5, 0, -0.9),
+    yeuxLueur(1.38, 0.72, 0.12, 0.05, oeil, oeil),
+    sourcils(1.45, 0.73, 0.12, peau, 0.55),
+    [-0.1, -0.04, 0.04, 0.1].map(x => F.cone(0.022, 0.07, dent, x, 1.13, 1.0, Math.PI, 0, 0)),
+    queue, F.cone(0.12, 0.22, corne, 0, 0.42, -1.78, -1.57, 0, 0), faireAile(1), faireAile(-1)
+  );
+  if (squelette) g.traverse(o => { if (o.isMesh && o.material && o.material.emissive && o.material !== aile) o.material.emissive = new THREE.Color(0x06140a); });
+  g.scale.setScalar(ech);
+  return g;
+}
 
 // ---------------------------------------------------------------------
 // Décor : sol dallé, braseros, piliers, os et pierres

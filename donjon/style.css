@@ -541,3 +541,9 @@ body { overscroll-behavior: none; }
 
 .btn.risque { border-color: #8a3a2a; }
 .btn.risque:hover:not(:disabled) { border-color: #ef7a6a; }
+
+/* ---------- peur : graduation à 50, crises ---------- */
+.barre-jauge.peur::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #ffffff55; }
+.peur-txt { color: #c09ae8; }
+.progression { flex-wrap: wrap; justify-content: center; gap: 7px; max-width: 360px; }
+.prog { font-size: 1.15rem; padding: 4px 7px; }

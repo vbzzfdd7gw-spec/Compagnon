@@ -41,12 +41,74 @@ const MONSTRES = {
     ]
   },
   cultiste: {
-    nom: 'Cultiste', icone: '🧙', pv: 9, ca: 12,
-    caracs: { FOR: 11, DEX: 12, CON: 10, INT: 10, SAG: 11, CHA: 10 },
+    nom: 'Cultiste', icone: '🧙', pv: 14, ca: 13, criMort: 6,
+    caracs: { FOR: 11, DEX: 12, CON: 12, INT: 10, SAG: 13, CHA: 14 },
     actions: [
-      { nom: 'Cimeterre', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 3, degats: '1d6+1', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Dague rituelle', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d6+2', typeDeg: 'perforant',
+        effetSiTouche: { peur: 6 }, poids: 2 },
       { nom: 'Murmures impies', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
-        carac: 'SAG', dd: 11, degats: '1d4', typeDeg: 'psychique', moitie: false, effetSiEchec: { peur: 15 }, poids: 2 }
+        carac: 'SAG', dd: 12, degats: '2d4', typeDeg: 'psychique', moitie: false, effetSiEchec: { peur: 12 }, poids: 3 },
+      { nom: 'Marque du culte', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+        carac: 'SAG', dd: 13, moitie: false, effetSiEchec: { etat: 'maudit', duree: 3 }, poids: 2, recharge: 3 },
+      { nom: 'Ferveur fanatique', type: 'special', special: 'ferveur', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, recharge: 4 }
+    ]
+  },
+  kobold: {
+    nom: 'Kobold', icone: '🦎', pv: 7, ca: 13,
+    caracs: { FOR: 7, DEX: 15, CON: 9, INT: 8, SAG: 7, CHA: 8 },
+    actions: [
+      { nom: 'Dague', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d4+2', typeDeg: 'perforant', poids: 2 },
+      { nom: 'Fronde', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 4, degats: '1d4+2', typeDeg: 'contondant', poids: 2 },
+      { nom: 'Pot de poix', type: 'sauvegarde', depuis: ['arriere'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 11, degats: '1d6', typeDeg: 'feu', moitie: false,
+        effetSiEchec: { etat: 'entrave', duree: 1 }, poids: 1, recharge: 3 }
+    ]
+  },
+  gnoll: {
+    nom: 'Gnoll', icone: '🐗', pv: 22, ca: 15,
+    caracs: { FOR: 14, DEX: 12, CON: 11, INT: 6, SAG: 10, CHA: 7 },
+    actions: [
+      { nom: 'Lance', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d10+2', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Arc long', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 3, degats: '1d8+1', typeDeg: 'perforant', poids: 2 },
+      { nom: 'Ricanement', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 11, moitie: false,
+        effetSiEchec: { peur: 8 }, poids: 1, recharge: 4 }
+    ]
+  },
+  hobgobelin: {
+    nom: 'Capitaine hobgobelin', icone: '🎖️', pv: 34, ca: 17,
+    caracs: { FOR: 15, DEX: 14, CON: 14, INT: 12, SAG: 10, CHA: 13 },
+    actions: [
+      { nom: 'Épée longue', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '2d8+2', typeDeg: 'tranchant', poids: 3 },
+      { nom: 'Javeline', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 5, degats: '1d6+2', typeDeg: 'perforant', poids: 1 },
+      { nom: 'Ordres de bataille', type: 'special', special: 'ferveur', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, recharge: 4 }
+    ]
+  },
+  araignee: {
+    nom: 'Araignée géante', icone: '🕷️', pv: 26, ca: 14,
+    caracs: { FOR: 14, DEX: 16, CON: 12, INT: 2, SAG: 11, CHA: 4 },
+    actions: [
+      { nom: 'Morsure venimeuse', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '1d8+3', typeDeg: 'perforant',
+        effetSiTouche: { etat: 'empoisonne', duree: 2, sauvegarde: { carac: 'CON', dd: 11 } }, poids: 3 },
+      { nom: 'Toile', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 12, moitie: false,
+        effetSiEchec: { etat: 'entrave', duree: 2 }, poids: 2, recharge: 3 }
+    ]
+  },
+  spectre: {
+    nom: 'Spectre', icone: '👻', pv: 22, ca: 12, mortVivant: true,
+    caracs: { FOR: 1, DEX: 14, CON: 11, INT: 10, SAG: 10, CHA: 11 },
+    resist: ['tranchant', 'perforant', 'contondant'], immun: ['poison', 'nécrotique'], immunEtats: ['empoisonne', 'renverse'],
+    actions: [
+      { nom: 'Drain de vie', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 4, degats: '3d6', typeDeg: 'nécrotique', sort: true, poids: 3 },
+      { nom: 'Plainte glaçante', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 12, degats: '1d6', typeDeg: 'psychique', moitie: false,
+        effetSiEchec: { peur: 15 }, poids: 1, recharge: 3 }
+    ]
+  },
+  dragonnet: {
+    nom: 'Dragonnet rouge', icone: '🐲', pv: 28, ca: 16, elite: true,
+    caracs: { FOR: 19, DEX: 10, CON: 17, INT: 12, SAG: 11, CHA: 15 },
+    resist: ['feu'],
+    actions: [
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d10+4', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Souffle de feu', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 12, degats: '4d6', typeDeg: 'feu', moitie: true, poids: 2, recharge: 3 }
     ]
   },
   zombie: {
@@ -165,6 +227,71 @@ const MONSTRES = {
       { nom: 'Éclipse totale', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 15, degats: '2d8+2', typeDeg: 'psychique', moitie: true,
         effetSiEchec: { peur: 20 }, poids: 2, recharge: 3 },
       { nom: 'Relever les fidèles', type: 'special', special: 'invoquer', invocation: 'zombie', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 3 }
+    ]
+  },
+  chef_kobold: {
+    nom: 'Grizzik, prêtre du Dragon', icone: '🦎', pv: 50, ca: 14, boss: true, actionsParTour: 2,
+    caracs: { FOR: 10, DEX: 16, CON: 14, INT: 12, SAG: 14, CHA: 16 },
+    actions: [
+      { nom: 'Sceptre écaillé', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d8+3', typeDeg: 'contondant', poids: 2 },
+      { nom: 'Trait de flammes', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '2d10', typeDeg: 'feu', sort: true, poids: 3 },
+      { nom: 'Gloire au Dragon !', type: 'special', special: 'ferveur', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, recharge: 3 },
+      { nom: 'Appel de la tribu', type: 'special', special: 'invoquer', invocation: 'kobold', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 3 }
+    ]
+  },
+  ignaroth: {
+    nom: 'Ignaroth le Dragon rouge', icone: '🐉', pv: 165, ca: 18, boss: true, actionsParTour: 2,
+    caracs: { FOR: 23, DEX: 10, CON: 21, INT: 14, SAG: 11, CHA: 19 },
+    sauvegardesBonus: { DEX: 4, CON: 9, SAG: 4, CHA: 8 },
+    immun: ['feu'],
+    actions: [
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 10, degats: '2d10+6', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Griffes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 10, degats: '2d6+6', typeDeg: 'tranchant', poids: 3 },
+      { nom: 'Coup de queue', type: 'sauvegarde', zone: true, depuis: ['avant'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 16, degats: '2d8+6', typeDeg: 'contondant', moitie: true,
+        effetSiEchec: { etat: 'renverse', duree: 1 }, poids: 2, recharge: 2 },
+      { nom: 'Souffle infernal', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 15, degats: '8d6', typeDeg: 'feu', moitie: true, poids: 4, recharge: 4 },
+      { nom: 'Présence terrifiante', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 15, moitie: false,
+        effetSiEchec: { peur: 30 }, poids: 2, recharge: 5 }
+    ]
+  },
+  reine_araignee: {
+    nom: 'Vel\'Thira, reine des Toiles', icone: '🕸️', pv: 120, ca: 16, boss: true, actionsParTour: 2,
+    caracs: { FOR: 16, DEX: 18, CON: 16, INT: 14, SAG: 14, CHA: 16 },
+    sauvegardesBonus: { DEX: 7, CON: 6, SAG: 5 },
+    immun: ['poison'], immunEtats: ['empoisonne'],
+    actions: [
+      { nom: 'Crochets', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 8, degats: '2d8+4', typeDeg: 'perforant',
+        effetSiTouche: { etat: 'empoisonne', duree: 2, sauvegarde: { carac: 'CON', dd: 15 } }, poids: 3 },
+      { nom: 'Rayon d\'ombre', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 8, degats: '3d8', typeDeg: 'nécrotique', sort: true, poids: 2 },
+      { nom: 'Pluie de toiles', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 15, moitie: false,
+        effetSiEchec: { etat: 'entrave', duree: 2 }, poids: 2, recharge: 3 },
+      { nom: 'Ponte', type: 'special', special: 'invoquer', invocation: 'araignee', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+  seigneur_guerre: {
+    nom: 'Kargath, seigneur de guerre', icone: '⚔️', pv: 150, ca: 19, boss: true, actionsParTour: 2,
+    caracs: { FOR: 20, DEX: 14, CON: 18, INT: 14, SAG: 12, CHA: 16 },
+    sauvegardesBonus: { FOR: 8, CON: 7, SAG: 4 },
+    actions: [
+      { nom: 'Épée bâtarde', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 9, degats: '2d10+5', typeDeg: 'tranchant', poids: 4 },
+      { nom: 'Coup de bouclier', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 9, degats: '1d8+5', typeDeg: 'contondant',
+        effetSiTouche: { etat: 'etourdi', duree: 1, sauvegarde: { carac: 'CON', dd: 16 } }, poids: 1, recharge: 3 },
+      { nom: 'Ordres de bataille', type: 'special', special: 'ferveur', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, recharge: 3 },
+      { nom: 'Renforts !', type: 'special', special: 'invoquer', invocation: 'gnoll', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+  dracoliche: {
+    nom: 'Morthaxx la Dracoliche', icone: '☠️', pv: 150, ca: 17, boss: true, actionsParTour: 2, mortVivant: true,
+    caracs: { FOR: 24, DEX: 10, CON: 22, INT: 18, SAG: 15, CHA: 20 },
+    sauvegardesBonus: { DEX: 5, CON: 11, SAG: 7, CHA: 10 },
+    resist: ['tranchant', 'perforant', 'contondant'], immun: ['nécrotique', 'poison'], immunEtats: ['empoisonne', 'etourdi', 'renverse'],
+    actions: [
+      { nom: 'Morsure putride', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 11, degats: '2d10+7', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Griffes d\'os', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 11, degats: '2d6+7', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Souffle de mort', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 16, degats: '8d6', typeDeg: 'nécrotique', moitie: true, poids: 3, recharge: 4 },
+      { nom: 'Regard de l\'au-delà', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 16, moitie: false,
+        effetSiEchec: { peur: 25 }, poids: 2, recharge: 4 },
+      { nom: 'Lever les ossements', type: 'special', special: 'invoquer', invocation: 'squelette', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 3 }
     ]
   },
   morvagne: {

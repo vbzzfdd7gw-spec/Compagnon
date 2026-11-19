@@ -134,6 +134,12 @@ const PERSOS3D = {
     anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw', sort: 'Taunt', soutien: 'Taunt' } },
   pretre_eclipse: { glb: 'rogue_hooded', montrer: ['Knife'], recolorer: 'eclipse', anims: { sort: 'Spellcast_Shoot', soutien: 'Spellcast_Raise' } },
   velkor: { glb: 'mage', montrer: ['2H_Staff'], echelle: 1.25, recolorer: 'eclipse', anims: { attaque: '1H_Melee_Attack_Stab', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Spellcast_Raise', idle: '2H_Melee_Idle' } },
+  kobold: { glb: 'rogue', montrer: ['Knife'], echelle: 0.66, recolorer: 'kobold', anims: { attaque: '1H_Melee_Attack_Stab', tir: 'Throw' } },
+  gnoll: { glb: 'barbarian', montrer: ['1H_Axe', 'Barbarian_Round_Shield'], cacher: ['Barbarian_Hat'], echelle: 1.05, recolorer: 'gnoll', anims: { tir: 'Throw', soutien: 'Taunt' } },
+  hobgobelin: { glb: 'knight', montrer: ['1H_Sword', 'Rectangle_Shield'], cacher: ['Knight_Helmet'], echelle: 1.05, recolorer: 'hobgobelin', anims: { tir: 'Throw', soutien: 'Cheer' } },
+  spectre: { glb: 'skeleton_mage', recolorer: 'spectre', anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
+  chef_kobold: { glb: 'mage', montrer: ['1H_Wand', 'Spellbook'], echelle: 0.85, recolorer: 'kobold', anims: { sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Spellcast_Raise' } },
+  seigneur_guerre: { glb: 'knight', montrer: ['2H_Sword'], echelle: 1.45, recolorer: 'hobgobelin', anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw', soutien: 'Cheer', invoque: 'Cheer' } },
   morvagne: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' }, echelle: 1.12, recolorer: 'necro',
     anims: { attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose', soutien: 'Taunt' } }
 };
@@ -157,6 +163,10 @@ const RECOLORATIONS = {
   barde: (h, s, l) => (h >= 10 && h <= 45 && l > 0.55) ? null : (s > 0.15 ? [330, Math.min(1, s + 0.2), l * 0.95] : null),
   druide: (h, s, l) => (h > 200 && s > 0.15) ? [105, s * 0.7, l * 0.85] : null,
   moine: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? null : (s > 0.12 ? [28, Math.min(1, s + 0.3), l * 1.05] : null),
+  // Créatures supplémentaires
+  kobold: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [12, 0.6, l * 0.7] : (s > 0.15 ? [30, s * 0.5, l * 0.6] : null),
+  gnoll: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [38, 0.55, l * 0.72] : (s > 0.15 ? [25, s * 0.6, l * 0.65] : null),
+  hobgobelin: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [22, 0.75, l * 0.75] : (s < 0.22 && l > 0.3 ? [0, 0.15, l * 0.55] : (s > 0.15 ? [355, Math.min(1, s + 0.3), l * 0.7] : null)),
   // Grukk : peau gris-vert de brute
   grukk: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [80, 0.35, l * 0.7] : (s > 0.15 ? [h, s * 0.7, l * 0.75] : null),
   // Chevalier sans repos : os bleutés, armure sombre

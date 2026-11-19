@@ -40,7 +40,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Une figurine 3D** : une fonction dans `FIGURINES` (`modeles3d.js`) portant l'identifiant du monstre ou de la classe ; sans figurine, une boule grise s'affiche. Sans WebGL, le jeu affiche les emojis.
 - **Un état** (étourdi, béni…) : une entrée dans `ETATS` (`combat.js`).
 
-Les valeurs de Peur sont regroupées dans la constante `PEUR` (`combat.js`).
+Les valeurs de Peur (paliers, crises, vertu) sont regroupées dans `PEUR` et `CRISES` (`combat.js`). La chance d'objet après un combat ordinaire est `CHANCE_OBJET_COMBAT` (`objets.js`).
 La montée de niveau est dans `PROGRESSION` (`classes.js`).
 
 ## Équilibrage
@@ -48,7 +48,7 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 `node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions avec l'équipe de base ;
 `node outils-simulation.js 1500 crypte classes` joue avec des équipes aléatoires (au moins un héros de front et un soigneur) et affiche le taux de victoire de chaque classe. Il joue 400 expéditions complètes sans affichage (stratégie simple : soigner
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
-Réglage actuel : environ 50 % de victoires pour la Crypte, 36 % pour la Horde, 20 % pour l'Éclipse.
+Réglage actuel (joueur automatique simple, équipes aléatoires) : Crypte 44 %, Horde 42 %, Éclipse 31 %, Dragon 22 %, Toiles 12 %, Légion 8 %, Abîme 8 %.
 `RENFORT_GLOBAL` (`etages.js`) ajuste la puissance de tous les monstres d'un coup.
 
 ## Crédits graphiques

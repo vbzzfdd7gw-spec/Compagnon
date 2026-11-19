@@ -91,12 +91,12 @@ const CAMPAGNES = [
   {
     id: 'eclipse', nom: 'Le Culte de l\'Éclipse', icone: '🌑', difficulte: 3, apres: 'horde',
     resume: 'Derrière Morvagne et Grukk se cachait un culte qui veut éteindre le soleil. Affrontez ses prêtres jusqu\'au cœur du temple.',
-    regles: { potions: 2, peurMult: 1.5 },
-    regleTexte: 'La Peur monte 50 % plus vite.',
+    regles: { potions: 2, peurMult: 1.3 },
+    regleTexte: 'La Peur monte 30 % plus vite.',
     fin: 'Velkor s\'effondre et l\'éclipse se dissipe. La lumière revient sur le royaume.',
     etages: [
       {
-        nom: 'Les Catacombes', theme: 'crypte', force: { pv: 1.1, toucher: 0, degats: 1, dd: 0 },
+        nom: 'Les Catacombes', theme: 'crypte', force: { pv: 1.0, toucher: 0, degats: 0, dd: 0 },
         intro: 'Des niches funéraires à perte de vue. Certaines sont vides… depuis peu.',
         rencontres: {
           facile: [
@@ -117,7 +117,7 @@ const CAMPAGNES = [
         }
       },
       {
-        nom: 'Le Cloître noir', theme: 'sanctuaire', force: { pv: 1.05, toucher: 0, degats: 1, dd: 0 },
+        nom: 'Le Cloître noir', theme: 'sanctuaire', force: { pv: 1.0, toucher: 0, degats: 1, dd: 0 },
         intro: 'Les chants du culte résonnent sous des voûtes peintes de soleils noirs.',
         rencontres: {
           facile: [
@@ -137,7 +137,7 @@ const CAMPAGNES = [
         }
       },
       {
-        nom: 'Le Temple de l\'Éclipse', theme: 'sanctuaire', force: { pv: 1.25, toucher: 1, degats: 1, dd: 1 },
+        nom: 'Le Temple de l\'Éclipse', theme: 'sanctuaire', force: { pv: 1.1, toucher: 1, degats: 1, dd: 0 },
         intro: 'L\'autel du culte. Au-dessus, un soleil noir palpite.',
         rencontres: {
           facile: [
@@ -156,7 +156,284 @@ const CAMPAGNES = [
         }
       }
     ]
+  },
+  {
+    id: 'dragon', nom: 'Le Repaire d\'Ignaroth', icone: '🐉', difficulte: 4, apres: 'eclipse',
+    resume: 'Un dragon rouge s\'est éveillé sous la montagne. Ses kobolds pillent les villages et ses dragonnets gardent les tunnels de lave.',
+    regles: { potions: 3, peurMult: 1.2 },
+    regleTexte: 'La Peur monte 20 % plus vite. Gare aux souffles de feu.',
+    fin: 'Ignaroth s\'effondre dans un torrent de flammes. Son trésor est à vous, et la montagne se tait enfin.',
+    etages: [
+      {
+        nom: 'Les Tunnels kobolds', theme: 'volcan', force: { pv: 1.1, toucher: 0, degats: 0, dd: 0 },
+        intro: 'Des galeries étroites, pleines de pièges et de petits yeux luisants.',
+        rencontres: {
+          facile: [
+            { avant: ['kobold', 'kobold'], arriere: ['kobold', 'kobold'] },
+            { avant: ['kobold', 'loup'], arriere: ['kobold', 'kobold'] },
+            { avant: ['gnoll'], arriere: ['kobold', 'kobold'] }
+          ],
+          moyen: [
+            { avant: ['gnoll', 'kobold'], arriere: ['kobold', 'kobold'] },
+            { avant: ['ogre'], arriere: ['kobold', 'kobold', 'kobold'] },
+            { avant: ['kobold', 'kobold', 'kobold'], arriere: ['cultiste', 'kobold'] }
+          ],
+          elite: [
+            { avant: ['dragonnet'], arriere: ['kobold', 'kobold'] },
+            { avant: ['ogre', 'gnoll'], arriere: ['kobold'] }
+          ],
+          boss: [{ avant: ['kobold', 'kobold'], arriere: ['chef_kobold'] }]
+        }
+      },
+      {
+        nom: 'La Caverne des Drakes', theme: 'volcan', force: { pv: 1.05, toucher: 0, degats: 1, dd: 0 },
+        intro: 'La chaleur devient étouffante. Des œufs énormes reposent dans la lave refroidie.',
+        rencontres: {
+          facile: [
+            { avant: ['gnoll', 'gnoll'], arriere: ['kobold', 'kobold'] },
+            { avant: ['dragonnet'], arriere: ['kobold'] }
+          ],
+          moyen: [
+            { avant: ['dragonnet', 'kobold'], arriere: ['kobold', 'cultiste'] },
+            { avant: ['ogre', 'gnoll'], arriere: ['kobold', 'kobold'] },
+            { avant: ['hobgobelin', 'gnoll'], arriere: ['kobold'] }
+          ],
+          elite: [
+            { avant: ['dragonnet', 'dragonnet'], arriere: [] },
+            { avant: ['dragonnet', 'ogre'], arriere: ['kobold'] }
+          ],
+          boss: [{ avant: ['dragonnet', 'dragonnet'], arriere: ['chef_kobold'] }]
+        }
+      },
+      {
+        nom: 'L\'Antre du Dragon', theme: 'volcan', force: { pv: 1.0, toucher: 1, degats: 1, dd: 0 },
+        intro: 'Une salle immense pavée d\'or fondu. Deux yeux s\'ouvrent dans les ténèbres.',
+        rencontres: {
+          facile: [
+            { avant: ['dragonnet', 'gnoll'], arriere: ['kobold'] },
+            { avant: ['hobgobelin', 'hobgobelin'], arriere: ['kobold'] }
+          ],
+          moyen: [
+            { avant: ['dragonnet', 'dragonnet'], arriere: ['kobold'] },
+            { avant: ['ogre', 'dragonnet'], arriere: ['cultiste'] }
+          ],
+          elite: [
+            { avant: ['dragonnet', 'dragonnet'], arriere: ['cultiste', 'cultiste'] },
+            { avant: ['grukk', 'dragonnet'], arriere: [] }
+          ],
+          boss: [{ avant: ['ignaroth'], arriere: ['kobold', 'kobold'] }]
+        }
+      }
+    ]
+  },
+  {
+    id: 'toiles', nom: 'Les Profondeurs de Vel\'Thira', icone: '🕷️', difficulte: 5, apres: 'dragon',
+    resume: 'Sous le monde, une reine araignée tisse sa toile entre les vivants et les morts. Des spectres hantent ses galeries.',
+    regles: { potions: 2, peurMult: 1.3 },
+    regleTexte: 'La Peur monte 30 % plus vite. Poisons et toiles partout.',
+    fin: 'La reine des Toiles se recroqueville et s\'éteint. Les spectres s\'apaisent enfin.',
+    etages: [
+      {
+        nom: 'Les Galeries tissées', theme: 'toiles', force: { pv: 1.0, toucher: 0, degats: 0, dd: 0 },
+        intro: 'Des fils argentés pendent du plafond. Tout ce qui les touche finit dévoré.',
+        rencontres: {
+          facile: [
+            { avant: ['araignee'], arriere: ['kobold', 'kobold'] },
+            { avant: ['araignee', 'loup'], arriere: [] },
+            { avant: ['squelette', 'squelette'], arriere: ['spectre'] }
+          ],
+          moyen: [
+            { avant: ['araignee', 'araignee'], arriere: ['kobold'] },
+            { avant: ['zombie', 'araignee'], arriere: ['spectre'] },
+            { avant: ['araignee'], arriere: ['spectre', 'mage_squelette'] }
+          ],
+          elite: [
+            { avant: ['araignee', 'araignee', 'araignee'], arriere: [] },
+            { avant: ['chevalier_squelette'], arriere: ['spectre'] }
+          ],
+          boss: [{ avant: ['araignee', 'araignee'], arriere: ['spectre', 'spectre'] }]
+        }
+      },
+      {
+        nom: 'La Nécropole engloutie', theme: 'toiles', force: { pv: 1.0, toucher: 0, degats: 1, dd: 0 },
+        intro: 'Une ville morte, à moitié noyée. Des silhouettes pâles glissent au-dessus de l\'eau.',
+        rencontres: {
+          facile: [
+            { avant: ['zombie', 'zombie'], arriere: ['spectre'] },
+            { avant: ['araignee', 'squelette'], arriere: ['spectre'] }
+          ],
+          moyen: [
+            { avant: ['zombie', 'araignee'], arriere: ['spectre', 'spectre'] },
+            { avant: ['squelette', 'squelette'], arriere: ['mage_squelette', 'spectre'] },
+            { avant: ['ogre', 'araignee'], arriere: ['spectre'] }
+          ],
+          elite: [
+            { avant: ['chevalier_squelette', 'araignee'], arriere: ['spectre'] },
+            { avant: ['araignee', 'araignee'], arriere: ['spectre', 'spectre'] }
+          ],
+          boss: [{ avant: ['chevalier_squelette', 'zombie'], arriere: ['spectre', 'mage_squelette'] }]
+        }
+      },
+      {
+        nom: 'Le Trône des Toiles', theme: 'toiles', force: { pv: 1.0, toucher: 1, degats: 1, dd: 0 },
+        intro: 'Un cocon gigantesque palpite au centre d\'une toile immense.',
+        rencontres: {
+          facile: [
+            { avant: ['araignee', 'araignee'], arriere: ['spectre'] },
+            { avant: ['zombie', 'zombie'], arriere: ['spectre', 'spectre'] }
+          ],
+          moyen: [
+            { avant: ['araignee', 'araignee', 'araignee'], arriere: ['spectre'] },
+            { avant: ['chevalier_squelette'], arriere: ['spectre', 'spectre'] }
+          ],
+          elite: [
+            { avant: ['araignee', 'araignee'], arriere: ['spectre', 'spectre', 'mage_squelette'] },
+            { avant: ['chevalier_squelette', 'araignee'], arriere: ['spectre', 'spectre'] }
+          ],
+          boss: [{ avant: ['araignee', 'araignee'], arriere: ['reine_araignee'] }]
+        }
+      }
+    ]
+  },
+  {
+    id: 'legion', nom: 'La Légion de Fer', icone: '🎖️', difficulte: 6, apres: 'toiles',
+    resume: 'Une armée de hobgobelins et de gnolls marche sur le royaume. Infiltrez leur forteresse et abattez leur seigneur de guerre.',
+    regles: { potions: 1, peurMult: 1.2 },
+    regleTexte: 'Une seule potion au départ. Des ennemis disciplinés qui se galvanisent.',
+    fin: 'Kargath tombe, et sans lui la Légion de Fer se débande.',
+    etages: [
+      {
+        nom: 'Le Camp de la Légion', theme: 'crypte', force: { pv: 1.0, toucher: 0, degats: 0, dd: 0 },
+        intro: 'Des tentes alignées au cordeau, des tambours de guerre, des sentinelles partout.',
+        rencontres: {
+          facile: [
+            { avant: ['gnoll', 'gnoll'], arriere: ['gobelin'] },
+            { avant: ['hobgobelin'], arriere: ['gobelin', 'gobelin'] },
+            { avant: ['gnoll', 'loup'], arriere: ['gnoll'] }
+          ],
+          moyen: [
+            { avant: ['hobgobelin', 'gnoll'], arriere: ['gobelin', 'gobelin'] },
+            { avant: ['ogre', 'gnoll'], arriere: ['gnoll'] },
+            { avant: ['gnoll', 'gnoll', 'gnoll'], arriere: ['gobelin'] }
+          ],
+          elite: [
+            { avant: ['hobgobelin', 'hobgobelin'], arriere: ['gnoll'] },
+            { avant: ['ogre', 'ogre'], arriere: ['gnoll'] }
+          ],
+          boss: [{ avant: ['hobgobelin', 'hobgobelin'], arriere: ['gnoll', 'gnoll'] }]
+        }
+      },
+      {
+        nom: 'Les Fosses aux bêtes', theme: 'grotte', force: { pv: 1.0, toucher: 0, degats: 1, dd: 0 },
+        intro: 'Des cages, des chaînes, et l\'odeur des bêtes de guerre affamées.',
+        rencontres: {
+          facile: [
+            { avant: ['loup', 'loup', 'gnoll'], arriere: ['gnoll'] },
+            { avant: ['ogre', 'hobgobelin'], arriere: [] }
+          ],
+          moyen: [
+            { avant: ['loup_alpha'], arriere: ['gnoll', 'gnoll'] },
+            { avant: ['hobgobelin', 'ogre'], arriere: ['gnoll'] },
+            { avant: ['araignee', 'araignee'], arriere: ['hobgobelin'] }
+          ],
+          elite: [
+            { avant: ['ogre', 'ogre'], arriere: ['hobgobelin'] },
+            { avant: ['hobgobelin', 'hobgobelin', 'gnoll'], arriere: ['gnoll'] }
+          ],
+          boss: [{ avant: ['grukk_tyran'], arriere: ['gnoll', 'gnoll'] }]
+        }
+      },
+      {
+        nom: 'La Citadelle de Fer', theme: 'crypte', force: { pv: 1.0, toucher: 1, degats: 1, dd: 0 },
+        intro: 'Des murailles noires, des étendards rouges. Kargath vous attend dans la salle du trône.',
+        rencontres: {
+          facile: [
+            { avant: ['hobgobelin', 'hobgobelin'], arriere: ['gnoll'] },
+            { avant: ['ogre', 'gnoll'], arriere: ['gnoll', 'gnoll'] }
+          ],
+          moyen: [
+            { avant: ['hobgobelin', 'hobgobelin'], arriere: ['gnoll', 'gnoll'] },
+            { avant: ['ogre', 'hobgobelin'], arriere: ['cultiste', 'gnoll'] }
+          ],
+          elite: [
+            { avant: ['hobgobelin', 'hobgobelin', 'hobgobelin'], arriere: ['gnoll'] },
+            { avant: ['grukk', 'hobgobelin'], arriere: ['gnoll'] }
+          ],
+          boss: [{ avant: ['seigneur_guerre', 'hobgobelin'], arriere: ['gnoll'] }]
+        }
+      }
+    ]
+  },
+  {
+    id: 'abime', nom: 'Le Cœur de l\'Abîme', icone: '🌀', difficulte: 7, apres: 'legion',
+    resume: 'Tous les maux que vous avez combattus venaient d\'ici. Au fond de l\'Abîme dort Morthaxx, un dragon mort-vivant.',
+    regles: { potions: 3, peurMult: 1.3 },
+    regleTexte: 'Le défi ultime. La Peur monte 30 % plus vite.',
+    fin: 'Morthaxx retombe en poussière. L\'Abîme se referme, et avec lui toutes les ténèbres du royaume.',
+    etages: [
+      {
+        nom: 'Les Marches de l\'Abîme', theme: 'abime', force: { pv: 1.0, toucher: 0, degats: 1, dd: 0 },
+        intro: 'Un escalier sans fin s\'enfonce dans une brume verdâtre.',
+        rencontres: {
+          facile: [
+            { avant: ['zombie', 'squelette'], arriere: ['cultiste'] },
+            { avant: ['gnoll', 'kobold'], arriere: ['cultiste'] },
+            { avant: ['araignee'], arriere: ['kobold', 'kobold'] }
+          ],
+          moyen: [
+            { avant: ['zombie', 'zombie'], arriere: ['cultiste'] },
+            { avant: ['hobgobelin', 'gnoll'], arriere: ['cultiste'] },
+            { avant: ['araignee', 'squelette'], arriere: ['spectre', 'kobold'] }
+          ],
+          elite: [
+            { avant: ['dragonnet'], arriere: ['cultiste', 'kobold'] },
+            { avant: ['ogre', 'zombie'], arriere: ['spectre'] }
+          ],
+          boss: [{ avant: ['ogre', 'zombie'], arriere: ['cultiste', 'spectre'] }]
+        }
+      },
+      {
+        nom: 'Le Labyrinthe des Âmes', theme: 'abime', force: { pv: 1.0, toucher: 0, degats: 1, dd: 0 },
+        intro: 'Les murs gémissent. Chaque couloir ramène au même carrefour.',
+        rencontres: {
+          facile: [
+            { avant: ['zombie', 'squelette'], arriere: ['spectre', 'cultiste'] },
+            { avant: ['gnoll', 'gnoll'], arriere: ['cultiste', 'kobold'] }
+          ],
+          moyen: [
+            { avant: ['ogre'], arriere: ['spectre', 'cultiste'] },
+            { avant: ['araignee', 'araignee'], arriere: ['spectre'] },
+            { avant: ['hobgobelin', 'gnoll'], arriere: ['mage_squelette', 'cultiste'] }
+          ],
+          elite: [
+            { avant: ['dragonnet'], arriere: ['spectre', 'cultiste'] },
+            { avant: ['grukk'], arriere: ['pretre_eclipse'] }
+          ],
+          boss: [{ avant: ['chevalier_squelette', 'zombie'], arriere: ['spectre'] }]
+        }
+      },
+      {
+        nom: 'Le Cœur de l\'Abîme', theme: 'abime', force: { pv: 1.0, toucher: 0, degats: 0, dd: 0 },
+        intro: 'Un ossuaire titanesque. Au centre, un squelette de dragon se redresse lentement.',
+        rencontres: {
+          facile: [
+            { avant: ['zombie', 'squelette'], arriere: ['spectre', 'cultiste'] },
+            { avant: ['dragonnet', 'kobold'], arriere: ['cultiste'] }
+          ],
+          moyen: [
+            { avant: ['ogre', 'squelette'], arriere: ['spectre', 'pretre_eclipse'] },
+            { avant: ['dragonnet', 'gnoll'], arriere: ['spectre'] }
+          ],
+          elite: [
+            { avant: ['dragonnet', 'dragonnet'], arriere: ['spectre'] },
+            { avant: ['chevalier_squelette'], arriere: ['pretre_eclipse', 'spectre'] }
+          ],
+          boss: [{ avant: ['squelette', 'squelette'], arriere: ['dracoliche'] }]
+        }
+      }
+    ]
   }
+
 ];
 
 // ---------------------------------------------------------------------
