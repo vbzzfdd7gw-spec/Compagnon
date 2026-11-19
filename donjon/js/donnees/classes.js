@@ -33,34 +33,34 @@ const CLASSES = {
   },
   roublard: {
     nom: 'Roublard', icone: '🗡️', couleur: '#5f9b6a', ligne: 'arriere', role: 'Dégâts · sournois',
-    pv: 24, ca: 15,
+    pv: 26, ca: 15,
     caracs: { FOR: 10, DEX: 16, CON: 12, INT: 13, SAG: 12, CHA: 12 },
     maitrise: 2, bonusArme: 5, bonusSort: 0, ddSort: 0,
     sauvegardes: ['DEX', 'INT'], deVie: 8, emplacements: {},
     actions: ['rapiere', 'arc_court', 'se_cacher'],
-    poolActions: ['lame_empoisonnee', 'feinte', 'dague_lancer', 'pas_lateral'],
+    poolActions: ['lame_empoisonnee', 'feinte', 'dague_lancer', 'coup_bas'],
     sournoise: '2d6',
     desc: 'Attaque sournoise (+2d6) une fois par tour : avec avantage, ou si la cible est en ligne Avant et qu\'un autre allié debout est en ligne Avant.'
   },
   magicien: {
     nom: 'Magicien', icone: '🔮', couleur: '#6b72d6', ligne: 'arriere', role: 'Dégâts de zone',
-    pv: 20, ca: 13,
+    pv: 22, ca: 13,
     caracs: { FOR: 8, DEX: 14, CON: 12, INT: 16, SAG: 12, CHA: 10 },
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 6, emplacements: { 1: 4, 2: 2 },
     actions: ['trait_feu', 'projectile_magique', 'mains_brulantes', 'rayon_ardent'],
-    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'bouclier_sort', 'boule_feu'],
+    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'orbe_chromatique', 'boule_feu'],
     desc: 'Fragile mais dévastateur depuis l\'arrière. Emplacements de sorts limités.'
   },
   barbare: {
     nom: 'Barbare', icone: '🪓', couleur: '#b5562f', ligne: 'avant', role: 'Front · encaisse',
-    pv: 34, ca: 14,
+    pv: 34, ca: 14, ressources: { rage: 3 },
     caracs: { FOR: 16, DEX: 14, CON: 16, INT: 8, SAG: 12, CHA: 10 },
     maitrise: 2, bonusArme: 5, bonusSort: 0, ddSort: 0,
     sauvegardes: ['FOR', 'CON'], deVie: 12, emplacements: {},
     actions: ['hache_2m', 'rage', 'frappe_temeraire', 'hachette'],
     poolActions: ['fureur', 'coup_tete', 'cri_ralliement'],
-    desc: 'Beaucoup de PV. Sa rage augmente ses dégâts et divise par deux les coups physiques reçus.'
+    desc: 'Beaucoup de PV. Sa rage dure tout le combat : +2 aux dégâts et moitié de tous les dégâts reçus. 3 rages jusqu\'au repos long.'
   },
   paladin: {
     nom: 'Paladin', icone: '⚜️', couleur: '#e0c060', ligne: 'avant', role: 'Front · soutien',
@@ -79,12 +79,12 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 4, ddSort: 12,
     sauvegardes: ['FOR', 'DEX'], deVie: 10, emplacements: { 1: 3 },
     actions: ['arc_long', 'epees_jumelles', 'marque_chasseur', 'volee'],
-    poolActions: ['tir_precis', 'piege', 'pas_lateral'],
+    poolActions: ['tir_precis', 'piege', 'coup_bas'],
     desc: 'Tireur régulier. Sa Marque du chasseur ajoute 1d6 à toutes ses attaques contre la cible.'
   },
   barde: {
     nom: 'Barde', icone: '🎻', couleur: '#c0508a', ligne: 'arriere', role: 'Soutien · contrôle',
-    pv: 21, ca: 14,
+    pv: 23, ca: 14,
     caracs: { FOR: 8, DEX: 14, CON: 12, INT: 12, SAG: 10, CHA: 16 },
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['DEX', 'CHA'], deVie: 8, emplacements: { 1: 4, 2: 2 },
@@ -109,7 +109,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 0, ddSort: 0,
     sauvegardes: ['FOR', 'DEX'], deVie: 8, emplacements: {},
     actions: ['arts_martiaux', 'deluge', 'frappe_etourdissante', 'defense_patiente'],
-    poolActions: ['coup_pied_vol', 'pas_lateral', 'coup_tete'],
+    poolActions: ['coup_pied_vol', 'coup_tete', 'feinte'],
     desc: 'Plusieurs coups par tour, étourdit ses cibles et esquive facilement.'
   }
 };
@@ -135,6 +135,7 @@ function creerPJ(idClasse) {
     desVie: { face: c.deVie, restant: 3, max: 3 },
     emplacements,
     niveau: 3,
+    ressources: { ...(c.ressources || {}) },
     actions: c.actions.slice(),
     objets: [],
     peur: 0,

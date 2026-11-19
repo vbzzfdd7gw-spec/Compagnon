@@ -22,6 +22,9 @@ const ETATS = {
   inspire: { nom: 'Inspiré', icone: '🎵', desc: '+1d6 à la prochaine attaque ou sauvegarde.', permanent: true },
   ecorce: { nom: 'Peau d\'écorce', icone: '🌳', desc: '+3 CA.' },
   marque: { nom: 'Marqué', icone: '🎯', desc: 'Le chasseur qui l\'a marqué inflige +1d6 dégâts.', permanent: true },
+  maudit: { nom: 'Marqué par le culte', icone: '🩸', desc: '+5 Peur au début de chacun de ses tours.' },
+  heroique: { nom: 'Héroïque', icone: '🌟', desc: 'Vertu née de la peur : +2 au toucher et aux dégâts jusqu\'à la fin du combat.', permanent: true },
+  fervent: { nom: 'Ferveur fanatique', icone: '🔥', desc: '+1d4 aux attaques et sauvegardes (bénédiction impie).' },
   voile: { nom: 'Voile d\'ombre', icone: '🌫️', desc: 'La prochaine attaque qui le toucherait rate.', permanent: true }
 };
 
@@ -31,8 +34,27 @@ const PEUR = {
   allieATerre: 15,       // un allié tombe à 0 PV
   critiqueInflige: -5,   // un PJ réussit un critique (toute l'équipe)
   ennemiTue: -5,         // le PJ tue un ennemi
+  grosCoup: 8,           // un coup qui retire au moins 30 % des PV max
+  combatLong: 4,         // à chaque round à partir du 5e (toute l'équipe)
+  seuilAnxieux: 50,      // −1 au toucher et aux sauvegardes
+  seuilCrise: 100,       // crise : trouble (ou, rarement, vertu)
+  chanceVertu: 0.25,
   victoire: -10          // fin de combat victorieuse
 };
+
+// Crises de Peur (à 100) : désavantage + un trouble ; disparaissent quand la Peur repasse sous 50
+const CRISES = {
+  terreur: { nom: 'Terreur', icone: '😱', desc: 'Désavantage ; une chance sur deux de rester paralysé à son tour.' },
+  rage_aveugle: { nom: 'Rage aveugle', icone: '🤬', desc: 'Désavantage ; une chance sur deux de frapper un ennemi au hasard au lieu d\'agir.' },
+  desespoir: { nom: 'Désespoir', icone: '😭', desc: 'Désavantage ; ses lamentations ajoutent 6 Peur aux alliés à chacun de ses tours.' },
+  egoisme: { nom: 'Égoïsme', icone: '🙄', desc: 'Désavantage ; refuse l\'aide : les soins des autres héros sont divisés par deux.' }
+};
+// Renvoie 'heroique' (vertu : la Peur retombe à 40) ou la clé d'une crise (posée sur pj.crise)
+function tirerCrise(pj) {
+  if (Math.random() < PEUR.chanceVertu) { pj.peur = 40; return 'heroique'; }
+  pj.crise = Des.hasard(Object.keys(CRISES));
+  return pj.crise;
+}
 
 class Combat {
   // rencontre : { avant: [ids], arriere: [ids] }
@@ -122,7 +144,8 @@ class Combat {
   }
   debout(c) { return c.pv > 0; }
   nomHtml(c) { return `<b class="${c.camp === 'pj' ? 'n-pj' : 'n-en'}">${c.nom}</b>`; }
-  panique(c) { return c.camp === 'pj' && c.peur >= 100; }
+  panique(c) { return c.camp === 'pj' && !!c.crise; }
+  malusPeur(c) { return c.camp === 'pj' && !c.crise && c.peur >= PEUR.seuilAnxieux ? -1 : 0; }
 
   modele(c) { return c.camp === 'ennemi' ? MONSTRES[c.modele] : null; }
 
@@ -134,6 +157,7 @@ class Combat {
       pj.usages = {};
       if (pj.pv <= 0) this.log(`${this.nomHtml(pj)} est toujours à terre (0 PV) : soignez-le pour qu'il se relève.`, 'mauvais');
       if (pj.pv <= 0) continue;
+      if (pj.crise) this.log(`${CRISES[pj.crise].icone} ${this.nomHtml(pj)} est toujours en proie à : <b>${CRISES[pj.crise].nom}</b>.`, 'mauvais');
       const t = pj.traits;
       if (t.cacheDebut) pj.etats.cache = 99;
       if (t.voile) pj.etats.voile = 99;
@@ -167,6 +191,10 @@ class Combat {
     this.round++;
     this.indexTour = -1;
     this.log(`— Round ${this.round} —`, 'round');
+    if (this.round >= 5) {
+      this.log('😰 Le combat s\'éternise : l\'angoisse monte dans l\'équipe.', 'peur');
+      for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, PEUR.combatLong, true);
+    }
     this.prochainTour();
   }
 
@@ -196,6 +224,12 @@ class Combat {
       this.log(`🩸 L'anneau de sang prélève ${perte} PV à ${this.nomHtml(c)}.`, 'mauvais');
       this.evt({ t: 'degats', cible: c.id, n: perte, crit: false, pvAvant: c.pv + perte, pvApres: c.pv, pvMax: c.pvMax });
     }
+
+    if (c.camp === 'pj' && c.etats.maudit) {
+      this.log(`🩸 La marque du culte ronge l'esprit de ${this.nomHtml(c)}.`, 'peur');
+      this.modifierPeur(c, 5);
+    }
+    if (c.camp === 'pj' && c.crise && this.tourDeCrise(c)) return;
 
     if (c.etats.etourdi || c.etats.endormi) {
       this.log(`${ETATS[c.etats.etourdi ? 'etourdi' : 'endormi'].icone} ${this.nomHtml(c)} ${c.etats.etourdi ? 'est étourdi' : 'dort'} et perd son tour.`);
@@ -265,6 +299,8 @@ class Combat {
     if (!action.depuis.includes(acteur.ligne)) return { ok: false, raison: `Seulement depuis la ligne ${this.nomLigne(action.depuis[0])}` };
     if (action.niveau && !this.emplacementDispo(acteur, action.niveau)) return { ok: false, raison: 'Plus d\'emplacement' };
     if (action.parCombat && (acteur.usages[action.nom] || 0) >= action.parCombat) return { ok: false, raison: 'Déjà utilisée' };
+    if (action.ressource && !((acteur.ressources || {})[action.ressource] > 0)) return { ok: false, raison: 'Épuisée (repos long)' };
+    if (action.pasSiActif && action.etat && acteur.etats[action.etat.nom]) return { ok: false, raison: 'Déjà active' };
     if (action.recharge && acteur.recharges && acteur.recharges[action.nom] > 0) return { ok: false, raison: 'En recharge' };
     if (action.consommable && this.jeu.stock(action.consommable) <= 0) return { ok: false, raison: 'Épuisé' };
     if (action.special === 'sac') return Object.keys(ACTIONS_SAC).some(k => this.jeu.stock(ACTIONS_SAC[k].consommable) > 0) ? { ok: true } : { ok: false, raison: 'Sac vide' };
@@ -312,6 +348,7 @@ class Combat {
       coutTxt = ` <span class="cout">(emplacement niv. ${n})</span>`;
     }
     if (act.parCombat) a.usages[act.nom] = (a.usages[act.nom] || 0) + 1;
+    if (act.ressource && a.ressources) a.ressources[act.ressource]--;
     if (act.consommable) this.jeu.retirerStock(act.consommable);
     if (act.niveau && a.traits && a.traits.sangSort && a.pv > 1) {
       const perte = Math.min(a.traits.sangSort, a.pv - 1);
@@ -341,9 +378,18 @@ class Combat {
         for (const c of cibles) {
           // Attaque supplémentaire (Guerrier niv. 5) : deux coups avec les armes
           const nb = act.nbAttaques || (act.arme && !act.zone && a.traits && a.traits.attaqueSupp ? 2 : 1);
+          let cible = c;
           for (let i = 0; i < nb; i++) {
-            if (c.pv <= 0) break;
-            this.resoudreAttaque(a, act, c, nb > 1 ? i + 1 : 0);
+            if (cible.pv <= 0) {
+              // La cible est tombée : les coups restants vont sur un autre ennemi à portée
+              if (act.zone) break;
+              const autres = this.ciblesValides(a, act).filter(x => x.pv > 0);
+              if (!autres.length) break;
+              cible = autres.sort((x, y) => x.pv - y.pv)[0];
+              this.log(`→ ↪️ ${this.nomHtml(a)} enchaîne sur ${this.nomHtml(cible)} !`, 'jet');
+              this.evt({ t: 'action', source: a.id, camp: a.camp, nom: act.nom, icone: '↪️', cibles: [cible.id], melee: !act.vise.includes('arriere'), distance: act.vise.includes('arriere'), typeAct: act.type, typeDeg: act.typeDeg, sort: !!act.sort });
+            }
+            this.resoudreAttaque(a, act, cible, nb > 1 ? i + 1 : 0);
           }
         }
         break;
@@ -402,7 +448,10 @@ class Combat {
     const bonus = this.bonusToucher(a, act);
     let total = r.nat + bonus;
     let txt = `${r.texte} ${signe(bonus)}`;
-    if (a.etats.benit) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
+    if (a.etats.benit || a.etats.fervent) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
+    const mal = this.malusPeur(a);
+    if (mal) { total += mal; txt += ` ${mal} (anxieux)`; }
+    if (a.etats.heroique) { total += 2; txt += ' +2 (héroïque)'; }
     if (a.etats.inspire) { const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete a.etats.inspire; }
     const ca = c.ca + (c.etats.ecorce ? 3 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
     const critique = r.nat >= ((a.traits && a.traits.critMin) || 20);
@@ -431,6 +480,7 @@ class Combat {
     let dTxt = d.texte;
     if (act.arme && a.bonusDegats) { degats += a.bonusDegats; dTxt += ` +${a.bonusDegats} (objet)`; }
     if (act.arme && a.etats.rage) { degats += 2; dTxt += ' +2 (rage)'; }
+    if (a.etats.heroique) { degats += 2; dTxt += ' +2 (héroïque)'; }
     if (c.etats.marque && c.marquePar === a.id) { const m = Des.lancer('1d6', critique); degats += m.total; dTxt += ` + marque ${m.texte}`; }
     if (act.arme && a.traits && a.traits.armeElem) {
       const e = Des.lancer(a.traits.armeElem.des, critique);
@@ -513,8 +563,10 @@ class Combat {
     const bonus = this.bonusSauvegarde(c, carac);
     let total = r.nat + bonus;
     let txt = `${r.texte} ${signe(bonus)}`;
-    if (c.etats.benit) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
+    if (c.etats.benit || c.etats.fervent) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
     if (c.etats.inspire) { const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete c.etats.inspire; }
+    const mal = this.malusPeur(c);
+    if (mal) { total += mal; txt += ` ${mal} (anxieux)`; }
     const reussite = total >= dd;
     this.evt({ t: 'jet', source: c.id, cible: c.id, nat: r.nat, total, libelle: `${c.nom} · sauvegarde ${carac}`,
       contre: `DD ${dd}`, res: reussite ? 'reussite' : 'echec', mode, sauvegarde: true });
@@ -546,6 +598,10 @@ class Combat {
     if (act.soin && act.soin !== '0') {
       const d = Des.lancer(act.soin);
       total = d.total + (a.bonusSoin && act.sort ? a.bonusSoin : 0);
+      if (c.crise === 'egoisme' && a.camp === 'pj' && a !== c) {
+        total = Math.floor(total / 2);
+        this.log(`→ 🙄 ${this.nomHtml(c)} repousse l'aide : soin réduit de moitié.`, 'mauvais');
+      }
       const etaitATerre = c.pv <= 0;
       const avant = Math.max(0, c.pv);
       c.pv = Math.min(c.pvMax, avant + total);
@@ -592,7 +648,7 @@ class Combat {
       else if (m.resist && m.resist.includes(type)) { n = Math.floor(n / 2); note = ' (résistance ÷2)'; }
       else if (m.vuln && m.vuln.includes(type)) { n = n * 2; note = ' (vulnérable ×2)'; }
       if (note) this.log(`→ ${this.nomHtml(c)}${note} : ${n} dégâts.`, 'jet');
-    } else if (c.etats && c.etats.rage && ['tranchant', 'perforant', 'contondant'].includes(type)) {
+    } else if (c.etats && c.etats.rage) {
       n = Math.floor(n / 2);
       this.log(`→ 😡 ${this.nomHtml(c)} encaisse grâce à sa rage (÷2) : ${n} dégâts.`, 'jet');
     } else if (c.traits && c.traits.resist && c.traits.resist.includes(type)) {
@@ -602,6 +658,10 @@ class Combat {
     if (n <= 0) { this.evt({ t: 'texte', cible: c.id, texte: 'Immunisé', classe: 'rate' }); return; }
     const pvAvant = Math.max(0, c.pv);
     c.pv -= n;
+    if (c.camp === 'pj' && c.pv > 0 && n >= c.pvMax * 0.3) {
+      this.log(`→ 😨 Le coup ébranle ${this.nomHtml(c)} !`, 'peur');
+      this.modifierPeur(c, PEUR.grosCoup, true);
+    }
     this.evt({ t: 'degats', cible: c.id, n, crit: critique, pvAvant, pvApres: Math.max(0, c.pv), pvMax: c.pvMax });
     if (c.etats.endormi) { delete c.etats.endormi; this.log(`→ ${this.nomHtml(c)} se réveille !`, 'etat'); }
 
@@ -617,6 +677,10 @@ class Combat {
       if (c.camp === 'ennemi') {
         this.evt({ t: 'mort', cible: c.id });
         this.log(`☠ ${this.nomHtml(c)} est vaincu !`, 'bon');
+        if (m && m.criMort) {
+          this.log(`💀 ${this.nomHtml(c)} lance une malédiction dans son dernier souffle !`, 'peur');
+          for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, m.criMort, true);
+        }
         if (source && source.camp === 'pj') this.modifierPeur(source, PEUR.ennemiTue, true);
       } else if (c.usages && c.usages.phenixDispo) {
         // Amulette du phénix
@@ -644,8 +708,53 @@ class Combat {
     if (diff === 0) return;
     this.evt({ t: 'peur', cible: pj.id, n: diff, avant, apres: pj.peur });
     if (!discret) this.log(`${diff > 0 ? '😨' : '😌'} ${this.nomHtml(pj)} Peur ${diff > 0 ? '+' : ''}${diff} (${pj.peur}/100)`, diff > 0 ? 'peur' : 'bon');
-    if (avant < 100 && pj.peur >= 100) this.log(`😱 ${this.nomHtml(pj)} est <b>PANIQUÉ</b> : désavantage aux attaques et sauvegardes !`, 'mauvais');
-    if (avant >= 100 && pj.peur < 100) this.log(`${this.nomHtml(pj)} reprend ses esprits.`, 'bon');
+    if (avant < PEUR.seuilAnxieux && pj.peur >= PEUR.seuilAnxieux && pj.peur < PEUR.seuilCrise) this.log(`😟 ${this.nomHtml(pj)} devient <b>anxieux</b> : −1 au toucher et aux sauvegardes.`, 'peur');
+    if (avant < PEUR.seuilCrise && pj.peur >= PEUR.seuilCrise && !pj.crise) this.declencherCrise(pj);
+    if (pj.crise && pj.peur < PEUR.seuilAnxieux) {
+      this.log(`😮‍💨 ${this.nomHtml(pj)} surmonte sa crise (${CRISES[pj.crise].nom}).`, 'bon');
+      pj.crise = null;
+    }
+  }
+
+  // À 100 de Peur : un trouble au hasard, ou parfois une vertu héroïque
+  declencherCrise(pj) {
+    const r = tirerCrise(pj);
+    if (r === 'heroique') {
+      this.log(`🌟 Face à la terreur, ${this.nomHtml(pj)} se révèle <b>HÉROÏQUE</b> ! Peur 40, +2 au toucher et aux dégâts, l'équipe reprend courage.`, 'titre bon');
+      this.appliquerEtat(pj, 'heroique', 99);
+      this.evt({ t: 'texte', cible: pj.id, texte: '🌟 HÉROÏQUE', classe: 'crit' });
+      for (const p of this.pjs) if (p !== pj && p.pv > 0) this.modifierPeur(p, -15, true);
+      return;
+    }
+    const k = CRISES[r];
+    this.log(`${k.icone} ${this.nomHtml(pj)} craque : <b>${k.nom.toUpperCase()}</b> ! ${k.desc}`, 'titre mauvais');
+    this.evt({ t: 'texte', cible: pj.id, texte: `${k.icone} ${k.nom}`, classe: 'peur' });
+  }
+
+  // Effets de la crise au début du tour ; renvoie true si le tour est consommé
+  tourDeCrise(c) {
+    const fin = d => { setTimeout(() => this.finTour(c), d + this.attente(600)); return true; };
+    if (c.crise === 'desespoir') {
+      this.log(`😭 Les lamentations de ${this.nomHtml(c)} glacent ses compagnons.`, 'peur');
+      for (const p of this.pjs) if (p !== c && p.pv > 0) this.modifierPeur(p, 6, true);
+    }
+    if (c.crise === 'terreur' && Math.random() < 0.5) {
+      this.log(`😱 ${this.nomHtml(c)} tremble de tous ses membres et ne peut pas agir.`, 'mauvais');
+      this.evt({ t: 'texte', cible: c.id, texte: '😱 Paralysé', classe: 'peur' });
+      return fin(this.maj());
+    }
+    if (c.crise === 'rage_aveugle' && Math.random() < 0.5) {
+      const options = c.actions.map(id => ACTIONS[id]).filter(a => a && a.cible === 'ennemi' && !a.niveau && this.disponibilite(c, a).ok);
+      if (options.length) {
+        const act = Des.hasard(options), cibles = this.ciblesValides(c, act);
+        this.log(`🤬 ${this.nomHtml(c)} perd le contrôle et frappe au hasard !`, 'mauvais');
+        this.executer(c, act, act.zone ? null : Des.hasard(cibles));
+        const d = this.maj();
+        if (this.verifierFin()) return true;
+        return fin(d);
+      }
+    }
+    return false;
   }
 
 
@@ -738,6 +847,14 @@ const SPECIAUX = {
   // Soigne tous les alliés du lanceur (monstres)
   soinAllies(cb, a, act) {
     for (const e of cb.camp(a)) if (e.pv > 0) cb.resoudreSoin({}, { soin: act.soin }, e);
+  },
+
+  // Cultiste : se blesse et galvanise ses alliés
+  ferveur(cb, a, act) {
+    const perte = Math.min(4, a.pv - 1);
+    if (perte > 0) { a.pv -= perte; cb.evt({ t: 'degats', cible: a.id, n: perte, crit: false, pvAvant: a.pv + perte, pvApres: a.pv, pvMax: a.pvMax }); }
+    cb.log(`→ 🔥 ${cb.nomHtml(a)} s'entaille la paume : ses alliés entrent en ferveur fanatique !`, 'mauvais');
+    for (const e of cb.camp(a)) if (e.pv > 0) cb.appliquerEtat(e, 'fervent', 3);
   },
 
   invoquer(cb, a, act) {

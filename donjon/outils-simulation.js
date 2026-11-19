@@ -99,9 +99,15 @@ function expedition(idC, classes) {
         const moy = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
         if (!long && (moy < 0.55 || n.rangee >= 6)) {
           long = true;
-          for (const p of equipe) { p.pv = p.pvMax; p.peur = 0; p.desVie.restant = p.desVie.max; for (const k in p.emplacements) p.emplacements[k].restant = p.emplacements[k].max; }
+          for (const p of equipe) {
+            p.pv = Math.min(p.pvMax, Math.max(0, p.pv) + Math.ceil(p.pvMax / 2));
+            p.peur = Math.max(0, p.peur - 40); if (p.peur < 50) p.crise = null;
+            p.desVie.restant = Math.min(p.desVie.max, p.desVie.restant + Math.ceil(p.desVie.max / 2));
+            for (const k in p.emplacements) p.emplacements[k].restant = p.emplacements[k].max;
+            p.ressources = { ...(CLASSES[p.classe].ressources || {}) };
+          }
         } else for (const p of equipe) {
-          if (p.pv <= 0) p.pv = 1; p.peur = Math.max(0, p.peur - 10);
+          if (p.pv <= 0) p.pv = 1; p.peur = Math.max(0, p.peur - 15); if (p.peur < 50) p.crise = null;
           while (p.desVie.restant > 0 && p.pv < p.pvMax * 0.7) { p.desVie.restant--; p.pv = Math.min(p.pvMax, p.pv + Math.max(1, Des.lancer('1d' + p.desVie.face).total + modCarac(p.caracs.CON))); }
         }
       } else if (n.type === 'marchand') {
@@ -120,7 +126,7 @@ function expedition(idC, classes) {
         const x = Recompenses.offreConsommable(); jeu.ajouterStock(x.cle, x.quantite);
       }
     }
-    if (etage < ETAGES.length - 1) { equipe.forEach(p => { monterNiveau(p); p.peur = 0; }); long = false; jeu.potions++; jeu.or += 90; }
+    if (etage < ETAGES.length - 1) { equipe.forEach(p => { monterNiveau(p); p.peur = 0; p.crise = null; p.ressources = { ...(CLASSES[p.classe].ressources || {}) }; }); long = false; jeu.potions++; jeu.or += 90; }
   }
   return { ok: true, log };
 }

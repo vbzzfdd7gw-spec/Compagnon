@@ -81,7 +81,11 @@ const Jeu = {
       this.sac = this.sac || {};
       this.evenementsVus = this.evenementsVus || [];
       this.peurMult = Progression.campagne(this.campagne).regles.peurMult || 1;
-      this.equipe.forEach(p => { p.niveau = p.niveau || 3; });
+      this.equipe.forEach(p => {
+        p.niveau = p.niveau || 3;
+        p.actions = p.actions.filter(id => ACTIONS[id]);           // actions retirées du jeu
+        if (!p.ressources) this.restaurerRessources(p);
+      });
       // Sauvegardes d'avant les lignes : les deux premiers devant
       this.equipe.forEach((p, i) => { if (!p.ligne) p.ligne = i < 2 ? 'avant' : 'arriere'; });
       this.allerCarte();
@@ -134,10 +138,18 @@ const Jeu = {
 
   soigner(pj, n) { pj.pv = Math.min(pj.pvMax, Math.max(0, pj.pv) + n); },
   blesser(pj, n) { pj.pv = Math.max(0, pj.pv - n); },
+  // Peur hors combat (mêmes paliers et crises qu'en combat)
   peur(pj, n) {
+    if (n > 0 && this.peurMult) n = Math.round(n * this.peurMult);
     if (n > 0 && pj.traits.peurReduite) n = Math.ceil(n / 2);
-    pj.peur = Math.max(0, Math.min(100, pj.peur + n));
+    const avant = pj.peur;
+    pj.peur = Math.max(pj.traits.peurMin || 0, Math.min(100, pj.peur + n));
+    if (avant < PEUR.seuilCrise && pj.peur >= PEUR.seuilCrise && !pj.crise && tirerCrise(pj) === 'heroique')
+      this.equipe.forEach(p => { if (p !== pj) p.peur = Math.max(0, p.peur - 15); });
+    if (pj.crise && pj.peur < PEUR.seuilAnxieux) pj.crise = null;
   },
+  // Restaure les ressources de classe (rage…) : repos long, montée de niveau
+  restaurerRessources(pj) { pj.ressources = { ...(CLASSES[pj.classe].ressources || {}) }; },
 
   // Test de caractéristique hors combat
   test(pj, carac, dd, maitrise) {
@@ -191,7 +203,9 @@ const Jeu = {
     const lignes = [];
     for (const pj of this.equipe) {
       const gains = monterNiveau(pj);
+      this.restaurerRessources(pj);
       pj.peur = 0;
+      pj.crise = null;
       lignes.push(`${pj.icone} <b>${pj.nom}</b> niveau ${pj.niveau} : ${gains.join(', ')}`);
     }
     this.reposLongUtilise = false;
@@ -235,8 +249,10 @@ const Jeu = {
     let bonus = `💰 +${gain} or. `;
     if (type === 'elite') { this.potions++; bonus += 'Vous trouvez aussi une potion de soins.'; }
     else if (Math.random() < 0.3) { this.potions++; bonus += 'Vous trouvez une potion de soins sur un cadavre.'; }
-    this.proposerRecompenses(Recompenses.generer(this.equipe, { elite: type === 'elite' }),
-      type === 'elite' ? 'Butin de l\'élite' : 'Récompense', bonus);
+    const offres = Recompenses.generer(this.equipe, { elite: type === 'elite' });
+    if (type === 'elite') bonus += ' Objets magiques garantis !';
+    else if (!offres.some(o => o.categorie === 'objet')) bonus += ' Pas d\'objet magique cette fois.';
+    this.proposerRecompenses(offres, type === 'elite' ? 'Butin de l\'élite' : 'Récompense', bonus);
   },
 
   // --------------------------------------------------- récompenses
@@ -327,9 +343,9 @@ const Jeu = {
     const lignes = [];
     for (const pj of this.equipe) {
       if (pj.pv <= 0) { pj.pv = 1; lignes.push(`${pj.nom} reprend connaissance (1 PV).`); }
-      this.peur(pj, -10);
+      this.peur(pj, -15);
     }
-    lignes.push('Toute l\'équipe perd 10 Peur. Dépensez des dés de vie pour récupérer des PV.');
+    lignes.push('Toute l\'équipe perd 15 Peur. Dépensez des dés de vie pour récupérer des PV (pas d\'emplacements de sorts au repos court).');
     this.repos = { mode: 'court', lignes };
     Ui.rendu();
   },
@@ -349,13 +365,18 @@ const Jeu = {
   reposLong() {
     if (this.reposLongUtilise) return;
     this.reposLongUtilise = true;
+    const lignes = ['L\'équipe dort quelques heures, l\'arme à la main.'];
     for (const pj of this.equipe) {
-      pj.pv = pj.pvMax;
-      pj.peur = 0;
-      pj.desVie.restant = pj.desVie.max;
+      const avant = Math.max(0, pj.pv);
+      pj.pv = Math.min(pj.pvMax, avant + Math.ceil(pj.pvMax / 2));
+      this.peur(pj, -40);
+      pj.desVie.restant = Math.min(pj.desVie.max, pj.desVie.restant + Math.ceil(pj.desVie.max / 2));
       for (const n in pj.emplacements) pj.emplacements[n].restant = pj.emplacements[n].max;
+      this.restaurerRessources(pj);
+      lignes.push(`${pj.icone} ${pj.nom} : +${pj.pv - avant} PV`);
     }
-    this.repos = { mode: 'long', lignes: ['L\'équipe dort d\'un sommeil profond. PV, emplacements de sorts et dés de vie restaurés, Peur à 0.'] };
+    lignes.push('Chacun récupère la moitié de ses PV max, tous ses emplacements de sorts, la moitié de ses dés de vie, ses capacités (rage…) et perd 40 Peur.');
+    this.repos = { mode: 'long', lignes };
     Ui.rendu();
   },
 

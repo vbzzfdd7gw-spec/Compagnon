@@ -178,12 +178,7 @@ const ACTIONS = {
     jet: 'arme', degats: '1d4+3', typeDeg: 'perforant',
     desc: 'Deux lancers sur la même cible. 1d4+3 chacun.'
   },
-  pas_lateral: {
-    nom: 'Esquive instinctive', icone: '🌪️', type: 'soutien',
-    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
-    etat: { nom: 'esquive', duree: 1 }, peur: -10,
-    desc: 'Les attaques contre vous ont désavantage jusqu\'à votre prochain tour. −10 Peur.'
-  },
+
 
   // ------------------------------- MAGICIEN ---------------------------
   trait_feu: {
@@ -229,12 +224,7 @@ const ACTIONS = {
     effetSiEchec: { recul: 1 },
     desc: 'Niv. 1. Ligne Avant ennemie : sauvegarde de CON, 2d8 tonnerre (moitié si réussite), repoussé à l\'arrière si échec.'
   },
-  bouclier_sort: {
-    nom: 'Bouclier', icone: '🔰', type: 'soutien', niveau: 1, sort: true,
-    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
-    etat: { nom: 'bouclier', duree: 1 },
-    desc: 'Niv. 1. +5 CA jusqu\'à votre prochain tour.'
-  },
+
 
   boule_feu: {
     nom: 'Boule de feu', icone: '💥', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
@@ -251,10 +241,10 @@ const ACTIONS = {
     desc: 'Corps à corps. 1d12+3 tranchant.'
   },
   rage: {
-    nom: 'Rage', icone: '😡', type: 'soutien', parCombat: 2,
+    nom: 'Rage', icone: '😡', type: 'soutien', ressource: 'rage', pasSiActif: true,
     depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
-    etat: { nom: 'rage', duree: 3 }, peur: -10,
-    desc: '3 tours : +2 aux dégâts d\'arme, moitié des dégâts physiques reçus. −10 Peur. Deux fois par combat.'
+    etat: { nom: 'rage', duree: 10 }, peur: -10,
+    desc: 'Jusqu\'à la fin du combat : +2 aux dégâts d\'arme et moitié de TOUS les dégâts reçus. −10 Peur. 3 rages jusqu\'au prochain repos long.'
   },
   frappe_temeraire: {
     nom: 'Frappe téméraire', icone: '💥', type: 'attaque', arme: true, avantage: true,
@@ -442,6 +432,20 @@ const ACTIONS = {
     depuis: ['arriere'], cible: 'ennemi', vise: ['avant'],
     jet: 'arme', degats: '2d6+3', typeDeg: 'contondant',
     desc: 'Depuis l\'arrière : bondit en ligne Avant et frappe. 2d6+3.'
+  },
+
+  orbe_chromatique: {
+    nom: 'Orbe chromatique', icone: '🔴', type: 'attaque', niveau: 1, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    jet: 'sort', degats: '3d8', typeDeg: 'tonnerre',
+    desc: 'Niv. 1. Attaque de sort : 3d8 tonnerre.'
+  },
+  coup_bas: {
+    nom: 'Coup bas', icone: '🦵', type: 'attaque', arme: true, sournoise: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d6+3', typeDeg: 'contondant',
+    effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'DEX', dd: 13 } },
+    desc: '1d6+3 (+ sournoise). Si touché : sauvegarde de DEX DD 13 ou renversé (les attaques contre lui ont avantage).'
   },
 
   // ------------------------- ACTIONS COMMUNES ------------------------

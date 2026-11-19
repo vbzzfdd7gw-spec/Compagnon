@@ -171,6 +171,9 @@ const CHANCES_RARETE = {
   marchand: { commun: 45, rare: 40, legendaire: 8, maudit: 7 }
 };
 
+// Chance qu'un combat ordinaire propose un objet magique (élites et boss : garanti)
+const CHANCE_OBJET_COMBAT = 0.45;
+
 const Recompenses = {
   tirerRarete(source) {
     const c = CHANCES_RARETE[source] || CHANCES_RARETE.combat;
@@ -225,12 +228,12 @@ const Recompenses = {
     return { categorie: 'amelioration', pj: pj.id, cle, titre: am.nom, icone: am.icone, desc: am.desc };
   },
 
-  // Combat : 1 objet + 1 action + (amélioration ou consommable)
-  // Élite / boss : 2 objets de meilleure rareté + 1 action ; trésor : 3 objets
+  // Combat : objet seulement avec CHANCE_OBJET_COMBAT, + action, amélioration ou consommable
+  // Élite / boss : 2 objets garantis, de meilleure rareté, + 1 action ; trésor : 3 objets
   generer(equipe, { elite = false, boss = false, objetsSeulement = false } = {}) {
     const source = boss ? 'boss' : elite ? 'elite' : objetsSeulement ? 'tresor' : 'combat';
     const offres = [];
-    const nbObjets = objetsSeulement ? 3 : (elite || boss ? 2 : 1);
+    const nbObjets = objetsSeulement ? 3 : (elite || boss ? 2 : (Math.random() < CHANCE_OBJET_COMBAT ? 1 : 0));
     for (let i = 0; i < nbObjets; i++) {
       const o = this.offreObjet(equipe, offres.map(x => x.cle), source);
       if (o) offres.push(o);

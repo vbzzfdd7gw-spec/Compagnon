@@ -80,7 +80,7 @@ const Ui = {
         </div>
         <div class="progression">${CAMPAGNES.map(c => {
           const ok = Progression.debloquee(c), v = Progression.victoires(c);
-          return `<span class="prog ${ok ? '' : 'verrou'} ${v ? 'faite' : ''}" title="${c.nom}">${ok ? c.icone : '🔒'}<small>${v ? '✅' : '★'.repeat(c.difficulte)}</small></span>`;
+          return `<span class="prog ${ok ? '' : 'verrou'} ${v ? 'faite' : ''}" title="${c.nom}">${ok ? c.icone : '🔒'}<small>${v ? '✅' : c.difficulte + '★'}</small></span>`;
         }).join('')}</div>
       </div>
     </div>`;
@@ -98,8 +98,10 @@ const Ui = {
       <p>Initiative : d20 + DEX. Attaque : d20 + bonus contre la CA. 20 naturel = critique (dés de dégâts doublés), 1 naturel = échec.
       Sorts à sauvegarde : la cible lance d20 + bonus contre le DD du lanceur. Le Clerc et le Magicien ont des emplacements de sorts limités (récupérés au repos long).</p>
       <h3>Peur</h3>
-      <p>Chaque personnage a une jauge de Peur (0 à 100). Elle monte quand un ennemi réussit un critique (+20 pour la cible, +5 pour les autres) et quand un allié tombe à terre (+15).
-      Elle baisse avec les victoires, les critiques et les ennemis tués. À 100, le personnage est <b>paniqué</b> : désavantage aux attaques et aux sauvegardes.</p>
+      <p>Chaque héros a une jauge de Peur (0 à 100). Elle monte avec les critiques ennemis (+20), un allié à terre (+15), un gros coup (+8), les cultistes et les monstres terrifiants, et quand un combat s'éternise (+4 par round à partir du 5e). Elle baisse avec les victoires, les ennemis tués, les feux de camp et certains sorts.</p>
+      <p>• <b>😟 Anxieux (50+)</b> : −1 au toucher et aux sauvegardes.<br>
+      • <b>Crise (100)</b> : le héros craque. Désavantage, plus un trouble : 😱 <b>Terreur</b> (reste parfois paralysé), 🤬 <b>Rage aveugle</b> (frappe parfois au hasard), 😭 <b>Désespoir</b> (effraie ses alliés), 🙄 <b>Égoïsme</b> (soins reçus divisés par deux). La crise dure jusqu'à ce que sa Peur repasse sous 50.<br>
+      • Une fois sur quatre, il se révèle au contraire 🌟 <b>héroïque</b> : Peur ramenée à 40, +2 au toucher et aux dégâts, et l'équipe reprend courage.</p>
       <h3>À terre</h3>
       <p>À 0 PV, un personnage est à terre. Il le reste au combat suivant tant qu'il n'est pas soigné (sort, potion, repos). Si toute l'équipe est à terre, l'expédition échoue.</p>
       <h3>Carte</h3>
@@ -120,7 +122,7 @@ const Ui = {
         return `<button class="campagne ${ok ? '' : 'verrou'}" ${ok ? `data-campagne="${c.id}"` : 'disabled'}>
           <span class="camp-icone">${ok ? c.icone : '🔒'}</span>
           <span class="camp-corps">
-            <b>${c.nom}</b> <span class="etoiles">${'★'.repeat(c.difficulte)}${'☆'.repeat(3 - c.difficulte)}</span>
+            <b>${c.nom}</b> <span class="etoiles">${'★'.repeat(c.difficulte)}</span>
             <span class="camp-resume">${ok ? c.resume : `Terminez <b>${avant.nom}</b> pour débloquer cette campagne.`}</span>
             ${ok ? `<span class="camp-infos">${c.etages.length} étages${c.regleTexte ? ' · ' + c.regleTexte : ''}${v ? ` · ✅ terminée ${v}×` : rec ? ` · record : étage ${rec}/${c.etages.length}` : ''}</span>` : ''}
           </span>
@@ -210,7 +212,7 @@ const Ui = {
   resumeEquipe() {
     return `<div class="resume-equipe">
       ${Jeu.equipe.map((p, i) => `<div class="mini-pj ${p.pv <= 0 ? 'a-terre' : ''}" data-info="${p.id}">
-        <div class="mini-tete"><span class="ligne-badge ${p.ligne}">${p.ligne === 'avant' ? 'Avant' : 'Arr.'}</span><span class="mini-ic">${p.pv <= 0 ? '🪦' : p.icone}</span></div>
+        <div class="mini-tete"><span class="ligne-badge ${p.ligne}">${p.ligne === 'avant' ? 'Avant' : 'Arr.'}</span><span class="mini-ic">${p.pv <= 0 ? '🪦' : p.icone}</span>${this.iconePeur(p)}</div>
         ${this.barre(p.pv, p.pvMax, 'pv', `${p.pv}/${p.pvMax}`)}
         ${this.barre(p.peur, 100, 'peur', '')}
         ${this.emplacementsHtml(p, true)}
@@ -222,6 +224,13 @@ const Ui = {
   texteSac() {
     const t = Object.entries(Jeu.sac || {}).filter(([, n]) => n > 0).map(([k, n]) => `${CONSOMMABLES[k].icone}×${n}`).join(' ');
     return t ? ' · ' + t : '';
+  },
+
+  // Icône de l'état de Peur d'un héros (anxieux ou crise)
+  iconePeur(c, peur = c.peur) {
+    if (c.camp !== 'pj') return '';
+    if (c.crise) return `<span title="${CRISES[c.crise].nom}">${CRISES[c.crise].icone}</span>`;
+    return peur >= PEUR.seuilAnxieux ? '<span title="Anxieux : −1 au toucher et aux sauvegardes">😟</span>' : '';
   },
 
   barre(val, max, classe, texte) {
@@ -260,6 +269,10 @@ const Ui = {
   },
 
   ficheDetails(p, avecDon = false) {
+    const crise = p.crise ? `<div class="etats-detail">${CRISES[p.crise].icone} <b>${CRISES[p.crise].nom}</b> — ${CRISES[p.crise].desc}</div>` : '';
+    return crise + this.ficheDetails2(p, avecDon);
+  },
+  ficheDetails2(p, avecDon = false) {
     const car = Object.entries(p.caracs).map(([k, v]) => `${k} ${v} (${signe(modCarac(v))})`).join(' · ');
     const sauv = Object.keys(p.caracs).map(k => `${k} ${signe(modCarac(p.caracs[k]) + (p.sauvegardes.includes(k) ? p.maitrise : 0) + p.bonusSauv)}`).join(' · ');
     return `<div class="fiche-stats">
@@ -416,8 +429,8 @@ const Ui = {
     if (enZone) classes.push('en-zone');
     if (mort) classes.push(c.camp === 'pj' ? 'a-terre' : 'mort');
     if (c.boss) classes.push('boss');
-    if (c.camp === 'pj' && peur >= 100) classes.push('panique');
-    const etats = Object.keys(c.etats).map(e => `<span title="${ETATS[e].nom}">${ETATS[e].icone}</span>`).join('');
+    if (c.camp === 'pj' && c.crise) classes.push('panique');
+    const etats = this.iconePeur(c, peur) + Object.keys(c.etats).map(e => `<span title="${ETATS[e].nom}">${ETATS[e].icone}</span>`).join('');
     const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0) + (c.etats.ecorce ? 3 : 0);
     return `<div class="${classes.join(' ')}" data-id="${c.id}" data-modele="${c.camp === 'pj' ? c.classe : c.modele}">
       <span class="ca-badge">🛡${ca}</span>
@@ -603,7 +616,7 @@ const Ui = {
     const boutons = ids.map(id => {
       const act = ACTIONS[id];
       const d = cb.disponibilite(a, act);
-      const cout = act.niveau ? `niv${act.niveau}` : act.parCombat ? '1×' : act.consommable ? `×${Jeu.stock(act.consommable)}` : '';
+      const cout = act.niveau ? `niv${act.niveau}` : act.parCombat ? '1×' : act.consommable ? `×${Jeu.stock(act.consommable)}` : act.ressource ? `×${(a.ressources || {})[act.ressource] || 0}` : '';
       return `<button class="btn-action ${act.commune ? 'commune' : ''} ${this.selection === id ? 'sel' : ''} ${d.ok ? '' : 'indispo'}" data-action="${id}">
         ${cout ? `<span class="cout-coin">${cout}</span>` : ''}
         <span class="ic">${act.icone}</span>
@@ -612,7 +625,7 @@ const Ui = {
       </button>`;
     }).join('');
 
-    let aide = `<b>${a.icone} ${a.nom}</b> · ligne ${cb.nomLigne(a.ligne)}${a.peur >= 100 ? ' · <span class="mauvais">😱 paniqué</span>' : ''} ${Object.keys(a.emplacements).length ? this.emplacementsHtml(a, true) : ''}<br><span class="discret">Choisissez une action.</span>`;
+    let aide = `<b>${a.icone} ${a.nom}</b> · ligne ${cb.nomLigne(a.ligne)}${a.crise ? ` · <span class="mauvais">${CRISES[a.crise].icone} ${CRISES[a.crise].nom}</span>` : a.peur >= PEUR.seuilAnxieux ? ' · <span class="peur-txt">😟 anxieux</span>' : ''} ${Object.keys(a.emplacements).length ? this.emplacementsHtml(a, true) : ''}<br><span class="discret">Choisissez une action.</span>`;
     if (this.raison) { aide = `<span class="mauvais">⛔ ${this.raison.nom} : ${this.raison.texte}</span><br><span class="discret">${this.raison.desc}</span>`; this.raison = null; }
     if (this.selection) {
       const act = ACTIONS[this.selection];
@@ -730,8 +743,8 @@ const Ui = {
     if (!r.mode) {
       contenu = `<p>Un feu de camp crépite dans une alcôve sûre.</p>
         <div class="pile-boutons">
-          <button class="btn principal" data-clic="repos-court">Repos court<br><span class="petit">Les PJ à terre se relèvent (1 PV), −10 Peur, puis dépensez des dés de vie</span></button>
-          <button class="btn" data-clic="repos-long" ${Jeu.reposLongUtilise ? 'disabled' : ''}>Repos long${Jeu.reposLongUtilise ? ' (déjà utilisé)' : ''}<br><span class="petit">Tout restaurer : PV, sorts, dés de vie, Peur à 0. Une seule fois par expédition.</span></button>
+          <button class="btn principal" data-clic="repos-court">Repos court<br><span class="petit">Les héros à terre se relèvent (1 PV), −15 Peur, puis dépensez des dés de vie (pas de sorts)</span></button>
+          <button class="btn" data-clic="repos-long" ${Jeu.reposLongUtilise ? 'disabled' : ''}>Repos long${Jeu.reposLongUtilise ? ' (déjà utilisé)' : ''}<br><span class="petit">+50 % des PV max, tous les emplacements de sorts, la moitié des dés de vie, rage, −40 Peur. Un seul par étage.</span></button>
         </div>`;
     } else {
       contenu = `<div class="lignes">${r.lignes.map(l => `<div>${l}</div>`).join('')}</div>
