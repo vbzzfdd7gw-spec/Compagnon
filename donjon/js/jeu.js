@@ -344,6 +344,11 @@ const Jeu = {
     for (const pj of this.equipe) {
       if (pj.pv <= 0) { pj.pv = 1; lignes.push(`${pj.nom} reprend connaissance (1 PV).`); }
       this.peur(pj, -15);
+      // Magie de pacte : l'occultiste récupère ses emplacements au repos court
+      if (CLASSES[pj.classe].pacte) {
+        for (const n in pj.emplacements) pj.emplacements[n].restant = pj.emplacements[n].max;
+        lignes.push(`${pj.icone} ${pj.nom} renouvelle son pacte : emplacements de sorts récupérés.`);
+      }
     }
     lignes.push('Toute l\'équipe perd 15 Peur. Dépensez des dés de vie pour récupérer des PV (pas d\'emplacements de sorts au repos court).');
     this.repos = { mode: 'court', lignes };

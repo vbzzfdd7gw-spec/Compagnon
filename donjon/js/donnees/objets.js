@@ -23,7 +23,7 @@ const RARETES = {
 };
 
 const ARMES = ['guerrier', 'roublard', 'barbare', 'paladin', 'rodeur', 'moine'];
-const LANCEURS = ['clerc', 'magicien', 'barde', 'druide', 'paladin', 'rodeur'];
+const LANCEURS = ['clerc', 'magicien', 'barde', 'druide', 'paladin', 'rodeur', 'occultiste'];
 const ARMURES = ['guerrier', 'clerc', 'paladin', 'barbare'];
 
 const OBJETS = {
@@ -34,7 +34,7 @@ const OBJETS = {
   heaume_fer: { nom: 'Heaume de fer', icone: '⛑️', rarete: 'commun', classes: ARMURES, desc: '+1 CA et +3 PV maximum.', mods: { ca: 1, pvMax: 3 } },
   bottes_vivacite: { nom: 'Bottes de vivacité', icone: '🥾', rarete: 'commun', classes: null, desc: '+5 à l\'initiative.', mods: { traits: { init: 5 } } },
   gants_archer: { nom: 'Gants d\'archer', icone: '🧤', rarete: 'commun', classes: ARMES, desc: '+1 au toucher avec les armes.', mods: { bonusArme: 1 } },
-  robe_etoilee: { nom: 'Robe étoilée', icone: '🥻', rarete: 'commun', classes: ['magicien', 'barde', 'druide'], desc: '+1 CA et +4 PV maximum.', mods: { ca: 1, pvMax: 4 } },
+  robe_etoilee: { nom: 'Robe étoilée', icone: '🥻', rarete: 'commun', classes: ['magicien', 'barde', 'druide', 'occultiste'], desc: '+1 CA et +4 PV maximum.', mods: { ca: 1, pvMax: 4 } },
   cristal_lumiere: { nom: 'Cristal de lumière', icone: '💎', rarete: 'commun', classes: ['clerc', 'druide', 'paladin', 'barde'], desc: '+3 PV à chaque soin.', mods: { bonusSoin: 3 } },
   ceinture_force: { nom: 'Ceinture de force', icone: '🎗️', rarete: 'commun', classes: ARMES, desc: '+1 aux dégâts et +3 PV maximum.', mods: { bonusDegats: 1, pvMax: 3 } },
   anneau_protection: { nom: 'Anneau de protection', icone: '💍', rarete: 'commun', classes: null, desc: '+1 aux jets de sauvegarde et +2 PV maximum.', mods: { bonusSauv: 1, pvMax: 2 } },
@@ -46,9 +46,9 @@ const OBJETS = {
   pierre_chance: { nom: 'Pierre porte-bonheur', icone: '🍀', rarete: 'rare', classes: null, desc: '+1 aux jets de sauvegarde et aux tests.', mods: { bonusSauv: 1, traits: { bonusTest: 1 } } },
   cape_protection: { nom: 'Cape de protection', icone: '🧥', rarete: 'rare', classes: null, desc: '+1 CA et +1 aux jets de sauvegarde.', mods: { ca: 1, bonusSauv: 1 } },
   talisman_bravoure: { nom: 'Talisman de bravoure', icone: '🦁', rarete: 'rare', classes: null, desc: 'La Peur gagnée est réduite de moitié.', mods: { traits: { peurReduite: true } } },
-  baguette_mage: { nom: 'Baguette du mage de guerre +1', icone: '🪄', rarete: 'rare', classes: ['magicien', 'barde', 'druide'], desc: '+1 aux attaques de sort et au DD des sorts.', mods: { bonusSort: 1, ddSort: 1 } },
+  baguette_mage: { nom: 'Baguette du mage de guerre +1', icone: '🪄', rarete: 'rare', classes: ['magicien', 'barde', 'druide', 'occultiste'], desc: '+1 aux attaques de sort et au DD des sorts.', mods: { bonusSort: 1, ddSort: 1 } },
   symbole_sacre: { nom: 'Symbole sacré béni', icone: '📯', rarete: 'rare', classes: ['clerc', 'druide', 'paladin'], desc: '+1 au DD des sorts et +2 PV à chaque soin.', mods: { ddSort: 1, bonusSoin: 2 } },
-  perle_pouvoir: { nom: 'Perle de pouvoir', icone: '🔵', rarete: 'rare', classes: LANCEURS, desc: '+1 emplacement de sort de niveau 1.', mods: { emp1: 1 } },
+  perle_pouvoir: { nom: 'Perle de pouvoir', icone: '🔵', rarete: 'rare', classes: ['clerc', 'magicien', 'barde', 'druide', 'paladin', 'rodeur'], desc: '+1 emplacement de sort de niveau 1.', mods: { emp1: 1 } },
   anneau_vitalite: { nom: 'Anneau de vitalité', icone: '❤️‍🩹', rarete: 'rare', classes: null, desc: 'Récupère 2 PV au début de chacun de ses tours.', mods: { traits: { regen: 2 } } },
   lame_flammes: { nom: 'Lame de flammes', icone: '🔥', rarete: 'rare', classes: ARMES, desc: 'Les coups d\'arme infligent +1d6 dégâts de feu.', mods: { traits: { armeElem: { des: '1d6', type: 'feu' } } } },
   lame_givre: { nom: 'Lame de givre', icone: '🧊', rarete: 'rare', classes: ARMES, desc: 'Les coups d\'arme infligent +1d6 dégâts de froid.', mods: { traits: { armeElem: { des: '1d6', type: 'froid' } } } },
@@ -117,7 +117,7 @@ const AMELIORATIONS = {
   entrainement: {
     nom: 'Entraînement martial', icone: '🎯',
     desc: '+1 au toucher avec les armes.',
-    condition: pj => !['magicien', 'druide', 'barde'].includes(pj.classe),
+    condition: pj => !['magicien', 'druide', 'barde', 'occultiste'].includes(pj.classe),
     appliquer(pj) { pj.bonusArme += 1; }
   },
   endurance: {
@@ -138,13 +138,13 @@ const AMELIORATIONS = {
   concentration: {
     nom: 'Étude des arcanes', icone: '📖',
     desc: '+1 emplacement de sort de niveau 1.',
-    condition: pj => !!pj.emplacements[1],
+    condition: pj => !!pj.emplacements[1] && !CLASSES[pj.classe].pacte,
     appliquer(pj) { pj.emplacements[1].max += 1; pj.emplacements[1].restant += 1; }
   },
   puissance: {
     nom: 'Puissance magique', icone: '🌟',
     desc: '+1 emplacement de sort de niveau 2.',
-    condition: pj => !!pj.emplacements[2],
+    condition: pj => !!pj.emplacements[2] && !CLASSES[pj.classe].pacte,
     appliquer(pj) { pj.emplacements[2].max += 1; pj.emplacements[2].restant += 1; }
   },
   precision: {

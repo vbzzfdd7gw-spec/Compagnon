@@ -241,10 +241,10 @@ const ACTIONS = {
     desc: 'Corps à corps. 1d12+3 tranchant.'
   },
   rage: {
-    nom: 'Rage', icone: '😡', type: 'soutien', ressource: 'rage', pasSiActif: true,
+    nom: 'Rage', icone: '😡', type: 'soutien', ressource: 'rage', pasSiActif: true, actionBonus: true,
     depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
     etat: { nom: 'rage', duree: 10 }, peur: -10,
-    desc: 'Jusqu\'à la fin du combat : +2 aux dégâts d\'arme et moitié de TOUS les dégâts reçus. −10 Peur. 3 rages jusqu\'au prochain repos long.'
+    desc: 'Action bonus (vous rejouez aussitôt). Jusqu\'à la fin du combat : +2 aux dégâts d\'arme et moitié de TOUS les dégâts reçus. −10 Peur. 3 rages jusqu\'au prochain repos long.'
   },
   frappe_temeraire: {
     nom: 'Frappe téméraire', icone: '💥', type: 'attaque', arme: true, avantage: true,
@@ -446,6 +446,51 @@ const ACTIONS = {
     jet: 'arme', degats: '1d6+3', typeDeg: 'contondant',
     effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'DEX', dd: 13 } },
     desc: '1d6+3 (+ sournoise). Si touché : sauvegarde de DEX DD 13 ou renversé (les attaques contre lui ont avantage).'
+  },
+
+  // ------------------------------- OCCULTISTE --------------------------
+  decharge_occulte: {
+    nom: 'Décharge occulte', icone: '🟣', type: 'attaque', sort: true, rayons: 'decharge2',
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    jet: 'sort', degats: '1d10+3', typeDeg: 'force',
+    desc: 'Tour de magie. Rayon de force : 1d10+3 (Décharge déchirante). Deux rayons au niveau 5.'
+  },
+  malefice: {
+    nom: 'Maléfice', icone: '🧿', type: 'special', special: 'marque', niveau: 1, sort: true, actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    desc: 'Action bonus. Maudit un ennemi : vos attaques contre lui infligent +1d6 jusqu\'à la fin du combat.'
+  },
+  bras_hadar: {
+    nom: 'Bras d\'Hadar', icone: '🦑', type: 'sauvegarde', niveau: 1, zone: true, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
+    carac: 'FOR', dd: 'sort', degats: '3d6', typeDeg: 'nécrotique', moitie: true,
+    desc: 'Pacte. Des tentacules jaillissent sur la ligne Avant ennemie : sauvegarde de FOR, 3d6 nécrotique (moitié si réussite).'
+  },
+  effroi: {
+    nom: 'Effroi', icone: '👁️', type: 'sauvegarde', niveau: 1, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'SAG', dd: 'sort', degats: '2d6', typeDeg: 'psychique', moitie: false,
+    effetSiEchec: { etat: 'etourdi', duree: 1 },
+    desc: 'Pacte. Sauvegarde de SAG ou 2d6 psychique et paralysé de terreur (perd son tour).'
+  },
+  armure_agathys: {
+    nom: 'Armure d\'Agathys', icone: '❄️', type: 'soutien', niveau: 1, sort: true, pasSiActif: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    etat: { nom: 'agathys', duree: 10 },
+    desc: 'Pacte. Jusqu\'à la fin du combat : +2 CA, et un ennemi qui vous frappe au corps à corps subit 5 dégâts de froid.'
+  },
+  decharge_repoussante: {
+    nom: 'Décharge repoussante', icone: '💨', type: 'attaque', sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
+    jet: 'sort', degats: '1d10+3', typeDeg: 'force', recul: 1,
+    desc: 'Tour de magie. 1d10+3 force et repousse la cible en ligne Arrière.'
+  },
+  faim_hadar: {
+    nom: 'Faim d\'Hadar', icone: '🌑', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'DEX', dd: 'sort', degats: '4d6', typeDeg: 'froid', moitie: true,
+    effetSiEchec: { etat: 'entrave', duree: 1 },
+    desc: 'Pacte. Un néant glacial engloutit tous les ennemis : sauvegarde de DEX, 4d6 froid (moitié), entravés si échec.'
   },
 
   // ------------------------- ACTIONS COMMUNES ------------------------

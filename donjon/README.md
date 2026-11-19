@@ -11,7 +11,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 |---|---|
 | `js/des.js` | Lancers de dés (`Des.lancer('2d6+3')`, `Des.d20(avantage)`) |
 | `js/donnees/actions.js` | Toutes les actions des PJ (format documenté en tête de fichier) |
-| `js/donnees/classes.js` | Les 10 classes (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`) |
+| `js/donnees/classes.js` | Les 11 classes (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`) |
 | `js/donnees/monstres.js` | Monstres, boss et listes de rencontres |
 | `js/donnees/objets.js` | Objets magiques, améliorations, génération des récompenses |
 | `js/donnees/evenements.js` | Événements à choix (cases ❓) |

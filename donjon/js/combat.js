@@ -22,6 +22,7 @@ const ETATS = {
   inspire: { nom: 'Inspiré', icone: '🎵', desc: '+1d6 à la prochaine attaque ou sauvegarde.', permanent: true },
   ecorce: { nom: 'Peau d\'écorce', icone: '🌳', desc: '+3 CA.' },
   marque: { nom: 'Marqué', icone: '🎯', desc: 'Le chasseur qui l\'a marqué inflige +1d6 dégâts.', permanent: true },
+  agathys: { nom: 'Armure d\'Agathys', icone: '❄️', desc: '+2 CA ; un ennemi qui le frappe au corps à corps subit 5 dégâts de froid.' },
   maudit: { nom: 'Marqué par le culte', icone: '🩸', desc: '+5 Peur au début de chacun de ses tours.' },
   heroique: { nom: 'Héroïque', icone: '🌟', desc: 'Vertu née de la peur : +2 au toucher et aux dégâts jusqu\'à la fin du combat.', permanent: true },
   fervent: { nom: 'Ferveur fanatique', icone: '🔥', desc: '+1d4 aux attaques et sauvegardes (bénédiction impie).' },
@@ -209,6 +210,7 @@ class Combat {
     this.actif = c;
     this.attenteJoueur = false;
     c.sournoiseUtilisee = false;
+    c.bonusUtilise = false;
 
     // Effets de début de tour
     for (const e in c.etats) if (ETATS[e] && ETATS[e].finDebut) delete c.etats[e];
@@ -301,6 +303,7 @@ class Combat {
     if (action.parCombat && (acteur.usages[action.nom] || 0) >= action.parCombat) return { ok: false, raison: 'Déjà utilisée' };
     if (action.ressource && !((acteur.ressources || {})[action.ressource] > 0)) return { ok: false, raison: 'Épuisée (repos long)' };
     if (action.pasSiActif && action.etat && acteur.etats[action.etat.nom]) return { ok: false, raison: 'Déjà active' };
+    if (action.actionBonus && acteur.bonusUtilise) return { ok: false, raison: 'Action bonus déjà utilisée' };
     if (action.recharge && acteur.recharges && acteur.recharges[action.nom] > 0) return { ok: false, raison: 'En recharge' };
     if (action.consommable && this.jeu.stock(action.consommable) <= 0) return { ok: false, raison: 'Épuisé' };
     if (action.special === 'sac') return Object.keys(ACTIONS_SAC).some(k => this.jeu.stock(ACTIONS_SAC[k].consommable) > 0) ? { ok: true } : { ok: false, raison: 'Sac vide' };
@@ -336,6 +339,13 @@ class Combat {
     this.executer(acteur, action, cible);
     const d = this.maj();
     if (this.verifierFin()) return;
+    // Action bonus (rage, maléfice…) : le héros garde son tour
+    if (action.actionBonus && acteur.pv > 0) {
+      acteur.bonusUtilise = true;
+      this.log(`⚡ Action bonus : ${this.nomHtml(acteur)} peut encore agir.`, 'bon');
+      setTimeout(() => { if (this.fini || this.actif !== acteur) return; this.attenteJoueur = true; this.maj(); }, d + this.attente(150));
+      return;
+    }
     setTimeout(() => this.finTour(acteur), d + this.attente(250));
   }
 
@@ -377,7 +387,7 @@ class Combat {
       case 'attaque':
         for (const c of cibles) {
           // Attaque supplémentaire (Guerrier niv. 5) : deux coups avec les armes
-          const nb = act.nbAttaques || (act.arme && !act.zone && a.traits && a.traits.attaqueSupp ? 2 : 1);
+          const nb = act.nbAttaques || ((act.rayons && a.traits && a.traits[act.rayons]) ? 2 : 0) || (act.arme && !act.zone && a.traits && a.traits.attaqueSupp ? 2 : 1);
           let cible = c;
           for (let i = 0; i < nb; i++) {
             if (cible.pv <= 0) {
@@ -453,7 +463,7 @@ class Combat {
     if (mal) { total += mal; txt += ` ${mal} (anxieux)`; }
     if (a.etats.heroique) { total += 2; txt += ' +2 (héroïque)'; }
     if (a.etats.inspire) { const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete a.etats.inspire; }
-    const ca = c.ca + (c.etats.ecorce ? 3 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
+    const ca = c.ca + (c.etats.ecorce ? 3 : 0) + (c.etats.agathys ? 2 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
     const critique = r.nat >= ((a.traits && a.traits.critMin) || 20);
     let touche = critique || (r.nat !== 1 && total >= ca);
     // Cape de l'ombre : la première attaque qui toucherait rate
@@ -523,6 +533,10 @@ class Combat {
       }
     }
     // Armure à épines : l'attaquant au corps à corps se blesse
+    if (c.etats && c.etats.agathys && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && a.pv > 0) {
+      this.log(`→ ❄️ L'armure d'Agathys de ${this.nomHtml(c)} gèle ${this.nomHtml(a)} : 5 froid.`, 'jet');
+      this.infliger(a, 5, 'froid', c, false);
+    }
     if (tc.epines && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && a.pv > 0) {
       const d = Des.lancer(tc.epines);
       this.log(`→ 🌵 Les épines de ${this.nomHtml(c)} blessent ${this.nomHtml(a)} : ${d.texte}.`, 'jet');

@@ -54,7 +54,7 @@ const CLASSES = {
   },
   barbare: {
     nom: 'Barbare', icone: '🪓', couleur: '#b5562f', ligne: 'avant', role: 'Front · encaisse',
-    pv: 34, ca: 14, ressources: { rage: 3 },
+    pv: 32, ca: 14, ressources: { rage: 3 },
     caracs: { FOR: 16, DEX: 14, CON: 16, INT: 8, SAG: 12, CHA: 10 },
     maitrise: 2, bonusArme: 5, bonusSort: 0, ddSort: 0,
     sauvegardes: ['FOR', 'CON'], deVie: 12, emplacements: {},
@@ -111,12 +111,22 @@ const CLASSES = {
     actions: ['arts_martiaux', 'deluge', 'frappe_etourdissante', 'defense_patiente'],
     poolActions: ['coup_pied_vol', 'coup_tete', 'feinte'],
     desc: 'Plusieurs coups par tour, étourdit ses cibles et esquive facilement.'
+  },
+  occultiste: {
+    nom: 'Occultiste', icone: '🧿', couleur: '#7a3fb0', ligne: 'arriere', role: 'Distance · malédictions',
+    pv: 24, ca: 13, pacte: true,
+    caracs: { FOR: 8, DEX: 14, CON: 14, INT: 12, SAG: 10, CHA: 16 },
+    maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
+    sauvegardes: ['SAG', 'CHA'], deVie: 8, emplacements: { 2: 2 },
+    actions: ['decharge_occulte', 'malefice', 'bras_hadar', 'effroi'],
+    poolActions: ['armure_agathys', 'decharge_repoussante', 'faim_hadar'],
+    desc: 'Magie de pacte : seulement 2 emplacements, toujours lancés au niveau maximum et récupérés à chaque repos court. Décharge occulte à volonté, Maléfice en action bonus.'
   }
 };
 
 // Équipe par défaut, et ordre d'affichage de toutes les classes
 const ORDRE_CLASSES = ['guerrier', 'clerc', 'roublard', 'magicien'];
-const TOUTES_CLASSES = ['guerrier', 'barbare', 'paladin', 'moine', 'clerc', 'druide', 'barde', 'roublard', 'rodeur', 'magicien'];
+const TOUTES_CLASSES = ['guerrier', 'barbare', 'paladin', 'moine', 'clerc', 'druide', 'barde', 'roublard', 'rodeur', 'magicien', 'occultiste'];
 // Classes capables de soigner (pour les conseils de composition)
 const SOIGNEURS = ['clerc', 'paladin', 'druide', 'barde'];
 
@@ -156,16 +166,18 @@ function creerPJ(idClasse) {
 // ---------------------------------------------------------------------
 const PROGRESSION = {
   4: {
-    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6 },
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6, occultiste: 6 },
     emplacements: { clerc: { 2: 1 }, magicien: { 2: 1 }, barde: { 2: 1 }, druide: { 2: 1 }, paladin: { 1: 1 }, rodeur: { 1: 1 } },
-    bonus: { guerrier: 'arme', roublard: 'arme', clerc: 'sort', magicien: 'sort', barbare: 'arme', paladin: 'arme', rodeur: 'arme', barde: 'sort', druide: 'sort', moine: 'arme' }
+    bonus: { guerrier: 'arme', roublard: 'arme', clerc: 'sort', magicien: 'sort', barbare: 'arme', paladin: 'arme', rodeur: 'arme', barde: 'sort', druide: 'sort', moine: 'arme', occultiste: 'sort' }
   },
   5: {
-    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6 },
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6, occultiste: 6 },
     maitrise: true,
     emplacements: { clerc: { 3: 2 }, magicien: { 3: 2 }, barde: { 3: 2 }, druide: { 3: 2 }, paladin: { 2: 2 }, rodeur: { 2: 2 } },
-    traits: { guerrier: { attaqueSupp: true }, roublard: { sournoise: '3d6' }, barbare: { attaqueSupp: true }, paladin: { attaqueSupp: true }, rodeur: { attaqueSupp: true } },
-    sort: { magicien: 'boule_feu', clerc: 'esprits_gardiens', barde: 'hypnose', druide: 'appel_foudre' }
+    traits: { guerrier: { attaqueSupp: true }, roublard: { sournoise: '3d6' }, barbare: { attaqueSupp: true }, paladin: { attaqueSupp: true }, rodeur: { attaqueSupp: true }, occultiste: { decharge2: true } },
+    // Magie de pacte : les emplacements montent tous d'un niveau (et non s'ajoutent)
+    pacte: { occultiste: { 3: 2 } },
+    sort: { magicien: 'boule_feu', clerc: 'esprits_gardiens', barde: 'hypnose', druide: 'appel_foudre', occultiste: 'faim_hadar' }
   }
 };
 
@@ -192,6 +204,11 @@ function monterNiveau(pj) {
     if (!pj.emplacements[n]) pj.emplacements[n] = { max: 0, restant: 0 };
     pj.emplacements[n].max += k;
     gains.push(`+${k} emplacement${k > 1 ? 's' : ''} niv. ${n}`);
+  }
+  const pacte = p.pacte && p.pacte[pj.classe];
+  if (pacte) {
+    pj.emplacements = {};
+    for (const [n, k] of Object.entries(pacte)) { pj.emplacements[n] = { max: k, restant: k }; gains.push(`emplacements de pacte niv. ${n}`); }
   }
   for (const n in pj.emplacements) pj.emplacements[n].restant = pj.emplacements[n].max;
   const t = p.traits && p.traits[pj.classe];
