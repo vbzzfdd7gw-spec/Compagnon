@@ -30,7 +30,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 ## Ajouter du contenu
 
 - **Une campagne** : une entrée dans `CAMPAGNES` avec ses `etages` et `apres` (campagne à terminer pour la débloquer).
-- **Le Dédale du Chaos** (`aleatoire: true`, débloqué quand toutes les campagnes sont terminées) : `genererEtagesAleatoires()` (`campagnes.js`) mélange les rencontres des étages 2 et 3 de toutes les campagnes (chacune garde sa `force` et son décor), tire deux boss au hasard, et `Carte.genererDouble()` empile deux cartes en une.
+- **Le Dédale du Chaos** (`aleatoire: true`, débloqué quand toutes les campagnes sont terminées) : `genererEtagesAleatoires()` (`campagnes.js`) mélange les rencontres des étages 2 et 3 de toutes les campagnes (chacune garde sa `force` et son décor), tire deux boss au hasard, et `Carte.genererDouble()` empile deux cartes en une. Les monstres y reçoivent des mutations (`MUTATIONS_CHAOS`) et les boss des pouvoirs (`POUVOIRS_BOSS`), dans `combat.js` (`appliquerChaos`).
 - **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une rencontre de `RENCONTRES` (`{ avant: [...], arriere: [...] }`).
 - **Une classe** : une entrée dans `CLASSES` (avec `role`), son identifiant dans `TOUTES_CLASSES`, ses gains dans `PROGRESSION`, son apparence dans `PERSOS3D` (`ressources3d.js`).
 - **Une sous-classe** : une entrée dans `SOUS_CLASSES` (`sousclasses.js`), avec `deblocage` (campagne à terminer), ses `traits` (liste en tête du fichier, lus par `combat.js`), `remplace` et `niv5`.

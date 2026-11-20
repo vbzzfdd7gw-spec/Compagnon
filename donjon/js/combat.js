@@ -49,6 +49,29 @@ const PEUR = {
   victoire: -10          // fin de combat victorieuse
 };
 
+// ---------------------------------------------------------------------
+// Dédale du Chaos : mutations des monstres et pouvoirs des boss
+// ---------------------------------------------------------------------
+const MUTATIONS_CHAOS = {
+  robuste: { nom: 'Robuste', icone: '💪', desc: '+40 % de PV.' },
+  blinde: { nom: 'Blindé', icone: '🛡️', desc: '+2 CA.' },
+  enrage: { nom: 'Enragé', icone: '😤', desc: '+2 au toucher et aux dégâts, +1 au DD.' },
+  vampire: { nom: 'Vampirique', icone: '🩸', desc: 'Récupère la moitié des dégâts qu\'il inflige.' },
+  epineux: { nom: 'Épineux', icone: '🌵', desc: 'Qui le frappe au corps à corps subit 1d6 perforant.' },
+  regenerant: { nom: 'Régénérant', icone: '💚', desc: 'Récupère 3 PV au début de son tour.' },
+  terrifiant: { nom: 'Terrifiant', icone: '👁️', desc: 'Chaque blessure qu\'il inflige ajoute 8 Peur.' },
+  rapide: { nom: 'Rapide', icone: '⚡', desc: 'Agit deux fois par tour, mais −40 % de PV.' }
+};
+const POUVOIRS_BOSS = {
+  renaissance: { nom: 'Renaissance', icone: '🔥', desc: 'La première fois qu\'il tombe, il se relève avec 40 % de ses PV.' },
+  invocateur: { nom: 'Invocateur', icone: '💀', desc: 'Tous les 3 rounds, appelle un monstre en renfort (4 ennemis au plus).' },
+  terreur: { nom: 'Aura de terreur', icone: '😱', desc: 'À chacun de ses tours, toute l\'équipe gagne 6 Peur.' },
+  fleau: { nom: 'Fléau', icone: '☠️', desc: 'À chacun de ses tours, un héros au hasard subit 2d6 nécrotique.' },
+  carapace: { nom: 'Carapace', icone: '🐚', desc: 'Moitié des dégâts tant qu\'un autre ennemi est debout.' },
+  furie: { nom: 'Furie', icone: '😡', desc: 'Sous la moitié de ses PV, agit une fois de plus par tour.' }
+};
+const RENFORTS_CHAOS = ['squelette', 'zombie', 'gobelin', 'loup', 'cultiste', 'kobold', 'gnoll', 'spectre'];
+
 // Peur des monstres (Pacte du Grand Ancien) : Ébranlé à 50, Terrifié à 100
 const PEUR_MONSTRES = { seuilEbranle: 50, malus: 2, recuperation: 5 };
 
@@ -266,6 +289,7 @@ class Combat {
       this.evt({ t: 'peur', cible: c.id, n: -PEUR_MONSTRES.recuperation, avant: c.peur + PEUR_MONSTRES.recuperation, apres: c.peur });
       if (c.etats.ebranle && c.peur < PEUR_MONSTRES.seuilEbranle) delete c.etats.ebranle;
     }
+    if (c.camp === 'ennemi' && c.chaos && c.pv > 0) this.pouvoirsDebutTour(c);
     if (c.camp === 'pj' && c.etats.maudit) {
       this.log(`🩸 La marque du culte ronge l'esprit de ${this.nomHtml(c)}.`, 'peur');
       this.modifierPeur(c, 5);
@@ -782,6 +806,61 @@ class Combat {
     if (n > 0) this.effrayer(c, n, a);
   }
 
+  // Dédale du Chaos : mutations des monstres (combat : 35 % de chance,
+  // élite et boss : toujours) et pouvoirs des boss (1, ou 2 pour le boss final)
+  appliquerChaos(type, final) {
+    const chance = type === 'combat' ? 0.35 : 1;
+    for (const m of this.ennemis) {
+      m.chaos = { mutations: [], pouvoirs: [] };
+      if (m.boss) {
+        m.chaos.pouvoirs = Des.melanger(Object.keys(POUVOIRS_BOSS)).slice(0, final ? 2 : 1);
+      } else if (Math.random() < chance) {
+        const n = 1;
+        m.chaos.mutations = Des.melanger(Object.keys(MUTATIONS_CHAOS)).slice(0, n);
+      }
+      const k = m.chaos.mutations;
+      if (k.includes('robuste')) m.pvMax = m.pv = Math.round(m.pvMax * 1.4);
+      if (k.includes('rapide')) m.pvMax = m.pv = Math.max(1, Math.round(m.pvMax * 0.6));
+      if (k.includes('blinde')) m.ca += 2;
+      if (k.includes('enrage')) m.actions = m.actions.map(a => ({ ...a,
+        jet: typeof a.jet === 'number' ? a.jet + 2 : a.jet, dd: typeof a.dd === 'number' ? a.dd + 1 : a.dd, degats: a.degats ? a.degats + '+2' : a.degats }));
+      m.traits = m.traits || {};
+      if (k.includes('epineux')) m.traits.epines = '1d6';
+      if (k.includes('regenerant')) m.traits.regen = 3;
+      const icones = [...k.map(x => MUTATIONS_CHAOS[x].icone), ...m.chaos.pouvoirs.map(x => POUVOIRS_BOSS[x].icone)].join('');
+      if (icones) m.nom += ' ' + icones;
+      if (m.chaos.pouvoirs.length) this.log(`⚠️ <b>Pouvoirs du chaos</b> de ${this.nomHtml(m)} : ${m.chaos.pouvoirs.map(x => `${POUVOIRS_BOSS[x].icone} ${POUVOIRS_BOSS[x].nom}`).join(', ')}. Touchez-le pour les détails.`, 'titre mauvais');
+    }
+    this.chaos = true;
+  }
+
+  pouvoirsDebutTour(c) {
+    const pv = c.chaos.pouvoirs;
+    if (pv.includes('terreur')) {
+      this.log(`😱 L'aura de ${this.nomHtml(c)} glace l'équipe.`, 'peur');
+      for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, 6, true);
+    }
+    if (pv.includes('fleau')) {
+      const vise = Des.hasard(this.pjs.filter(p => p.pv > 0));
+      if (vise) {
+        const d = Des.lancer('2d6');
+        this.log(`☠️ Le fléau de ${this.nomHtml(c)} frappe ${this.nomHtml(vise)} : ${d.texte} nécrotique.`, 'mauvais');
+        this.evt({ t: 'action', source: c.id, camp: c.camp, nom: 'Fléau', icone: '☠️', cibles: [vise.id], melee: false, distance: true, typeAct: 'auto', typeDeg: 'nécrotique', sort: true });
+        this.infliger(vise, d.total, 'nécrotique', c, false);
+      }
+    }
+    if (pv.includes('invocateur') && this.round % 3 === 0 && this.ennemis.filter(e => e.pv > 0).length < 4) {
+      const r = this.creerMonstre(Des.hasard(RENFORTS_CHAOS), ' du chaos');
+      r.initiative = 0;
+      r.ligne = 'avant';
+      r.chaos = { mutations: [], pouvoirs: [] };
+      this.ennemis.unshift(r);
+      this.ordre.push(r);
+      this.log(`💀 ${this.nomHtml(c)} ouvre une faille : un ${this.nomHtml(r)} surgit en ligne Avant !`, 'mauvais');
+      for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, 4, true);
+    }
+  }
+
   // Ajoute de la Peur à un monstre : Ébranlé à 50, Terrifié à 100
   effrayer(c, n, source) {
     if (c.camp !== 'ennemi' || c.pv <= 0) return;
@@ -895,6 +974,12 @@ class Combat {
       this.log(`→ ${this.nomHtml(c)} résiste (${type}, ÷2) : ${n} dégâts.`, 'jet');
     }
     if (n <= 0) { this.evt({ t: 'texte', cible: c.id, texte: 'Immunisé', classe: 'rate' }); return; }
+    // Chaos : carapace du boss tant qu'il a des alliés debout
+    if (c.chaos && c.chaos.pouvoirs.includes('carapace') && this.ennemis.some(e => e !== c && e.pv > 0)) {
+      n = Math.floor(n / 2);
+      this.log(`→ 🐚 La carapace de ${this.nomHtml(c)} absorbe la moitié : ${n} dégâts.`, 'jet');
+      if (n <= 0) return;
+    }
     // PV temporaires (égide, forme d'ours, ténébreux) : absorbent d'abord
     if (c.egide > 0) {
       const abs = Math.min(c.egide, n);
@@ -911,6 +996,13 @@ class Combat {
       this.modifierPeur(c, PEUR.grosCoup, true);
     }
     this.evt({ t: 'degats', cible: c.id, n, crit: critique, pvAvant, pvApres: Math.max(0, c.pv), pvMax: c.pvMax });
+    const mut = source && source.chaos ? source.chaos.mutations : [];
+    if (mut.includes('vampire') && source.pv > 0 && source.pv < source.pvMax) {
+      const av = source.pv; source.pv = Math.min(source.pvMax, source.pv + Math.ceil(n / 2));
+      this.log(`→ 🩸 ${this.nomHtml(source)} se nourrit : +${source.pv - av} PV.`, 'mauvais');
+      this.evt({ t: 'soin', cible: source.id, n: source.pv - av, pvAvant: av, pvApres: source.pv, pvMax: source.pvMax });
+    }
+    if (mut.includes('terrifiant') && c.camp === 'pj' && c.pv > 0) this.modifierPeur(c, 8, true);
     if (c.etats.endormi) { delete c.etats.endormi; this.log(`→ ${this.nomHtml(c)} se réveille !`, 'etat'); }
 
     if (c.pv <= 0 && m && m.robustesse && type !== 'radiant' && !critique) {
@@ -920,6 +1012,15 @@ class Combat {
       if (s.reussite) { c.pv = 1; this.evt({ t: 'soin', cible: c.id, n: 1, pvAvant: 0, pvApres: 1, pvMax: c.pvMax }); this.log(`→ ${this.nomHtml(c)} refuse de tomber (1 PV) !`, 'mauvais'); return; }
     }
 
+    if (c.pv <= 0 && c.chaos && c.chaos.pouvoirs.includes('renaissance') && !c.chaos.relevé) {
+      c.chaos.relevé = true;
+      c.pv = Math.ceil(c.pvMax * 0.4);
+      this.log(`🔥 ${this.nomHtml(c)} s'effondre… puis se relève dans un torrent de flammes chaotiques (${c.pv} PV) !`, 'titre mauvais');
+      this.evt({ t: 'texte', cible: c.id, texte: '🔥 Renaissance !', classe: 'crit' });
+      this.evt({ t: 'soin', cible: c.id, n: c.pv, pvAvant: 0, pvApres: c.pv, pvMax: c.pvMax });
+      for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, 10, true);
+      return;
+    }
     if (c.pv <= 0) {
       c.pv = 0;
       if (c.camp === 'ennemi') {
@@ -1028,7 +1129,9 @@ class Combat {
   // ------------------------------------------------------ IA monstre
   tourMonstre(m) {
     if (this.fini || m.pv <= 0) return;
-    const nb = MONSTRES[m.modele].actionsParTour || 1;
+    const ch = m.chaos || {};
+    const nb = (MONSTRES[m.modele].actionsParTour || 1) + (ch.mutations && ch.mutations.includes('rapide') ? 1 : 0)
+      + (ch.pouvoirs && ch.pouvoirs.includes('furie') && m.pv < m.pvMax / 2 ? 1 : 0);
     let i = 0;
     const agir = () => {
       if (this.fini || m.pv <= 0 || !this.ennemis.includes(m)) return this.finTour(m);
