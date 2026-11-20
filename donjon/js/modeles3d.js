@@ -34,6 +34,9 @@ const Modeles3D = {
       r.outputEncoding = THREE.sRGBEncoding;
       r.shadowMap.enabled = true;
       r.shadowMap.type = THREE.PCFSoftShadowMap;
+      // Rendu « filmique » : contrastes doux, couleurs saturées sans blancs brûlés
+      r.toneMapping = THREE.ACESFilmicToneMapping;
+      r.toneMappingExposure = REGLAGE_EXPOSITION;
       r.domElement.className = 'canvas3d';
       this.renderer = r;
       this.couleurTmp = new THREE.Color();
@@ -46,7 +49,8 @@ const Modeles3D = {
       const cle = new THREE.DirectionalLight(0xfff0dd, 0.62);
       cle.position.set(2.5, 9, 5);
       cle.castShadow = true;
-      cle.shadow.mapSize.set(1024, 1024);
+      cle.shadow.mapSize.set(2048, 2048);
+      cle.shadow.radius = 3;
       cle.shadow.camera.left = -9; cle.shadow.camera.right = 9;
       cle.shadow.camera.top = 9; cle.shadow.camera.bottom = -9;
       cle.shadow.camera.near = 1; cle.shadow.camera.far = 25;
@@ -66,7 +70,7 @@ const Modeles3D = {
       this.ray = new THREE.Raycaster();
       this.sol = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
       this.decor = construireDecor(sc);
-      this.particules = new Particules(sc);
+      this.particules = new Particules(sc, 900);
       this.actif = true;
       document.body.classList.add('mode3d');
       // Modèles animés en arrière-plan
@@ -168,11 +172,18 @@ const Modeles3D = {
 
   victoire(ids) { ids.forEach(id => this.anim(id, 'victoire')); },
 
+  // Effets au sol et entailles (decor3d.js)
+  cercle(id, style) { const g = this.parId[id]; if (g && this.actif) Effets3D.sol(this.scene, g, COULEURS_DEGATS[style] || [0.55, 0.65, 1], { taille: 1.6 }); },
+  anneau(id, style, taille = 1.5) { const g = this.parId[id]; if (g && this.actif) Effets3D.sol(this.scene, g, COULEURS_DEGATS[style] || [1, 0.85, 0.4], { anneau: true, duree: 600, taille }); },
+  entaille(id) { const g = this.parId[id]; if (g && this.actif) Effets3D.entaille(this.scene, g, this.camera); },
+  poussiere(id) { const g = this.parId[id]; if (g && this.actif) Effets3D.poussiere(this.scene, g); },
+
   // Ambiance de l'étage : brouillard, teinte du sol, couleur des lumières
   theme(nom) {
     if (!this.actif) return;
     const t = THEMES_3D[nom] || THEMES_3D.crypte;
     this.themeCourant = t;
+    this.nomTheme = THEMES_3D[nom] ? nom : 'crypte';
     this.scene.fog.color.setHex(t.brouillard);
     this.renderer.setClearColor(t.brouillard, 1);
     this.scene.children.forEach(o => { if (o.isHemisphereLight) { o.color.setHex(t.ciel); o.intensity = t.ambiance; } });
@@ -255,11 +266,18 @@ const Modeles3D = {
       this.decor.front.visible = false;
       this.decor.solProc.visible = false;
     }
+    // Éléments propres au thème et zone des particules d'ambiance
+    if (this.decorTheme) this.scene.remove(this.decorTheme.groupe);
+    this.decorTheme = typeof construireDecorTheme === 'function' ? construireDecorTheme(this.scene, this.nomTheme, pt) : null;
+    const devant = pt(0.5, 0.95).z, fond = pt(0.5, 0.06).z;
+    this.zoneAmbiance = { x: this.largeurA((devant + fond) / 2), z0: fond, z1: devant };
   },
 
   // Décor de l'accueil : mur au fond, braseros de part et d'autre de l'équipe
   decorVitrine() {
     const d = this.decor;
+    if (this.decorTheme) { this.scene.remove(this.decorTheme.groupe); this.decorTheme = null; }
+    this.zoneAmbiance = null;
     d.braseros[0].position.set(-3.1, 0, 0.6);
     d.braseros[1].position.set(3.1, 0, 0.6);
     d.piliers.forEach((p, i) => p.position.set(i % 2 ? 4.6 : -4.6, 0, i < 2 ? -2.6 : 1.8));
@@ -405,6 +423,12 @@ const Modeles3D = {
     this.majProjectiles();
     animerDecor(this.decor, s, this.particules);
     animerDecorKK(this.decorKK, s, this.particules);
+    if (typeof animerDecorTheme === 'function') {
+      animerDecorTheme(this.decorTheme, s, this.particules);
+      const amb = this.zoneAmbiance && AMBIANCES[this.nomTheme];
+      if (amb) amb((p, v, c, vie, g, t) => this.particules.emettre(p, v, c, vie, g, t), this.zoneAmbiance, dt);
+      Effets3D.maj(this.scene, dt);
+    }
     this.particules.maj(dt);
 
     // Secousse de caméra (critiques)
@@ -462,6 +486,7 @@ const Modeles3D = {
   }
 };
 
+let REGLAGE_EXPOSITION = 0.9;
 const THEMES_3D = {
   crypte: { brouillard: 0x0e0a08, ciel: 0xffe2c0, ambiance: 0.38, sol: 0x8f8072, flamme: 0xff9a40 },
   grotte: { brouillard: 0x08100e, ciel: 0xb8e0d0, ambiance: 0.33, sol: 0x6f7a62, flamme: 0x9aff7a },
@@ -469,12 +494,12 @@ const THEMES_3D = {
   volcan: { brouillard: 0x1a0603, ciel: 0xff9a6a, ambiance: 0.42, sol: 0x6a3a2a, flamme: 0xff5a1a },
   toiles: { brouillard: 0x0a0812, ciel: 0xa8a0d8, ambiance: 0.3, sol: 0x5a5468, flamme: 0x8a7aff },
   abime: { brouillard: 0x050a08, ciel: 0x8affc0, ambiance: 0.3, sol: 0x4a5a50, flamme: 0x4aff9a },
-  marais: { brouillard: 0x0b120a, ciel: 0xc8e0a0, ambiance: 0.34, sol: 0x5a6648, flamme: 0xb8ff6a },
-  givre: { brouillard: 0x0a1220, ciel: 0xd8f0ff, ambiance: 0.46, sol: 0x9fb4c6, flamme: 0x7ad0ff },
-  desert: { brouillard: 0x1a1208, ciel: 0xffe0a0, ambiance: 0.44, sol: 0xb89a68, flamme: 0xffb040 },
+  marais: { brouillard: 0x0b120a, ciel: 0xc8e0a0, ambiance: 0.34, sol: 0x5a6648, flamme: 0xb8ff6a, exterieur: true },
+  givre: { brouillard: 0x0a1220, ciel: 0xd8f0ff, ambiance: 0.46, sol: 0x9fb4c6, flamme: 0x7ad0ff, exterieur: true },
+  desert: { brouillard: 0x1a1208, ciel: 0xffe0a0, ambiance: 0.44, sol: 0xb89a68, flamme: 0xffb040, exterieur: true },
   chateau: { brouillard: 0x12060a, ciel: 0xd8a0c0, ambiance: 0.3, sol: 0x5a4450, flamme: 0xff4a5a },
   suintant: { brouillard: 0x080c08, ciel: 0xb8e8a0, ambiance: 0.32, sol: 0x5c5e54, flamme: 0xc8ff4a },
-  cote: { brouillard: 0x06141c, ciel: 0xa8e4ff, ambiance: 0.44, sol: 0x8e9c90, flamme: 0x4ad8ff }
+  cote: { brouillard: 0x06141c, ciel: 0xa8e4ff, ambiance: 0.44, sol: 0x8e9c90, flamme: 0x4ad8ff, exterieur: true }
 };
 
 const COULEURS_DEGATS = {
