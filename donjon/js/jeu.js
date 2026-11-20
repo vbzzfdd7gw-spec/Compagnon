@@ -33,12 +33,15 @@ const Jeu = {
     this.peurMult = c.regles.peurMult || 1;
     this.debloquee = null;
     this.equipe = classes.map(k => creerPJ(k, (sousClasses || {})[k]));
+    // Mode Chaos : étages tirés au hasard, carte double, héros niveau 4
+    this.etagesAleatoires = c.aleatoire ? genererEtagesAleatoires() : null;
+    if (c.aleatoire) this.equipe.forEach(pj => { monterNiveau(pj); this.restaurerRessources(pj); });
     // Au moins un héros en ligne Avant et un en ligne Arrière
     if (!this.equipe.some(p => p.ligne === 'avant')) this.equipe[0].ligne = 'avant';
     if (!this.equipe.some(p => p.ligne === 'arriere')) this.equipe[this.equipe.length - 1].ligne = 'arriere';
-    this.carte = Carte.generer();
+    this.carte = c.aleatoire ? Carte.genererDouble() : Carte.generer();
     this.potions = c.regles.potions ?? 2;
-    this.or = 30;
+    this.or = c.regles.or ?? 30;
     this.sac = {};
     this.etage = 0;
     this.evenementsVus = [];
@@ -61,7 +64,7 @@ const Jeu = {
   sauvegarder() {
     try {
       localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
-        equipe: this.equipe, carte: this.carte, potions: this.potions, or: this.or, sac: this.sac, evenementsVus: this.evenementsVus, etage: this.etage, campagne: this.campagne,
+        equipe: this.equipe, carte: this.carte, etagesAleatoires: this.etagesAleatoires, potions: this.potions, or: this.or, sac: this.sac, evenementsVus: this.evenementsVus, etage: this.etage, campagne: this.campagne,
         reposLongUtilise: this.reposLongUtilise, stats: this.stats
       }));
     } catch (e) { /* stockage indisponible : on continue sans sauvegarde */ }
@@ -77,6 +80,7 @@ const Jeu = {
       Object.assign(this, d);
       this.etage = this.etage || 0;
       this.campagne = this.campagne || 'crypte';
+      this.etagesAleatoires = d.etagesAleatoires || null;
       this.or = this.or || 0;
       this.sac = this.sac || {};
       this.evenementsVus = this.evenementsVus || [];
@@ -215,7 +219,7 @@ const Jeu = {
   },
 
   campagneCourante() { return Progression.campagne(this.campagne); },
-  etages() { return this.campagneCourante().etages; },
+  etages() { return this.etagesAleatoires || this.campagneCourante().etages; },
   etageCourant() { return this.etages()[this.etage]; },
   rencontres() { return this.etageCourant().rencontres; },
   dernierEtage() { return this.etage >= this.etages().length - 1; },
@@ -233,7 +237,7 @@ const Jeu = {
       lignes.push(`${pj.icone} <b>${pj.nom}</b> niveau ${pj.niveau} : ${gains.join(', ')}`);
     }
     this.reposLongUtilise = false;
-    this.carte = Carte.generer();
+    if (!this.carte.double) this.carte = Carte.generer();   // carte double : on continue sur la même
     const e = this.etageCourant();
     this.proposerRecompenses(Recompenses.generer(this.equipe, { boss: true }), `⬇️ ${e.nom}`,
       `<i>${e.intro}</i><br><b>L'équipe monte au niveau ${this.equipe[0].niveau}</b> et récupère toutes ses forces. 💰 +${gain} or.<div class="gains">${lignes.map(l => `<div>${l}</div>`).join('')}</div>Choisissez le butin du boss :`);
@@ -241,8 +245,9 @@ const Jeu = {
 
   // ------------------------------------------------------- combat
   lancerCombat(rencontre, type) {
-    this.combat = new Combat(this.equipe, rencontre, this, this.etageCourant().force);
+    this.combat = new Combat(this.equipe, rencontre, this, rencontre.force || this.etageCourant().force);
     this.combat.type = type;
+    this.combat.theme = rencontre.theme || this.etageCourant().theme;
     this.combat.surMaj = () => Ui.majCombat();
     this.combat.surFin = r => this.finCombat(r);
     this.combat.vitesse = Reglages.vitesse;

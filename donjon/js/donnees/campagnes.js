@@ -3,8 +3,11 @@
 // que ETAGES dans etages.js). Terminer une campagne débloque la suivante.
 //   debloquee  : ouverte dès le départ
 //   apres      : identifiant de la campagne à terminer pour la débloquer
-//   regles     : { potions: potions de départ, peurMult: multiplicateur de Peur }
+//   regles     : { potions: potions de départ, peurMult: multiplicateur de Peur, or: or de départ }
 //   fin        : texte de victoire
+//   aleatoire  : mode « Chaos » : étages tirés au hasard parmi toutes les
+//                campagnes (genererEtagesAleatoires), une seule carte double
+//   apresTout  : débloquée quand toutes les autres campagnes sont terminées
 // La progression (campagnes débloquées, victoires, record) est mémorisée
 // dans le navigateur, indépendamment de la partie en cours.
 // =====================================================================
@@ -432,9 +435,35 @@ const CAMPAGNES = [
         }
       }
     ]
+  },
+  {
+    id: 'chaos', nom: 'Le Dédale du Chaos', icone: '🎲', difficulte: 8, aleatoire: true, apresTout: true,
+    resume: 'Toutes les campagnes se mélangent : une seule carte deux fois plus longue, des monstres de partout et deux boss tirés au hasard. Les héros partent au niveau 4.',
+    regles: { potions: 4, peurMult: 1.2, or: 120 },
+    regleTexte: 'Carte double, 2 boss aléatoires, départ au niveau 4 avec 4 potions et 120 or.',
+    fin: 'Le Dédale se referme derrière vous. Plus aucun cauchemar ne vous résiste.',
+    etages: []
   }
-
 ];
+
+// Mode Chaos : deux étages tirés de toutes les campagnes. Le premier mélange
+// les étages du milieu (héros niveau 4), le second les étages finaux (niveau 5).
+// Chaque rencontre garde la puissance (`force`) et le décor de son étage d'origine.
+function genererEtagesAleatoires() {
+  const sources = CAMPAGNES.filter(c => !c.aleatoire && c.etages.length >= 3);
+  const marquer = (e, r) => ({ ...r, force: e.force, theme: e.theme });
+  const etage = (idx, nom) => {
+    const etages = sources.map(c => c.etages[idx]);
+    const pool = k => etages.flatMap(e => (e.rencontres[k] || []).map(r => marquer(e, r)));
+    const camp = Des.hasard(sources), e = camp.etages[idx];
+    return {
+      nom, theme: e.theme, force: e.force, bossDe: camp.id,
+      intro: `Au bout de ce dédale vous attend le maître de <b>${e.nom}</b> (${camp.icone} ${camp.nom}).`,
+      rencontres: { facile: pool('facile'), moyen: pool('moyen'), elite: pool('elite'), boss: e.rencontres.boss.map(r => marquer(e, r)) }
+    };
+  };
+  return [etage(1, 'Le Dédale : première moitié'), etage(2, 'Le Dédale : cœur du chaos')];
+}
 
 // ---------------------------------------------------------------------
 // Progression entre les parties (mémorisée dans le navigateur)
@@ -449,7 +478,11 @@ const Progression = {
     try { localStorage.setItem(this.cle, JSON.stringify(this.donnees)); } catch (e) { /* rien */ }
   },
   campagne(id) { return CAMPAGNES.find(c => c.id === id) || CAMPAGNES[0]; },
-  debloquee(c) { return c.debloquee || this.toutDebloque() || !!this.donnees.terminees[c.apres]; },
+  debloquee(c) {
+    if (c.debloquee || this.toutDebloque()) return true;
+    if (c.apresTout) return CAMPAGNES.every(x => x.aleatoire || this.donnees.terminees[x.id]);
+    return !!this.donnees.terminees[c.apres];
+  },
   // Mode test : toutes les campagnes et sous-classes sont accessibles
   toutDebloque() { return !!this.donnees.test; },
   basculerTest(actif) { this.donnees.test = actif; this.sauver(); },

@@ -72,11 +72,12 @@ function combattre(equipe, rencontre, jeu, force) {
 }
 function expedition(idC, classes, scs) {
   const camp = CAMPAGNES.find(c => c.id === idC);
-  const ETAGES = camp.etages;
+  const ETAGES = camp.aleatoire ? genererEtagesAleatoires() : camp.etages;
   const equipe = (classes || ORDRE_CLASSES).map((k, i) => creerPJ(k, scs ? scs[i] : null));
+  if (camp.aleatoire) equipe.forEach(p => { monterNiveau(p); p.ressources = ressourcesPJ(p); });
   if (!equipe.some(p => p.ligne === 'avant')) equipe[0].ligne = 'avant';
   if (!equipe.some(p => p.ligne === 'arriere')) equipe[3].ligne = 'arriere';
-  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult, or: 30, equipe, sac: {},
+  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult, or: camp.regles.or || 30, equipe, sac: {},
     stock(c) { return c === 'potion' ? this.potions : (this.sac[c] || 0); },
     ajouterStock(c, n = 1) { if (c === 'potion') this.potions += n; else this.sac[c] = (this.sac[c] || 0) + n; },
     retirerStock(c) { if (c === 'potion') this.potions--; else this.sac[c]--; } }; let long = false;
@@ -91,7 +92,8 @@ function expedition(idC, classes, scs) {
       if (['combat', 'elite', 'boss'].includes(n.type)) {
         const liste = n.type === 'combat' ? R[Carte.niveau(n)] : R[n.type];
         const pvAvant = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
-        const r = combattre(equipe, liste[Math.floor(Math.random() * liste.length)], jeu, ETAGES[etage].force);
+        const renc = liste[Math.floor(Math.random() * liste.length)];
+        const r = combattre(equipe, renc, jeu, renc.force || ETAGES[etage].force);
         const pvApres = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
         PERTES[etage + n.type] = PERTES[etage + n.type] || [];
         PERTES[etage + n.type].push(pvAvant - pvApres);
