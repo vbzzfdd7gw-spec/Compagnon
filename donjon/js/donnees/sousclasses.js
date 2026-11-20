@@ -93,11 +93,11 @@ const SOUS_CLASSES = {
   ],
   paladin: [
     { id: 'devotion', nom: 'Serment de Dévotion', icone: '🕊️', desc: 'Arme sacrée et aura de courage.',
-      details: ['Arme sacrée remplace Bénédiction : action bonus, +2 au toucher avec les armes pendant 3 tours (une fois par combat).', 'Niv. 5 — Aura de courage : tant qu\'il est debout, la Peur gagnée par l\'équipe est divisée par deux.'],
-      remplace: { benediction: 'arme_sacree' }, niv5: { traits: { auraCourage: true }, texte: 'Aura de courage (Peur de l\'équipe ÷2)' } },
+      details: ['Arme sacrée (en plus de Bénédiction) : action bonus, +2 au toucher avec les armes pendant 3 tours (une fois par combat).', 'Niv. 5 — Aura de courage : tant qu\'il est debout, la Peur gagnée par l\'équipe est divisée par deux.'],
+      ajoute: ['arme_sacree'], niv5: { traits: { auraCourage: true }, texte: 'Aura de courage (Peur de l\'équipe ÷2)' } },
     { id: 'vengeance', nom: 'Serment de Vengeance', icone: '🔥', desc: 'Traque un ennemi et venge ses alliés.', deblocage: 'horde',
-      details: ['Vœu d\'inimitié remplace Bénédiction : action bonus, avantage à ses attaques contre un ennemi pendant 3 tours (une fois par combat).', 'Niv. 5 — Vengeur : quand un allié tombe, il gagne +2 au toucher et aux dégâts jusqu\'à la fin du combat.'],
-      remplace: { benediction: 'voeu_inimitie' }, niv5: { traits: { vengeur: true }, texte: 'Vengeur (+2 toucher et dégâts quand un allié tombe)' } }
+      details: ['Vœu d\'inimitié (en plus de Bénédiction) : action bonus, avantage à ses attaques contre un ennemi pendant 3 tours (une fois par combat).', 'Niv. 5 — Vengeur : quand un allié tombe, il gagne +2 au toucher et aux dégâts jusqu\'à la fin du combat.'],
+      ajoute: ['voeu_inimitie'], niv5: { traits: { vengeur: true }, texte: 'Vengeur (+2 toucher et dégâts quand un allié tombe)' } }
   ],
   rodeur: [
     { id: 'chasseur', nom: 'Chasseur', icone: '🎯', desc: 'Achève les cibles blessées.',
