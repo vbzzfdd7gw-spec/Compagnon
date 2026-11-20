@@ -345,6 +345,7 @@ const Ui = {
     if (m.mortVivant) extras.push('Mort-vivant');
     if (m.robustesse) extras.push('Robustesse des morts-vivants : à 0 PV, sauvegarde de CON (DD 5 + dégâts) pour rester à 1 PV, sauf dégâts radiants ou critique');
     if (m.actionsParTour) extras.push(`Agit ${m.actionsParTour} fois par tour`);
+    if (m.traits && m.traits.regen) extras.push(`Régénération : récupère ${m.traits.regen} PV à chacun de ses tours`);
     if (c.chaos) {
       for (const k of c.chaos.mutations) extras.push(`${MUTATIONS_CHAOS[k].icone} <b>${MUTATIONS_CHAOS[k].nom}</b> (chaos) : ${MUTATIONS_CHAOS[k].desc}`);
       for (const k of c.chaos.pouvoirs) extras.push(`${POUVOIRS_BOSS[k].icone} <b>${POUVOIRS_BOSS[k].nom}</b> (pouvoir du chaos) : ${POUVOIRS_BOSS[k].desc}`);
@@ -491,6 +492,7 @@ const Ui = {
   elem(id) { return document.querySelector(`.combattant[data-id="${id}"]`); },
 
   animer(e) {
+    if (!$('#milieu')) return;   // l'écran de combat a été quitté entre-temps
     const el = e.cible !== undefined ? this.elem(e.cible) : null;
     switch (e.t) {
       case 'action': {
@@ -608,6 +610,7 @@ const Ui = {
   // Gros d20 au centre de la scène
   afficherDe(e) {
     const m = $('#milieu');
+    if (!m) return;
     const libRes = { crit: 'CRITIQUE !', touche: 'Touché', rate: 'Raté', reussite: 'Réussi', echec: 'Échec' }[e.res];
     const bon = e.sauvegarde ? null : (e.res !== 'rate');
     const classeRes = e.res === 'crit' ? 'crit' : (e.res === 'rate' || e.res === 'reussite' && !e.sauvegarde) ? 'non' : (e.res === 'echec' || e.res === 'reussite') ? e.res : 'oui';

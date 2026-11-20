@@ -11,6 +11,7 @@
 //   mortVivant  : sensible au Renvoi, immunisé au Sommeil
 //   robustesse  : Robustesse des morts-vivants (zombie)
 //   actionsParTour : nombre d'actions par tour (boss)
+//   traits      : capacités passives (ex. { regen: 6 } : PV récupérés à chaque tour)
 // =====================================================================
 
 const MONSTRES = {
@@ -137,6 +138,216 @@ const MONSTRES = {
       { nom: 'Trait nécrotique', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 5, degats: '2d8', typeDeg: 'nécrotique', sort: true, poids: 3 },
       { nom: 'Main glaciale', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 12, degats: '1d8', typeDeg: 'froid', moitie: false, sort: true,
         effetSiEchec: { etat: 'entrave', duree: 1 }, poids: 1 }
+    ]
+  },
+
+  // ---------------------------- MARAIS --------------------------------
+  homme_lezard: {
+    nom: 'Homme-lézard', icone: '🦎', pv: 22, ca: 15,
+    caracs: { FOR: 15, DEX: 10, CON: 13, INT: 7, SAG: 12, CHA: 7 },
+    actions: [
+      { nom: 'Hachette d\'os', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '1d8+3', typeDeg: 'tranchant', poids: 3 },
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '1d6+3', typeDeg: 'perforant', poids: 2 },
+      { nom: 'Javeline', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 5, degats: '1d6+3', typeDeg: 'perforant', poids: 2 }
+    ]
+  },
+  crapaud: {
+    nom: 'Crapaud géant', icone: '🐸', pv: 20, ca: 11,
+    caracs: { FOR: 12, DEX: 13, CON: 13, INT: 2, SAG: 10, CHA: 3 },
+    actions: [
+      { nom: 'Langue collante', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 4, degats: '1d6+1', typeDeg: 'contondant',
+        effetSiTouche: { etat: 'entrave', duree: 1, sauvegarde: { carac: 'FOR', dd: 12 } }, poids: 2 },
+      { nom: 'Bond écrasant', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '2d6+1', typeDeg: 'contondant',
+        effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'DEX', dd: 12 } }, poids: 2 }
+    ]
+  },
+  feu_follet: {
+    nom: 'Feu follet', icone: '✨', pv: 16, ca: 18,
+    caracs: { FOR: 1, DEX: 28, CON: 10, INT: 13, SAG: 14, CHA: 11 },
+    immun: ['foudre', 'poison'], immunEtats: ['empoisonne', 'renverse', 'entrave'],
+    actions: [
+      { nom: 'Décharge', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '2d8', typeDeg: 'foudre', sort: true, poids: 3 },
+      { nom: 'Lueur trompeuse', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 12, degats: '1d6', typeDeg: 'psychique', moitie: false,
+        effetSiEchec: { peur: 12 }, poids: 1 }
+    ]
+  },
+  noye: {
+    nom: 'Noyé', icone: '🧟', pv: 24, ca: 9, mortVivant: true, robustesse: true,
+    caracs: { FOR: 15, DEX: 6, CON: 16, INT: 3, SAG: 6, CHA: 5 },
+    immun: ['poison'], immunEtats: ['empoisonne'], resist: ['froid'],
+    actions: [
+      { nom: 'Étreinte vaseuse', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d8+2', typeDeg: 'contondant',
+        effetSiTouche: { etat: 'entrave', duree: 1 }, poids: 1 }
+    ]
+  },
+  troll: {
+    nom: 'Troll des marais', icone: '🧌', pv: 62, ca: 13, elite: true,
+    caracs: { FOR: 18, DEX: 13, CON: 20, INT: 7, SAG: 9, CHA: 7 },
+    traits: { regen: 6 },
+    actions: [
+      { nom: 'Griffes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 7, degats: '2d6+4', typeDeg: 'tranchant', poids: 3 },
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 7, degats: '1d8+4', typeDeg: 'perforant', poids: 2 },
+      { nom: 'Rocher boueux', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '2d6+3', typeDeg: 'contondant', poids: 1 }
+    ]
+  },
+  chef_lezard: {
+    nom: 'Sss\'karr, chef des Écailles', icone: '🐊', pv: 70, ca: 16, boss: true, actionsParTour: 2,
+    caracs: { FOR: 18, DEX: 12, CON: 16, INT: 10, SAG: 13, CHA: 12 },
+    sauvegardesBonus: { FOR: 6, CON: 5 },
+    actions: [
+      { nom: 'Lance de croc', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 7, degats: '2d6+4', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Coup de queue', type: 'sauvegarde', zone: true, depuis: ['avant'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 13, degats: '2d6+2', typeDeg: 'contondant', moitie: true,
+        effetSiEchec: { etat: 'renverse', duree: 1 }, poids: 2, recharge: 3 },
+      { nom: 'Cri de la tribu', type: 'special', special: 'invoquer', invocation: 'homme_lezard', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+  guenaude: {
+    nom: 'Mère Fangeuse, la guenaude', icone: '🧙‍♀️', pv: 120, ca: 16, boss: true, actionsParTour: 2,
+    caracs: { FOR: 18, DEX: 12, CON: 16, INT: 13, SAG: 16, CHA: 16 },
+    sauvegardesBonus: { CON: 6, SAG: 6, CHA: 6 },
+    resist: ['froid', 'poison'], immunEtats: ['empoisonne'],
+    actions: [
+      { nom: 'Griffes crochues', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 8, degats: '2d8+4', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Malédiction du marais', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 15, degats: '3d8', typeDeg: 'psychique', moitie: true,
+        effetSiEchec: { peur: 15 }, poids: 3 },
+      { nom: 'Brouillard putride', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 14, degats: '2d6', typeDeg: 'poison', moitie: true,
+        effetSiEchec: { etat: 'empoisonne', duree: 2 }, poids: 2, recharge: 3 },
+      { nom: 'Rire de la guenaude', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 14, moitie: false,
+        effetSiEchec: { peur: 25 }, poids: 1, recharge: 4 },
+      { nom: 'Appel du marais', type: 'special', special: 'invoquer', invocation: 'noye', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+
+  // ----------------------------- GIVRE ---------------------------------
+  loup_givre: {
+    nom: 'Loup de givre', icone: '🐺', pv: 24, ca: 13,
+    caracs: { FOR: 15, DEX: 14, CON: 13, INT: 4, SAG: 12, CHA: 6 },
+    immun: ['froid'], vuln: ['feu'],
+    actions: [
+      { nom: 'Morsure glacée', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '2d4+3', typeDeg: 'froid',
+        effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'FOR', dd: 12 } }, poids: 3 },
+      { nom: 'Souffle glacé', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'], carac: 'CON', dd: 12, degats: '3d6', typeDeg: 'froid', moitie: true, poids: 2, recharge: 3 }
+    ]
+  },
+  yeti: {
+    nom: 'Yéti', icone: '❄️', pv: 40, ca: 12,
+    caracs: { FOR: 18, DEX: 13, CON: 16, INT: 8, SAG: 12, CHA: 7 },
+    immun: ['froid'], vuln: ['feu'],
+    actions: [
+      { nom: 'Griffes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d10+4', typeDeg: 'tranchant', poids: 3 },
+      { nom: 'Regard glaçant', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 13, degats: '2d6', typeDeg: 'froid', moitie: false,
+        effetSiEchec: { etat: 'entrave', duree: 2 }, poids: 1, recharge: 3 },
+      { nom: 'Rugissement', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 12, moitie: false,
+        effetSiEchec: { peur: 12 }, poids: 1, recharge: 4 }
+    ]
+  },
+  esprit_glace: {
+    nom: 'Esprit de glace', icone: '🧊', pv: 22, ca: 15,
+    caracs: { FOR: 10, DEX: 14, CON: 14, INT: 8, SAG: 10, CHA: 8 },
+    immun: ['froid', 'poison'], vuln: ['feu', 'contondant'], immunEtats: ['empoisonne', 'entrave'],
+    actions: [
+      { nom: 'Éclats de glace', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 5, degats: '2d6+2', typeDeg: 'froid', sort: true, poids: 3 },
+      { nom: 'Nova de givre', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'], carac: 'CON', dd: 13, degats: '2d6', typeDeg: 'froid', moitie: true,
+        effetSiEchec: { etat: 'entrave', duree: 1 }, poids: 1, recharge: 3 }
+    ]
+  },
+  pretresse_givre: {
+    nom: 'Prêtresse du givre', icone: '🌨️', pv: 28, ca: 13,
+    caracs: { FOR: 9, DEX: 12, CON: 12, INT: 12, SAG: 16, CHA: 14 },
+    resist: ['froid'],
+    actions: [
+      { nom: 'Rayon de givre', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '2d8', typeDeg: 'froid', sort: true,
+        effetSiTouche: { etat: 'entrave', duree: 1 }, poids: 3 },
+      { nom: 'Souffle de l\'hiver', type: 'special', special: 'soinAllies', soin: '2d6+2', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, recharge: 3 }
+    ]
+  },
+  geant_givre: {
+    nom: 'Hrimnar, géant du givre', icone: '🗻', pv: 95, ca: 15, boss: true, actionsParTour: 2,
+    caracs: { FOR: 23, DEX: 9, CON: 21, INT: 9, SAG: 10, CHA: 12 },
+    sauvegardesBonus: { FOR: 9, CON: 8 },
+    immun: ['froid'],
+    actions: [
+      { nom: 'Grande hache', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 8, degats: '2d12+5', typeDeg: 'tranchant', poids: 3 },
+      { nom: 'Coup de botte', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 8, degats: '2d6+5', typeDeg: 'contondant',
+        effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'FOR', dd: 15 } }, poids: 1, recharge: 2 },
+      { nom: 'Bloc de glace', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 8, degats: '3d8+3', typeDeg: 'froid', poids: 1, recharge: 3 },
+      { nom: 'Appel de la meute', type: 'special', special: 'invoquer', invocation: 'loup_givre', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+  reine_hiver: {
+    nom: 'Isolde, la Reine de l\'Hiver', icone: '👸', pv: 125, ca: 17, boss: true, actionsParTour: 2,
+    caracs: { FOR: 12, DEX: 16, CON: 18, INT: 18, SAG: 16, CHA: 20 },
+    sauvegardesBonus: { DEX: 7, CON: 8, SAG: 7, CHA: 9 },
+    immun: ['froid'], resist: ['psychique'],
+    actions: [
+      { nom: 'Lance de glace', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 9, degats: '3d8+4', typeDeg: 'froid', sort: true, poids: 3 },
+      { nom: 'Blizzard', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 15, degats: '5d6', typeDeg: 'froid', moitie: true,
+        effetSiEchec: { etat: 'entrave', duree: 1 }, poids: 3, recharge: 3 },
+      { nom: 'Prison de glace', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 16, degats: '2d8', typeDeg: 'froid', moitie: true,
+        effetSiEchec: { etat: 'etourdi', duree: 1 }, poids: 2, recharge: 3 },
+      { nom: 'Cœur gelé', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 15, moitie: false,
+        effetSiEchec: { peur: 25 }, poids: 1, recharge: 4 },
+      { nom: 'Gardiens de cristal', type: 'special', special: 'invoquer', invocation: 'esprit_glace', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+
+  // ----------------------------- TOMBEAU --------------------------------
+  momie: {
+    nom: 'Momie', icone: '🧻', pv: 34, ca: 11, mortVivant: true,
+    caracs: { FOR: 16, DEX: 8, CON: 15, INT: 6, SAG: 10, CHA: 12 },
+    vuln: ['feu'], immun: ['poison', 'nécrotique'], immunEtats: ['empoisonne'],
+    actions: [
+      { nom: 'Poing pourrissant', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '2d6+3', typeDeg: 'nécrotique',
+        effetSiTouche: { etat: 'empoisonne', duree: 2, sauvegarde: { carac: 'CON', dd: 12 } }, poids: 3 },
+      { nom: 'Regard effroyable', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 12, degats: '1d6', typeDeg: 'psychique', moitie: false,
+        effetSiEchec: { peur: 15 }, poids: 1, recharge: 2 }
+    ]
+  },
+  scarabees: {
+    nom: 'Nuée de scarabées', icone: '🪲', pv: 20, ca: 12,
+    caracs: { FOR: 3, DEX: 13, CON: 10, INT: 1, SAG: 7, CHA: 1 },
+    resist: ['tranchant', 'perforant', 'contondant'], immunEtats: ['renverse', 'etourdi', 'entrave', 'endormi'],
+    actions: [
+      { nom: 'Dévorer', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '4d4', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Grouillement', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 5, degats: '2d4', typeDeg: 'perforant', poids: 1 }
+    ]
+  },
+  chacal: {
+    nom: 'Gardien chacal', icone: '🐕', pv: 30, ca: 15,
+    caracs: { FOR: 16, DEX: 14, CON: 14, INT: 9, SAG: 13, CHA: 10 },
+    resist: ['nécrotique'],
+    actions: [
+      { nom: 'Khopesh', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d10+3', typeDeg: 'tranchant', poids: 3 },
+      { nom: 'Arc funéraire', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '1d8+3', typeDeg: 'perforant', poids: 2 },
+      { nom: 'Hurlement funèbre', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 12, moitie: false,
+        effetSiEchec: { peur: 10 }, poids: 1, recharge: 3 }
+    ]
+  },
+  pretre_momie: {
+    nom: 'Prêtre momifié', icone: '🪬', pv: 38, ca: 14, elite: true, mortVivant: true,
+    caracs: { FOR: 10, DEX: 12, CON: 14, INT: 14, SAG: 18, CHA: 14 },
+    vuln: ['feu'], immun: ['poison', 'nécrotique'], immunEtats: ['empoisonne'],
+    actions: [
+      { nom: 'Malédiction du tombeau', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '2d8+2', typeDeg: 'nécrotique', sort: true, poids: 3 },
+      { nom: 'Tempête de sable', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 13, degats: '2d6', typeDeg: 'contondant', moitie: true,
+        effetSiEchec: { etat: 'entrave', duree: 1 }, poids: 2, recharge: 3 },
+      { nom: 'Rites d\'embaumement', type: 'special', special: 'soinAllies', soin: '2d4+2', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 1, recharge: 3 }
+    ]
+  },
+  pharaon: {
+    nom: 'Ankh-Sethi, le Roi-Momie', icone: '𓂀', pv: 135, ca: 17, boss: true, actionsParTour: 2, mortVivant: true,
+    caracs: { FOR: 20, DEX: 10, CON: 20, INT: 16, SAG: 18, CHA: 20 },
+    sauvegardesBonus: { CON: 9, SAG: 8, CHA: 9 },
+    vuln: ['feu'], resist: ['nécrotique'], immun: ['poison'], immunEtats: ['empoisonne', 'renverse'],
+    actions: [
+      { nom: 'Poing du pharaon', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 10, degats: '2d10+6', typeDeg: 'nécrotique',
+        effetSiTouche: { etat: 'empoisonne', duree: 2, sauvegarde: { carac: 'CON', dd: 16 } }, poids: 3 },
+      { nom: 'Malédiction royale', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 16, degats: '3d6', typeDeg: 'psychique', moitie: true,
+        effetSiEchec: { peur: 20 }, poids: 2, recharge: 3 },
+      { nom: 'Tempête de sable', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 16, degats: '4d6', typeDeg: 'contondant', moitie: true,
+        effetSiEchec: { etat: 'entrave', duree: 1 }, poids: 2, recharge: 3 },
+      { nom: 'Lever la garde', type: 'special', special: 'invoquer', invocation: 'momie', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 },
+      { nom: 'Fléau de scarabées', type: 'special', special: 'invoquer', invocation: 'scarabees', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 1, parCombat: 1 }
     ]
   },
 

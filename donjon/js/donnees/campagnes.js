@@ -161,6 +161,76 @@ const CAMPAGNES = [
     ]
   },
   {
+    id: 'marais', nom: 'Le Marais des Noyés', icone: '🐸', difficulte: 3, apres: 'horde',
+    resume: 'Les villages du delta disparaissent un à un. Dans la brume, les hommes-lézards servent une guenaude qui noie les vivants pour en faire ses serviteurs.',
+    regles: { potions: 3, peurMult: 1.1 },
+    regleTexte: 'Les trolls se régénèrent : achevez-les vite.',
+    fin: 'Mère Fangeuse s\'enfonce dans la vase en hurlant. La brume se lève enfin sur le delta.',
+    etages: [
+      {
+        nom: 'Les Rives brumeuses', theme: 'marais', force: { pv: 1.0, toucher: 0, degats: 0, dd: 0 },
+        intro: 'Des roseaux plus hauts qu\'un homme, et des yeux jaunes qui vous suivent depuis l\'eau.',
+        rencontres: {
+          facile: [
+            { avant: ['homme_lezard'], arriere: ['crapaud'] },
+            { avant: ['crapaud', 'crapaud'], arriere: [] },
+            { avant: ['noye', 'noye'], arriere: [] },
+            { avant: ['homme_lezard', 'homme_lezard'], arriere: [] }
+          ],
+          moyen: [
+            { avant: ['homme_lezard', 'homme_lezard'], arriere: ['crapaud'] },
+            { avant: ['noye', 'homme_lezard'], arriere: ['feu_follet'] },
+            { avant: ['crapaud', 'crapaud'], arriere: ['feu_follet'] }
+          ],
+          elite: [
+            { avant: ['troll'], arriere: ['crapaud'] },
+            { avant: ['homme_lezard', 'homme_lezard'], arriere: ['feu_follet', 'feu_follet'] }
+          ],
+          boss: [{ avant: ['chef_lezard'], arriere: ['homme_lezard'] }]
+        }
+      },
+      {
+        nom: 'Le Village englouti', theme: 'marais', force: { pv: 1.05, toucher: 0, degats: 1, dd: 0 },
+        intro: 'Des toits de chaume affleurent à la surface. Les anciens habitants marchent encore… sous l\'eau.',
+        rencontres: {
+          facile: [
+            { avant: ['noye', 'noye'], arriere: ['feu_follet'] },
+            { avant: ['homme_lezard', 'crapaud'], arriere: ['homme_lezard'] }
+          ],
+          moyen: [
+            { avant: ['noye', 'noye', 'noye'], arriere: ['feu_follet'] },
+            { avant: ['homme_lezard', 'homme_lezard'], arriere: ['feu_follet', 'crapaud'] },
+            { avant: ['troll'], arriere: [] }
+          ],
+          elite: [
+            { avant: ['troll', 'noye'], arriere: ['feu_follet'] },
+            { avant: ['troll'], arriere: ['homme_lezard', 'homme_lezard'] }
+          ],
+          boss: [{ avant: ['troll', 'troll'], arriere: ['feu_follet'] }]
+        }
+      },
+      {
+        nom: 'L\'Antre de la guenaude', theme: 'marais', force: { pv: 1.1, toucher: 1, degats: 1, dd: 0 },
+        intro: 'Une hutte bâtie sur des os, au milieu d\'un étang noir. Une voix chantonne une berceuse.',
+        rencontres: {
+          facile: [
+            { avant: ['noye', 'troll'], arriere: [] },
+            { avant: ['homme_lezard', 'homme_lezard'], arriere: ['feu_follet', 'feu_follet'] }
+          ],
+          moyen: [
+            { avant: ['troll', 'homme_lezard'], arriere: ['feu_follet'] },
+            { avant: ['noye', 'noye'], arriere: ['feu_follet', 'feu_follet'] }
+          ],
+          elite: [
+            { avant: ['troll', 'troll'], arriere: [] },
+            { avant: ['chef_lezard'], arriere: ['feu_follet'] }
+          ],
+          boss: [{ avant: ['noye', 'troll'], arriere: ['guenaude'] }]
+        }
+      }
+    ]
+  },
+  {
     id: 'dragon', nom: 'Le Repaire d\'Ignaroth', icone: '🐉', difficulte: 4, apres: 'eclipse',
     resume: 'Un dragon rouge s\'est éveillé sous la montagne. Ses kobolds pillent les villages et ses dragonnets gardent les tunnels de lave.',
     regles: { potions: 3, peurMult: 1.2 },
@@ -299,6 +369,75 @@ const CAMPAGNES = [
     ]
   },
   {
+    id: 'givre', nom: 'La Citadelle de Givre', icone: '❄️', difficulte: 5, apres: 'dragon',
+    resume: 'Un hiver éternel descend des montagnes. Au sommet d\'une citadelle de glace, une reine immortelle veut geler le monde entier.',
+    regles: { potions: 3, peurMult: 1.2 },
+    regleTexte: 'Le froid gèle les gestes : attention aux entraves. Le feu fait des ravages ici.',
+    fin: 'Le cœur gelé de la Reine se brise. Pour la première fois depuis des années, la neige fond.',
+    etages: [
+      {
+        nom: 'Le Col des Hurlements', theme: 'givre', force: { pv: 0.9, toucher: 0, degats: 0, dd: 0 },
+        intro: 'Le vent hurle dans le col. Ou peut-être sont-ce des loups.',
+        rencontres: {
+          facile: [
+            { avant: ['loup_givre', 'loup_givre'], arriere: [] },
+            { avant: ['yeti'], arriere: [] },
+            { avant: ['loup_givre'], arriere: ['esprit_glace'] }
+          ],
+          moyen: [
+            { avant: ['loup_givre', 'loup_givre'], arriere: ['esprit_glace'] },
+            { avant: ['yeti', 'loup_givre'], arriere: [] },
+            { avant: ['esprit_glace', 'esprit_glace'], arriere: ['pretresse_givre'] }
+          ],
+          elite: [
+            { avant: ['yeti', 'yeti'], arriere: [] },
+            { avant: ['yeti'], arriere: ['pretresse_givre', 'esprit_glace'] }
+          ],
+          boss: [{ avant: ['yeti', 'yeti'], arriere: ['loup_givre'] }]
+        }
+      },
+      {
+        nom: 'Les Remparts gelés', theme: 'givre', force: { pv: 0.95, toucher: 0, degats: 1, dd: 0 },
+        intro: 'Des soldats changés en statues de glace montent la garde. Certains bougent encore.',
+        rencontres: {
+          facile: [
+            { avant: ['yeti', 'loup_givre'], arriere: [] },
+            { avant: ['esprit_glace', 'esprit_glace'], arriere: ['pretresse_givre'] }
+          ],
+          moyen: [
+            { avant: ['yeti', 'esprit_glace'], arriere: ['pretresse_givre'] },
+            { avant: ['loup_givre', 'loup_givre', 'loup_givre'], arriere: ['pretresse_givre'] },
+            { avant: ['yeti', 'yeti'], arriere: ['esprit_glace'] }
+          ],
+          elite: [
+            { avant: ['yeti', 'yeti'], arriere: ['pretresse_givre'] },
+            { avant: ['esprit_glace', 'esprit_glace'], arriere: ['pretresse_givre', 'pretresse_givre'] }
+          ],
+          boss: [{ avant: ['geant_givre'], arriere: ['loup_givre'] }]
+        }
+      },
+      {
+        nom: 'Le Palais de cristal', theme: 'givre', force: { pv: 1.0, toucher: 1, degats: 1, dd: 0 },
+        intro: 'Tout est de glace pure : les murs, les colonnes, le trône. Votre souffle gèle avant de toucher le sol.',
+        rencontres: {
+          facile: [
+            { avant: ['yeti', 'esprit_glace'], arriere: ['pretresse_givre'] },
+            { avant: ['loup_givre', 'loup_givre'], arriere: ['esprit_glace', 'esprit_glace'] }
+          ],
+          moyen: [
+            { avant: ['yeti', 'yeti'], arriere: ['pretresse_givre', 'esprit_glace'] },
+            { avant: ['esprit_glace', 'esprit_glace', 'esprit_glace'], arriere: ['pretresse_givre'] }
+          ],
+          elite: [
+            { avant: ['geant_givre'], arriere: ['pretresse_givre'] },
+            { avant: ['yeti', 'yeti'], arriere: ['pretresse_givre', 'pretresse_givre'] }
+          ],
+          boss: [{ avant: ['esprit_glace', 'yeti'], arriere: ['reine_hiver'] }]
+        }
+      }
+    ]
+  },
+  {
     id: 'legion', nom: 'La Légion de Fer', icone: '🎖️', difficulte: 6, apres: 'toiles',
     resume: 'Une armée de hobgobelins et de gnolls marche sur le royaume. Infiltrez leur forteresse et abattez leur seigneur de guerre.',
     regles: { potions: 1, peurMult: 1.2 },
@@ -363,6 +502,76 @@ const CAMPAGNES = [
             { avant: ['grukk', 'hobgobelin'], arriere: ['gnoll'] }
           ],
           boss: [{ avant: ['seigneur_guerre', 'hobgobelin'], arriere: ['gnoll'] }]
+        }
+      }
+    ]
+  },
+  {
+    id: 'tombeau', nom: 'Le Tombeau d\'Ankh-Sethi', icone: '🏺', difficulte: 6, apres: 'toiles',
+    resume: 'Une tempête de sable a dégagé l\'entrée d\'un tombeau maudit. Le Roi-Momie s\'éveille, et sa malédiction s\'étend sur le désert.',
+    regles: { potions: 3, peurMult: 1.2 },
+    regleTexte: 'Momies et pharaon craignent le feu. Les nuées de scarabées résistent aux armes.',
+    fin: 'Les bandelettes d\'Ankh-Sethi s\'embrasent. Son tombeau s\'effondre et le désert retrouve le silence.',
+    etages: [
+      {
+        nom: 'La Nécropole des sables', theme: 'desert', force: { pv: 0.9, toucher: 0, degats: 0, dd: 0 },
+        intro: 'Des tombes à demi ensevelies. Le sable remue tout seul par endroits.',
+        rencontres: {
+          facile: [
+            { avant: ['chacal', 'chacal'], arriere: [] },
+            { avant: ['scarabees'], arriere: ['chacal'] },
+            { avant: ['momie'], arriere: [] },
+            { avant: ['squelette', 'squelette'], arriere: ['chacal'] }
+          ],
+          moyen: [
+            { avant: ['momie', 'chacal'], arriere: ['chacal'] },
+            { avant: ['scarabees', 'scarabees'], arriere: ['chacal'] },
+            { avant: ['momie', 'squelette'], arriere: ['mage_squelette'] }
+          ],
+          elite: [
+            { avant: ['momie', 'momie'], arriere: ['pretre_momie'] },
+            { avant: ['chacal', 'chacal'], arriere: ['pretre_momie'] }
+          ],
+          boss: [{ avant: ['chacal', 'chacal'], arriere: ['pretre_momie'] }]
+        }
+      },
+      {
+        nom: 'Les Galeries des embaumeurs', theme: 'desert', force: { pv: 0.95, toucher: 0, degats: 1, dd: 0 },
+        intro: 'Des jarres scellées, des tables de pierre, et une odeur de résine et de mort.',
+        rencontres: {
+          facile: [
+            { avant: ['momie', 'momie'], arriere: [] },
+            { avant: ['scarabees', 'chacal'], arriere: ['chacal'] }
+          ],
+          moyen: [
+            { avant: ['momie', 'scarabees'], arriere: ['pretre_momie'] },
+            { avant: ['chacal', 'chacal'], arriere: ['chacal', 'mage_squelette'] },
+            { avant: ['momie', 'momie'], arriere: ['chacal'] }
+          ],
+          elite: [
+            { avant: ['momie', 'momie'], arriere: ['pretre_momie', 'chacal'] },
+            { avant: ['scarabees', 'scarabees'], arriere: ['pretre_momie'] }
+          ],
+          boss: [{ avant: ['momie', 'momie'], arriere: ['pretre_momie', 'pretre_momie'] }]
+        }
+      },
+      {
+        nom: 'La Chambre du pharaon', theme: 'desert', force: { pv: 1.1, toucher: 1, degats: 1, dd: 1 },
+        intro: 'Des murs couverts d\'or et de hiéroglyphes. Au centre, un sarcophage dont le couvercle a glissé.',
+        rencontres: {
+          facile: [
+            { avant: ['momie', 'chacal'], arriere: ['pretre_momie'] },
+            { avant: ['scarabees', 'scarabees'], arriere: ['chacal'] }
+          ],
+          moyen: [
+            { avant: ['momie', 'momie'], arriere: ['pretre_momie'] },
+            { avant: ['chacal', 'chacal', 'chacal'], arriere: ['pretre_momie'] }
+          ],
+          elite: [
+            { avant: ['momie', 'momie', 'scarabees'], arriere: ['pretre_momie'] },
+            { avant: ['chacal', 'chacal'], arriere: ['pretre_momie', 'pretre_momie'] }
+          ],
+          boss: [{ avant: ['momie', 'chacal'], arriere: ['pharaon'] }]
         }
       }
     ]
@@ -449,7 +658,7 @@ const CAMPAGNES = [
 // Mode Chaos : deux étages tirés de toutes les campagnes. Le premier mélange
 // les étages du milieu (héros niveau 4), le second les étages finaux (niveau 5).
 // Chaque rencontre garde la puissance (`force`) et le décor de son étage d'origine.
-const PV_CHAOS = 0.9;
+const PV_CHAOS = 0.87;
 function genererEtagesAleatoires() {
   const sources = CAMPAGNES.filter(c => !c.aleatoire && c.etages.length >= 3);
   // PV des monstres un peu réduits : les mutations et pouvoirs du chaos compensent (réglé au simulateur)
