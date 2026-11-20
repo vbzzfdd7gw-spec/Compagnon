@@ -53,7 +53,7 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
 `node outils-simulation.js 2000 crypte sousclasses` fait de même avec des sous-classes au hasard et affiche le taux de chaque sous-classe ;
 `SC_SEUL=clerc:vie node outils-simulation.js 800 crypte classes` donne la sous-classe à une seule classe (comparaison avec `SANS_SC=1`).
-Réglage actuel (sous-classes au hasard) : Crypte 56 %, Éclipse 36 %, Dragon 36 %, Toiles 15 %.
+Réglage actuel (sous-classes au hasard) : Crypte 56 %, Éclipse 36 %, Dragon 36 %, Toiles 15 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
 
 ## Mode test
 

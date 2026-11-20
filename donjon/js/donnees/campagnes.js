@@ -449,9 +449,11 @@ const CAMPAGNES = [
 // Mode Chaos : deux étages tirés de toutes les campagnes. Le premier mélange
 // les étages du milieu (héros niveau 4), le second les étages finaux (niveau 5).
 // Chaque rencontre garde la puissance (`force`) et le décor de son étage d'origine.
+const PV_CHAOS = 0.9;
 function genererEtagesAleatoires() {
   const sources = CAMPAGNES.filter(c => !c.aleatoire && c.etages.length >= 3);
-  const marquer = (e, r) => ({ ...r, force: e.force, theme: e.theme });
+  // PV des monstres un peu réduits : les mutations et pouvoirs du chaos compensent (réglé au simulateur)
+  const marquer = (e, r) => ({ ...r, force: { ...e.force, pv: e.force.pv * PV_CHAOS }, theme: e.theme });
   const etage = (idx, nom) => {
     const etages = sources.map(c => c.etages[idx]);
     const pool = k => etages.flatMap(e => (e.rencontres[k] || []).map(r => marquer(e, r)));
