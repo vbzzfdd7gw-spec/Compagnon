@@ -61,7 +61,7 @@ const Ui = {
     const equipe = (Reglages.equipe && Reglages.equipe.every(c => CLASSES[c])) ? Reglages.equipe : ORDRE_CLASSES;
     const sauve = Jeu.sauvegardeExiste();
     return `<div class="accueil">
-      <div class="logo-zone">
+      <div class="logo-zone" data-clic="logo">
         <div class="logo-titre">Cryptes <span class="esperluette">&amp;</span> Dés</div>
         <div class="logo-sous">Roguelike · D&amp;D 5e</div>
       </div>
@@ -78,6 +78,7 @@ const Ui = {
           <button class="btn-icone" data-clic="regles" title="Règles">📖</button>
           ${this.boutonsAudio()}
         </div>
+        ${Progression.toutDebloque() ? '<button class="badge-test" data-clic="test-off">🧪 Mode test : tout est débloqué · désactiver</button>' : ''}
         <div class="progression">${CAMPAGNES.map(c => {
           const ok = Progression.debloquee(c), v = Progression.victoires(c);
           return `<span class="prog ${ok ? '' : 'verrou'} ${v ? 'faite' : ''}" title="${c.nom}">${ok ? c.icone : '🔒'}<small>${v ? '✅' : c.difficulte + '★'}</small></span>`;
@@ -102,6 +103,8 @@ const Ui = {
       <p>• <b>😟 Anxieux (50+)</b> : −1 au toucher et aux sauvegardes.<br>
       • <b>Crise (100)</b> : le héros craque. Désavantage, plus un trouble : 😱 <b>Terreur</b> (reste parfois paralysé), 🤬 <b>Rage aveugle</b> (frappe parfois au hasard), 😭 <b>Désespoir</b> (effraie ses alliés), 🙄 <b>Égoïsme</b> (soins reçus divisés par deux). La crise dure jusqu'à ce que sa Peur repasse sous 50.<br>
       • Une fois sur quatre, il se révèle au contraire 🌟 <b>héroïque</b> : Peur ramenée à 40, +2 au toucher et aux dégâts, et l'équipe reprend courage.</p>
+      <h3>Sous-classes</h3>
+      <p>Chaque classe a 2 ou 3 sous-classes (bouton ▾ sur l'écran d'équipe). La première est disponible d'office, les autres se débloquent en terminant des campagnes. Le Pacte du Grand Ancien donne une jauge de Peur aux monstres : 😟 ébranlés à 50 (−2 au toucher et aux sauvegardes), 😱 terrifiés à 100 (ils s'enfuient, ou perdent leur tour pour un élite ou un boss).</p>
       <h3>À terre</h3>
       <p>À 0 PV, un personnage est à terre. Il le reste au combat suivant tant qu'il n'est pas soigné (sort, potion, repos). Si toute l'équipe est à terre, l'expédition échoue.</p>
       <h3>Carte</h3>
@@ -144,21 +147,24 @@ const Ui = {
     } else conseils.push(`Choisissez encore ${4 - choix.length} héros.`);
     return `<div class="ecran-centre">
       <h2>Composez votre équipe</h2>
-      <p class="discret">${c.icone} ${c.nom} — touchez 4 héros. ℹ️ pour le détail des capacités.</p>
+      <p class="discret">${c.icone} ${c.nom} — touchez 4 héros, puis choisissez leur sous-classe (▾).${Progression.toutDebloque() ? ' <b class="badge-test">🧪 Mode test</b>' : ''}</p>
       <div class="emplacements-equipe">${[0, 1, 2, 3].map(i => {
         const k = choix[i];
-        return k ? `<span class="place pleine" data-classe="${k}">${CLASSES[k].icone}<small>${CLASSES[k].nom}</small></span>` : '<span class="place">?</span>';
+        const sc = k && sousClasse(k, Jeu.sousClasseChoisie(k));
+        return k ? `<span class="place pleine" data-classe="${k}">${CLASSES[k].icone}<small>${CLASSES[k].nom}</small><small class="place-sc">${sc.icone} ${sc.nom.replace(/^(Domaine|École|Voie|Collège|Cercle|Pacte|Serment|Totem) (de la |de l'|du |de |d')/, '')}</small></span>` : '<span class="place">?</span>';
       }).join('')}</div>
       <div class="conseils">${conseils.map(t => `<div>${t}</div>`).join('')}</div>
       <div class="grille-classes">${TOUTES_CLASSES.map(k => {
-        const cl = CLASSES[k], pris = choix.includes(k);
+        const cl = CLASSES[k], pris = choix.includes(k), sc = sousClasse(k, Jeu.sousClasseChoisie(k));
+        const nbSc = SOUS_CLASSES[k].filter(sousClasseDebloquee).length;
         return `<div class="carte-classe ${pris ? 'prise' : ''} ${!pris && choix.length >= 4 ? 'pleine' : ''}" data-classe="${k}" style="--c:${cl.couleur}">
           ${pris ? `<span class="ordre-choix">${choix.indexOf(k) + 1}</span>` : ''}
           <button class="info-classe" data-info-classe="${k}" title="Détails">ℹ️</button>
           <span class="cl-icone">${cl.icone}</span>
           <b>${cl.nom}</b>
           <span class="cl-role">${cl.role}</span>
-          <span class="cl-stats">❤️ ${cl.pv} · 🛡 ${cl.ca} · ${cl.ligne === 'avant' ? 'Avant' : 'Arrière'}</span>
+          <span class="cl-stats">❤️ ${cl.pv + (sc.pv || 0)} · 🛡 ${cl.ca + (sc.ca || 0)} · ${cl.ligne === 'avant' ? 'Avant' : 'Arrière'}</span>
+          <button class="sc-choix" data-sc-classe="${k}">${sc.icone} ${sc.nom} <span class="sc-nb">${nbSc}/${SOUS_CLASSES[k].length} ▾</span></button>
         </div>`;
       }).join('')}</div>
       <div class="boutons-compo">
@@ -172,8 +178,23 @@ const Ui = {
   ficheClasse(k) {
     const cl = CLASSES[k];
     const emp = Object.entries(cl.emplacements).map(([n, v]) => `${v}× niv.${n}`).join(', ');
+    const choisie = Jeu.sousClasseChoisie(k);
+    const scs = SOUS_CLASSES[k].map(sc => {
+      const ok = sousClasseDebloquee(sc), sel = sc.id === choisie;
+      const camp = sc.deblocage ? Progression.campagne(sc.deblocage) : null;
+      const actions = Object.values(sc.remplace || {}).concat(sc.ajoute || []).map(id => ACTIONS[id]);
+      return `<div class="sc-carte ${sel ? 'choisie' : ''} ${ok ? '' : 'verrou'}" ${ok ? `data-sc="${k}:${sc.id}"` : ''}>
+        <div class="sc-tete"><span class="sc-ic">${ok ? sc.icone : '🔒'}</span><b>${sc.nom}</b>${sel ? '<span class="sc-ok">✓ choisie</span>' : ok ? '<span class="sc-btn">Choisir</span>' : ''}</div>
+        <div class="petit">${sc.desc}</div>
+        ${ok ? `<ul class="sc-details">${sc.details.map(d => `<li>${d}</li>`).join('')}</ul>
+          ${actions.length ? `<div class="fiche-actions">${actions.map(a => this.ligneAction(a)).join('')}</div>` : ''}`
+        : `<div class="petit verrou-txt">Terminez <b>${camp.icone} ${camp.nom}</b> pour la débloquer.</div>`}
+      </div>`;
+    }).join('');
     this.modal(`<h2>${cl.icone} ${cl.nom}</h2>
       <p><b>${cl.role}</b> — ${cl.desc}</p>
+      <h3>Sous-classe</h3>
+      <div class="sc-liste">${scs}</div>
       <div class="fiche-stats"><span>❤️ ${cl.pv} PV</span><span>🛡 CA ${cl.ca}</span><span>⚔️ Att +${cl.bonusArme}</span>${cl.ddSort ? `<span>✨ DD ${cl.ddSort}</span>` : ''}<span>🎲 d${cl.deVie}</span>${emp ? `<span>Sorts : ${emp}</span>` : ''}</div>
       <h3>Actions de départ</h3>
       <div class="fiche-actions">${cl.actions.map(id => this.ligneAction(ACTIONS[id])).join('')}</div>
@@ -270,7 +291,9 @@ const Ui = {
 
   ficheDetails(p, avecDon = false) {
     const crise = p.crise ? `<div class="etats-detail">${CRISES[p.crise].icone} <b>${CRISES[p.crise].nom}</b> — ${CRISES[p.crise].desc}</div>` : '';
-    return crise + this.ficheDetails2(p, avecDon);
+    const sc = p.sousClasse && sousClasse(p.classe, p.sousClasse);
+    const scHtml = sc ? `<details class="sc-fiche"><summary>${sc.icone} <b>${sc.nom}</b> <span class="discret">— ${sc.desc}</span></summary><ul class="sc-details">${sc.details.map(d => `<li>${d}</li>`).join('')}</ul></details>` : '';
+    return crise + scHtml + this.ficheDetails2(p, avecDon);
   },
   ficheDetails2(p, avecDon = false) {
     const car = Object.entries(p.caracs).map(([k, v]) => `${k} ${v} (${signe(modCarac(v))})`).join(' · ');
@@ -279,6 +302,7 @@ const Ui = {
         <span>❤️ ${p.pv}/${p.pvMax} PV</span><span>🛡 CA ${p.ca}</span><span>⚔️ Att ${signe(p.bonusArme)}${p.bonusDegats ? ` (dég. +${p.bonusDegats})` : ''}</span>
         ${p.ddSort ? `<span>✨ Sort ${signe(p.bonusSort)} · DD ${p.ddSort}</span>` : ''}
         <span>🎲 Dés de vie ${p.desVie.restant}/${p.desVie.max} (d${p.desVie.face})</span><span>😨 Peur ${p.peur}/100</span>
+        ${Object.entries(p.ressources || {}).map(([r, n]) => `<span>${({ rage: '😡 Rages', superiorite: '♟️ Supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude' })[r] || r} ${n}</span>`).join('')}
       </div>
       ${this.emplacementsHtml(p)}
       <div class="petit">${car}</div>
@@ -320,7 +344,7 @@ const Ui = {
     if (m.robustesse) extras.push('Robustesse des morts-vivants : à 0 PV, sauvegarde de CON (DD 5 + dégâts) pour rester à 1 PV, sauf dégâts radiants ou critique');
     if (m.actionsParTour) extras.push(`Agit ${m.actionsParTour} fois par tour`);
     this.modal(`<h2>${c.icone} ${c.nom}</h2>
-      <div class="fiche-stats"><span>❤️ ${c.pv}/${c.pvMax} PV</span><span>🛡 CA ${c.ca}</span></div>
+      <div class="fiche-stats"><span>❤️ ${c.pv}/${c.pvMax} PV</span><span>🛡 CA ${c.ca}</span>${Jeu.combat && Jeu.combat.peurMonstres ? `<span>😨 Peur ${c.peur || 0}/100</span>` : ''}</div>
       <div class="petit">${Object.entries(c.caracs).map(([k, v]) => `${k} ${v} (${signe(modCarac(v))})`).join(' · ')}</div>
       ${extras.map(e => `<div class="petit">• ${e}</div>`).join('')}
       ${this.etatsDetail(c)}
@@ -431,15 +455,15 @@ const Ui = {
     if (mort) classes.push(c.camp === 'pj' ? 'a-terre' : 'mort');
     if (c.boss) classes.push('boss');
     if (c.camp === 'pj' && c.crise) classes.push('panique');
-    const etats = this.iconePeur(c, peur) + Object.keys(c.etats).map(e => `<span title="${ETATS[e].nom}">${ETATS[e].icone}</span>`).join('');
-    const ca = c.ca + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0) + (c.etats.ecorce ? 3 : 0);
+    const etats = this.iconePeur(c, peur) + (c.egide > 0 ? `<span title="PV temporaires">💠${c.egide}</span>` : '') + Object.keys(c.etats).map(e => `<span title="${ETATS[e].nom}">${ETATS[e].icone}</span>`).join('');
+    const ca = cb.caTotale(c);
     return `<div class="${classes.join(' ')}" data-id="${c.id}" data-modele="${c.camp === 'pj' ? c.classe : c.modele}">
       <span class="ca-badge">🛡${ca}</span>
       <div class="etats">${etats}</div>
       <div class="figure"><span class="sprite">${mort && c.camp === 'pj' ? '🪦' : c.icone}</span><span class="ombre"></span></div>
       <div class="nom">${echapper(c.nom)}</div>
       ${this.barre(pv, c.pvMax, 'pv', `${pv}/${c.pvMax}`)}
-      ${c.camp === 'pj' ? this.barre(peur, 100, 'peur', '') : ''}
+      ${c.camp === 'pj' || cb.peurMonstres ? this.barre(peur || 0, 100, 'peur', '') : ''}
     </div>`;
   },
 
@@ -790,6 +814,7 @@ const Ui = {
       <h1>${v ? 'Victoire !' : 'L\'expédition a échoué'}</h1>
       <p>${v ? Jeu.campagneCourante().fin : 'Les ténèbres ont englouti votre équipe.'}</p>
       ${v && Jeu.debloquee ? `<div class="deblocage">🔓 Nouvelle campagne débloquée : <b>${Jeu.debloquee.icone} ${Jeu.debloquee.nom}</b></div>` : ''}
+      ${v && Jeu.scDebloquees && Jeu.scDebloquees.length ? `<div class="deblocage">🔓 Nouvelles sous-classes : ${Jeu.scDebloquees.map(x => { const [k, id] = x.split(':'), sc = sousClasse(k, id); return `<b>${CLASSES[k].icone} ${sc.icone} ${sc.nom}</b>`; }).join(' · ')}</div>` : ''}
       <p>${Jeu.campagneCourante().icone} ${Jeu.campagneCourante().nom} — étage atteint : ${Jeu.etage + 1}/${Jeu.etages().length} (${Jeu.etageCourant().nom}) · Salles explorées : ${Jeu.stats.salles} · Combats gagnés : ${Jeu.stats.combats}</p>
       <button class="btn principal" data-clic="nouvelle">Nouvelle expédition</button>
       <button class="btn" data-clic="titre">Écran titre</button>
@@ -816,7 +841,7 @@ const Ui = {
     document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
     document.addEventListener('click', e => {
       Son.debloquer();
-      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat],[data-classe],[data-info-classe]');
+      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat],[data-classe],[data-info-classe],[data-sc],[data-sc-classe]');
       if (!t || t.disabled) return;
       const d = t.dataset;
       if (d.clic) return this.clic(d.clic, t);
@@ -835,6 +860,8 @@ const Ui = {
       if (d.campagne) return Jeu.choisirCampagne(d.campagne);
       if (d.classe) return Jeu.basculerClasse(d.classe);
       if (d.infoClasse) return this.ficheClasse(d.infoClasse);
+      if (d.scClasse) return this.ficheClasse(d.scClasse);
+      if (d.sc) { const [k, id] = d.sc.split(':'); Jeu.choisirSousClasse(k, id); return this.ficheClasse(k); }
     });
     Modeles3D.init();
     EcranChargement.suivre();
@@ -873,6 +900,13 @@ const Ui = {
       case 'carte': return Jeu.allerCarte();
       case 'fin-evenement': return Jeu.finEvenement();
       case 'titre': Jeu.ecran = 'titre'; return this.rendu();
+      // Mode test : 5 touchers sur le titre, ou l'adresse « ?test »
+      case 'logo':
+        this.tapsLogo = (Date.now() - (this.dernierTapLogo || 0) < 1500 ? (this.tapsLogo || 0) : 0) + 1;
+        this.dernierTapLogo = Date.now();
+        if (this.tapsLogo >= 5) { this.tapsLogo = 0; Progression.basculerTest(!Progression.toutDebloque()); this.rendu(); }
+        return;
+      case 'test-off': Progression.basculerTest(false); return this.rendu();
       case 'aleatoire': return Jeu.equipeAleatoire();
       case 'partir': return Jeu.partir();
       case 'campagnes': Jeu.ecran = 'campagnes'; return this.rendu();

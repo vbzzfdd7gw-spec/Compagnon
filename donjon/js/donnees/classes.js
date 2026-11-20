@@ -130,12 +130,12 @@ const TOUTES_CLASSES = ['guerrier', 'barbare', 'paladin', 'moine', 'clerc', 'dru
 // Classes capables de soigner (pour les conseils de composition)
 const SOIGNEURS = ['clerc', 'paladin', 'druide', 'barde'];
 
-// Crée un personnage jouable à partir de sa classe
-function creerPJ(idClasse) {
+// Crée un personnage jouable à partir de sa classe (et de sa sous-classe, la première par défaut)
+function creerPJ(idClasse, idSousClasse) {
   const c = CLASSES[idClasse];
   const emplacements = {};
   for (const niv in c.emplacements) emplacements[niv] = { max: c.emplacements[niv], restant: c.emplacements[niv] };
-  return {
+  const pj = {
     id: idClasse, classe: idClasse, nom: c.nom, icone: c.icone, camp: 'pj', ligne: c.ligne,
     pvMax: c.pv, pv: c.pv, ca: c.ca,
     caracs: { ...c.caracs }, maitrise: c.maitrise,
@@ -153,6 +153,7 @@ function creerPJ(idClasse) {
     usages: {},
     traits: { ...(c.traits || {}) }
   };
+  return typeof appliquerSousClasse === 'function' ? appliquerSousClasse(pj, typeof idSousClasse === 'string' ? idSousClasse : null) : pj;
 }
 
 // ---------------------------------------------------------------------
@@ -222,5 +223,6 @@ function monterNiveau(pj) {
     if (pj.actions.length < MAX_ACTIONS) { pj.actions.push(sort); gains.push(`nouveau sort : ${ACTIONS[sort].nom}`); }
     else gains.push(`${ACTIONS[sort].nom} peut maintenant être appris en récompense`);
   }
+  if (typeof niveauSousClasse === 'function') gains.push(...niveauSousClasse(pj, niv));
   return gains;
 }

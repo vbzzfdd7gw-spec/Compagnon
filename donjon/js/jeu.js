@@ -27,12 +27,12 @@ const Jeu = {
   finale: null,
 
   // --------------------------------------------------------- partie
-  nouvellePartie(idCampagne = 'crypte', classes = ORDRE_CLASSES) {
+  nouvellePartie(idCampagne = 'crypte', classes = ORDRE_CLASSES, sousClasses = null) {
     const c = Progression.campagne(idCampagne);
     this.campagne = c.id;
     this.peurMult = c.regles.peurMult || 1;
     this.debloquee = null;
-    this.equipe = classes.map(creerPJ);
+    this.equipe = classes.map(k => creerPJ(k, (sousClasses || {})[k]));
     // Au moins un héros en ligne Avant et un en ligne Arrière
     if (!this.equipe.some(p => p.ligne === 'avant')) this.equipe[0].ligne = 'avant';
     if (!this.equipe.some(p => p.ligne === 'arriere')) this.equipe[this.equipe.length - 1].ligne = 'arriere';
@@ -126,15 +126,39 @@ const Jeu = {
     choix.push(Des.hasard(soins));
     for (const c of Des.melanger(TOUTES_CLASSES)) if (choix.length < 4 && !choix.includes(c)) choix.push(c);
     this.composition = choix;
+    const sc = { ...(Reglages.sousClasses || {}) };
+    for (const k of choix) sc[k] = Des.hasard(SOUS_CLASSES[k].filter(sousClasseDebloquee)).id;
+    Reglages.sousClasses = sc;
     Ui.rendu();
   },
   partir() {
     if (this.composition.length !== 4) return;
     Reglages.equipe = this.composition.slice();
     Reglages.sauver();
-    this.nouvellePartie(this.campagneChoisie, this.composition);
+    const sc = {};
+    for (const k of this.composition) sc[k] = this.sousClasseChoisie(k);
+    this.nouvellePartie(this.campagneChoisie, this.composition, sc);
+  },
+  // Sous-classe retenue pour une classe (la première si le choix est verrouillé)
+  sousClasseChoisie(k) {
+    const id = (Reglages.sousClasses || {})[k];
+    const sc = SOUS_CLASSES[k].find(s => s.id === id);
+    return sc && sousClasseDebloquee(sc) ? sc.id : SOUS_CLASSES[k][0].id;
+  },
+  choisirSousClasse(k, id) {
+    const sc = SOUS_CLASSES[k].find(s => s.id === id);
+    if (!sc || !sousClasseDebloquee(sc)) return;
+    Reglages.sousClasses = { ...(Reglages.sousClasses || {}), [k]: id };
+    Reglages.sauver();
+    if (!this.composition.includes(k) && this.composition.length < 4) this.composition.push(k);
+    Ui.rendu();
   },
   debout() { return this.equipe.filter(p => p.pv > 0); },
+  listeSousClassesDebloquees() {
+    const l = [];
+    for (const k of TOUTES_CLASSES) for (const sc of SOUS_CLASSES[k]) if (sousClasseDebloquee(sc)) l.push(k + ':' + sc.id);
+    return l;
+  },
 
   soigner(pj, n) { pj.pv = Math.min(pj.pvMax, Math.max(0, pj.pv) + n); },
   blesser(pj, n) { pj.pv = Math.max(0, pj.pv - n); },
@@ -149,7 +173,7 @@ const Jeu = {
     if (pj.crise && pj.peur < PEUR.seuilAnxieux) pj.crise = null;
   },
   // Restaure les ressources de classe (rage…) : repos long, montée de niveau
-  restaurerRessources(pj) { pj.ressources = { ...(CLASSES[pj.classe].ressources || {}) }; },
+  restaurerRessources(pj) { pj.ressources = ressourcesPJ(pj); },
 
   // Test de caractéristique hors combat
   test(pj, carac, dd, maitrise) {
@@ -240,7 +264,9 @@ const Jeu = {
     const gain = this.gagnerOr(type);
     if (type === 'boss' && !this.dernierEtage()) { this.potions++; return this.etageSuivant(gain); }
     if (type === 'boss') {
+      const scAvant = this.listeSousClassesDebloquees();
       this.debloquee = Progression.noterVictoire(this.campagne);
+      this.scDebloquees = this.listeSousClassesDebloquees().filter(x => !scAvant.includes(x));
       this.finale = 'victoire';
       this.ecran = 'fin';
       this.effacerSauvegarde();
@@ -344,11 +370,8 @@ const Jeu = {
     for (const pj of this.equipe) {
       if (pj.pv <= 0) { pj.pv = 1; lignes.push(`${pj.nom} reprend connaissance (1 PV).`); }
       this.peur(pj, -15);
-      // Magie de pacte : l'occultiste récupère ses emplacements au repos court
-      if (CLASSES[pj.classe].pacte) {
-        for (const n in pj.emplacements) pj.emplacements[n].restant = pj.emplacements[n].max;
-        lignes.push(`${pj.icone} ${pj.nom} renouvelle son pacte : emplacements de sorts récupérés.`);
-      }
+      // Magie de pacte, dés de supériorité, récupération naturelle…
+      lignes.push(...reposCourtPJ(pj));
     }
     lignes.push('Toute l\'équipe perd 15 Peur. Dépensez des dés de vie pour récupérer des PV (pas d\'emplacements de sorts au repos court).');
     this.repos = { mode: 'court', lignes };

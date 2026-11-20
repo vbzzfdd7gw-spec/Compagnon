@@ -4,8 +4,15 @@ const D = require('path').join(__dirname, 'js') + '/';
 const file = [];
 const ctx = { localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
 vm.createContext(ctx);
-for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'donnees/campagnes.js', 'combat.js', 'carte.js'])
+for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'donnees/campagnes.js', 'donnees/sousclasses.js', 'combat.js', 'carte.js'])
   vm.runInContext(fs.readFileSync(D + f, 'utf8').replace(/^const (\w+) =/gm, 'var $1 =').replace(/^class (\w+)/gm, 'var $1 = class $1'), ctx);
+// SANS_SC=1 : héros sans sous-classe (comparaison)
+if (process.env.SANS_SC) vm.runInContext('appliquerSousClasse = pj => pj; niveauSousClasse = () => [];', ctx);
+// SC_SEUL=classe[:sousclasse] : seule cette classe reçoit une sous-classe
+if (process.env.SC_SEUL) vm.runInContext(`var _asc = appliquerSousClasse, _nsc = niveauSousClasse;
+  var _sc = '${process.env.SC_SEUL}'.split(':');
+  appliquerSousClasse = (pj, id) => pj.classe === _sc[0] ? _asc(pj, _sc[1] || id) : pj;
+  niveauSousClasse = (pj, n) => pj.classe === _sc[0] ? _nsc(pj, n) : [];`, ctx);
 vm.runInContext(`
 function iaPJ(cb, a) {
   const dispo = id => cb.disponibilite(a, ACTIONS[id]).ok;
@@ -13,10 +20,10 @@ function iaPJ(cb, a) {
   // 1) Soins si un allié est à terre ou bas
   const blesses = cb.pjs.filter(p => p.pv <= 0 || p.pv < p.pvMax * 0.35).sort((x, y) => x.pv / x.pvMax - y.pv / y.pvMax);
   if (blesses.length) {
-    for (const id of ['priere_soins', 'imposition', 'mot_guerison', 'soins', 'second_souffle', 'cri_ralliement', 'potion_sup', 'potion']) {
+    for (const id of ['priere_soins', 'imposition', 'mot_guerison', 'soins', 'second_souffle', 'plenitude', 'cri_ralliement', 'potion_sup', 'potion']) {
       if (!ids.includes(id)) continue;
       const act = ACTIONS[id];
-      if (id === 'second_souffle' && a.pv > a.pvMax * 0.5) continue;
+      if ((id === 'second_souffle' || id === 'plenitude') && a.pv > a.pvMax * 0.5) continue;
       if (id === 'potion' && blesses[0].pv > 0 && Math.random() < 0.5) continue;
       const cibles = cb.ciblesValides(a, act);
       const c = act.zone || act.cible === 'soi' ? null : (cibles.find(x => x === blesses[0]) || cibles[0]);
@@ -25,6 +32,8 @@ function iaPJ(cb, a) {
   }
   // 1 bis) Capacités de soutien utiles
   if (ids.includes('rage') && !a.etats.rage) return [ACTIONS.rage, null];
+  for (const b of ['forme_ours', 'arme_sacree', 'pas_ombre']) if (ids.includes(b) && !(b === 'pas_ombre' && a.etats.cache)) return [ACTIONS[b], null];
+  if (ids.includes('voeu_inimitie')) { const cs = cb.ciblesValides(a, ACTIONS.voeu_inimitie).sort((x, y) => y.pv - x.pv); if (cs.length) return [ACTIONS.voeu_inimitie, cs[0]]; }
   for (const mq of ['marque_chasseur', 'malefice']) if (ids.includes(mq) && !cb.ennemis.some(e => e.marquePar === a.id && e.pv > 0)) {
     const cs = cb.ciblesValides(a, ACTIONS[mq]).sort((x, y) => y.pv - x.pv); if (cs.length) return [ACTIONS[mq], cs[0]];
   }
@@ -40,7 +49,7 @@ function iaPJ(cb, a) {
     const cibles = cb.ciblesValides(a, act);
     if (!cibles.length) continue;
     const moy = act.degats ? Des.moyenne(act.degats) * (act.nbAttaques || 1) : (act.effetSiEchec ? 7 : 2);
-    const s = moy * (act.zone ? cibles.length : act.triangle ? Math.min(act.triangle, cibles.length) : 1) * (act.type === 'auto' ? 1.2 : 0.65) + (act.sournoise ? 4 : 0);
+    const s = moy * cb.nombreAttaques(a, act) / (act.nbAttaques || 1) * (act.zone ? cibles.length : act.triangle ? Math.min(act.triangle, cibles.length) : 1) * (act.type === 'auto' ? 1.2 : 0.65) + (act.sournoise ? 4 : 0);
     if (s > score) { score = s; meilleur = [act, act.zone ? null : cibles.sort((x, y) => x.pv - y.pv)[0]]; }
   }
   if (meilleur) return meilleur;
@@ -61,10 +70,10 @@ function combattre(equipe, rencontre, jeu, force) {
   file.length = 0;
   return { fin, rounds: cb.round };
 }
-function expedition(idC, classes) {
+function expedition(idC, classes, scs) {
   const camp = CAMPAGNES.find(c => c.id === idC);
   const ETAGES = camp.etages;
-  const equipe = (classes || ORDRE_CLASSES).map(creerPJ);
+  const equipe = (classes || ORDRE_CLASSES).map((k, i) => creerPJ(k, scs ? scs[i] : null));
   if (!equipe.some(p => p.ligne === 'avant')) equipe[0].ligne = 'avant';
   if (!equipe.some(p => p.ligne === 'arriere')) equipe[3].ligne = 'arriere';
   const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult, or: 30, equipe, sac: {},
@@ -104,11 +113,11 @@ function expedition(idC, classes) {
             p.peur = Math.max(0, p.peur - 40); if (p.peur < 50) p.crise = null;
             p.desVie.restant = Math.min(p.desVie.max, p.desVie.restant + Math.ceil(p.desVie.max / 2));
             for (const k in p.emplacements) p.emplacements[k].restant = p.emplacements[k].max;
-            p.ressources = { ...(CLASSES[p.classe].ressources || {}) };
+            p.ressources = ressourcesPJ(p);
           }
         } else for (const p of equipe) {
           if (p.pv <= 0) p.pv = 1; p.peur = Math.max(0, p.peur - 15); if (p.peur < 50) p.crise = null;
-          if (CLASSES[p.classe].pacte) for (const k in p.emplacements) p.emplacements[k].restant = p.emplacements[k].max;
+          reposCourtPJ(p);
           while (p.desVie.restant > 0 && p.pv < p.pvMax * 0.7) { p.desVie.restant--; p.pv = Math.min(p.pvMax, p.pv + Math.max(1, Des.lancer('1d' + p.desVie.face).total + modCarac(p.caracs.CON))); }
         }
       } else if (n.type === 'marchand') {
@@ -127,7 +136,7 @@ function expedition(idC, classes) {
         const x = Recompenses.offreConsommable(); jeu.ajouterStock(x.cle, x.quantite);
       }
     }
-    if (etage < ETAGES.length - 1) { equipe.forEach(p => { monterNiveau(p); p.peur = 0; p.crise = null; p.ressources = { ...(CLASSES[p.classe].ressources || {}) }; }); long = false; jeu.potions++; jeu.or += 90; }
+    if (etage < ETAGES.length - 1) { equipe.forEach(p => { monterNiveau(p); p.peur = 0; p.crise = null; p.ressources = ressourcesPJ(p); }); long = false; jeu.potions++; jeu.or += 90; }
   }
   return { ok: true, log };
 }
@@ -136,7 +145,8 @@ var PERTES = {};
 const N = parseInt(process.argv[2] || '200');
 const CAMP = process.argv[3] || 'crypte';
 const MODE = process.argv[4] || '';     // 'classes' : équipes aléatoires et bilan par classe
-if (MODE === 'classes') {
+if (MODE === 'classes' || MODE === 'sousclasses') {
+  const SC = vm.runInContext('SOUS_CLASSES', ctx);
   const stats = {}; let total = 0;
   const toutes = vm.runInContext('TOUTES_CLASSES', ctx);
   for (let i = 0; i < N; i++) {
@@ -144,13 +154,14 @@ if (MODE === 'classes') {
     let equipe;
     do { equipe = toutes.slice().sort(() => Math.random() - 0.5).slice(0, 4); }
     while (!equipe.some(c => vm.runInContext(`CLASSES['${c}'].ligne`, ctx) === 'avant') || !equipe.some(c => vm.runInContext('SOIGNEURS', ctx).includes(c)));
-    const r = vm.runInContext(`expedition('${CAMP}', ${JSON.stringify(equipe)})`, ctx);
+    const scs = equipe.map(c => MODE === 'sousclasses' ? SC[c][Math.floor(Math.random() * SC[c].length)].id : SC[c][0].id);
+    const r = vm.runInContext(`expedition('${CAMP}', ${JSON.stringify(equipe)}, ${JSON.stringify(scs)})`, ctx);
     total += r.ok ? 1 : 0;
-    for (const c of equipe) { stats[c] = stats[c] || { n: 0, v: 0 }; stats[c].n++; stats[c].v += r.ok ? 1 : 0; }
+    equipe.forEach((c, i) => { const k = MODE === 'sousclasses' ? c + '/' + scs[i] : c; stats[k] = stats[k] || { n: 0, v: 0 }; stats[k].n++; stats[k].v += r.ok ? 1 : 0; });
   }
   console.log(`Équipes aléatoires : ${Math.round(total / N * 100)} % de victoires (${N} expéditions)`);
   for (const [c, x] of Object.entries(stats).sort((a, b) => b[1].v / b[1].n - a[1].v / a[1].n))
-    console.log(`  ${c.padEnd(9)} ${String(Math.round(x.v / x.n * 100)).padStart(3)} %  (dans ${x.n} équipes)`);
+    console.log(`  ${c.padEnd(24)} ${String(Math.round(x.v / x.n * 100)).padStart(3)} %  (dans ${x.n} équipes)`);
   process.exit(0);
 }
 let gagne = 0; const morts = {};

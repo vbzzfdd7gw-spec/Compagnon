@@ -26,7 +26,13 @@ const ETATS = {
   maudit: { nom: 'Marqué par le culte', icone: '🩸', desc: '+5 Peur au début de chacun de ses tours.' },
   heroique: { nom: 'Héroïque', icone: '🌟', desc: 'Vertu née de la peur : +2 au toucher et aux dégâts jusqu\'à la fin du combat.', permanent: true },
   fervent: { nom: 'Ferveur fanatique', icone: '🔥', desc: '+1d4 aux attaques et sauvegardes (bénédiction impie).' },
-  voile: { nom: 'Voile d\'ombre', icone: '🌫️', desc: 'La prochaine attaque qui le toucherait rate.', permanent: true }
+  voile: { nom: 'Voile d\'ombre', icone: '🌫️', desc: 'La prochaine attaque qui le toucherait rate.', permanent: true },
+  affaibli: { nom: 'Affaibli', icone: '🦴', desc: 'Inflige moitié dégâts avec ses armes.' },
+  armeSacree: { nom: 'Arme sacrée', icone: '🌟', desc: '+2 au toucher avec les armes.' },
+  inimitie: { nom: 'Vœu d\'inimitié', icone: '🔥', desc: 'Le paladin qui l\'a juré a l\'avantage contre lui.' },
+  ours: { nom: 'Forme d\'ours', icone: '🐻', desc: 'Druide changé en ours tant qu\'il lui reste des PV temporaires.', permanent: true },
+  vengeance: { nom: 'Vengeance', icone: '⚔️', desc: '+2 au toucher et aux dégâts jusqu\'à la fin du combat.', permanent: true },
+  ebranle: { nom: 'Ébranlé', icone: '😟', desc: 'Peur du monstre ≥ 50 : −2 au toucher et aux sauvegardes.', permanent: true }
 };
 
 const PEUR = {
@@ -42,6 +48,9 @@ const PEUR = {
   chanceVertu: 0.25,
   victoire: -10          // fin de combat victorieuse
 };
+
+// Peur des monstres (Pacte du Grand Ancien) : Ébranlé à 50, Terrifié à 100
+const PEUR_MONSTRES = { seuilEbranle: 50, malus: 2, recuperation: 5 };
 
 // Crises de Peur (à 100) : désavantage + un trouble ; disparaissent quand la Peur repasse sous 50
 const CRISES = {
@@ -76,6 +85,8 @@ class Combat {
     this.fini = false;
     this.resultat = null;
     this.compteur = 0;
+    this.sortsTouches = new Set();
+    this.niveauSort = 0;
     this.surMaj = () => {};
     this.surFin = () => {};
     this.delaiMonstre = 450;
@@ -146,7 +157,10 @@ class Combat {
   debout(c) { return c.pv > 0; }
   nomHtml(c) { return `<b class="${c.camp === 'pj' ? 'n-pj' : 'n-en'}">${c.nom}</b>`; }
   panique(c) { return c.camp === 'pj' && !!c.crise; }
-  malusPeur(c) { return c.camp === 'pj' && !c.crise && c.peur >= PEUR.seuilAnxieux ? -1 : 0; }
+  malusPeur(c) {
+    if (c.camp !== 'pj') return c.etats.ebranle ? -PEUR_MONSTRES.malus : 0;
+    return !c.crise && c.peur >= PEUR.seuilAnxieux ? -1 : 0;
+  }
 
   modele(c) { return c.camp === 'ennemi' ? MONSTRES[c.modele] : null; }
 
@@ -156,6 +170,8 @@ class Combat {
     for (const pj of this.pjs) {
       pj.etats = {};
       pj.usages = {};
+      pj.motsRound = pj.riposteRound = 0;
+      pj.egide = 0;
       if (pj.pv <= 0) this.log(`${this.nomHtml(pj)} est toujours à terre (0 PV) : soignez-le pour qu'il se relève.`, 'mauvais');
       if (pj.pv <= 0) continue;
       if (pj.crise) this.log(`${CRISES[pj.crise].icone} ${this.nomHtml(pj)} est toujours en proie à : <b>${CRISES[pj.crise].nom}</b>.`, 'mauvais');
@@ -163,6 +179,8 @@ class Combat {
       if (t.cacheDebut) pj.etats.cache = 99;
       if (t.voile) pj.etats.voile = 99;
       if (t.phenix) pj.usages.phenixDispo = true;
+      pj.egide = t.egide ? 2 * (pj.niveau || 3) + t.egide : 0;
+      if (pj.egide) this.log(`💠 ${this.nomHtml(pj)} lève son égide arcanique (${pj.egide} PV).`, 'bon');
       if (t.manaDebut && pj.emplacements[1] && pj.emplacements[1].restant < pj.emplacements[1].max) {
         pj.emplacements[1].restant++;
         this.log(`🔮 ${this.nomHtml(pj)} récupère un emplacement de sort (pierre de mana).`, 'bon');
@@ -174,6 +192,9 @@ class Combat {
       this.log('🪔 Un parfum sacré se répand : l\'équipe est bénie.', 'bon');
       for (const p of this.pjs) if (p.pv > 0) p.etats.benit = 3;
     }
+    // Pacte du Grand Ancien : les monstres ont une jauge de Peur
+    this.peurMonstres = this.pjs.some(p => p.pv > 0 && p.traits.espritEveille);
+    for (const e of this.ennemis) e.peur = 0;
     // Initiative
     const tous = [...this.pjs, ...this.ennemis];
     const lignes = [];
@@ -210,7 +231,9 @@ class Combat {
     this.actif = c;
     this.attenteJoueur = false;
     c.sournoiseUtilisee = false;
+    c.colosseUtilise = false;
     c.bonusUtilise = false;
+    c.aJoue = true;
 
     // Effets de début de tour
     for (const e in c.etats) if (ETATS[e] && ETATS[e].finDebut) delete c.etats[e];
@@ -227,6 +250,22 @@ class Combat {
       this.evt({ t: 'degats', cible: c.id, n: perte, crit: false, pvAvant: c.pv + perte, pvApres: c.pv, pvMax: c.pvMax });
     }
 
+    if (c.traits && c.traits.survivant && c.pv > 0 && c.pv < c.pvMax / 2) {
+      const avant = c.pv;
+      c.pv = Math.min(c.pvMax, c.pv + c.traits.survivant);
+      this.log(`🏆 ${this.nomHtml(c)} serre les dents : +${c.pv - avant} PV (survivant).`, 'bon');
+      this.evt({ t: 'soin', cible: c.id, n: c.pv - avant, pvAvant: avant, pvApres: c.pv, pvMax: c.pvMax });
+    }
+    if (c.camp === 'pj' && c.traits.frenesie && c.etats.rage) {
+      this.log(`🩸 La frénésie épuise ${this.nomHtml(c)}.`, 'peur');
+      this.modifierPeur(c, 5, true);
+    }
+    // Un monstre effrayé reprend peu à peu courage
+    if (c.camp === 'ennemi' && c.peur > 0) {
+      c.peur = Math.max(0, c.peur - PEUR_MONSTRES.recuperation);
+      this.evt({ t: 'peur', cible: c.id, n: -PEUR_MONSTRES.recuperation, avant: c.peur + PEUR_MONSTRES.recuperation, apres: c.peur });
+      if (c.etats.ebranle && c.peur < PEUR_MONSTRES.seuilEbranle) delete c.etats.ebranle;
+    }
     if (c.camp === 'pj' && c.etats.maudit) {
       this.log(`🩸 La marque du culte ronge l'esprit de ${this.nomHtml(c)}.`, 'peur');
       this.modifierPeur(c, 5);
@@ -301,9 +340,10 @@ class Combat {
     if (!action.depuis.includes(acteur.ligne)) return { ok: false, raison: `Seulement depuis la ligne ${this.nomLigne(action.depuis[0])}` };
     if (action.niveau && !this.emplacementDispo(acteur, action.niveau)) return { ok: false, raison: 'Plus d\'emplacement' };
     if (action.parCombat && (acteur.usages[action.nom] || 0) >= action.parCombat) return { ok: false, raison: 'Déjà utilisée' };
-    if (action.ressource && !((acteur.ressources || {})[action.ressource] > 0)) return { ok: false, raison: 'Épuisée (repos long)' };
+    if (action.ressource && !((acteur.ressources || {})[action.ressource] > 0)) return { ok: false, raison: 'Épuisée (repos)' };
+    if (action.requiertEtat && !acteur.etats[action.requiertEtat]) return { ok: false, raison: `Seulement en ${ETATS[action.requiertEtat].nom.toLowerCase()}` };
     if (action.pasSiActif && action.etat && acteur.etats[action.etat.nom]) return { ok: false, raison: 'Déjà active' };
-    if (action.actionBonus && acteur.bonusUtilise) return { ok: false, raison: 'Action bonus déjà utilisée' };
+    if (this.estActionBonus(acteur, action) && acteur.bonusUtilise) return { ok: false, raison: 'Action bonus déjà utilisée' };
     if (action.recharge && acteur.recharges && acteur.recharges[action.nom] > 0) return { ok: false, raison: 'En recharge' };
     if (action.consommable && this.jeu.stock(action.consommable) <= 0) return { ok: false, raison: 'Épuisé' };
     if (action.special === 'sac') return Object.keys(ACTIONS_SAC).some(k => this.jeu.stock(ACTIONS_SAC[k].consommable) > 0) ? { ok: true } : { ok: false, raison: 'Sac vide' };
@@ -349,16 +389,33 @@ class Combat {
     if (this.fini || this.actif !== acteur || !this.attenteJoueur) return;
     this.attenteJoueur = false;
     this.executer(acteur, action, cible);
+    const bonus = this.estActionBonus(acteur, action);
+    if (!bonus) this.attaqueCompagnon(acteur);
     const d = this.maj();
     if (this.verifierFin()) return;
     // Action bonus (rage, maléfice…) : le héros garde son tour
-    if (action.actionBonus && acteur.pv > 0) {
+    if (bonus && acteur.pv > 0) {
       acteur.bonusUtilise = true;
       this.log(`⚡ Action bonus : ${this.nomHtml(acteur)} peut encore agir.`, 'bon');
       setTimeout(() => { if (this.fini || this.actif !== acteur) return; this.attenteJoueur = true; this.maj(); }, d + this.attente(150));
       return;
     }
     setTimeout(() => this.finTour(acteur), d + this.attente(250));
+  }
+
+  // Action bonus : par nature, ou objet du sac pour un Voleur (mains lestes)
+  estActionBonus(a, act) { return !!(act.actionBonus || (act.consommable && a.traits && a.traits.mainsLestes)); }
+
+  // Maître des bêtes : le loup mord un ennemi de la ligne Avant
+  attaqueCompagnon(a) {
+    if (!a.traits || !a.traits.compagnon || a.pv <= 0) return;
+    const morsure = { nom: 'Morsure du loup', icone: '🐺', type: 'attaque', compagnon: true, jet: 4, degats: a.traits.compagnon, typeDeg: 'perforant', cible: 'ennemi', vise: ['avant'], depuis: ['avant', 'arriere'] };
+    const cibles = this.ciblesValides(a, morsure);
+    if (!cibles.length) return;
+    const c = cibles.sort((x, y) => x.pv - y.pv)[0];
+    this.log(`🐺 Le loup de ${this.nomHtml(a)} bondit sur ${this.nomHtml(c)} !`, 'action');
+    this.evt({ t: 'action', source: a.id, camp: a.camp, nom: 'Loup', icone: '🐺', cibles: [c.id], melee: false, distance: true, typeAct: 'attaque', typeDeg: 'perforant' });
+    this.resoudreAttaque(a, morsure, c, 0);
   }
 
   executer(a, act, cible) {
@@ -368,6 +425,12 @@ class Combat {
       const n = this.emplacementDispo(a, act.niveau);
       a.emplacements[n].restant--;
       coutTxt = ` <span class="cout">(emplacement niv. ${n})</span>`;
+      this.niveauSort = n;
+      if (a.traits && a.traits.egide) {
+        const max = 2 * (a.niveau || 3) + a.traits.egide, avant = a.egide || 0;
+        a.egide = Math.min(max, avant + 2 * n);
+        if (a.egide > avant) this.log(`💠 L'égide de ${this.nomHtml(a)} se recharge (${a.egide} PV).`, 'bon');
+      }
     }
     if (act.parCombat) a.usages[act.nom] = (a.usages[act.nom] || 0) + 1;
     if (act.ressource && a.ressources) a.ressources[act.ressource]--;
@@ -388,6 +451,7 @@ class Combat {
     const cibleTxt = (act.zone || act.cible === 'soi' || !cible) ? '' : ` sur ${this.nomHtml(cible)}`;
     this.log(`${act.icone || '▶'} ${this.nomHtml(a)} utilise <i>${act.nom}</i>${cibleTxt}${coutTxt}`, 'action');
 
+    this.sortsTouches = new Set();
     const cibles = act.zone ? this.ciblesValides(a, act) : act.cible === 'soi' ? [a] : act.triangle && cible ? this.cibleTriangle(a, act, cible) : [cible];
     const distance = act.cible === 'ennemi' && (act.sort || act.vise.includes('arriere') || act.type === 'sauvegarde' || act.type === 'auto');
     this.evt({ t: 'action', source: a.id, camp: a.camp, nom: act.nom, icone: act.icone || '✦',
@@ -399,7 +463,7 @@ class Combat {
       case 'attaque':
         for (const c of cibles) {
           // Attaque supplémentaire (Guerrier niv. 5) : deux coups avec les armes
-          const nb = act.nbAttaques || ((act.rayons && a.traits && a.traits[act.rayons]) ? 2 : 0) || (act.arme && !act.zone && a.traits && a.traits.attaqueSupp ? 2 : 1);
+          const nb = this.nombreAttaques(a, act);
           let cible = c;
           for (let i = 0; i < nb; i++) {
             if (cible.pv <= 0) {
@@ -421,8 +485,10 @@ class Combat {
       case 'auto':
         for (const c of cibles) {
           const d = Des.lancer(act.degats);
-          this.log(`→ Touche automatiquement : ${d.texte} ${act.typeDeg}`, 'jet');
-          this.infliger(c, d.total, act.typeDeg, a, false);
+          const evo = this.bonusEvocation(a, act, c);
+          this.log(`→ Touche automatiquement : ${d.texte}${evo ? ` +${evo} (évocation)` : ''} ${act.typeDeg}`, 'jet');
+          this.infliger(c, d.total + evo, act.typeDeg, a, false);
+          this.effroiDuSort(a, act, c, false);
         }
         break;
       case 'soin':
@@ -438,12 +504,40 @@ class Combat {
         SPECIAUX[act.special](this, a, act, cible, cibles);
         break;
     }
+    this.niveauSort = 0;
+  }
+
+  // Nombre de coups d'une attaque (attaque supplémentaire, frénésie, embuscade…)
+  nombreAttaques(a, act) {
+    const t = a.traits || {};
+    let nb = act.nbAttaques || ((act.rayons && t[act.rayons]) ? 2 : 0);
+    if (nb) return nb;
+    nb = 1;
+    if (act.arme && !act.zone) {
+      if (t.attaqueSupp) nb++;
+      if (t.frenesie && a.etats.rage) nb++;
+      if (t.traqueur && this.round === 1) nb++;
+    }
+    return nb;
+  }
+
+  // École d'Évocation : +N aux dégâts d'un sort, une fois par cible
+  bonusEvocation(a, act, c) {
+    if (!act.sort || !act.niveau || !a.traits || !a.traits.evocation || this.sortsTouches.has(c.id)) return 0;
+    this.sortsTouches.add(c.id);
+    return a.traits.evocation;
+  }
+
+  // CA effective (états et capacités compris)
+  caTotale(c) {
+    return c.ca + (c.etats.ecorce ? 3 : 0) + (c.etats.agathys ? 2 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0)
+      + (c.traits && c.traits.aspectOurs && c.etats.rage ? 2 : 0);
   }
 
   // Avantage / désavantage d'une attaque
   modeAttaque(a, act, c) {
     const av = [], dv = [];
-    if (a.etats.cache) av.push('caché');
+    if (a.etats.cache && !act.compagnon) av.push('caché');
     if (act.avantage) av.push('feinte');
     if (c.etats.renverse) av.push('cible renversée');
     if (c.etats.endormi) av.push('cible endormie');
@@ -452,6 +546,10 @@ class Combat {
     if (a.etats.entrave) dv.push('gelé');
     if (c.etats.esquive) dv.push('cible en esquive');
     if (c.etats.temeraire) av.push('cible téméraire');
+    if (a.traits && a.traits.assassin && !c.aJoue) av.push('assassinat');
+    if (c.etats.inimitie && c.inimitiePar === a.id) av.push('inimitié');
+    if (a.camp === 'pj' && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && c.ligne === 'avant'
+      && this.pjs.some(p => p !== a && p.pv > 0 && p.traits.espritLoup && p.etats.rage)) av.push('meute');
     const mode = (av.length && !dv.length) ? 1 : (dv.length && !av.length) ? -1 : 0;
     return { mode, av, dv };
   }
@@ -464,20 +562,37 @@ class Combat {
 
   resoudreAttaque(a, act, c, numero) {
     const { mode, av, dv } = this.modeAttaque(a, act, c);
-    if (a.etats.cache) delete a.etats.cache;
-    if (a.etats.entrave) delete a.etats.entrave;
+    if (!act.compagnon) {
+      if (a.etats.cache) delete a.etats.cache;
+      if (a.etats.entrave) delete a.etats.entrave;
+    }
     const r = Des.d20(mode);
     const bonus = this.bonusToucher(a, act);
     let total = r.nat + bonus;
     let txt = `${r.texte} ${signe(bonus)}`;
     if (a.etats.benit || a.etats.fervent) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
     const mal = this.malusPeur(a);
-    if (mal) { total += mal; txt += ` ${mal} (anxieux)`; }
-    if (a.etats.heroique) { total += 2; txt += ' +2 (héroïque)'; }
-    if (a.etats.inspire) { const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete a.etats.inspire; }
-    const ca = c.ca + (c.etats.ecorce ? 3 : 0) + (c.etats.agathys ? 2 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0);
-    const critique = r.nat >= ((a.traits && a.traits.critMin) || 20);
+    if (mal) { total += mal; txt += ` ${mal} (${a.camp === 'pj' ? 'anxieux' : 'ébranlé'})`; }
+    const bonusHeros = !act.compagnon; // le loup ne profite pas des bonus du rôdeur
+    if (a.etats.heroique && bonusHeros) { total += 2; txt += ' +2 (héroïque)'; }
+    if (a.etats.vengeance && bonusHeros) { total += 2; txt += ' +2 (vengeance)'; }
+    if (a.etats.armeSacree && act.arme) { total += 2; txt += ' +2 (arme sacrée)'; }
+    let inspireDegats = false;
+    if (a.etats.inspire && bonusHeros) {
+      const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete a.etats.inspire;
+      inspireDegats = this.pjs.some(p => p.pv > 0 && p.traits.inspirationCombat);
+    }
+    // Collège du Savoir : mots cinglants contre la première attaque ennemie du round
+    if (a.camp === 'ennemi' && c.camp === 'pj') {
+      const barde = this.pjs.find(p => p.pv > 0 && p.traits.motsCinglants && p.motsRound !== this.round && (p.usages.mots || 0) < 2);
+      if (barde) { barde.motsRound = this.round; barde.usages.mots = (barde.usages.mots || 0) + 1; const b = Des.d(6); total -= b; txt += ` −mots cinglants 1d6[${b}]`; }
+    }
+    const ca = this.caTotale(c);
+    const seuilCrit = Math.min((a.traits && a.traits.critMin) || 20, 20) - ((a.traits && a.traits.critAmeliore) || 0);
+    let critique = r.nat >= seuilCrit;
     let touche = critique || (r.nat !== 1 && total >= ca);
+    // Assassinat : au 1er round, toucher un ennemi qui n'a pas encore joué est un critique
+    if (touche && !critique && a.traits && a.traits.assassin && this.round === 1 && !c.aJoue) critique = true;
     // Cape de l'ombre : la première attaque qui toucherait rate
     if (touche && c.etats.voile) {
       delete c.etats.voile;
@@ -493,6 +608,20 @@ class Combat {
     if (!touche) {
       this.log(ligne + (r.nat === 1 ? '<b>échec critique</b>, raté.' : 'raté.'), 'jet rate');
       this.evt({ t: 'texte', cible: c.id, texte: 'Raté', classe: 'rate' });
+      // Tour de magie puissant : moitié des dégâts même raté
+      if (act.sort && !act.niveau && a.traits && a.traits.tourPuissant) {
+        const d = Des.lancer(act.degats), n = Math.floor((d.total + this.bonusEvocation(a, act, c)) / 2);
+        this.log(`→ 💥 Tour de magie puissant : ${d.texte} ÷2 → <b>${n}</b> ${act.typeDeg}`, 'jet');
+        this.infliger(c, n, act.typeDeg, a, false);
+      }
+      // Maître de guerre : riposte quand un ennemi le rate au corps à corps
+      if (c.camp === 'pj' && c.traits.riposte && c.pv > 0 && a.pv > 0 && c.riposteRound !== this.round
+        && act.vise && act.vise.length === 1 && act.vise[0] === 'avant') {
+        c.riposteRound = this.round;
+        this.log(`→ ♟️ ${this.nomHtml(c)} riposte !`, 'action');
+        this.evt({ t: 'action', source: c.id, camp: c.camp, nom: 'Riposte', icone: '♟️', cibles: [a.id], melee: true, distance: false, typeAct: 'attaque', typeDeg: 'tranchant' });
+        this.resoudreAttaque(c, { nom: 'Riposte', arme: true, jet: 'arme', degats: '1d8+3', typeDeg: 'tranchant', vise: ['avant'] }, a, 0);
+      }
       return false;
     }
     ligne += critique ? '<b class="crit">CRITIQUE !</b>' : 'touché.';
@@ -502,8 +631,16 @@ class Combat {
     let dTxt = d.texte;
     if (act.arme && a.bonusDegats) { degats += a.bonusDegats; dTxt += ` +${a.bonusDegats} (objet)`; }
     if (act.arme && a.etats.rage) { degats += 2; dTxt += ' +2 (rage)'; }
-    if (a.etats.heroique) { degats += 2; dTxt += ' +2 (héroïque)'; }
-    if (c.etats.marque && c.marquePar === a.id) { const m = Des.lancer('1d6', critique); degats += m.total; dTxt += ` + marque ${m.texte}`; }
+    if (a.etats.heroique && bonusHeros) { degats += 2; dTxt += ' +2 (héroïque)'; }
+    if (a.etats.vengeance && bonusHeros) { degats += 2; dTxt += ' +2 (vengeance)'; }
+    if (inspireDegats) { const b = Des.lancer('1d6', critique); degats += b.total; dTxt += ` + inspiration ${b.texte}`; }
+    const evo = this.bonusEvocation(a, act, c);
+    if (evo) { degats += evo; dTxt += ` +${evo} (évocation)`; }
+    // Tueur de colosses : une fois par tour contre une cible déjà blessée
+    if (a.traits && a.traits.colosse && !a.colosseUtilise && c.pv < c.pvMax && (act.arme || act.type === 'attaque')) {
+      const k = Des.lancer(a.traits.colosse, critique); degats += k.total; dTxt += ` + colosse ${k.texte}`; a.colosseUtilise = true;
+    }
+    if (c.etats.marque && c.marquePar === a.id && bonusHeros) { const m = Des.lancer('1d6', critique); degats += m.total; dTxt += ` + marque ${m.texte}`; }
     if (act.arme && a.traits && a.traits.armeElem) {
       const e = Des.lancer(a.traits.armeElem.des, critique);
       degats += e.total;
@@ -515,7 +652,9 @@ class Combat {
       degats += s.total;
       dTxt += ` + sournoise ${s.texte}`;
       a.sournoiseUtilisee = true;
+      if (a.traits.empoisonneur) this.appliquerApres = { etat: 'empoisonne', duree: 2, sauvegarde: { carac: 'CON', dd: 8 + a.maitrise + modCarac(a.caracs.DEX) } };
     }
+    if (act.arme && a.etats.affaibli) { degats = Math.floor(degats / 2); dTxt += ' ÷2 (affaibli)'; }
     this.log(`${ligne} Dégâts : ${dTxt} → <b>${degats}</b> ${act.typeDeg}`, critique ? 'jet crit' : 'jet');
 
     if (critique) this.peurCritique(a, c);
@@ -523,7 +662,12 @@ class Combat {
     this.effetsApresCoup(a, act, c, degats);
 
     if (act.effetSiTouche && c.pv > 0) this.appliquerEffet(a, act.effetSiTouche, c);
+    if (this.appliquerApres) { const e = this.appliquerApres; this.appliquerApres = null; if (c.pv > 0) this.appliquerEffet(a, e, c); }
+    // Totem du loup (niv. 5) : en rage, les coups d'arme au corps à corps renversent
+    if (a.traits && a.traits.chefMeute && a.etats.rage && act.arme && c.pv > 0 && !c.etats.renverse && act.vise && act.vise.length === 1)
+      this.appliquerEffet(a, { etat: 'renverse', duree: 1, sauvegarde: { carac: 'FOR', dd: 8 + a.maitrise + modCarac(a.caracs.FOR) } }, c);
     if (act.recul && c.pv > 0) this.reculer(c, act.recul);
+    this.effroiDuSort(a, act, c, false);
     return true;
   }
 
@@ -548,6 +692,14 @@ class Combat {
     if (c.etats && c.etats.agathys && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && a.pv > 0) {
       this.log(`→ ❄️ L'armure d'Agathys de ${this.nomHtml(c)} gèle ${this.nomHtml(a)} : 5 froid.`, 'jet');
       this.infliger(a, 5, 'froid', c, false);
+    }
+    // Domaine de la Tempête : foudroie l'attaquant au corps à corps
+    if (tc.colereTempete && c.pv > 0 && a.pv > 0 && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && (c.usages.colere || 0) < tc.colereTempete) {
+      c.usages.colere = (c.usages.colere || 0) + 1;
+      const s = this.jetSauvegarde(a, 'DEX', c.ddSort), d = Des.lancer('2d8'), n = s.reussite ? Math.floor(d.total / 2) : d.total;
+      this.log(`→ ⛈️ Colère de la tempête ! ${s.texte}. ${d.texte}${s.reussite ? ' ÷2' : ''} → <b>${n}</b> foudre`, 'jet');
+      this.evt({ t: 'action', source: c.id, camp: c.camp, nom: 'Colère de la tempête', icone: '⛈️', cibles: [a.id], melee: false, distance: true, typeAct: 'sauvegarde', typeDeg: 'foudre', sort: true });
+      this.infliger(a, n, 'foudre', c, false);
     }
     if (tc.epines && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && a.pv > 0) {
       const d = Des.lancer(tc.epines);
@@ -592,7 +744,7 @@ class Combat {
     if (c.etats.benit || c.etats.fervent) { const b = Des.d(4); total += b; txt += ` +1d4[${b}]`; }
     if (c.etats.inspire) { const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete c.etats.inspire; }
     const mal = this.malusPeur(c);
-    if (mal) { total += mal; txt += ` ${mal} (anxieux)`; }
+    if (mal) { total += mal; txt += ` ${mal} (${c.camp === 'pj' ? 'anxieux' : 'ébranlé'})`; }
     const reussite = total >= dd;
     this.evt({ t: 'jet', source: c.id, cible: c.id, nat: r.nat, total, libelle: `${c.nom} · sauvegarde ${carac}`,
       contre: `DD ${dd}`, res: reussite ? 'reussite' : 'echec', mode, sauvegarde: true });
@@ -609,14 +761,65 @@ class Combat {
         this.evt({ t: 'texte', cible: c.id, texte: 'Résiste', classe: 'rate' });
       } else {
         const d = Des.lancer(act.degats);
-        const total = s.reussite ? Math.floor(d.total / 2) : d.total;
-        this.log(`${ligne}. Dégâts : ${d.texte}${s.reussite ? ' ÷2' : ''} → <b>${total}</b> ${act.typeDeg}`, 'jet');
+        const evo = this.bonusEvocation(a, act, c);
+        const total = s.reussite ? Math.floor((d.total + evo) / 2) : d.total + evo;
+        this.log(`${ligne}. Dégâts : ${d.texte}${evo ? ` +${evo} (évocation)` : ''}${s.reussite ? ' ÷2' : ''} → <b>${total}</b> ${act.typeDeg}`, 'jet');
         this.infliger(c, total, act.typeDeg, a, false);
       }
     } else {
       this.log(ligne, 'jet');
     }
     if (!s.reussite && act.effetSiEchec && c.pv > 0) this.appliquerEffet(a, act.effetSiEchec, c, true);
+    if (!(s.reussite && act.degats && !act.moitie)) this.effroiDuSort(a, act, c, s.reussite);
+  }
+
+  // Peur infligée aux monstres : sort à effroi, ou dégâts psychiques d'un Grand Ancien
+  effroiDuSort(a, act, c, reussite) {
+    if (c.camp !== 'ennemi' || c.pv <= 0 || a.camp !== 'pj') return;
+    let n = act.effroi || 0;
+    if (a.traits.espritEveille && act.typeDeg === 'psychique') n += a.traits.espritEveille;
+    if (reussite) n = Math.floor(n / 2);
+    if (n > 0) this.effrayer(c, n, a);
+  }
+
+  // Ajoute de la Peur à un monstre : Ébranlé à 50, Terrifié à 100
+  effrayer(c, n, source) {
+    if (c.camp !== 'ennemi' || c.pv <= 0) return;
+    const m = this.modele(c);
+    if (m.mortVivant || c.boss) n = Math.ceil(n / 2);
+    const avant = c.peur || 0;
+    c.peur = Math.min(100, avant + n);
+    if (c.peur === avant) return;
+    this.evt({ t: 'peur', cible: c.id, n: c.peur - avant, avant, apres: c.peur });
+    this.log(`→ 😨 ${this.nomHtml(c)} Peur +${c.peur - avant} (${c.peur}/100)${m.mortVivant || c.boss ? ' <span class="cout">(moitié : ' + (c.boss ? 'boss' : 'mort-vivant') + ')</span>' : ''}`, 'peur');
+    if (c.peur >= PEUR_MONSTRES.seuilEbranle && !c.etats.ebranle) {
+      c.etats.ebranle = 99;
+      this.evt({ t: 'texte', cible: c.id, texte: '😟 Ébranlé', classe: 'peur' });
+      this.log(`→ 😟 ${this.nomHtml(c)} est <b>ébranlé</b> : −${PEUR_MONSTRES.malus} au toucher et aux sauvegardes.`, 'etat');
+    }
+    if (c.peur >= 100) this.terrifier(c, source);
+  }
+
+  terrifier(c, source) {
+    if (source && source.traits && source.traits.penseesEnvahissantes) {
+      const d = Des.lancer('3d6');
+      this.log(`→ 🐙 Pensées envahissantes : ${d.texte} psychique.`, 'jet');
+      this.infliger(c, d.total, 'psychique', source, false);
+      if (c.pv <= 0) return;
+    }
+    if (!c.boss && !c.elite) {
+      this.log(`😱 ${this.nomHtml(c)} est <b>terrifié</b> et s'enfuit en hurlant !`, 'titre bon');
+      this.evt({ t: 'texte', cible: c.id, texte: '😱 Fuite !', classe: 'crit' });
+      c.pv = 0;
+      c.enFuite = true;
+      this.evt({ t: 'mort', cible: c.id });
+      if (source && source.camp === 'pj') this.modifierPeur(source, PEUR.ennemiTue, true);
+      return;
+    }
+    this.log(`😱 ${this.nomHtml(c)} est <b>terrifié</b> et perd son prochain tour !`, 'titre bon');
+    this.evt({ t: 'texte', cible: c.id, texte: '😱 Terrifié', classe: 'peur' });
+    c.etats.etourdi = 1;
+    c.peur = PEUR_MONSTRES.seuilEbranle;
   }
 
   resoudreSoin(a, act, c) {
@@ -624,6 +827,9 @@ class Combat {
     if (act.soin && act.soin !== '0') {
       const d = Des.lancer(act.soin);
       total = d.total + (a.bonusSoin && act.sort ? a.bonusSoin : 0);
+      const niv = act.niveau ? (this.niveauSort || act.niveau) : 0;
+      const disciple = a.traits && a.traits.disciple && niv ? niv : 0;
+      total += disciple;
       if (c.crise === 'egoisme' && a.camp === 'pj' && a !== c) {
         total = Math.floor(total / 2);
         this.log(`→ 🙄 ${this.nomHtml(c)} repousse l'aide : soin réduit de moitié.`, 'mauvais');
@@ -631,8 +837,15 @@ class Combat {
       const etaitATerre = c.pv <= 0;
       const avant = Math.max(0, c.pv);
       c.pv = Math.min(c.pvMax, avant + total);
-      this.log(`→ ${this.nomHtml(c)} récupère ${d.texte}${a.bonusSoin && act.sort ? ` +${a.bonusSoin}` : ''} → <b>${c.pv - avant}</b> PV${etaitATerre ? ' et <b>se relève</b> !' : ''}`, 'jet bon');
+      this.log(`→ ${this.nomHtml(c)} récupère ${d.texte}${a.bonusSoin && act.sort ? ` +${a.bonusSoin}` : ''}${disciple ? ` +${disciple} (disciple de la vie)` : ''} → <b>${c.pv - avant}</b> PV${etaitATerre ? ' et <b>se relève</b> !' : ''}`, 'jet bon');
       this.evt({ t: 'soin', cible: c.id, n: c.pv - avant, pvAvant: avant, pvApres: c.pv, pvMax: c.pvMax });
+      // Guérisseur béni : le clerc se soigne aussi (une fois par sort)
+      if (a.traits && a.traits.guerisseurBeni && niv && c !== a && a.pv > 0 && a.pv < a.pvMax && this.beniSort !== this.sortsTouches) {
+        this.beniSort = this.sortsTouches;
+        const av = a.pv; a.pv = Math.min(a.pvMax, a.pv + 2 + niv);
+        this.log(`→ 💗 ${this.nomHtml(a)} est béni à son tour : +${a.pv - av} PV.`, 'bon');
+        this.evt({ t: 'soin', cible: a.id, n: a.pv - av, pvAvant: av, pvApres: a.pv, pvMax: a.pvMax });
+      }
     }
     if (act.peur && c.pv > 0) this.modifierPeur(c, act.peur);
   }
@@ -682,6 +895,15 @@ class Combat {
       this.log(`→ ${this.nomHtml(c)} résiste (${type}, ÷2) : ${n} dégâts.`, 'jet');
     }
     if (n <= 0) { this.evt({ t: 'texte', cible: c.id, texte: 'Immunisé', classe: 'rate' }); return; }
+    // PV temporaires (égide, forme d'ours, ténébreux) : absorbent d'abord
+    if (c.egide > 0) {
+      const abs = Math.min(c.egide, n);
+      c.egide -= abs; n -= abs;
+      this.log(`→ 💠 ${this.nomHtml(c)} absorbe ${abs} dégâts (${c.egide} PV temporaires restants).`, 'jet');
+      this.evt({ t: 'texte', cible: c.id, texte: `💠 −${abs}`, classe: 'etat' });
+      if (c.egide <= 0 && c.etats.ours) { delete c.etats.ours; this.log(`→ 🐻 ${this.nomHtml(c)} reprend sa forme de druide.`, 'etat'); this.evt({ t: 'texte', cible: c.id, texte: '🐻 Fin de la forme', classe: 'etat' }); }
+      if (n <= 0) return;
+    }
     const pvAvant = Math.max(0, c.pv);
     c.pv -= n;
     if (c.camp === 'pj' && c.pv > 0 && n >= c.pvMax * 0.3) {
@@ -707,7 +929,20 @@ class Combat {
           this.log(`💀 ${this.nomHtml(c)} lance une malédiction dans son dernier souffle !`, 'peur');
           for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, m.criMort, true);
         }
-        if (source && source.camp === 'pj') this.modifierPeur(source, PEUR.ennemiTue, true);
+        if (source && source.camp === 'pj') {
+          this.modifierPeur(source, PEUR.ennemiTue, true);
+          const ts = source.traits || {};
+          // Nécromancie : moisson macabre (sort à emplacement)
+          if (ts.moisson && this.niveauSort && source.pv > 0) {
+            const av = source.pv; source.pv = Math.min(source.pvMax, source.pv + ts.moisson * this.niveauSort);
+            if (source.pv > av) { this.log(`→ 💀 ${this.nomHtml(source)} moissonne l'âme : +${source.pv - av} PV.`, 'bon'); this.evt({ t: 'soin', cible: source.id, n: source.pv - av, pvAvant: av, pvApres: source.pv, pvMax: source.pvMax }); }
+          }
+          // Fiélon : bénédiction du ténébreux
+          if (ts.tenebreux && source.pv > 0) {
+            const v = 3 + (source.niveau || 3);
+            if ((source.egide || 0) < v) { source.egide = v; this.log(`→ 😈 ${this.nomHtml(source)} reçoit la bénédiction du ténébreux : ${v} PV temporaires.`, 'bon'); }
+          }
+        }
       } else if (c.usages && c.usages.phenixDispo) {
         // Amulette du phénix
         c.usages.phenixDispo = false;
@@ -719,6 +954,10 @@ class Combat {
         this.evt({ t: 'mort', cible: c.id, pj: true });
         this.log(`⚠️ ${this.nomHtml(c)} tombe <b>à terre</b> !`, 'mauvais');
         for (const p of this.pjs) if (p !== c && p.pv > 0) this.modifierPeur(p, PEUR.allieATerre);
+        for (const p of this.pjs) if (p !== c && p.pv > 0 && p.traits.vengeur && !p.etats.vengeance) {
+          this.log(`🔥 ${this.nomHtml(p)} jure de venger ${this.nomHtml(c)} !`, 'titre bon');
+          this.appliquerEtat(p, 'vengeance', 99);
+        }
       }
     }
   }
@@ -728,6 +967,8 @@ class Combat {
     if (pj.camp !== 'pj') return;
     if (n > 0 && this.jeu && this.jeu.peurMult) n = Math.round(n * this.jeu.peurMult);
     if (n > 0 && pj.traits.peurReduite) n = Math.ceil(n / 2);
+    if (n > 0 && this.pjs.some(p => p.pv > 0 && p.traits.auraCourage)) n = Math.ceil(n / 2);
+    if (n > 0 && pj.traits.rageInconsciente && pj.etats.rage) n = 0;
     const avant = pj.peur;
     pj.peur = Math.max((pj.traits && pj.traits.peurMin) || 0, Math.min(100, pj.peur + n));
     const diff = pj.peur - avant;
@@ -818,6 +1059,8 @@ class Combat {
     const cibles = this.ciblesValides(m, act);
     const provocateur = cibles.find(c => c.etats.defi);
     if (provocateur && Math.random() < 0.8) return provocateur;
+    const ours = cibles.find(c => c.traits && c.traits.espritOurs && c.etats.rage);
+    if (ours && Math.random() < 0.6) return ours;
     // Préférence légère pour les cibles blessées
     return Des.pondere(cibles.map(c => ({ c, poids: 1 + (1 - c.pv / c.pvMax) * 2 }))).c;
   }
@@ -842,6 +1085,21 @@ const SPECIAUX = {
     for (const e of cb.ennemis) if (e.marquePar === a.id) { delete e.etats.marque; e.marquePar = null; }
     cible.marquePar = a.id;
     cb.appliquerEtat(cible, 'marque', 99);
+  },
+
+  inimitie(cb, a, act, cible) {
+    for (const e of cb.ennemis) if (e.inimitiePar === a.id) { delete e.etats.inimitie; e.inimitiePar = null; }
+    cible.inimitiePar = a.id;
+    cb.appliquerEtat(cible, 'inimitie', 3);
+  },
+
+  forme_ours(cb, a) {
+    const pv = a.traits.formeOurs || 12;
+    a.egide = Math.max(a.egide || 0, pv);
+    a.etats.ours = 99;
+    if (a.ligne !== 'avant') cb.deplacer(a, 'avant');
+    cb.log(`→ 🐻 ${cb.nomHtml(a)} se change en ours (${pv} PV temporaires) et charge en ligne Avant !`, 'bon');
+    cb.evt({ t: 'texte', cible: a.id, texte: '🐻 Forme d\'ours', classe: 'etat' });
   },
 
   sommeil(cb, a, act, cibles) {

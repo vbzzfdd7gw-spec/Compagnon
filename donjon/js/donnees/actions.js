@@ -31,6 +31,10 @@
 //   parCombat                  : nombre d'utilisations par combat
 //   deplacement: 'avant'       : le lanceur passe en ligne Avant avant d'agir
 //   special                    : nom d'un traitement spécial (combat.js)
+//   ressource                  : coûte 1 de cette ressource du héros (rage, supériorité…)
+//   actionBonus                : le héros rejoue aussitôt (une fois par tour)
+//   requiertEtat               : utilisable seulement sous cet état (ex. 'ours')
+//   effroi                     : Peur infligée aux monstres (moitié si sauvegarde réussie)
 // =====================================================================
 
 const ACTIONS = {
@@ -495,6 +499,81 @@ const ACTIONS = {
     desc: 'Pacte. Un néant glacial engloutit tous les ennemis : sauvegarde de DEX, 4d6 froid (moitié), entravés si échec.'
   },
 
+  // ----------------------------- SOUS-CLASSES --------------------------
+  croc_en_jambe: {
+    nom: 'Croc-en-jambe', icone: '♟️', type: 'attaque', arme: true, ressource: 'superiorite',
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d8+1d8+3', typeDeg: 'tranchant',
+    effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'FOR', dd: 13 } },
+    desc: 'Manœuvre (dé de supériorité, récupéré au repos court). 1d8+3 +1d8 ; sauvegarde de FOR DD 13 ou renversé.'
+  },
+  pretre_guerre: {
+    nom: 'Prêtre de guerre', icone: '⚔️', type: 'attaque', arme: true, nbAttaques: 2, parCombat: 1,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d6+2', typeDeg: 'contondant',
+    desc: 'Deux coups de masse (1d6+2 chacun). Une fois par combat.'
+  },
+  rayon_affaiblissant: {
+    nom: 'Rayon affaiblissant', icone: '🦴', type: 'sauvegarde', niveau: 1, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'CON', dd: 'sort', degats: '2d6', typeDeg: 'nécrotique', moitie: true,
+    effetSiEchec: { etat: 'affaibli', duree: 3 },
+    desc: 'Niv. 1. Sauvegarde de CON, 2d6 nécrotique (moitié si réussite) ; si échec, la cible inflige moitié dégâts avec ses armes pendant 3 tours.'
+  },
+  arme_sacree: {
+    nom: 'Arme sacrée', icone: '🌟', type: 'soutien', parCombat: 1, actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    etat: { nom: 'armeSacree', duree: 3 },
+    desc: 'Action bonus (vous rejouez aussitôt). +2 au toucher avec les armes pendant 3 tours. Une fois par combat.'
+  },
+  voeu_inimitie: {
+    nom: 'Vœu d\'inimitié', icone: '🔥', type: 'special', special: 'inimitie', parCombat: 1, actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    desc: 'Action bonus. Avantage à vos attaques contre cet ennemi pendant 3 tours. Une fois par combat.'
+  },
+  forme_ours: {
+    nom: 'Forme d\'ours', icone: '🐻', type: 'special', special: 'forme_ours', ressource: 'forme', actionBonus: true, pasSiActif: true,
+    etat: { nom: 'ours' },
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    desc: 'Action bonus. Devient un ours : passe en ligne Avant avec des PV temporaires (12, 20 au niv. 5). Redevient druide quand ils sont épuisés. Une fois, récupérée au repos court.'
+  },
+  griffes_ours: {
+    nom: 'Griffes d\'ours', icone: '🐾', type: 'attaque', arme: true, requiertEtat: 'ours', rayons: 'griffes2',
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'sort', degats: '1d10+2', typeDeg: 'tranchant',
+    desc: 'En forme d\'ours seulement. 1d10+2 tranchant (deux coups au niv. 5).'
+  },
+  deluge_ouvert: {
+    nom: 'Déluge renversant', icone: '✋', type: 'attaque', arme: true, nbAttaques: 3, parCombat: 1,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
+    jet: 'arme', degats: '1d6+3', typeDeg: 'contondant',
+    effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'DEX', dd: 13 } },
+    desc: 'Trois coups (1d6+3) ; chacun : sauvegarde de DEX DD 13 ou renversé. Une fois par combat (ki).'
+  },
+  plenitude: {
+    nom: 'Plénitude physique', icone: '☯️', type: 'soin', ressource: 'plenitude',
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    soin: '2d6+8', peur: -10,
+    desc: 'Récupère 2d6+8 PV et −10 Peur. Une fois par repos long.'
+  },
+  pas_ombre: {
+    nom: 'Pas de l\'ombre', icone: '🌑', type: 'soutien', parCombat: 1, actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    etat: { nom: 'cache', duree: 99 }, peur: -5,
+    desc: 'Action bonus. Disparaît dans l\'ombre : avantage à votre prochaine attaque. −5 Peur. Une fois par combat.'
+  },
+  chuchotements: {
+    nom: 'Chuchotements', icone: '🐙', type: 'sauvegarde', sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'SAG', dd: 'sort', degats: '1d8', typeDeg: 'psychique', moitie: false,
+    desc: 'Tour de magie. Sauvegarde de SAG ou 1d8 psychique (+15 Peur au monstre avec Esprit éveillé).'
+  },
+  murmures_dements: {
+    nom: 'Murmures déments', icone: '🌀', type: 'sauvegarde', niveau: 1, sort: true, triangle: 3, effroi: 20,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    carac: 'SAG', dd: 'sort', degats: '2d8', typeDeg: 'psychique', moitie: true,
+    desc: 'Pacte. Triangle de 3 ennemis : sauvegarde de SAG, 2d8 psychique (moitié si réussite) et +20 Peur (moitié si réussite).'
+  },
   // ------------------------- ACTIONS COMMUNES ------------------------
   changer_ligne: {
     nom: 'Changer de ligne', icone: '↕️', type: 'special', special: 'changer_ligne', commune: true,
