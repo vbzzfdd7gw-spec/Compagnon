@@ -667,25 +667,40 @@ const CAMPAGNES = [
   CAMPAGNES.push(chaos);
 })();
 
-// Mode Chaos : deux étages tirés de toutes les campagnes. Le premier mélange
-// les étages du milieu (héros niveau 4), le second les étages finaux (niveau 5).
-// Chaque rencontre garde la puissance (`force`) et le décor de son étage d'origine.
-const PV_CHAOS = 0.87;
-function genererEtagesAleatoires() {
-  const sources = CAMPAGNES.filter(c => !c.aleatoire && c.etages.length >= 3);
-  // PV des monstres un peu réduits : les mutations et pouvoirs du chaos compensent (réglé au simulateur)
-  const marquer = (e, r) => ({ ...r, force: { ...e.force, pv: e.force.pv * PV_CHAOS }, theme: e.theme });
-  const etage = (idx, nom) => {
-    const etages = sources.map(c => c.etages[idx]);
-    const pool = k => etages.flatMap(e => (e.rencontres[k] || []).map(r => marquer(e, r)));
-    const camp = Des.hasard(sources), e = camp.etages[idx];
-    return {
-      nom, theme: e.theme, force: e.force, bossDe: camp.id,
-      intro: `Au bout de ce dédale vous attend le maître de <b>${e.nom}</b> (${camp.icone} ${camp.nom}).`,
-      rencontres: { facile: pool('facile'), moyen: pool('moyen'), elite: pool('elite'), boss: e.rencontres.boss.map(r => marquer(e, r)) }
-    };
+// Mode Chaos : deux moitiés de carte. Chacune pioche dans TOUTES les rencontres
+// (tous les étages, élites et boss compris) de toutes les autres campagnes :
+// tous les monstres et tous les boss peuvent sortir. Chaque rencontre garde le
+// décor de son étage d'origine et sa puissance est ramenée à celle de sa place
+// sur la carte (`rang` 1 = première moitié, héros niveau 4 ; 2 = seconde, niveau 5).
+const PV_CHAOS = 0.92;
+function forceChaos(force, depuis, rang) {
+  // ecart > 0 : rencontre d'un étage plus facile, renforcée ; < 0 : à peine adoucie
+  const ecart = rang - depuis, haut = Math.max(0, ecart);
+  return {
+    ...force,
+    pv: force.pv * PV_CHAOS * (ecart >= 0 ? 1 + 0.3 * ecart : 1 + 0.1 * ecart),
+    toucher: (force.toucher || 0) + haut,
+    degats: (force.degats || 0) + haut,
+    dd: (force.dd || 0) + haut
   };
-  return [etage(1, 'Le Dédale : première moitié'), etage(2, 'Le Dédale : cœur du chaos')];
+}
+function genererEtagesAleatoires() {
+  const etages = [];
+  for (const c of CAMPAGNES) if (!c.aleatoire) c.etages.forEach((e, idx) => etages.push({ c, e, idx }));
+  const marquer = (x, r, rang) => ({ ...r, force: forceChaos(x.e.force, x.idx, rang), theme: x.e.theme });
+  const pool = (k, rang) => etages.flatMap(x => (x.e.rencontres[k] || []).map(r => marquer(x, r, rang)));
+  // Deux boss différents, tirés parmi tous les boss de tous les étages
+  const avecBoss = Des.melanger(etages.filter(x => x.e.rencontres.boss && x.e.rencontres.boss.length));
+  const final = avecBoss[0], milieu = avecBoss.find(x => x.c !== final.c) || avecBoss[1];
+  const moitie = (rang, nom, x) => ({
+    nom, theme: x.e.theme, force: forceChaos(x.e.force, x.idx, rang), bossDe: x.c.id,
+    intro: `Au bout de ce dédale vous attend le maître de <b>${x.e.nom}</b> (${x.c.icone} ${x.c.nom}).`,
+    rencontres: {
+      facile: pool('facile', rang), moyen: pool('moyen', rang), elite: pool('elite', rang),
+      boss: x.e.rencontres.boss.map(r => marquer(x, r, rang))
+    }
+  });
+  return [moitie(1, 'Le Dédale : première moitié', milieu), moitie(2, 'Le Dédale : cœur du chaos', final)];
 }
 
 // ---------------------------------------------------------------------
