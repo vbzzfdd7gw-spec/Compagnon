@@ -158,6 +158,21 @@ const PERSOS3D = {
   pretre_momie: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' }, echelle: 1.1, recolorer: 'or_desert',
     anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', soutien: 'Spellcast_Raise', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
   pharaon: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat'], echelle: 1.45, recolorer: 'pharaon', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', sort: 'Taunt', invoque: 'Taunt', soutien: 'Taunt' } },
+  // Château du vampire
+  goule: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], recolorer: 'goule', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A' } },
+  bleme: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat'], echelle: 1.05, recolorer: 'bleme', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A' } },
+  necrophage: { glb: 'knight', montrer: ['1H_Sword'], recolorer: 'necrophage', anims: { tir: 'Throw' } },
+  rejeton_vampire: { glb: 'rogue', montrer: ['Knife'], recolorer: 'vampire', anims: { attaque: '1H_Melee_Attack_Stab' } },
+  vampire: { glb: 'knight', montrer: ['1H_Sword'], cacher: ['Knight_Helmet'], echelle: 1.25, recolorer: 'comte', anims: { sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Taunt' } },
+  // Côtes des sahuagins
+  sahuagin: { glb: 'barbarian', montrer: ['1H_Axe'], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], echelle: 0.95, recolorer: 'sahuagin', anims: { tir: 'Throw' } },
+  baron_sahuagin: { glb: 'barbarian', montrer: ['2H_Axe'], cacher: ['Barbarian_Hat'], echelle: 1.4, recolorer: 'baron_sahuagin', anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', invoque: 'Taunt', soutien: 'Taunt' } },
+  merrow: { glb: 'barbarian', montrer: ['1H_Axe'], cacher: ['Barbarian_Hat'], echelle: 1.3, recolorer: 'merrow', anims: { tir: 'Throw' } },
+  pretresse_sahuagin: { glb: 'mage', montrer: ['1H_Wand'], cacher: ['Mage_Hat'], recolorer: 'sahuagin', anims: { attaque: 'Spellcast_Shoot', soutien: 'Spellcast_Raise' } },
+  harpie: { glb: 'rogue', montrer: [], recolorer: 'harpie', ajouts: [{ os: 'chest', fabrique: 'ailesPlumes' }], anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', sort: 'Cheer' } },
+  // Souterrains
+  meduse: { glb: 'rogue', montrer: ['Knife', '1H_Crossbow'], echelle: 1.2, recolorer: 'meduse', ajouts: [{ os: 'head', fabrique: 'serpents' }],
+    anims: { attaque: '1H_Melee_Attack_Stab', tir: '1H_Ranged_Shoot', soutien: 'Taunt' } },
   morvagne: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' }, echelle: 1.12, recolorer: 'necro',
     anims: { attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose', soutien: 'Taunt' } }
 };
@@ -212,6 +227,19 @@ const RECOLORATIONS = {
   chacal: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [25, 0.15, l * 0.33] : (s > 0.15 ? [45, 0.75, l * 0.9] : null),
   or_desert: (h, s, l) => (l > 0.45 && (h < 70 || s < 0.25)) ? [42, 0.5, Math.min(0.85, l * 0.92)] : (s > 0.15 ? [215, 0.6, l * 0.5] : null),
   pharaon: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [40, 0.25, Math.min(0.9, l * 1.05)] : (s > 0.15 ? (h < 60 ? [45, 0.8, l * 0.9] : [215, 0.7, l * 0.55]) : null),
+  // Château : goule grise, blême violacé, nécrophage cendreux, vampires pâles en noir et rouge
+  goule: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [90, 0.12, l * 0.6] : (s > 0.1 ? [30, s * 0.25, l * 0.4] : null),
+  bleme: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [270, 0.12, l * 0.55] : (s > 0.1 ? [280, s * 0.3, l * 0.35] : null),
+  necrophage: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [200, 0.08, l * 0.62] : (s < 0.22 && l > 0.3 ? [0, 0.05, l * 0.45] : (s > 0.15 ? [0, s * 0.4, l * 0.35] : null)),
+  vampire: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [220, 0.08, Math.min(0.92, l * 1.08)] : (s > 0.15 ? (l > 0.4 ? [355, Math.min(1, s + 0.3), l * 0.55] : [0, 0, l * 0.4]) : null),
+  comte: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [220, 0.08, Math.min(0.92, l * 1.08)] : (s < 0.22 && l > 0.3 ? [0, 0, l * 0.3] : (s > 0.15 ? [355, Math.min(1, s + 0.35), l * 0.55] : null)),
+  // Côtes : écailles vert-bleu, baron requin, merrow vert sombre, harpie plumes brunes
+  sahuagin: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [170, 0.45, l * 0.6] : (s > 0.15 ? [190, s * 0.5, l * 0.5] : null),
+  baron_sahuagin: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [200, 0.3, l * 0.62] : (s > 0.15 ? [45, Math.min(1, s + 0.2), l * 0.8] : null),
+  merrow: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [150, 0.35, l * 0.48] : (s > 0.15 ? [170, s * 0.4, l * 0.4] : null),
+  harpie: (h, s, l) => (h >= 10 && h <= 45 && l > 0.55) ? null : (s > 0.15 ? [28, s * 0.6, l * 0.6] : null),
+  // Méduse : peau d'écailles vertes, robe pourpre
+  meduse: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [110, 0.35, l * 0.7] : (s > 0.15 ? [300, Math.min(1, s + 0.1), l * 0.6] : null),
   // Nécromancienne : tenue violet profond
   necro: (h, s, l) => (s > 0.2 && h > 150 && h < 270) ? [280, Math.min(1, s + 0.15), l * 0.75] : null
 };
@@ -292,6 +320,15 @@ function construireGLB(modele) {
       if (cfg.teintes && cfg.teintes[o.name]) o.material.color.setHex(cfg.teintes[o.name]);
     }
   });
+  // Accessoires dessinés accrochés à un os (serpents de la méduse, ailes de la harpie)
+  for (const aj of cfg.ajouts || []) {
+    const os = objet.getObjectByName(aj.os);
+    if (!os || !AJOUTS_3D[aj.fabrique]) continue;
+    const g = AJOUTS_3D[aj.fabrique]();
+    ajouterContours(g);
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    os.add(g);
+  }
   for (const [main, fichier] of Object.entries(cfg.armes || {})) {
     const os = objet.getObjectByName(main === 'droite' ? 'handslot.r' : 'handslot.l');
     const arme = Ressources3D.gltf[fichier];

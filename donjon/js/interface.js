@@ -345,7 +345,12 @@ const Ui = {
     if (m.mortVivant) extras.push('Mort-vivant');
     if (m.robustesse) extras.push('Robustesse des morts-vivants : à 0 PV, sauvegarde de CON (DD 5 + dégâts) pour rester à 1 PV, sauf dégâts radiants ou critique');
     if (m.actionsParTour) extras.push(`Agit ${m.actionsParTour} fois par tour`);
-    if (m.traits && m.traits.regen) extras.push(`Régénération : récupère ${m.traits.regen} PV à chacun de ses tours`);
+    const tr = m.traits || {};
+    if (tr.regen) extras.push(`Régénération : récupère ${tr.regen} PV à chacun de ses tours${tr.regenStop ? ` (sauf s'il a subi des dégâts ${tr.regenStop.join(' ou ')} depuis son dernier tour)` : ''}`);
+    if (tr.seRelever) extras.push('Forme de brume : la première fois qu\'il tombe, il se reforme avec une partie de ses PV');
+    if (tr.division) extras.push(`Division : les dégâts ${tr.division.join(' ou ')} le coupent en deux (s'il a au moins 10 PV)`);
+    if (tr.frenesieSang) extras.push('Frénésie sanguinaire : avantage contre les cibles blessées');
+    if (tr.tetes) extras.push(`Têtes multiples (${c.tetes} actuellement) : une morsure par tête. 25 dégâts en un tour tranchent une tête, qui repousse en double à son tour, sauf si elle a subi du feu`);
     if (c.chaos) {
       for (const k of c.chaos.mutations) extras.push(`${MUTATIONS_CHAOS[k].icone} <b>${MUTATIONS_CHAOS[k].nom}</b> (chaos) : ${MUTATIONS_CHAOS[k].desc}`);
       for (const k of c.chaos.pouvoirs) extras.push(`${POUVOIRS_BOSS[k].icone} <b>${POUVOIRS_BOSS[k].nom}</b> (pouvoir du chaos) : ${POUVOIRS_BOSS[k].desc}`);
@@ -356,7 +361,7 @@ const Ui = {
       ${extras.map(e => `<div class="petit">• ${e}</div>`).join('')}
       ${this.etatsDetail(c)}
       <div class="fiche-actions">${m.actions.map(a => `<div class="ligne-action"><b>${a.nom}</b> <span class="pips-demo">${this.pipsAction(a)}</span>
-        <div class="petit">${a.type === 'attaque' ? `+${a.jet} au toucher, ${a.degats} ${a.typeDeg}` : a.type === 'sauvegarde' ? `Sauvegarde de ${a.carac} DD ${a.dd}, ${a.degats} ${a.typeDeg}${a.effetSiEchec && a.effetSiEchec.peur ? `, +${a.effetSiEchec.peur} Peur si échec` : ''}` : 'Spécial'}</div></div>`).join('')}</div>`);
+        <div class="petit">${a.type === 'attaque' ? `+${a.jet} au toucher, ${a.degats} ${a.typeDeg}${a.volVie ? ', se soigne des dégâts' : ''}${a.effetSiTouche && a.effetSiTouche.etat ? ` · ${ETATS[a.effetSiTouche.etat].nom.toLowerCase()}` : ''}${a.effetSiTouche && a.effetSiTouche.rouille ? ' · rouille l\'armure (−1 CA)' : ''}${a.effetSiTouche && a.effetSiTouche.attirer ? ' · attire en ligne Avant' : ''}` : a.type === 'sauvegarde' ? `Sauvegarde de ${a.carac} DD ${a.dd}${a.degats ? `, ${a.degats} ${a.typeDeg}` : ''}${a.effetSiEchec && a.effetSiEchec.peur ? `, +${a.effetSiEchec.peur} Peur si échec` : ''}${a.effetSiEchec && a.effetSiEchec.etat ? ` · ${ETATS[a.effetSiEchec.etat].nom.toLowerCase()} si échec` : ''}` : ({ engloutir: `Sauvegarde de DEX DD ${a.dd} ou englouti`, regardPetrifiant: `Sauvegarde de CON DD ${a.dd} : pétrification, puis changé en pierre` })[a.special] || 'Spécial'}</div></div>`).join('')}</div>`);
   },
 
   etatsDetail(c) {

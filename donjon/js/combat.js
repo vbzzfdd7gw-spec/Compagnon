@@ -32,6 +32,11 @@ const ETATS = {
   inimitie: { nom: 'Vœu d\'inimitié', icone: '🔥', desc: 'Le paladin qui l\'a juré a l\'avantage contre lui.' },
   ours: { nom: 'Forme d\'ours', icone: '🐻', desc: 'Druide changé en ours tant qu\'il lui reste des PV temporaires.', permanent: true },
   vengeance: { nom: 'Vengeance', icone: '⚔️', desc: '+2 au toucher et aux dégâts jusqu\'à la fin du combat.', permanent: true },
+  paralyse: { nom: 'Paralysé', icone: '🥶', desc: 'Perd ses tours ; les attaques contre lui ont avantage et celles au corps à corps qui touchent sont des critiques.' },
+  charme: { nom: 'Charmé', icone: '💞', desc: 'Fasciné : perd ses tours. Se libère s\'il subit des dégâts.' },
+  englouti: { nom: 'Englouti', icone: '🟩', desc: 'Prisonnier d\'un cube gélatineux : perd ses tours (sauvegarde de FOR pour s\'échapper), subit de l\'acide à chaque tour du cube.', permanent: true },
+  petrification: { nom: 'Pétrification', icone: '🪨', desc: 'Commence à se changer en pierre : désavantage aux attaques. Un second échec le pétrifie.' },
+  petrifie: { nom: 'Pétrifié', icone: '🗿', desc: 'Changé en pierre : perd ses tours, mais ne subit que la moitié des dégâts.' },
   ebranle: { nom: 'Ébranlé', icone: '😟', desc: 'Peur du monstre ≥ 50 : −2 au toucher et aux sauvegardes.', permanent: true }
 };
 
@@ -152,9 +157,9 @@ class Combat {
     });
     return {
       id: 'm' + (++this.compteur), modele: id, camp: 'ennemi',
-      nom: d.nom + suffixe, icone: d.icone,
+      nom: d.nom + suffixe + (d.traits && d.traits.tetes ? ` (${d.traits.tetes} têtes)` : ''), icone: d.icone,
       pv, pvMax: pv, ca: d.ca + f.ca, caracs: d.caracs,
-      actions, etats: {}, usages: {}, recharges: {}, traits: { ...(d.traits || {}) },
+      actions, etats: {}, usages: {}, recharges: {}, traits: { ...(d.traits || {}) }, tetes: (d.traits && d.traits.tetes) || 0,
       boss: !!d.boss, elite: !!d.elite
     };
   }
@@ -206,6 +211,8 @@ class Combat {
       pj.etats = {};
       pj.usages = {};
       pj.motsRound = pj.riposteRound = 0;
+      pj.caMalus = 0;
+      pj.engloutiPar = null;
       pj.egide = 0;
       if (pj.pv <= 0) this.log(`${this.nomHtml(pj)} est toujours à terre (0 PV) : soignez-le pour qu'il se relève.`, 'mauvais');
       if (pj.pv <= 0) continue;
@@ -273,7 +280,10 @@ class Combat {
     // Effets de début de tour
     for (const e in c.etats) if (ETATS[e] && ETATS[e].finDebut) delete c.etats[e];
     for (const id in c.recharges) if (c.recharges[id] > 0) c.recharges[id]--;
-    if (c.traits && c.traits.regen && c.pv < c.pvMax) {
+    if (c.traits && c.traits.regen && c.regenBloquee) {
+      c.regenBloquee = false;
+      this.log(`🔥 ${this.nomHtml(c)} ne se régénère pas ce tour-ci (${c.traits.regenStop.join(' / ')}).`, 'bon');
+    } else if (c.traits && c.traits.regen && c.pv < c.pvMax) {
       const avant = c.pv;
       c.pv = Math.min(c.pvMax, c.pv + c.traits.regen);
       this.log(c.camp === 'pj' ? `💍 ${this.nomHtml(c)} récupère ${c.pv - avant} PV (objet).` : `💚 ${this.nomHtml(c)} se régénère : +${c.pv - avant} PV.`, c.camp === 'pj' ? 'bon' : 'mauvais');
@@ -303,15 +313,25 @@ class Combat {
       if (c.etats.ebranle && c.peur < PEUR_MONSTRES.seuilEbranle) delete c.etats.ebranle;
     }
     if (c.camp === 'ennemi' && c.chaos && c.pv > 0) this.pouvoirsDebutTour(c);
+    if (c.camp === 'ennemi' && c.pv > 0) this.debutTourMonstre(c);
     if (c.camp === 'pj' && c.etats.maudit) {
       this.log(`🩸 La marque du culte ronge l'esprit de ${this.nomHtml(c)}.`, 'peur');
       this.modifierPeur(c, 5);
     }
     if (c.camp === 'pj' && c.crise && this.tourDeCrise(c)) return;
 
-    if (c.etats.etourdi || c.etats.endormi) {
-      this.log(`${ETATS[c.etats.etourdi ? 'etourdi' : 'endormi'].icone} ${this.nomHtml(c)} ${c.etats.etourdi ? 'est étourdi' : 'dort'} et perd son tour.`);
-      this.evt({ t: 'texte', cible: c.id, texte: ETATS[c.etats.etourdi ? 'etourdi' : 'endormi'].icone, classe: 'etat' });
+    if (c.etats.englouti) {
+      const s = this.jetSauvegarde(c, 'FOR', 12);
+      this.log(`🟩 ${this.nomHtml(c)} se débat dans le cube : ${s.texte}`, 'jet');
+      if (s.reussite) { delete c.etats.englouti; c.engloutiPar = null; this.log(`→ ${this.nomHtml(c)} s'extrait du cube !`, 'bon'); }
+      const d = this.maj();
+      return setTimeout(() => this.finTour(c), d + this.attente(500));
+    }
+    const perte = ['etourdi', 'endormi', 'paralyse', 'charme', 'petrifie'].find(e => c.etats[e]);
+    if (perte) {
+      const verbe = { etourdi: 'est étourdi', endormi: 'dort', paralyse: 'est paralysé', charme: 'est sous le charme', petrifie: 'est changé en pierre' }[perte];
+      this.log(`${ETATS[perte].icone} ${this.nomHtml(c)} ${verbe} et perd son tour.`);
+      this.evt({ t: 'texte', cible: c.id, texte: ETATS[perte].icone, classe: 'etat' });
       const d = this.maj();
       return setTimeout(() => this.finTour(c), d + this.attente(500));
     }
@@ -568,7 +588,7 @@ class Combat {
   // CA effective (états et capacités compris)
   caTotale(c) {
     return c.ca + (c.etats.ecorce ? 3 : 0) + (c.etats.agathys ? 2 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0)
-      + (c.traits && c.traits.aspectOurs && c.etats.rage ? 2 : 0);
+      + (c.traits && c.traits.aspectOurs && c.etats.rage ? 2 : 0) - (c.caMalus || 0);
   }
 
   // Avantage / désavantage d'une attaque
@@ -577,6 +597,9 @@ class Combat {
     if (a.etats.cache && !act.compagnon) av.push('caché');
     if (act.avantage) av.push('feinte');
     if (c.etats.renverse) av.push('cible renversée');
+    if (c.etats.paralyse) av.push('cible paralysée');
+    if (a.etats.petrification) dv.push('se pétrifie');
+    if (a.traits && a.traits.frenesieSang && c.pv < c.pvMax) av.push('frénésie sanguinaire');
     if (c.etats.endormi) av.push('cible endormie');
     if (this.panique(a)) dv.push('paniqué');
     if (a.etats.empoisonne) dv.push('empoisonné');
@@ -630,6 +653,7 @@ class Combat {
     let touche = critique || (r.nat !== 1 && total >= ca);
     // Assassinat : au 1er round, toucher un ennemi qui n'a pas encore joué est un critique
     if (touche && !critique && a.traits && a.traits.assassin && this.round === 1 && !c.aJoue) critique = true;
+    if (touche && !critique && c.etats.paralyse && act.vise && act.vise.length === 1 && act.vise[0] === 'avant') critique = true;
     // Cape de l'ombre : la première attaque qui toucherait rate
     if (touche && c.etats.voile) {
       delete c.etats.voile;
@@ -691,13 +715,18 @@ class Combat {
       a.sournoiseUtilisee = true;
       if (a.traits.empoisonneur) this.appliquerApres = { etat: 'empoisonne', duree: 2, sauvegarde: { carac: 'CON', dd: 8 + a.maitrise + modCarac(a.caracs.DEX) } };
     }
-    if (act.arme && a.etats.affaibli) { degats = Math.floor(degats / 2); dTxt += ' ÷2 (affaibli)'; }
+    if ((act.arme || (a.camp === 'ennemi' && !act.sort)) && a.etats.affaibli) { degats = Math.floor(degats / 2); dTxt += ' ÷2 (affaibli)'; }
     this.log(`${ligne} Dégâts : ${dTxt} → <b>${degats}</b> ${act.typeDeg}`, critique ? 'jet crit' : 'jet');
 
     if (critique) this.peurCritique(a, c);
     this.infliger(c, degats, act.typeDeg, a, critique);
     this.effetsApresCoup(a, act, c, degats);
 
+    if (act.volVie && a.pv > 0 && a.pv < a.pvMax) {
+      const av = a.pv; a.pv = Math.min(a.pvMax, a.pv + degats);
+      this.log(`→ 🩸 ${this.nomHtml(a)} se repaît : +${a.pv - av} PV.`, 'mauvais');
+      this.evt({ t: 'soin', cible: a.id, n: a.pv - av, pvAvant: av, pvApres: a.pv, pvMax: a.pvMax });
+    }
     if (act.effetSiTouche && c.pv > 0) this.appliquerEffet(a, act.effetSiTouche, c);
     if (this.appliquerApres) { const e = this.appliquerApres; this.appliquerApres = null; if (c.pv > 0) this.appliquerEffet(a, e, c); }
     // Totem du loup (niv. 5) : en rage, les coups d'arme au corps à corps renversent
@@ -847,6 +876,41 @@ class Combat {
     this.chaos = true;
   }
 
+  // Début du tour d'un monstre : acide du cube, têtes de l'hydre qui repoussent
+  debutTourMonstre(c) {
+    for (const p of this.pjs) if (p.engloutiPar === c.id && p.pv > 0) {
+      const d = Des.lancer('2d6');
+      this.log(`🟩 L'acide du cube ronge ${this.nomHtml(p)} : ${d.texte} acide.`, 'mauvais');
+      this.infliger(p, d.total, 'acide', c, false);
+      if (p.pv <= 0) { delete p.etats.englouti; p.engloutiPar = null; }
+    }
+    if (c.tetesPerdues) {
+      if (c.feuRecu) this.log(`🔥 Les cous de ${this.nomHtml(c)} sont cautérisés : aucune tête ne repousse !`, 'bon');
+      else {
+        const max = c.traits.tetesMax || 9, avant = c.tetes;
+        c.tetes = Math.min(max, c.tetes + 2 * c.tetesPerdues);
+        this.log(`🐍 ${c.tetes - avant} têtes repoussent sur ${this.nomHtml(c)} ! (brûlez les cous pour l'empêcher)`, 'mauvais');
+        this.evt({ t: 'texte', cible: c.id, texte: `🐍 +${c.tetes - avant} têtes`, classe: 'peur' });
+      }
+      c.nom = `${MONSTRES[c.modele].nom} (${c.tetes} têtes)`;
+    }
+    c.tetesPerdues = 0; c.feuRecu = false; c.degatsTete = 0;
+  }
+
+  // Pouding / gelée : le coup le divise en deux (si assez de PV et de place)
+  diviser(c) {
+    if (c.pv < 10 || this.ennemis.filter(e => e.pv > 0).length >= 4) return;
+    const moitie = Math.floor(c.pv / 2);
+    c.pv -= moitie;
+    const f = this.creerMonstre(c.modele, ' (fragment)');
+    f.pv = f.pvMax = moitie;
+    f.ligne = c.ligne;
+    f.initiative = 0;
+    this.ennemis.push(f);
+    this.ordre.push(f);
+    this.log(`→ 🫧 ${this.nomHtml(c)} se divise en deux ! Un ${this.nomHtml(f)} (${moitie} PV) se détache.`, 'mauvais');
+  }
+
   pouvoirsDebutTour(c) {
     const pv = c.chaos.pouvoirs;
     if (pv.includes('terreur')) {
@@ -952,6 +1016,12 @@ class Combat {
     if (effet.etat) this.appliquerEtat(c, effet.etat, effet.duree);
     if (effet.peur && c.camp === 'pj') this.modifierPeur(c, effet.peur);
     if (effet.recul) this.reculer(c, effet.recul);
+    if (effet.attirer && c.ligne !== 'avant' && c.pv > 0) { this.deplacer(c, 'avant'); this.log(`→ ${this.nomHtml(c)} est attiré en ligne Avant !`, 'etat'); }
+    if (effet.rouille && c.camp === 'pj' && (c.caMalus || 0) < 4) {
+      c.caMalus = (c.caMalus || 0) + effet.rouille;
+      this.log(`→ 🟤 L'armure de ${this.nomHtml(c)} se couvre de rouille : −${effet.rouille} CA (jusqu'à la fin du combat).`, 'mauvais');
+      this.evt({ t: 'texte', cible: c.id, texte: '🟤 −1 CA', classe: 'etat' });
+    }
   }
 
   appliquerEtat(c, nom, duree) {
@@ -974,6 +1044,11 @@ class Combat {
   infliger(c, n, type, source, critique) {
     const m = this.modele(c);
     let note = '';
+    const tc = c.traits || {};
+    if (tc.regenStop && tc.regenStop.includes(type) && n > 0) c.regenBloquee = true;
+    if (tc.tetes && type === 'feu') c.feuRecu = true;
+    if (tc.division && tc.division.includes(type) && c.pv > 0) this.diviser(c);
+    if (c.etats.petrifie) { n = Math.floor(n / 2); note = ' (pierre)'; }
     if (m) {
       if (m.immun && m.immun.includes(type)) { n = 0; note = ' (immunisé)'; }
       else if (m.resist && m.resist.includes(type)) { n = Math.floor(n / 2); note = ' (résistance ÷2)'; }
@@ -1017,6 +1092,18 @@ class Combat {
     }
     if (mut.includes('terrifiant') && c.camp === 'pj' && c.pv > 0) this.modifierPeur(c, 8, true);
     if (c.etats.endormi) { delete c.etats.endormi; this.log(`→ ${this.nomHtml(c)} se réveille !`, 'etat'); }
+    if (c.etats.charme && c.pv > 0) { delete c.etats.charme; this.log(`→ La douleur libère ${this.nomHtml(c)} du charme !`, 'etat'); }
+    // Hydre : 25 dégâts en un tour tranchent une tête
+    if (c.tetes && c.pv > 0) {
+      c.degatsTete = (c.degatsTete || 0) + n;
+      while (c.degatsTete >= 25 && c.tetes > 0) {
+        c.degatsTete -= 25; c.tetes--; c.tetesPerdues = (c.tetesPerdues || 0) + 1;
+        this.log(`→ 🐍 Une tête de ${this.nomHtml(c)} est tranchée ! (${c.tetes} restante${c.tetes > 1 ? 's' : ''})`, 'bon');
+        this.evt({ t: 'texte', cible: c.id, texte: '🐍 Tête tranchée !', classe: 'crit' });
+      }
+      if (c.tetes <= 0) { c.pv = 0; this.log(`→ ${this.nomHtml(c)} n'a plus de tête !`, 'bon'); }
+      c.nom = `${MONSTRES[c.modele].nom} (${c.tetes} têtes)`;
+    }
 
     if (c.pv <= 0 && m && m.robustesse && type !== 'radiant' && !critique) {
       const dd = 5 + n;
@@ -1025,6 +1112,14 @@ class Combat {
       if (s.reussite) { c.pv = 1; this.evt({ t: 'soin', cible: c.id, n: 1, pvAvant: 0, pvApres: 1, pvMax: c.pvMax }); this.log(`→ ${this.nomHtml(c)} refuse de tomber (1 PV) !`, 'mauvais'); return; }
     }
 
+    if (c.pv <= 0 && tc.seRelever && !c.releveTrait) {
+      c.releveTrait = true;
+      c.pv = Math.ceil(c.pvMax * tc.seRelever);
+      this.log(`🌫️ ${this.nomHtml(c)} se dissout en brume… et se reforme un peu plus loin (${c.pv} PV) !`, 'titre mauvais');
+      this.evt({ t: 'texte', cible: c.id, texte: '🌫️ Forme de brume', classe: 'crit' });
+      this.evt({ t: 'soin', cible: c.id, n: c.pv, pvAvant: 0, pvApres: c.pv, pvMax: c.pvMax });
+      return;
+    }
     if (c.pv <= 0 && c.chaos && c.chaos.pouvoirs.includes('renaissance') && !c.chaos.relevé) {
       c.chaos.relevé = true;
       c.pv = Math.ceil(c.pvMax * 0.4);
@@ -1039,6 +1134,7 @@ class Combat {
       if (c.camp === 'ennemi') {
         this.evt({ t: 'mort', cible: c.id });
         this.log(`☠ ${this.nomHtml(c)} est vaincu !`, 'bon');
+        for (const p of this.pjs) if (p.engloutiPar === c.id) { delete p.etats.englouti; p.engloutiPar = null; this.log(`→ ${this.nomHtml(p)} est libéré du cube !`, 'bon'); }
         if (m && m.criMort) {
           this.log(`💀 ${this.nomHtml(c)} lance une malédiction dans son dernier souffle !`, 'peur');
           for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, m.criMort, true);
@@ -1143,7 +1239,7 @@ class Combat {
   tourMonstre(m) {
     if (this.fini || m.pv <= 0) return;
     const ch = m.chaos || {};
-    const nb = (MONSTRES[m.modele].actionsParTour || 1) + (ch.mutations && ch.mutations.includes('rapide') ? 1 : 0)
+    const nb = (m.tetes ? Math.min(6, m.tetes) : (MONSTRES[m.modele].actionsParTour || 1)) + (ch.mutations && ch.mutations.includes('rapide') ? 1 : 0)
       + (ch.pouvoirs && ch.pouvoirs.includes('furie') && m.pv < m.pvMax / 2 ? 1 : 0);
     let i = 0;
     const agir = () => {
@@ -1255,6 +1351,34 @@ const SPECIAUX = {
     if (perte > 0) { a.pv -= perte; cb.evt({ t: 'degats', cible: a.id, n: perte, crit: false, pvAvant: a.pv + perte, pvApres: a.pv, pvMax: a.pvMax }); }
     cb.log(`→ 🔥 ${cb.nomHtml(a)} s'entaille la paume : ses alliés entrent en ferveur fanatique !`, 'mauvais');
     for (const e of cb.camp(a)) if (e.pv > 0) cb.appliquerEtat(e, 'fervent', 3);
+  },
+
+  // Cube gélatineux : engloutit un héros de la ligne Avant
+  engloutir(cb, a, act, cible) {
+    if (!cible) return;
+    const s = cb.jetSauvegarde(cible, 'DEX', act.dd);
+    cb.log('→ ' + s.texte, s.reussite ? 'jet rate' : 'jet');
+    if (s.reussite) { cb.log(`→ ${cb.nomHtml(cible)} bondit hors de portée.`, 'jet rate'); return; }
+    const d = Des.lancer(act.degats || '3d6');
+    cb.log(`→ 🟩 ${cb.nomHtml(cible)} est englouti ! ${d.texte} acide.`, 'mauvais');
+    cible.etats.englouti = 99;
+    cible.engloutiPar = a.id;
+    cb.evt({ t: 'texte', cible: cible.id, texte: '🟩 Englouti !', classe: 'peur' });
+    cb.infliger(cible, d.total, 'acide', a, false);
+  },
+
+  // Méduse : premier échec = pétrification (désavantage), second = changé en pierre
+  regardPetrifiant(cb, a, act, cible) {
+    if (!cible) return;
+    const s = cb.jetSauvegarde(cible, 'CON', act.dd);
+    cb.log('→ ' + s.texte, s.reussite ? 'jet rate' : 'jet');
+    if (s.reussite) return;
+    if (cible.etats.petrification) {
+      delete cible.etats.petrification;
+      cb.appliquerEtat(cible, 'petrifie', 2);
+      cb.log(`→ 🗿 ${cb.nomHtml(cible)} est changé en pierre !`, 'titre mauvais');
+      if (cible.camp === 'pj') cb.modifierPeur(cible, 15);
+    } else cb.appliquerEtat(cible, 'petrification', 3);
   },
 
   invoquer(cb, a, act) {
