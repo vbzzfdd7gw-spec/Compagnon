@@ -198,8 +198,11 @@ const Modeles3D = {
       corps = new THREE.Group();
       corps.add(glb.objet);
     } else {
-      corps = (FIGURINES[modele] || FIGURINES.inconnu)();
-      ajouterContours(corps);
+      // Groupe intermédiaire : l'animation (respiration) ne doit pas écraser l'échelle propre de la figurine
+      const fig = (FIGURINES[modele] || FIGURINES.inconnu)();
+      ajouterContours(fig);
+      corps = new THREE.Group();
+      corps.add(fig);
       corps.traverse(o => { if (o.isMesh && !o.userData.contour) o.castShadow = true; });
     }
     g.add(corps);
@@ -345,7 +348,7 @@ const Modeles3D = {
       // Orientation : héros de trois quarts vers les ennemis, ennemis vers les héros
       let base = this.vitrine ? Math.sin(s * 0.4 + u.phase) * 0.15 : (pj ? 2.15 : 0.2);
       if (u.modele === 'loup') base = pj ? base : 0.8;
-      if (['dragonnet', 'ignaroth', 'dracoliche'].includes(u.modele)) base = pj ? base : 0.55;
+      if (['dragonnet', 'ignaroth', 'dracoliche'].includes(u.modele)) base = pj ? base : 0.3;
       if (!anime && aTerre) base = 0;
       if (u.regard && performance.now() < u.regard.jusqu) base = u.regard.yaw;
       if (u.yaw === null) u.yaw = base;
@@ -834,9 +837,9 @@ const FIGURINES = {
 
   araignee() { return figurineAraignee(0x4a3a44, 0x7a2a3a, 1); },
   reine_araignee() { return figurineAraignee(0x2a1a34, 0xb040d0, 1.45, true); },
-  dragonnet() { return figurineDragon(0xa82418, 0xe8a040, 0xffd84a, 1.25); },
-  ignaroth() { return figurineDragon(0x9a1810, 0xf0a838, 0xffe060, 1.9, true); },
-  dracoliche() { return figurineDragon(0xd8d2bc, 0x4a4a3a, 0x7dff9a, 1.9, true, true); },
+  dragonnet() { return figurineDragon({ ech: 1.0 }); },
+  ignaroth() { return figurineDragon({ peau: 0x9a1c14, peauS: 0x5e0e0a, ventre: 0xf0b050, ventreS: 0xb87a28, membrane: 0x9a3044, corne: 0xf0cc70, oeil: 0xffe060, boss: true, ech: 1.35 }); },
+  dracoliche() { return figurineDragon({ corne: 0xddd4b6, membrane: 0x2e4a3a, oeil: 0x7dff9a, boss: true, os: true, ech: 1.15 }); },
 
   inconnu() { return G(F.boule(0.4, mat(0x888888), 0, 0.5, 0)); }
 };
@@ -869,43 +872,193 @@ function figurineAraignee(corps, motif, ech = 1, couronne = false) {
   return g;
 }
 
-// Dragon cartoon : corps, cou, tête à museau, cornes, ailes, queue
-function figurineDragon(peau, ventre, oeil, ech = 1, grand = false, squelette = false) {
-  const p = mat(peau), v = mat(ventre), corne = mat(squelette ? 0x8a8a7a : 0xf4ead0), dent = mat(0xffffff), griffe = mat(0x2a1a14);
-  const aile = new THREE.MeshToonMaterial({ color: squelette ? 0x3a3a30 : ventre, gradientMap: degradeToon(), side: THREE.DoubleSide, transparent: squelette, opacity: squelette ? 0.7 : 1 });
-  const membrane = new THREE.MeshToonMaterial({ color: peau, gradientMap: degradeToon(), side: THREE.DoubleSide });
-  // Aile : membrane festonnée tendue sur un os
-  const forme = new THREE.Shape();
-  forme.moveTo(0, 0); forme.lineTo(0.5, 0.75); forme.lineTo(1.25, 0.9); forme.quadraticCurveTo(1.05, 0.5, 1.15, 0.2);
-  forme.quadraticCurveTo(0.85, 0.25, 0.82, -0.05); forme.quadraticCurveTo(0.55, 0.05, 0.45, -0.3); forme.quadraticCurveTo(0.25, -0.1, 0, 0);
-  const geo = new THREE.ShapeGeometry(forme, 8);
-  const faireAile = cote => {
-    const g = G(sansContour(new THREE.Mesh(geo, aile)),
-      sansContour(P(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 1.0, 6), membrane), 0.42, 0.42, 0.01, 0, 0, -0.62)));
-    g.position.set(cote * 0.16, 0.92, -0.12);
-    g.rotation.set(-0.15, cote > 0 ? -0.35 : Math.PI + 0.35, cote * 0.15);
+// ---------------------------------------------------------------------
+// Dragons (style chibi comme les autres figurines : grosse tête, petit
+// corps debout, contours épais). Options :
+//   peau, peauS (ombre), ventre, membrane, corne, oeil : couleurs
+//   boss : cornes et piques en plus, ailes plus grandes, braise au ventre
+//   os   : dracoliche (crâne, cage thoracique, ailes déchirées, lueur verte)
+// ---------------------------------------------------------------------
+// Segment arrondi entre deux points
+function segment(a, b, r, m) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A);
+  const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.001, d.length()), 4, 8), m);
+  mesh.position.copy(A).add(B).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+  return mesh;
+}
+// Corne courbée : cône plié en arc (courbe > 0 vers l'avant, < 0 vers l'arrière)
+function corneCourbe(r, h, courbe, m, ...p) {
+  const geo = new THREE.ConeGeometry(r, h, 12, 8);
+  geo.translate(0, h / 2, 0);
+  const pos = geo.attributes.position, R = h / courbe;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i), z = pos.getZ(i), a = y / R;
+    pos.setY(i, Math.sin(a) * (R - z));
+    pos.setZ(i, R - Math.cos(a) * (R - z));
+  }
+  geo.computeVertexNormals();
+  return P(new THREE.Mesh(geo, m), ...p);
+}
+// Tube qui s'effile le long d'une courbe (queue)
+function tubeEffile(points, r0, r1, m, seg = 24) {
+  const chemin = new THREE.CatmullRomCurve3(points.map(q => new THREE.Vector3(...q)));
+  const geo = new THREE.TubeGeometry(chemin, seg, 1, 10, false);
+  const pos = geo.attributes.position, v = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let k = 0; k < pos.count; k++) {
+    const t = Math.floor(k / 11) / seg;
+    chemin.getPointAt(t, c);
+    v.fromBufferAttribute(pos, k).sub(c).multiplyScalar(r0 + (r1 - r0) * t).add(c);
+    pos.setXYZ(k, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  return { mesh: new THREE.Mesh(geo, m), chemin };
+}
+// Yeux de reptile : iris coloré, pupille fendue, reflet
+function yeuxDragon(y, z, ecart, r, iris, lueur) {
+  const un = cote => {
+    const g = G(
+      F.boule(r, mat(iris, { lueur }), 0, 0, 0, 0, 0, 0, 0.9, 1, 0.55),
+      sansContour(F.boule(r * 0.55, mat(0x120806), 0, 0, r * 0.32, 0, 0, 0, 0.3, 1.45, 0.6)),
+      sansContour(F.boule(r * 0.22, new THREE.MeshBasicMaterial({ color: 0xffffff }), r * 0.3, r * 0.35, r * 0.48))
+    );
+    g.position.set(cote * ecart, y, z);
+    g.rotation.y = cote * 0.35;
     return g;
   };
-  const queue = [0, 1, 2, 3, 4].map(i => F.capsule(0.15 - i * 0.025, 0.22, p, 0, 0.4 + Math.sin(i * 0.9) * 0.05, -0.55 - i * 0.24, -1.45, 0, 0));
-  const g = G(
-    [[-0.2, 0.28], [0.2, 0.28], [-0.22, -0.28], [0.22, -0.28]].map(([x, z]) => G(F.capsule(0.11, 0.22, p, x, 0.22, z), F.boule(0.09, griffe, x, 0.05, z + 0.06, 0, 0, 0, 1.1, 0.5, 1.3))),
-    F.boule(0.4, p, 0, 0.58, 0, 0, 0, 0, 1, 0.92, 1.35),
-    F.boule(0.3, v, 0, 0.5, 0.18, 0, 0, 0, 0.92, 0.85, 0.85),
-    [0, 1, 2, 3].map(i => F.cone(0.07, 0.18, corne, 0, 0.98 - i * 0.04, 0.12 - i * 0.22, -0.25, 0, 0)),
-    F.capsule(0.15, 0.42, p, 0, 0.98, 0.36, 0.75, 0, 0),
-    F.boule(0.26, p, 0, 1.3, 0.55, 0, 0, 0, 1, 0.88, 1.05),
-    F.boite(0.3, 0.2, 0.36, p, 0, 1.22, 0.84),
-    F.boite(0.26, 0.08, 0.3, v, 0, 1.11, 0.84),
-    F.boule(0.03, mat(0x1a0a08), -0.07, 1.3, 1.02), F.boule(0.03, mat(0x1a0a08), 0.07, 1.3, 1.02),
-    F.cone(0.06, 0.42, corne, -0.13, 1.55, 0.36, -0.95, 0, 0.25), F.cone(0.06, 0.42, corne, 0.13, 1.55, 0.36, -0.95, 0, -0.25),
-    F.cone(0.04, 0.2, corne, -0.24, 1.38, 0.45, -0.5, 0, 0.9), F.cone(0.04, 0.2, corne, 0.24, 1.38, 0.45, -0.5, 0, -0.9),
-    yeuxLueur(1.38, 0.72, 0.12, 0.05, oeil, oeil),
-    sourcils(1.45, 0.73, 0.12, peau, 0.55),
-    [-0.1, -0.04, 0.04, 0.1].map(x => F.cone(0.022, 0.07, dent, x, 1.13, 1.0, Math.PI, 0, 0)),
-    queue, F.cone(0.12, 0.22, corne, 0, 0.42, -1.78, -1.57, 0, 0), faireAile(1), faireAile(-1)
+  return G(un(-1), un(1));
+}
+// Aile : membrane épaisse (pour le contour) tendue sur des os, côté droit (+x)
+function aileDragon(o) {
+  const forme = new THREE.Shape();
+  forme.moveTo(0, 0.04);
+  forme.quadraticCurveTo(0.18, 0.4, 0.42, 0.44);
+  forme.lineTo(0.84, 0.36);
+  forme.quadraticCurveTo(0.66, 0.24, 0.66, 0.0);
+  forme.quadraticCurveTo(0.52, 0.06, 0.46, -0.14);
+  if (o.os) { forme.lineTo(0.4, -0.02); forme.lineTo(0.34, -0.1); }
+  forme.quadraticCurveTo(0.3, -0.03, 0.2, -0.2);
+  forme.quadraticCurveTo(0.12, -0.04, 0, -0.04);
+  const geo = new THREE.ExtrudeGeometry(forme, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 1, curveSegments: 10 });
+  geo.translate(0, 0, -0.01);
+  const membrane = o.os
+    ? new THREE.MeshToonMaterial({ color: o.membrane, gradientMap: degradeToon(), transparent: true, opacity: 0.78 })
+    : mat(o.membrane);
+  const osAile = mat(o.os ? o.corne : o.peau), doigt = mat(o.os ? o.corne : o.peauS);
+  const coude = [0.42, 0.44, 0.03];
+  return G(
+    new THREE.Mesh(geo, membrane),
+    segment([0, 0.04, 0.03], coude, 0.04, osAile),
+    segment(coude, [0.84, 0.36, 0.03], 0.028, osAile),
+    segment(coude, [0.66, 0.0, 0.03], 0.016, doigt),
+    segment(coude, [0.46, -0.14, 0.03], 0.016, doigt),
+    segment(coude, [0.2, -0.2, 0.03], 0.016, doigt),
+    corneCourbe(0.03, 0.1, 2, mat(o.corne), 0.42, 0.46, 0.03, 0, 0, -0.3)
   );
-  if (squelette) g.traverse(o => { if (o.isMesh && o.material && o.material.emissive && o.material !== aile) o.material.emissive = new THREE.Color(0x06140a); });
-  g.scale.setScalar(ech);
+}
+
+function figurineDragon(o) {
+  o = Object.assign({ peau: 0xc8382a, peauS: 0x8a2018, ventre: 0xf2c06a, membrane: 0xe88a3a, corne: 0xf6ecd4, oeil: 0xffd84a, ech: 1 }, o);
+  const p = mat(o.os ? o.corne : o.peau), pS = mat(o.os ? 0xa8a08a : o.peauS), v = mat(o.ventre), corne = mat(o.corne);
+  const griffe = mat(o.os ? 0x3a3a30 : 0x2a1a14), dent = mat(0xfffaf0), noir = mat(0x1a0a08);
+  const parts = [];
+
+  // Jambes et pieds griffus
+  for (const c of [-1, 1]) {
+    parts.push(
+      o.os ? segment([c * 0.16, 0.42, -0.02], [c * 0.22, 0.12, 0.04], 0.06, p) : F.boule(0.17, p, c * 0.2, 0.3, 0, 0, 0, 0, 1, 1.1, 1.05),
+      F.capsule(0.09, 0.12, p, c * 0.22, 0.09, 0.08, Math.PI / 2, 0, 0),
+      ...[-0.06, 0, 0.06].map(x => F.cone(0.03, 0.08, griffe, c * 0.22 + x, 0.06, 0.25, Math.PI / 2, 0, 0))
+    );
+  }
+
+  if (o.os) {
+    // Dracoliche : bassin, colonne et cage thoracique autour d'un cœur vert
+    parts.push(
+      F.boule(0.2, p, 0, 0.36, 0, 0, 0, 0, 1.4, 0.6, 1),
+      segment([0, 0.36, -0.12], [0, 0.95, -0.1], 0.06, p),
+      sansContour(F.boule(0.2, mat(0x7dff9a, { lueur: 0x40e070 }), 0, 0.64, 0.02)),
+      F.boule(0.26, new THREE.MeshToonMaterial({ color: 0x1a2a20, gradientMap: degradeToon(), transparent: true, opacity: 0.55 }), 0, 0.64, -0.02),
+      ...[0, 1, 2, 3].map(i => F.tore(0.32 - Math.abs(i - 1.3) * 0.045, 0.042, p, Math.PI * 1.55, 0, 0.47 + i * 0.11, 0, Math.PI / 2, 0, Math.PI * 0.725)),
+      F.capsule(0.05, 0.1, p, 0, 0.62, 0.27)
+    );
+  } else {
+    // Ventre rond et plaques ventrales
+    parts.push(
+      F.boule(0.37, p, 0, 0.58, 0, 0, 0, 0, 1, 1.05, 0.92),
+      F.boule(0.29, v, 0, 0.55, 0.16, 0, 0, 0, 0.85, 0.98, 0.72),
+      ...[0.4, 0.52, 0.64, 0.76].map((y, i) => sansContour(F.tore(0.19 - Math.abs(i - 1.5) * 0.035, 0.011, mat(o.ventreS || 0xd09848), Math.PI, 0, y, 0.2 + (i === 0 || i === 3 ? 0.0 : 0.03), Math.PI / 2 + 0.15, 0, 0)))
+    );
+    if (o.boss) parts.push(sansContour(F.boule(0.09, mat(0xffb030, { lueur: 0xff6a00 }), 0, 0.58, 0.33, 0, 0, 0, 1.4, 0.5, 0.3)));
+  }
+
+  // Petits bras griffus
+  for (const c of [-1, 1]) parts.push(
+    segment([c * 0.3, 0.74, 0.04], [c * 0.36, 0.56, 0.2], 0.07, p),
+    ...[-0.04, 0.04].map(x => F.cone(0.022, 0.07, griffe, c * 0.36 + x, 0.5, 0.27, Math.PI * 0.75, 0, 0))
+  );
+
+  // Tête : crâne, museau, mâchoire, narines, crocs
+  const tete = G(
+    F.boule(0.34, p, 0, 0, 0, 0, 0, 0, 1.06, 0.94, 1),
+    F.boule(0.21, p, 0, -0.08, 0.3, -0.12, 0, 0, 0.95, 0.7, 1.25),
+    F.boule(0.17, o.os ? pS : v, 0, -0.18, 0.26, 0, 0, 0, 0.9, 0.48, 1.15),
+    sansContour(F.boule(0.022, noir, -0.06, 0.0, 0.53, -0.5, 0, 0, 1.3, 0.7, 0.8)),
+    sansContour(F.boule(0.022, noir, 0.06, 0.0, 0.53, -0.5, 0, 0, 1.3, 0.7, 0.8)),
+    F.cone(0.028, 0.09, dent, -0.12, -0.17, 0.42, Math.PI, 0, 0),
+    F.cone(0.028, 0.09, dent, 0.12, -0.17, 0.42, Math.PI, 0, 0),
+    o.os ? [-0.07, -0.025, 0.025, 0.07].map(x => F.boite(0.035, 0.05, 0.03, dent, x, -0.14, 0.47)) : [],
+    o.os ? yeuxLueur(0.05, 0.3, 0.14, 0.045, o.oeil, 0x40ff70) : yeuxDragon(0.07, 0.25, 0.15, 0.085, o.oeil, 0x6a4a00),
+    o.os ? [] : sourcils(0.17, 0.28, 0.15, o.peauS, 0.45),
+    // Cornes principales vers l'arrière, cornes de joue
+    corneCourbe(0.085, 0.5, -2.4, corne, -0.17, 0.18, -0.04, -0.15, 0, 0.4),
+    corneCourbe(0.085, 0.5, -2.4, corne, 0.17, 0.18, -0.04, -0.15, 0, -0.4),
+    F.cone(0.05, 0.16, pS, -0.33, -0.02, -0.04, 0, 0, Math.PI / 2 + 0.25),
+    F.cone(0.05, 0.16, pS, 0.33, -0.02, -0.04, 0, 0, -Math.PI / 2 - 0.25),
+    o.boss ? [corneCourbe(0.045, 0.24, -2.6, corne, -0.07, 0.28, -0.1, -0.6, 0, 0.15), corneCourbe(0.045, 0.24, -2.6, corne, 0.07, 0.28, -0.1, -0.6, 0, -0.15)] : [],
+    o.os ? [F.boule(0.105, mat(0x0c0a08), -0.14, 0.06, 0.25, 0, 0.35, 0, 1, 1.1, 0.45), F.boule(0.105, mat(0x0c0a08), 0.14, 0.06, 0.25, 0, -0.35, 0, 1, 1.1, 0.45),
+      F.boite(0.3, 0.03, 0.06, mat(0xa8a08a), 0, 0.15, 0.27, 0.3, 0, 0),
+      sansContour(F.boule(0.035, mat(0x0c0a08), -0.05, -0.02, 0.5)), sansContour(F.boule(0.035, mat(0x0c0a08), 0.05, -0.02, 0.5))] : []
+  );
+  tete.position.set(0, 1.12, 0.08);
+  tete.rotation.x = 0.06;
+  parts.push(tete, F.capsule(0.13, 0.12, o.os ? pS : p, 0, 0.9, -0.02));
+
+  // Piques le long du dos
+  const nbPiques = o.boss ? 6 : 5;
+  for (let i = 0; i < nbPiques; i++) {
+    const t = i / (nbPiques - 1);
+    parts.push(F.cone(0.06 - t * 0.02 + (o.boss ? 0.01 : 0), 0.16 - t * 0.05, mat(o.os ? o.corne : o.membrane), 0, 1.02 - t * 0.62, -0.3 - Math.sin(t * Math.PI) * 0.07, -0.9 - t * 0.5, 0, 0));
+  }
+
+  // Queue qui s'enroule sur le côté, pointe en fer de lance
+  const pts = [[0, 0.4, -0.25], [0.05, 0.2, -0.55], [0.3, 0.1, -0.78], [0.58, 0.14, -0.72], [0.72, 0.3, -0.55]];
+  const q = tubeEffile(pts, 0.14, 0.035, o.os ? pS : p);
+  if (o.os) {
+    for (let i = 0; i <= 10; i++) parts.push(F.boule(0.07 - i * 0.004, p, ...q.chemin.getPointAt(i / 10).toArray()));
+  } else parts.push(q.mesh);
+  const bout = q.chemin.getPointAt(1), dir = q.chemin.getTangentAt(1);
+  const fer = F.cone(0.1, 0.2, mat(o.os ? o.corne : o.membrane), 0, 0, 0, 0, 0, 0, 1, 1, 0.35);
+  fer.position.copy(bout).addScaledVector(dir, 0.08);
+  fer.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  parts.push(fer);
+
+  // Ailes (repliées vers l'arrière, la gauche en miroir)
+  const ech = o.boss ? 1.25 : 1;
+  for (const c of [-1, 1]) {
+    const a = aileDragon(o);
+    a.position.set(0.14, 0.84, -0.24);
+    a.rotation.set(-0.25, 0.05, 0.38);
+    a.scale.setScalar(ech);
+    const m = G(a);
+    m.scale.x = c;
+    parts.push(m);
+  }
+
+  const g = G(parts);
+  // Dracoliche : reflet spectral vert sur tous les os
+  if (o.os) g.traverse(m => { if (m.isMesh && m.material.emissive && m.material.emissive.getHex() === 0) { m.material = m.material.clone(); m.material.emissive.setHex(0x0c2214); } });
+  g.scale.setScalar(o.ech);
   return g;
 }
 
