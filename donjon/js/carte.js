@@ -32,6 +32,16 @@ const CONFIG_CARTE = {
 };
 
 const Carte = {
+  // Carte double (mode Chaos) : deux cartes l'une au-dessus de l'autre, le boss
+  // de la première ouvre sur tout le départ de la seconde.
+  genererDouble() {
+    const a = this.generer(), b = this.generer(), R = CONFIG_CARTE.rangees, n = a.noeuds.length;
+    for (const x of b.noeuds) { x.id += n; x.rangee += R; x.liens = x.liens.map(i => i + n); }
+    const boss = a.noeuds.find(x => x.type === 'boss');
+    boss.liens = b.noeuds.filter(x => x.rangee === R).map(x => x.id);
+    return { noeuds: [...a.noeuds, ...b.noeuds], position: null, rangees: 2 * R, double: true };
+  },
+
   generer() {
     const R = CONFIG_CARTE.rangees, C = CONFIG_CARTE.colonnes;
     const grille = {};                       // "r,c" → nœud
@@ -111,7 +121,7 @@ const Carte = {
   },
 
   // Difficulté des combats selon la rangée
-  niveau(noeud) { return noeud.rangee <= 4 ? 'facile' : 'moyen'; },
+  niveau(noeud) { return noeud.rangee % CONFIG_CARTE.rangees <= 4 ? 'facile' : 'moyen'; },
 
   // Rendu SVG (boss en haut, départ en bas)
   svg(carte) {

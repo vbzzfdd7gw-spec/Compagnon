@@ -126,8 +126,8 @@ const Ui = {
           <span class="camp-icone">${ok ? c.icone : '🔒'}</span>
           <span class="camp-corps">
             <b>${c.nom}</b> <span class="etoiles">${'★'.repeat(c.difficulte)}</span>
-            <span class="camp-resume">${ok ? c.resume : `Terminez <b>${avant.nom}</b> pour débloquer cette campagne.`}</span>
-            ${ok ? `<span class="camp-infos">${c.etages.length} étages${c.regleTexte ? ' · ' + c.regleTexte : ''}${v ? ` · ✅ terminée ${v}×` : rec ? ` · record : étage ${rec}/${c.etages.length}` : ''}</span>` : ''}
+            <span class="camp-resume">${ok ? c.resume : c.apresTout ? 'Terminez <b>toutes les campagnes</b> pour débloquer ce mode.' : `Terminez <b>${avant.nom}</b> pour débloquer cette campagne.`}</span>
+            ${ok ? `<span class="camp-infos">${c.aleatoire ? 'Carte unique' : c.etages.length + ' étages'}${c.regleTexte ? ' · ' + c.regleTexte : ''}${v ? ` · ✅ terminée ${v}×` : rec ? ` · record : étage ${rec}/${c.etages.length}` : ''}</span>` : ''}
           </span>
         </button>`;
       }).join('')}</div>
@@ -378,7 +378,7 @@ const Ui = {
 
   apresRenduCombat() {
     this.majCombat();
-    Modeles3D.theme(Jeu.etageCourant().theme);
+    Modeles3D.theme((Jeu.combat && Jeu.combat.theme) || Jeu.etageCourant().theme);
     Modeles3D.attacher($('#scene'));
   },
 
