@@ -231,6 +231,158 @@ const CAMPAGNES = [
     ]
   },
   {
+    id: 'cote', nom: 'Les Côtes des Sahuagins', icone: '🌊', difficulte: 4, apres: 'eclipse',
+    resume: 'Les hommes-requins sortent des flots et pillent la côte. Leurs prêtresses nourrissent une hydre dans un temple englouti.',
+    regles: { potions: 3, peurMult: 1.1 },
+    regleTexte: 'Les sahuagins frappent plus fort les blessés. Brûlez les cous de l\'hydre !',
+    fin: 'L\'hydre s\'effondre dans un dernier sifflement. Privés de leur dieu, les sahuagins regagnent les abysses.',
+    etages: [
+      {
+        nom: 'La Grève des naufrages', theme: 'cote', force: { pv: 1.0, toucher: 0, degats: 0, dd: 0 },
+        intro: 'Des épaves pourrissent sur le sable. Quelque chose a traîné les marins vers la mer.',
+        rencontres: {
+          facile: [
+            { avant: ['crabe_geant', 'crabe_geant'], arriere: [] },
+            { avant: ['sahuagin', 'sahuagin'], arriere: [] },
+            { avant: ['sahuagin'], arriere: ['harpie'] },
+            { avant: ['crabe_geant', 'sahuagin'], arriere: [] }
+          ],
+          moyen: [
+            { avant: ['sahuagin', 'sahuagin'], arriere: ['harpie'] },
+            { avant: ['crabe_geant', 'crabe_geant'], arriere: ['sahuagin'] },
+            { avant: ['sahuagin', 'crabe_geant'], arriere: ['harpie', 'harpie'] }
+          ],
+          elite: [
+            { avant: ['merrow'], arriere: ['harpie'] },
+            { avant: ['sahuagin', 'sahuagin'], arriere: ['pretresse_sahuagin'] }
+          ],
+          boss: [
+            { avant: ['merrow', 'merrow'], arriere: ['harpie'] }
+          ]
+        }
+      },
+      {
+        nom: 'Le Récif sanglant', theme: 'cote', force: { pv: 1.0, toucher: 0, degats: 0, dd: 0 },
+        intro: 'L\'eau est rouge autour du récif. Des ailerons tournent en cercle.',
+        rencontres: {
+          facile: [
+            { avant: ['sahuagin', 'sahuagin'], arriere: ['harpie'] },
+            { avant: ['merrow'], arriere: [] }
+          ],
+          moyen: [
+            { avant: ['sahuagin', 'sahuagin', 'sahuagin'], arriere: ['pretresse_sahuagin'] },
+            { avant: ['merrow', 'crabe_geant'], arriere: ['harpie'] },
+            { avant: ['merrow', 'sahuagin'], arriere: ['sahuagin'] }
+          ],
+          elite: [
+            { avant: ['merrow', 'merrow'], arriere: ['pretresse_sahuagin'] },
+            { avant: ['sahuagin', 'sahuagin'], arriere: ['pretresse_sahuagin', 'harpie'] }
+          ],
+          boss: [
+            { avant: ['baron_sahuagin'], arriere: ['pretresse_sahuagin'] }
+          ]
+        }
+      },
+      {
+        nom: 'Le Temple englouti', theme: 'cote', force: { pv: 1.1, toucher: 1, degats: 1, dd: 0 },
+        intro: 'Des colonnes couvertes de corail, un autel taché de sang… et cinq têtes qui émergent de l\'eau noire.',
+        rencontres: {
+          facile: [
+            { avant: ['merrow', 'sahuagin'], arriere: ['harpie'] },
+            { avant: ['sahuagin', 'sahuagin'], arriere: ['pretresse_sahuagin'] }
+          ],
+          moyen: [
+            { avant: ['merrow', 'merrow'], arriere: ['harpie', 'harpie'] },
+            { avant: ['sahuagin', 'sahuagin', 'sahuagin'], arriere: ['pretresse_sahuagin'] }
+          ],
+          elite: [
+            { avant: ['baron_sahuagin'], arriere: ['harpie'] },
+            { avant: ['merrow', 'merrow'], arriere: ['pretresse_sahuagin'] }
+          ],
+          boss: [
+            { avant: ['hydre', 'sahuagin'], arriere: ['pretresse_sahuagin'] }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    id: 'souterrains', nom: 'Les Souterrains suintants', icone: '🟢', difficulte: 4, apres: 'marais',
+    resume: 'Sous la vieille cité, des égouts oubliés grouillent de vases affamées, de gargouilles et de coffres trop beaux pour être honnêtes. Tout au fond, une méduse collectionne les statues.',
+    regles: { potions: 3, peurMult: 1.1, mimiques: 0.4 },
+    regleTexte: 'Certains trésors sont des mimiques ! Le tranchant divise les vases : préférez le feu.',
+    fin: 'Sthéna s\'écroule au milieu de sa collection. Une à une, les statues retrouvent leur chair.',
+    etages: [
+      {
+        nom: 'Les Égouts oubliés', theme: 'suintant', force: { pv: 1.15, toucher: 1, degats: 1, dd: 0 },
+        intro: 'Une odeur de moisissure et de métal rongé. Le sol est gluant.',
+        rencontres: {
+          facile: [
+            { avant: ['gelee_ocre'], arriere: [] },
+            { avant: ['oxydeur', 'kobold'], arriere: ['kobold'] },
+            { avant: ['gargouille'], arriere: [] },
+            { avant: ['oxydeur', 'oxydeur'], arriere: [] }
+          ],
+          moyen: [
+            { avant: ['gelee_ocre', 'oxydeur'], arriere: [] },
+            { avant: ['gargouille', 'gargouille'], arriere: [] },
+            { avant: ['kobold', 'kobold'], arriere: ['kobold', 'gargouille'] }
+          ],
+          elite: [
+            { avant: ['cube_gelatineux'], arriere: [] },
+            { avant: ['mimique'], arriere: ['kobold', 'kobold'] }
+          ],
+          boss: [
+            { avant: ['gargouille', 'gargouille'], arriere: ['oxydeur'] }
+          ]
+        }
+      },
+      {
+        nom: 'Les Salles englouties', theme: 'suintant', force: { pv: 1.2, toucher: 1, degats: 1, dd: 1 },
+        intro: 'Des salles à moitié remplies d\'une vase qui bouge toute seule.',
+        rencontres: {
+          facile: [
+            { avant: ['gelee_ocre', 'oxydeur'], arriere: [] },
+            { avant: ['pouding_noir'], arriere: [] }
+          ],
+          moyen: [
+            { avant: ['pouding_noir', 'gargouille'], arriere: [] },
+            { avant: ['gelee_ocre', 'gelee_ocre'], arriere: [] },
+            { avant: ['gargouille', 'oxydeur'], arriere: ['gargouille'] }
+          ],
+          elite: [
+            { avant: ['cube_gelatineux', 'gelee_ocre'], arriere: [] },
+            { avant: ['mimique', 'gargouille'], arriere: [] }
+          ],
+          boss: [
+            { avant: ['cube_gelatineux', 'pouding_noir'], arriere: [] }
+          ]
+        }
+      },
+      {
+        nom: 'Le Jardin des statues', theme: 'suintant', force: { pv: 1.25, toucher: 1, degats: 2, dd: 1 },
+        intro: 'Des dizaines de statues aux visages terrifiés. Un sifflement de serpents résonne sous la voûte.',
+        rencontres: {
+          facile: [
+            { avant: ['gargouille', 'gargouille'], arriere: [] },
+            { avant: ['pouding_noir', 'oxydeur'], arriere: [] }
+          ],
+          moyen: [
+            { avant: ['gargouille', 'gargouille'], arriere: ['gargouille'] },
+            { avant: ['cube_gelatineux'], arriere: ['gargouille'] }
+          ],
+          elite: [
+            { avant: ['mimique', 'gargouille'], arriere: ['gargouille'] },
+            { avant: ['pouding_noir', 'gelee_ocre'], arriere: ['gargouille'] }
+          ],
+          boss: [
+            { avant: ['gargouille', 'gargouille'], arriere: ['meduse'] }
+          ]
+        }
+      }
+    ]
+  },
+  {
     id: 'dragon', nom: 'Le Repaire d\'Ignaroth', icone: '🐉', difficulte: 4, apres: 'eclipse',
     resume: 'Un dragon rouge s\'est éveillé sous la montagne. Ses kobolds pillent les villages et ses dragonnets gardent les tunnels de lave.',
     regles: { potions: 3, peurMult: 1.2 },
@@ -572,6 +724,82 @@ const CAMPAGNES = [
             { avant: ['chacal', 'chacal'], arriere: ['pretre_momie', 'pretre_momie'] }
           ],
           boss: [{ avant: ['momie', 'chacal'], arriere: ['pharaon'] }]
+        }
+      }
+    ]
+  },
+  {
+    id: 'chateau', nom: 'Le Château du Vampire', icone: '🧛', difficulte: 6, apres: 'givre',
+    resume: 'Une brume éternelle couvre la vallée. Au château, le comte Vladislav Morn se nourrit de ses sujets depuis trois siècles.',
+    regles: { potions: 3, peurMult: 1.3 },
+    regleTexte: 'Les dégâts radiants empêchent les vampires de se régénérer. La Peur monte 30 % plus vite.',
+    fin: 'Le comte se change en cendres au premier rayon de l\'aube. Pour la première fois depuis des siècles, le soleil se lève sur la vallée.',
+    etages: [
+      {
+        nom: 'Le Village sous la brume', theme: 'chateau', force: { pv: 1.0, toucher: 0, degats: 1, dd: 0 },
+        intro: 'Volets clos, cloches muettes. Des hurlements résonnent dans la forêt.',
+        rencontres: {
+          facile: [
+            { avant: ['loup_sanguinaire'], arriere: [] },
+            { avant: ['goule', 'goule'], arriere: [] },
+            { avant: ['zombie', 'zombie'], arriere: ['chauves_souris'] },
+            { avant: ['loup', 'loup'], arriere: ['chauves_souris'] }
+          ],
+          moyen: [
+            { avant: ['loup_sanguinaire', 'loup_sanguinaire'], arriere: [] },
+            { avant: ['goule', 'goule'], arriere: ['chauves_souris'] },
+            { avant: ['zombie', 'goule'], arriere: ['ombre'] }
+          ],
+          elite: [
+            { avant: ['bleme', 'goule'], arriere: ['goule'] },
+            { avant: ['loup_sanguinaire', 'loup_sanguinaire'], arriere: ['chauves_souris'] }
+          ],
+          boss: [
+            { avant: ['loup_sanguinaire', 'loup_sanguinaire'], arriere: ['necrophage'] }
+          ]
+        }
+      },
+      {
+        nom: 'Les Cryptes du château', theme: 'chateau', force: { pv: 1.05, toucher: 1, degats: 1, dd: 0 },
+        intro: 'Des cercueils ouverts, vides. Des ombres glissent le long des murs.',
+        rencontres: {
+          facile: [
+            { avant: ['goule', 'goule'], arriere: ['ombre'] },
+            { avant: ['necrophage'], arriere: ['chauves_souris'] }
+          ],
+          moyen: [
+            { avant: ['bleme', 'goule'], arriere: ['ombre'] },
+            { avant: ['necrophage', 'zombie'], arriere: ['ombre', 'ombre'] },
+            { avant: ['goule', 'goule', 'goule'], arriere: ['chauves_souris'] }
+          ],
+          elite: [
+            { avant: ['rejeton_vampire'], arriere: ['ombre'] },
+            { avant: ['bleme', 'bleme'], arriere: ['necrophage'] }
+          ],
+          boss: [
+            { avant: ['rejeton_vampire', 'rejeton_vampire'], arriere: [] }
+          ]
+        }
+      },
+      {
+        nom: 'Le Donjon du comte', theme: 'chateau', force: { pv: 1.1, toucher: 1, degats: 1, dd: 1 },
+        intro: 'Un orgue joue tout seul dans la grande salle. Le comte vous attendait.',
+        rencontres: {
+          facile: [
+            { avant: ['necrophage', 'bleme'], arriere: [] },
+            { avant: ['goule', 'goule'], arriere: ['ombre', 'ombre'] }
+          ],
+          moyen: [
+            { avant: ['rejeton_vampire'], arriere: ['ombre'] },
+            { avant: ['necrophage', 'necrophage'], arriere: ['chauves_souris'] }
+          ],
+          elite: [
+            { avant: ['rejeton_vampire', 'bleme'], arriere: ['ombre'] },
+            { avant: ['rejeton_vampire', 'rejeton_vampire'], arriere: [] }
+          ],
+          boss: [
+            { avant: ['rejeton_vampire'], arriere: ['vampire'] }
+          ]
         }
       }
     ]

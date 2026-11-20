@@ -244,7 +244,7 @@ const Jeu = {
   },
 
   // ------------------------------------------------------- combat
-  lancerCombat(rencontre, type) {
+  lancerCombat(rencontre, type, intro) {
     this.combat = new Combat(this.equipe, rencontre, this, rencontre.force || this.etageCourant().force);
     this.combat.type = type;
     this.combat.theme = rencontre.theme || this.etageCourant().theme;
@@ -255,6 +255,7 @@ const Jeu = {
     this.ecran = 'combat';
     Ui.selection = null;
     Ui.rendu();
+    if (intro) this.combat.log(intro, 'titre mauvais');
     this.combat.demarrer();
   },
 
@@ -313,6 +314,9 @@ const Jeu = {
   },
 
   ouvrirTresor() {
+    // Souterrains : certains coffres sont des mimiques (combat d'élite, butin d'élite)
+    const mimiques = this.campagneCourante().regles.mimiques || 0;
+    if (mimiques && Math.random() < mimiques) return this.lancerCombat({ avant: ['mimique'], arriere: [] }, 'elite', '📦 Le coffre ouvre une gueule pleine de crocs : c\'est une <b>mimique</b> !');
     this.potions++;
     const gain = this.gagnerOr('tresor');
     const extra = Recompenses.offreConsommable();

@@ -137,6 +137,12 @@ function expedition(idC, classes, scs) {
           if (!a) continue;
           jeu.or -= a.prix; Marchand.appliquer(a, jeu); if (!(a.stock && --a.stock > 0)) a.vendu = true;
         }
+      } else if (n.type === 'tresor' && camp.regles.mimiques && Math.random() < camp.regles.mimiques) {
+        jeu.chaos = camp.aleatoire; jeu.typeCombat = 'elite'; jeu.final = etage === ETAGES.length - 1;
+        const r = combattre(equipe, { avant: ['mimique'], arriere: [] }, jeu, ETAGES[etage].force);
+        if (r.fin !== 'victoire') return { ok: false, mort: (etage + 1) + ':mimique', log };
+        jeu.potions++;
+        const o = Recompenses.offreObjet(equipe, [], 'elite'); if (o) Recompenses.appliquer(o, equipe.find(p => p.id === o.pj), jeu);
       } else if (n.type === 'tresor') {
         jeu.or += 45 + Math.floor(Math.random() * 26);
         jeu.potions++;

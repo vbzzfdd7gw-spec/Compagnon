@@ -32,6 +32,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Une campagne** : une entrée dans `CAMPAGNES` avec ses `etages` et `apres` (campagne à terminer pour la débloquer).
 - **Le Dédale du Chaos** reste toujours la dernière campagne (replacé en fin de liste, difficulté = la plus haute + 1). Il se met à jour tout seul : rencontres, boss et renforts d'invocation viennent de toutes les autres campagnes, donc une nouvelle campagne ou un nouveau monstre y apparaît sans rien modifier. Après un ajout, revérifier son taux de victoire (8 à 10 %) avec le simulateur et ajuster `PV_CHAOS`.
 - **Détails du Chaos** (`aleatoire: true`, débloqué quand toutes les campagnes sont terminées) : `genererEtagesAleatoires()` (`campagnes.js`) mélange les rencontres de tous les étages de toutes les campagnes (chacune garde son décor ; `forceChaos` ramène sa puissance à sa place sur la carte), tire deux boss différents parmi tous les boss, et `Carte.genererDouble()` empile deux cartes en une. Les monstres y reçoivent des mutations (`MUTATIONS_CHAOS`) et les boss des pouvoirs (`POUVOIRS_BOSS`), dans `combat.js` (`appliquerChaos`).
+- **Les monstres suivent le bestiaire D&D 5e** (SRD) : leurs capacités particulières (paralysie des goules, régénération du troll et du vampire bloquée par le feu ou le radiant, division du pouding, engloutissement du cube, pétrification de la méduse, têtes de l'hydre…) sont des `traits` ou des effets décrits en tête de `monstres.js`.
 - **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une rencontre de `RENCONTRES` (`{ avant: [...], arriere: [...] }`).
 - **Une classe** : une entrée dans `CLASSES` (avec `role`), son identifiant dans `TOUTES_CLASSES`, ses gains dans `PROGRESSION`, son apparence dans `PERSOS3D` (`ressources3d.js`).
 - **Une sous-classe** : une entrée dans `SOUS_CLASSES` (`sousclasses.js`), avec `deblocage` (campagne à terminer), ses `traits` (liste en tête du fichier, lus par `combat.js`), `remplace` et `niv5`.
@@ -54,7 +55,7 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
 `node outils-simulation.js 2000 crypte sousclasses` fait de même avec des sous-classes au hasard et affiche le taux de chaque sous-classe ;
 `SC_SEUL=clerc:vie node outils-simulation.js 800 crypte classes` donne la sous-classe à une seule classe (comparaison avec `SANS_SC=1`).
-Réglage actuel (sous-classes au hasard) : Crypte 56 %, Éclipse 41 %, Marais 34 %, Dragon 33 %, Givre 19 %, Toiles 17 %, Tombeau 17 %, Légion 12 %, Abîme 18 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
+Réglage actuel (sous-classes au hasard) : Crypte 56 %, Éclipse 41 %, Marais 38 %, Côtes 36 %, Dragon 33 %, Souterrains 30 %, Givre 19 %, Toiles 17 %, Tombeau 17 %, Château 14 %, Légion 12 %, Abîme 18 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
 
 ## Mode test
 

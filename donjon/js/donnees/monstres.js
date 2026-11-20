@@ -11,7 +11,14 @@
 //   mortVivant  : sensible au Renvoi, immunisé au Sommeil
 //   robustesse  : Robustesse des morts-vivants (zombie)
 //   actionsParTour : nombre d'actions par tour (boss)
-//   traits      : capacités passives (ex. { regen: 6 } : PV récupérés à chaque tour)
+//   traits      : capacités passives, fidèles au bestiaire 5e :
+//                 regen (PV par tour) et regenStop (types qui la bloquent un tour : troll, vampire),
+//                 seRelever (revient une fois avec cette part de ses PV : forme de brume du vampire),
+//                 division (types qui le coupent en deux : pouding, gelée), frenesieSang (avantage
+//                 contre les blessés : sahuagins), tetes/tetesMax (hydre : une attaque par tête,
+//                 25 dégâts en un tour tranchent une tête, qui repousse en double sauf feu)
+//   volVie      : (action) l'attaquant récupère les dégâts infligés
+//   effets      : etat 'paralyse', 'charme' (+ attirer : passe en ligne Avant), rouille (−1 CA)
 // =====================================================================
 
 const MONSTRES = {
@@ -183,7 +190,7 @@ const MONSTRES = {
   troll: {
     nom: 'Troll des marais', icone: '🧌', pv: 62, ca: 13, elite: true,
     caracs: { FOR: 18, DEX: 13, CON: 20, INT: 7, SAG: 9, CHA: 7 },
-    traits: { regen: 6 },
+    traits: { regen: 6, regenStop: ['feu', 'acide'] },
     actions: [
       { nom: 'Griffes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 7, degats: '2d6+4', typeDeg: 'tranchant', poids: 3 },
       { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 7, degats: '1d8+4', typeDeg: 'perforant', poids: 2 },
@@ -348,6 +355,226 @@ const MONSTRES = {
         effetSiEchec: { etat: 'entrave', duree: 1 }, poids: 2, recharge: 3 },
       { nom: 'Lever la garde', type: 'special', special: 'invoquer', invocation: 'momie', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 },
       { nom: 'Fléau de scarabées', type: 'special', special: 'invoquer', invocation: 'scarabees', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 1, parCombat: 1 }
+    ]
+  },
+
+  // ------------------------- CHÂTEAU DU VAMPIRE ------------------------
+  goule: {
+    nom: 'Goule', icone: '🧟', pv: 22, ca: 12, mortVivant: true,
+    caracs: { FOR: 13, DEX: 15, CON: 10, INT: 7, SAG: 10, CHA: 6 },
+    immun: ['poison'], immunEtats: ['empoisonne', 'charme'],
+    actions: [
+      { nom: 'Griffes paralysantes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '2d4+2', typeDeg: 'tranchant',
+        effetSiTouche: { etat: 'paralyse', duree: 1, sauvegarde: { carac: 'CON', dd: 10 } }, poids: 2 },
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 2, degats: '2d6+2', typeDeg: 'perforant', poids: 1 }
+    ]
+  },
+  bleme: {
+    nom: 'Blême', icone: '🧟', pv: 36, ca: 13, mortVivant: true,
+    caracs: { FOR: 16, DEX: 17, CON: 10, INT: 11, SAG: 10, CHA: 8 },
+    resist: ['nécrotique'], immun: ['poison'], immunEtats: ['empoisonne', 'charme'],
+    actions: [
+      { nom: 'Griffes paralysantes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '2d6+3', typeDeg: 'tranchant',
+        effetSiTouche: { etat: 'paralyse', duree: 1, sauvegarde: { carac: 'CON', dd: 12 } }, poids: 3 },
+      { nom: 'Puanteur', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'], carac: 'CON', dd: 11, moitie: false,
+        effetSiEchec: { etat: 'empoisonne', duree: 1 }, poids: 1, recharge: 3 }
+    ]
+  },
+  ombre: {
+    nom: 'Ombre', icone: '👤', pv: 18, ca: 12, mortVivant: true,
+    caracs: { FOR: 6, DEX: 14, CON: 13, INT: 6, SAG: 10, CHA: 8 },
+    vuln: ['radiant'], resist: ['tranchant', 'perforant', 'contondant', 'froid', 'feu'], immun: ['nécrotique', 'poison'],
+    immunEtats: ['empoisonne', 'renverse', 'entrave', 'paralyse', 'petrification'],
+    actions: [
+      { nom: 'Toucher affaiblissant', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 4, degats: '2d6+2', typeDeg: 'nécrotique',
+        effetSiTouche: { etat: 'affaibli', duree: 2 }, poids: 1 }
+    ]
+  },
+  chauves_souris: {
+    nom: 'Nuée de chauves-souris', icone: '🦇', pv: 22, ca: 12,
+    caracs: { FOR: 5, DEX: 15, CON: 10, INT: 2, SAG: 12, CHA: 4 },
+    resist: ['tranchant', 'perforant', 'contondant'], immunEtats: ['renverse', 'etourdi', 'entrave', 'paralyse', 'charme', 'endormi'],
+    actions: [
+      { nom: 'Morsures', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 4, degats: '2d4', typeDeg: 'perforant', poids: 1 }
+    ]
+  },
+  loup_sanguinaire: {
+    nom: 'Loup sanguinaire', icone: '🐺', pv: 37, ca: 14,
+    caracs: { FOR: 17, DEX: 15, CON: 15, INT: 3, SAG: 12, CHA: 7 },
+    actions: [
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '2d6+3', typeDeg: 'perforant',
+        effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'FOR', dd: 13 } }, poids: 1 }
+    ]
+  },
+  necrophage: {
+    nom: 'Nécrophage', icone: '💀', pv: 45, ca: 14, mortVivant: true,
+    caracs: { FOR: 15, DEX: 14, CON: 16, INT: 10, SAG: 13, CHA: 15 },
+    resist: ['nécrotique'], immun: ['poison'], immunEtats: ['empoisonne'],
+    actions: [
+      { nom: 'Épée longue', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d8+2', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Drain de vie', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d6+2', typeDeg: 'nécrotique', volVie: true, poids: 2 },
+      { nom: 'Arc long', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 4, degats: '1d8+2', typeDeg: 'perforant', poids: 1 }
+    ]
+  },
+  rejeton_vampire: {
+    nom: 'Rejeton vampirique', icone: '🧛', pv: 60, ca: 15, elite: true, mortVivant: true,
+    caracs: { FOR: 16, DEX: 16, CON: 16, INT: 11, SAG: 10, CHA: 12 },
+    resist: ['nécrotique'], traits: { regen: 6, regenStop: ['radiant'] },
+    actions: [
+      { nom: 'Griffes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '2d4+3', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d6+2d6+3', typeDeg: 'nécrotique', volVie: true, poids: 2 }
+    ]
+  },
+  vampire: {
+    nom: 'Comte Vladislav Morn', icone: '🧛‍♂️', pv: 140, ca: 16, boss: true, actionsParTour: 2, mortVivant: true,
+    caracs: { FOR: 18, DEX: 18, CON: 18, INT: 17, SAG: 15, CHA: 18 },
+    sauvegardesBonus: { DEX: 9, SAG: 7, CHA: 9 },
+    resist: ['nécrotique'], immunEtats: ['charme'], traits: { regen: 10, regenStop: ['radiant'], seRelever: 0.3 },
+    actions: [
+      { nom: 'Frappe', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 9, degats: '1d8+5', typeDeg: 'contondant', poids: 2 },
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 9, degats: '1d6+3d6+5', typeDeg: 'nécrotique', volVie: true, poids: 3 },
+      { nom: 'Regard charmeur', type: 'sauvegarde', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 15, moitie: false,
+        effetSiEchec: { etat: 'charme', duree: 2 }, poids: 2, recharge: 2 },
+      { nom: 'Enfants de la nuit', type: 'special', special: 'invoquer', invocation: 'chauves_souris', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, parCombat: 2 }
+    ]
+  },
+
+  // ------------------------ SOUTERRAINS SUINTANTS ------------------------
+  gelee_ocre: {
+    nom: 'Gelée ocre', icone: '🟨', pv: 34, ca: 8,
+    caracs: { FOR: 15, DEX: 6, CON: 14, INT: 2, SAG: 6, CHA: 1 },
+    resist: ['acide'], immun: ['foudre', 'tranchant'], immunEtats: ['renverse', 'charme', 'paralyse', 'etourdi', 'endormi'],
+    traits: { division: ['tranchant', 'foudre'] },
+    actions: [
+      { nom: 'Pseudopode', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '2d6+1d6+2', typeDeg: 'acide', poids: 1 }
+    ]
+  },
+  pouding_noir: {
+    nom: 'Pouding noir', icone: '⚫', pv: 52, ca: 7,
+    caracs: { FOR: 16, DEX: 5, CON: 16, INT: 1, SAG: 6, CHA: 1 },
+    immun: ['acide', 'froid', 'foudre', 'tranchant'], immunEtats: ['renverse', 'charme', 'paralyse', 'etourdi', 'endormi'],
+    traits: { division: ['tranchant', 'foudre'] },
+    actions: [
+      { nom: 'Pseudopode corrosif', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '1d6+2d8+3', typeDeg: 'acide',
+        effetSiTouche: { rouille: 1 }, poids: 1 }
+    ]
+  },
+  cube_gelatineux: {
+    nom: 'Cube gélatineux', icone: '🟩', pv: 72, ca: 6, elite: true,
+    caracs: { FOR: 14, DEX: 3, CON: 20, INT: 1, SAG: 6, CHA: 1 },
+    immunEtats: ['renverse', 'charme', 'paralyse', 'etourdi', 'endormi', 'entrave'],
+    actions: [
+      { nom: 'Pseudopode', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '3d6', typeDeg: 'acide', poids: 2 },
+      { nom: 'Engloutir', type: 'special', special: 'engloutir', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], dd: 12, degats: '3d6', poids: 2, recharge: 2 }
+    ]
+  },
+  mimique: {
+    nom: 'Mimique', icone: '📦', pv: 58, ca: 12, elite: true,
+    caracs: { FOR: 17, DEX: 12, CON: 15, INT: 5, SAG: 13, CHA: 8 },
+    immun: ['acide'], immunEtats: ['renverse'],
+    actions: [
+      { nom: 'Pseudopode adhésif', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '1d8+3', typeDeg: 'contondant',
+        effetSiTouche: { etat: 'entrave', duree: 2 }, poids: 2 },
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 5, degats: '1d8+1d8+3', typeDeg: 'acide', poids: 2 }
+    ]
+  },
+  gargouille: {
+    nom: 'Gargouille', icone: '🗿', pv: 32, ca: 15,
+    caracs: { FOR: 15, DEX: 11, CON: 16, INT: 6, SAG: 11, CHA: 7 },
+    resist: ['tranchant', 'perforant', 'contondant'], immun: ['poison'], immunEtats: ['empoisonne', 'petrification', 'petrifie'],
+    actions: [
+      { nom: 'Griffes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d6+2', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Piqué', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 4, degats: '1d6+1d6+2', typeDeg: 'perforant', poids: 1 }
+    ]
+  },
+  oxydeur: {
+    nom: 'Oxydeur', icone: '🐜', pv: 27, ca: 14,
+    caracs: { FOR: 13, DEX: 12, CON: 13, INT: 2, SAG: 13, CHA: 6 },
+    actions: [
+      { nom: 'Antennes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 3, degats: '1d4', typeDeg: 'contondant', effetSiTouche: { rouille: 1 }, poids: 2 },
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 3, degats: '1d8+1', typeDeg: 'perforant', poids: 1 }
+    ]
+  },
+  meduse: {
+    nom: 'Sthéna la Méduse', icone: '🐍', pv: 140, ca: 15, boss: true, actionsParTour: 2,
+    caracs: { FOR: 10, DEX: 15, CON: 16, INT: 12, SAG: 13, CHA: 15 },
+    sauvegardesBonus: { DEX: 5, CON: 6, SAG: 4 },
+    immunEtats: ['petrification', 'petrifie'],
+    actions: [
+      { nom: 'Chevelure de serpents', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d4+4d6+2', typeDeg: 'poison',
+        effetSiTouche: { etat: 'empoisonne', duree: 2, sauvegarde: { carac: 'CON', dd: 14 } }, poids: 2 },
+      { nom: 'Épée courte', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d6+2', typeDeg: 'perforant', poids: 1 },
+      { nom: 'Arc long', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '1d8+2d6+2', typeDeg: 'poison', poids: 2 },
+      { nom: 'Regard pétrifiant', type: 'special', special: 'regardPetrifiant', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], dd: 15, poids: 3, recharge: 2 }
+    ]
+  },
+
+  // ------------------------ CÔTES DES SAHUAGINS -------------------------
+  sahuagin: {
+    nom: 'Sahuagin', icone: '🐟', pv: 24, ca: 12,
+    caracs: { FOR: 13, DEX: 11, CON: 12, INT: 12, SAG: 13, CHA: 9 },
+    traits: { frenesieSang: true },
+    actions: [
+      { nom: 'Trident', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d8+2', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d4+2', typeDeg: 'perforant', poids: 1 },
+      { nom: 'Trident lancé', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 4, degats: '1d6+2', typeDeg: 'perforant', poids: 1 }
+    ]
+  },
+  crabe_geant: {
+    nom: 'Crabe géant', icone: '🦀', pv: 26, ca: 15,
+    caracs: { FOR: 13, DEX: 15, CON: 11, INT: 1, SAG: 9, CHA: 3 },
+    actions: [
+      { nom: 'Pince', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 4, degats: '1d6+2', typeDeg: 'contondant', effetSiTouche: { etat: 'entrave', duree: 1 }, poids: 1 }
+    ]
+  },
+  merrow: {
+    nom: 'Merrow', icone: '🧜', pv: 45, ca: 13,
+    caracs: { FOR: 18, DEX: 10, CON: 15, INT: 8, SAG: 10, CHA: 9 },
+    actions: [
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d8+4', typeDeg: 'perforant', poids: 2 },
+      { nom: 'Griffes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '2d4+4', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Harpon', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 6, degats: '2d6+4', typeDeg: 'perforant', effetSiTouche: { attirer: true }, poids: 2 }
+    ]
+  },
+  harpie: {
+    nom: 'Harpie', icone: '🪶', pv: 24, ca: 11,
+    caracs: { FOR: 12, DEX: 13, CON: 12, INT: 7, SAG: 10, CHA: 13 },
+    actions: [
+      { nom: 'Griffes', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 3, degats: '2d4+1', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Chant ensorceleur', type: 'sauvegarde', zone: true, depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 11, moitie: false,
+        effetSiEchec: { etat: 'charme', duree: 1, attirer: true }, poids: 2, recharge: 3 }
+    ]
+  },
+  pretresse_sahuagin: {
+    nom: 'Prêtresse sahuagin', icone: '🔱', pv: 40, ca: 12, elite: true,
+    caracs: { FOR: 13, DEX: 11, CON: 12, INT: 12, SAG: 14, CHA: 13 },
+    traits: { frenesieSang: true },
+    actions: [
+      { nom: 'Malédiction des abysses', type: 'attaque', depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 5, degats: '2d8+2', typeDeg: 'froid', sort: true, poids: 3 },
+      { nom: 'Prière à Sekolah', type: 'special', special: 'soinAllies', soin: '2d6+2', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 2, recharge: 3 },
+      { nom: 'Appel du sang', type: 'special', special: 'ferveur', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 1, recharge: 3 }
+    ]
+  },
+  baron_sahuagin: {
+    nom: 'Kraa\'thul, baron sahuagin', icone: '🦈', pv: 70, ca: 16, boss: true, actionsParTour: 2,
+    caracs: { FOR: 19, DEX: 15, CON: 16, INT: 14, SAG: 13, CHA: 17 },
+    sauvegardesBonus: { DEX: 5, CON: 6, SAG: 4 },
+    traits: { frenesieSang: true },
+    actions: [
+      { nom: 'Trident', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '2d6+3', typeDeg: 'perforant', poids: 3 },
+      { nom: 'Griffes', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 6, degats: '1d8+3', typeDeg: 'tranchant', poids: 2 },
+      { nom: 'Cri de chasse', type: 'special', special: 'ferveur', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 1, recharge: 3 },
+      { nom: 'Au sang !', type: 'special', special: 'invoquer', invocation: 'sahuagin', depuis: ['avant', 'arriere'], cible: 'soi', vise: [], poids: 1, parCombat: 1 }
+    ]
+  },
+  hydre: {
+    nom: 'L\'Hydre des abysses', icone: '🐉', pv: 140, ca: 15, boss: true,
+    caracs: { FOR: 20, DEX: 12, CON: 20, INT: 2, SAG: 10, CHA: 7 },
+    sauvegardesBonus: { CON: 7, SAG: 3 },
+    immunEtats: ['charme', 'etourdi', 'endormi', 'paralyse'],
+    traits: { tetes: 5, tetesMax: 9 },
+    actions: [
+      { nom: 'Morsure', type: 'attaque', depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 7, degats: '1d10+4', typeDeg: 'perforant', poids: 1 }
     ]
   },
 
