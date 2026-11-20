@@ -88,22 +88,31 @@ body { overscroll-behavior: none; }
 .boutons-barre { display: flex; gap: 5px; flex-shrink: 0; }
 .carte-conteneur {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-  background: radial-gradient(ellipse at center, #2a2119, #14110f 78%);
-  border: 1px solid var(--ligne); border-radius: 14px; padding: 4px;
+  background: #b8945a;
+  border: 3px solid #4a3018; border-radius: 10px; padding: 0;
+  box-shadow: inset 0 0 26px #3a2410, 0 4px 14px #0008;
 }
 .carte-svg { width: 100%; max-width: 440px; height: auto; display: block; margin: 0 auto; }
-.carte-svg .lien { stroke: #4a3d31; stroke-width: 2.5; stroke-dasharray: 5 5; }
-.carte-svg .lien.parcouru { stroke: var(--or); stroke-dasharray: none; stroke-width: 3; }
-.carte-svg .lien.possible { stroke: #e9c98a; stroke-dasharray: none; }
-.carte-svg .noeud circle { fill: #2a231d; stroke: #5a4a3c; stroke-width: 2; }
-.carte-svg .noeud text { text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
-.carte-svg .noeud.visite circle { fill: #3a2f25; stroke: var(--or); }
-.carte-svg .noeud.visite { opacity: .6; }
-.carte-svg .noeud.actuel { opacity: 1; }
-.carte-svg .noeud.actuel circle { stroke: #fff; stroke-width: 3; }
+.carte-svg .lien { fill: none; stroke: #5a3a1c; stroke-width: 2.2; stroke-dasharray: 4 5; stroke-linecap: round; opacity: .75; }
+.carte-svg .lien.parcouru { stroke: #8a2414; stroke-dasharray: none; stroke-width: 3.2; opacity: .9; }
+.carte-svg .lien.possible { stroke: #c0801a; stroke-dasharray: 7 4; stroke-width: 3; opacity: 1; animation: chemin 0.9s linear infinite; }
+@keyframes chemin { to { stroke-dashoffset: -22; } }
+.carte-svg .croquis .encre { fill: none; stroke: #5a3a1c; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+.carte-svg .croquis .encre.fin { stroke-width: .9; }
+.carte-svg .croquis .encre.plein { fill: #5a3a1c; }
+.carte-svg .noeud .ombre-noeud { fill: #3a2410; opacity: .35; }
+.carte-svg .noeud .fond-noeud { stroke: #3a2410; stroke-width: 2.4; }
+.carte-svg .noeud .bord-noeud { fill: none; stroke: #fff6dc; stroke-width: 1.2; opacity: .45; }
+.carte-svg .noeud text { text-anchor: middle; dominant-baseline: middle; pointer-events: none; filter: drop-shadow(0 1px 0 #0006); }
+.carte-svg .noeud .coche { fill: none; stroke: #6a1a10; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+.carte-svg .noeud.visite { filter: grayscale(.55) brightness(.92); }
+.carte-svg .noeud.actuel { filter: none; }
 .carte-svg .noeud.accessible { cursor: pointer; }
-.carte-svg .noeud.accessible circle { stroke: #ffd98a; stroke-width: 3; fill: #4a3820; animation: halo 1.4s infinite; }
-.carte-svg .noeud.t-boss circle { fill: #3a1515; stroke: #c0392b; }
+.carte-svg .noeud.accessible .fond-noeud { stroke: #fff2b8; stroke-width: 3.2; animation: halo-carte 1.3s ease-in-out infinite; }
+@keyframes halo-carte { 0%, 100% { filter: drop-shadow(0 0 2px #ffd060); } 50% { filter: drop-shadow(0 0 9px #ffb020); } }
+.carte-svg .noeud.t-boss .fond-noeud { stroke: #2a0606; stroke-width: 3; }
+.carte-svg .pion { animation: pion 1.2s ease-in-out infinite; }
+@keyframes pion { 0%, 100% { transform: translate(0, -22px); } 50% { transform: translate(0, -28px); } }
 @keyframes halo { 0%, 100% { filter: drop-shadow(0 0 2px #ffd98a); } 50% { filter: drop-shadow(0 0 9px #ffd98a); } }
 .legende { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: .72rem; color: var(--discret); justify-content: center; }
 

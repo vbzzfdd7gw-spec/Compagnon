@@ -123,7 +123,7 @@ const Carte = {
   // Difficulté des combats selon la rangée
   niveau(noeud) { return noeud.rangee % CONFIG_CARTE.rangees <= 4 ? 'facile' : 'moyen'; },
 
-  // Rendu SVG (boss en haut, départ en bas)
+  // Rendu SVG façon carte au trésor : parchemin, chemins à l'encre, médaillons, croquis du thème
   svg(carte) {
     const R = carte.rangees;
     const L = 340, E = 64, H = R * E + 40;
@@ -132,16 +132,36 @@ const Carte = {
       y: H - 34 - n.rangee * E
     });
     const acc = this.accessibles(carte);
-    let lignes = '', cercles = '';
+    // Thème de chaque moitié (carte double du Chaos) pour les croquis
+    const themeA = r => {
+      try { const et = Jeu.etages(); return (carte.double ? et[Math.min(et.length - 1, Math.floor(r / CONFIG_CARTE.rangees))] : Jeu.etageCourant()).theme; } catch (e) { return 'crypte'; }
+    };
+    let graine = carte.noeuds.length * 7919 + (carte.noeuds[0] ? Math.round(carte.noeuds[0].decalage * 100) : 0);
+    const alea = () => (graine = (graine * 9301 + 49297) % 233280) / 233280;
+    // Croquis à l'encre dans les espaces vides
+    const pts = carte.noeuds.map(pos);
+    let croquis = '';
+    for (let y = 30; y < H - 20; y += 34) for (let x = 18; x < L - 10; x += 38) {
+      const cx = x + (alea() - 0.5) * 16, cy = y + (alea() - 0.5) * 16;
+      if (pts.some(p => Math.hypot(p.x - cx, p.y - cy) < 34) || alea() < 0.45) continue;
+      const theme = themeA(Math.round((H - 34 - cy) / E));
+      const liste = CROQUIS_THEMES[theme] || CROQUIS_THEMES.crypte;
+      croquis += `<g transform="translate(${cx.toFixed(1)},${cy.toFixed(1)}) scale(${(0.8 + alea() * 0.5).toFixed(2)})">${CROQUIS[liste[Math.floor(alea() * liste.length)]]}</g>`;
+    }
+    // Chemins : courbes à l'encre
+    let lignes = '';
     for (const n of carte.noeuds) {
       const p = pos(n);
       for (const lid of n.liens) {
         const m = this.noeud(carte, lid), q = pos(m);
         const parcouru = n.visite && m.visite;
         const possible = carte.position === n.id && acc.includes(lid);
-        lignes += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" class="lien${parcouru ? ' parcouru' : ''}${possible ? ' possible' : ''}"/>`;
+        const mx = (p.x + q.x) / 2 + (q.y - p.y) * 0.08 * (n.col % 2 ? 1 : -1), my = (p.y + q.y) / 2;
+        lignes += `<path d="M${p.x},${p.y} Q${mx.toFixed(1)},${my.toFixed(1)} ${q.x},${q.y}" class="lien${parcouru ? ' parcouru' : ''}${possible ? ' possible' : ''}"/>`;
       }
     }
+    // Salles : médaillons colorés selon leur type
+    let cercles = '';
     for (const n of carte.noeuds) {
       const p = pos(n);
       const t = TYPES_NOEUDS[n.type];
@@ -149,11 +169,63 @@ const Carte = {
       if (n.visite) classes.push('visite');
       if (acc.includes(n.id)) classes.push('accessible');
       if (carte.position === n.id) classes.push('actuel');
-      const r = n.type === 'boss' ? 26 : 19;
+      const r = n.type === 'boss' ? 27 : 19;
+      const pion = carte.position === n.id
+        ? `<g class="pion" transform="translate(0,${-r - 4})"><path d="M0,0 C-9,-10 -9,-22 0,-24 C9,-22 9,-10 0,0Z" fill="#b8282a" stroke="#3a1008" stroke-width="1.5"/><circle cy="-15" r="4" fill="#fff4d8"/></g>` : '';
       cercles += `<g class="${classes.join(' ')}" data-noeud="${n.id}" transform="translate(${p.x},${p.y})">
-        <circle r="${r}"/><text y="1" font-size="${n.type === 'boss' ? 24 : 18}">${t.icone}</text>
-        <title>${t.nom}</title></g>`;
+        <circle class="ombre-noeud" r="${r}" cy="2.5"/>
+        <circle class="fond-noeud" r="${r}" fill="url(#med-${n.type})"/>
+        <circle class="bord-noeud" r="${r - 3.5}"/>
+        <text y="1" font-size="${n.type === 'boss' ? 25 : 18}">${t.icone}</text>
+        ${n.visite && carte.position !== n.id ? `<path class="coche" d="M${-r * 0.55},${-r * 0.1} L${-r * 0.1},${r * 0.45} L${r * 0.6},${-r * 0.55}"/>` : ''}
+        ${pion}<title>${t.nom}</title></g>`;
     }
-    return `<svg class="carte-svg" viewBox="0 0 ${L} ${H}" preserveAspectRatio="xMidYMid meet">${lignes}${cercles}</svg>`;
+    const degrades = Object.entries(COULEURS_NOEUDS).map(([k, [c1, c2]]) =>
+      `<radialGradient id="med-${k}" cx="40%" cy="35%" r="70%"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></radialGradient>`).join('');
+    return `<svg class="carte-svg" viewBox="0 0 ${L} ${H}" preserveAspectRatio="xMidYMid meet">
+      <defs>${degrades}
+        <radialGradient id="parchemin" cx="50%" cy="50%" r="75%"><stop offset="0%" stop-color="#ead7ab"/><stop offset="70%" stop-color="#d4b47a"/><stop offset="100%" stop-color="#8a6230"/></radialGradient>
+        <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0.35  0 0 0 0 0.22  0 0 0 0 0.08  0 0 0 0.18 0"/></filter>
+        <filter id="taches" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="9"/><feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.3  0 0 0 0 0.12  0 0 0 0.9 -0.35"/></filter>
+      </defs>
+      <rect width="${L}" height="${H}" fill="url(#parchemin)"/>
+      <rect width="${L}" height="${H}" filter="url(#taches)"/>
+      <rect width="${L}" height="${H}" filter="url(#grain)"/>
+      <g class="croquis">${croquis}</g>
+      ${lignes}${cercles}
+    </svg>`;
   }
+};
+
+// Couleurs des médaillons (clair → sombre)
+const COULEURS_NOEUDS = {
+  combat: ['#d8b88a', '#8a6a44'], elite: ['#b8708a', '#5a2440'], repos: ['#ffb060', '#b05a1a'], marchand: ['#9ac87a', '#3a6a2a'],
+  tresor: ['#ffe080', '#b8861a'], evenement: ['#8ab0e0', '#2e4a7a'], boss: ['#e05a4a', '#6a1010']
+};
+// Croquis à l'encre (coordonnées autour de 0,0)
+const CROQUIS = {
+  montagne: '<path class="encre" d="M-12,6 L-4,-6 L2,2 L6,-3 L13,6"/><path class="encre fin" d="M-4,-6 L-2,-2 M6,-3 L7,0"/>',
+  rocher: '<path class="encre" d="M-8,5 Q-9,-2 -3,-4 Q4,-6 7,0 Q9,5 -8,5Z"/>',
+  sapin: '<path class="encre" d="M0,-10 L-6,-1 L-3,-1 L-8,6 L8,6 L3,-1 L6,-1Z M0,6 L0,10"/>',
+  arbre: '<circle class="encre" cx="0" cy="-3" r="6"/><path class="encre" d="M0,3 L0,9"/>',
+  vague: '<path class="encre" d="M-12,0 Q-9,-4 -6,0 T0,0 T6,0 T12,0"/><path class="encre fin" d="M-8,5 Q-5,2 -2,5 T4,5"/>',
+  roseau: '<path class="encre" d="M-3,8 L-4,-6 M0,8 L1,-9 M3,8 L5,-4"/><path class="encre plein" d="M0,-12 L1,-9 L2,-12Z"/>',
+  dune: '<path class="encre" d="M-14,4 Q-6,-6 2,4 M-2,6 Q6,-2 14,6"/>',
+  flocon: '<path class="encre" d="M0,-7 L0,7 M-6,-3.5 L6,3.5 M-6,3.5 L6,-3.5"/>',
+  tombe: '<path class="encre" d="M-5,7 L-5,-3 Q-5,-8 0,-8 Q5,-8 5,-3 L5,7Z M0,-5 L0,2 M-2.5,-2 L2.5,-2"/>',
+  crane: '<circle class="encre" cx="0" cy="-2" r="5"/><circle class="encre plein" cx="-2" cy="-2" r="1.2"/><circle class="encre plein" cx="2" cy="-2" r="1.2"/><path class="encre" d="M-2,3 L-2,6 M2,3 L2,6"/>',
+  toile: '<path class="encre fin" d="M0,0 L0,-10 M0,0 L9,-5 M0,0 L9,5 M0,0 L0,10 M0,0 L-9,5 M0,0 L-9,-5"/><path class="encre fin" d="M0,-6 L5,-3 L5,3 L0,6 L-5,3 L-5,-3Z"/>',
+  flamme: '<path class="encre" d="M0,8 Q-6,4 -3,-2 Q-1,1 0,-8 Q5,-1 3,3 Q6,2 0,8Z"/>',
+  champignon: '<path class="encre" d="M-7,0 Q0,-10 7,0Z M-2,0 L-2,6 L2,6 L2,0"/>',
+  cristal: '<path class="encre" d="M0,-9 L4,-2 L2,7 L-2,7 L-4,-2Z M0,-9 L0,7"/>',
+  colonne: '<path class="encre" d="M-4,8 L-4,-7 M4,8 L4,-7 M-6,-7 L6,-7 M-6,8 L6,8"/>',
+  ancre: '<path class="encre" d="M0,-8 L0,7 M-4,-5 L4,-5 M-7,2 Q0,10 7,2"/><circle class="encre" cx="0" cy="-9" r="1.8"/>',
+  bulle: '<circle class="encre fin" cx="-2" cy="2" r="3"/><circle class="encre fin" cx="3" cy="-4" r="2"/>',
+  chateau: '<path class="encre" d="M-8,8 L-8,-4 L-5,-4 L-5,-1 L-2,-1 L-2,-6 L2,-6 L2,-1 L5,-1 L5,-4 L8,-4 L8,8Z M-1,8 L-1,3 L1,3 L1,8"/>'
+};
+const CROQUIS_THEMES = {
+  crypte: ['tombe', 'crane', 'rocher', 'colonne'], grotte: ['montagne', 'rocher', 'champignon'], sanctuaire: ['colonne', 'flamme', 'tombe'],
+  volcan: ['montagne', 'flamme', 'rocher'], toiles: ['toile', 'crane', 'rocher'], abime: ['cristal', 'crane', 'rocher'],
+  marais: ['roseau', 'vague', 'arbre', 'champignon'], givre: ['sapin', 'flocon', 'montagne'], desert: ['dune', 'colonne', 'crane'],
+  chateau: ['chateau', 'tombe', 'arbre', 'crane'], suintant: ['bulle', 'champignon', 'rocher'], cote: ['vague', 'ancre', 'rocher', 'bulle']
 };

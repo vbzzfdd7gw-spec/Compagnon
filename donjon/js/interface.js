@@ -514,7 +514,8 @@ const Ui = {
             : e.melee ? 'attaque' : (e.typeAct === 'soin' || e.typeAct === 'soutien' || e.special) ? 'soutien' : e.sort ? 'sort' : 'tir';
           Modeles3D.anim(e.source, type);
           if (e.cibles[0] && e.cibles[0] !== e.source) Modeles3D.regarder(e.source, e.cibles[0]);
-          if (e.sort) Modeles3D.flash(e.source, 0x5070ff);
+          if (e.sort) { Modeles3D.flash(e.source, 0x5070ff); Modeles3D.cercle(e.source, e.typeDeg); }
+          this.dernierMelee = e.melee;
           if (e.distance) {
             if (e.typeAct === 'sauvegarde' || e.special) setTimeout(() => e.cibles.forEach(id => Modeles3D.colonne(id, e.typeDeg)), 260);
             else setTimeout(() => e.cibles.forEach(id => Modeles3D.projectile(e.source, id, e.typeDeg)), 220);
@@ -535,6 +536,8 @@ const Ui = {
         el.classList.remove('touche'); void el.offsetWidth; el.classList.add('touche');
         Modeles3D.flash(e.cible, 0xff2a1a);
         Modeles3D.effet(e.cible, e.crit ? 'crit' : 'coup');
+        if (this.dernierMelee) Modeles3D.entaille(e.cible);
+        if (e.crit) Modeles3D.anneau(e.cible, 'crit', 2);
         Modeles3D.anim(e.cible, 'coup');
         Son.jouer(e.crit ? 'metal' : 'coup');
         if (e.crit) Modeles3D.secousse(0.35);
@@ -547,6 +550,7 @@ const Ui = {
         el.classList.remove('a-terre', 'soigne'); void el.offsetWidth; el.classList.add('soigne');
         Modeles3D.flash(e.cible, 0x40ff70);
         Modeles3D.colonne(e.cible, 'soin');
+        Modeles3D.anneau(e.cible, 'soin');
         Son.jouer('soin');
         el.querySelector('.sprite').textContent = Jeu.equipe.find(p => p.id === e.cible)?.icone || el.querySelector('.sprite').textContent;
         this.flotter(el, '+' + e.n, 'soin');
@@ -572,6 +576,7 @@ const Ui = {
       }
       case 'mort':
         Son.jouer(e.pj ? 'chute' : 'mort');
+        if (!e.pj) Modeles3D.poussiere(e.cible);
         if (!el) break;
         el.classList.add(e.pj ? 'a-terre' : 'mort');
         if (e.pj) el.querySelector('.sprite').textContent = '🪦';

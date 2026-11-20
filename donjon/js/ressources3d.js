@@ -420,11 +420,16 @@ function construireDecorKK(scene, zMur, bords, theme, rangsMur = 1) {
 
   // Accessoires au fond, dans les coins (hors des colonnes de personnages)
   const bordFond = bords(zMur + 1.2);
-  groupe.add(piece('barrel_large', -bordFond + 0.5, zMur + 0.9, 0, 0.35));
-  groupe.add(piece('barrel_small_stack', -bordFond + 1.3, zMur + 0.7, 0.6, 0.35));
-  groupe.add(piece('crates_stacked', bordFond - 0.5, zMur + 0.9, -0.3, 0.35));
-  groupe.add(piece('chest_gold', bordFond - 1.35, zMur + 0.6, -0.2, 0.35));
-  groupe.add(piece('candle_triple', -bordFond + 2.0, zMur + 0.5, 0, 0.35));
+  if (!theme.exterieur) {
+    groupe.add(piece('barrel_large', -bordFond + 0.5, zMur + 0.9, 0, 0.35));
+    groupe.add(piece('barrel_small_stack', -bordFond + 1.3, zMur + 0.7, 0.6, 0.35));
+    groupe.add(piece('crates_stacked', bordFond - 0.5, zMur + 0.9, -0.3, 0.35));
+    groupe.add(piece('chest_gold', bordFond - 1.35, zMur + 0.6, -0.2, 0.35));
+    groupe.add(piece('candle_triple', -bordFond + 2.0, zMur + 0.5, 0, 0.35));
+  } else {
+    groupe.add(piece('rubble_large', -bordFond + 0.7, zMur + 0.8, 0.4, 0.4));
+    groupe.add(piece('rubble_half', bordFond - 0.7, zMur + 0.8, -0.6, 0.4));
+  }
   // Lumière et flamme des torches murales
   const flammes = [];
   for (const t of torches) {
