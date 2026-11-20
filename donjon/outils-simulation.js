@@ -40,7 +40,7 @@ function iaPJ(cb, a) {
     const cibles = cb.ciblesValides(a, act);
     if (!cibles.length) continue;
     const moy = act.degats ? Des.moyenne(act.degats) * (act.nbAttaques || 1) : (act.effetSiEchec ? 7 : 2);
-    const s = moy * (act.zone ? cibles.length : 1) * (act.type === 'auto' ? 1.2 : 0.65) + (act.sournoise ? 4 : 0);
+    const s = moy * (act.zone ? cibles.length : act.triangle ? Math.min(act.triangle, cibles.length) : 1) * (act.type === 'auto' ? 1.2 : 0.65) + (act.sournoise ? 4 : 0);
     if (s > score) { score = s; meilleur = [act, act.zone ? null : cibles.sort((x, y) => x.pv - y.pv)[0]]; }
   }
   if (meilleur) return meilleur;

@@ -422,7 +422,8 @@ const Ui = {
     const act = this.selection ? ACTIONS[this.selection] : null;
     const valides = act ? cb.ciblesValides(cb.actif, act) : [];
     const ciblable = act && act.cible !== 'soi' && !act.zone && valides.includes(c);
-    const enZone = act && ((act.zone && valides.includes(c)) || (act.cible === 'soi' && c === cb.actif));
+    const tri = act && act.triangle && this.cibleTri ? valides.find(x => x.id === this.cibleTri) : null;
+    const enZone = act && ((act.zone && valides.includes(c)) || (act.cible === 'soi' && c === cb.actif) || (tri && cb.cibleTriangle(cb.actif, act, tri).includes(c)));
     const classes = ['combattant', c.camp];
     if (cb.actif === c) classes.push('actif');
     if (ciblable) classes.push('ciblable');
@@ -629,9 +630,10 @@ const Ui = {
     if (this.raison) { aide = `<span class="mauvais">⛔ ${this.raison.nom} : ${this.raison.texte}</span><br><span class="discret">${this.raison.desc}</span>`; this.raison = null; }
     if (this.selection) {
       const act = ACTIONS[this.selection];
-      const zone = act.cible === 'soi' || act.zone;
+      const zone = act.cible === 'soi' || act.zone || (act.triangle && this.cibleTri);
+      const indice = act.triangle ? '👆 Touchez le centre du triangle' : '👆 Touchez une cible';
       aide = `<div class="aide-sel"><div><b>${act.icone} ${act.nom}</b> <span class="discret">${act.desc}</span></div>
-        ${zone ? `<button class="btn principal petit" data-clic="confirmer">Lancer ▶</button>` : `<span class="indice">👆 Touchez une cible</span>`}</div>`;
+        ${zone ? `<button class="btn principal petit" data-clic="confirmer">Lancer ▶</button>` : `<span class="indice">${indice}</span>`}</div>`;
     }
     return `<div class="aide">${aide}</div><div class="actions">${boutons}</div>`;
   },
@@ -648,6 +650,7 @@ const Ui = {
     const d = cb.disponibilite(cb.actif, act);
     if (!d.ok) { this.selection = null; this.raison = { nom: act.nom, texte: d.raison, desc: act.desc }; return this.majCombat(); }
     this.selection = this.selection === id ? null : id;
+    this.cibleTri = null;
     this.majCombat();
   },
 
@@ -657,8 +660,11 @@ const Ui = {
       const act = ACTIONS[this.selection];
       const cibles = cb.ciblesValides(cb.actif, act);
       const c = cibles.find(x => x.id === id);
+      // Triangle : 1er toucher = aperçu de la zone, 2e toucher (ou « Lancer ») = lancement
+      if (c && act.triangle && this.cibleTri !== c.id) { this.cibleTri = c.id; return this.majCombat(); }
       if (c && act.cible !== 'soi' && !act.zone) {
         this.selection = null;
+        this.cibleTri = null;
         this.modeSac = false;
         return cb.jouer(cb.actif, act, c);
       }
@@ -671,9 +677,12 @@ const Ui = {
     const cb = Jeu.combat;
     if (!this.selection) return;
     const act = ACTIONS[this.selection];
+    const tri = act.triangle && this.cibleTri ? cb.ciblesValides(cb.actif, act).find(x => x.id === this.cibleTri) : null;
     this.selection = null;
+    this.cibleTri = null;
     this.modeSac = false;
-    cb.jouer(cb.actif, act, null);
+    if (act.triangle && !tri) return;
+    cb.jouer(cb.actif, act, tri);
   },
 
   journal() {

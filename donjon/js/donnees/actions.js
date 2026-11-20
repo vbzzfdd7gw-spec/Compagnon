@@ -14,6 +14,8 @@
 //                                visée est hors de combat, la ligne Arrière devient
 //                                atteignable.
 //   zone                       : true = touche toutes les cibles valides
+//   triangle                   : N = touche la cible choisie et ses N−1 voisins
+//                                les plus proches (même ligne d'abord)
 //   jet                        : 'arme' (bonus d'attaque), 'sort' (bonus de sort) ou nombre
 //   degats, typeDeg            : dés de dégâts et type (tranchant, feu…)
 //   nbAttaques                 : plusieurs jets (ex. Rayon ardent)
@@ -383,10 +385,10 @@ const ACTIONS = {
     desc: 'Niv. 1. Ligne Avant : sauvegarde de FOR ou 1d8 et entravés (désavantage) 2 tours.'
   },
   rayon_lune: {
-    nom: 'Rayon de lune', icone: '🌙', type: 'sauvegarde', niveau: 2, sort: true,
+    nom: 'Rayon de lune', icone: '🌙', type: 'sauvegarde', niveau: 2, sort: true, triangle: 3,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'CON', dd: 'sort', degats: '2d10', typeDeg: 'radiant', moitie: true,
-    desc: 'Niv. 2. Sauvegarde de CON, 2d10 radiant (moitié si réussite).'
+    desc: 'Niv. 2. Un triangle de lumière : la cible et ses 2 voisins les plus proches (3 ennemis au moins s\'ils sont là). Sauvegarde de CON, 2d10 radiant (moitié si réussite).'
   },
   peau_ecorce: {
     nom: 'Peau d\'écorce', icone: '🌳', type: 'soutien', niveau: 2,
