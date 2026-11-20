@@ -70,7 +70,19 @@ const POUVOIRS_BOSS = {
   carapace: { nom: 'Carapace', icone: '🐚', desc: 'Moitié des dégâts tant qu\'un autre ennemi est debout.' },
   furie: { nom: 'Furie', icone: '😡', desc: 'Sous la moitié de ses PV, agit une fois de plus par tour.' }
 };
-const RENFORTS_CHAOS = ['squelette', 'zombie', 'gobelin', 'loup', 'cultiste', 'kobold', 'gnoll', 'spectre'];
+// Renforts des boss invocateurs : tous les monstres ordinaires (ni élite ni boss) des
+// rencontres de toutes les campagnes. Calculé à la demande : une nouvelle campagne
+// ou un nouveau monstre est pris en compte sans rien modifier ici.
+let renfortsChaos = null;
+function RENFORTS_CHAOS() {
+  if (!renfortsChaos) {
+    const ids = new Set();
+    for (const c of CAMPAGNES) if (!c.aleatoire) for (const e of c.etages) for (const k of ['facile', 'moyen'])
+      for (const r of e.rencontres[k] || []) for (const id of [...r.avant, ...r.arriere]) if (MONSTRES[id] && !MONSTRES[id].elite && !MONSTRES[id].boss) ids.add(id);
+    renfortsChaos = [...ids];
+  }
+  return renfortsChaos;
+}
 
 // Peur des monstres (Pacte du Grand Ancien) : Ébranlé à 50, Terrifié à 100
 const PEUR_MONSTRES = { seuilEbranle: 50, malus: 2, recuperation: 5 };
@@ -851,7 +863,7 @@ class Combat {
       }
     }
     if (pv.includes('invocateur') && this.round % 3 === 0 && this.ennemis.filter(e => e.pv > 0).length < 4) {
-      const r = this.creerMonstre(Des.hasard(RENFORTS_CHAOS), ' du chaos');
+      const r = this.creerMonstre(Des.hasard(RENFORTS_CHAOS()), ' du chaos');
       r.initiative = 0;
       r.ligne = 'avant';
       r.chaos = { mutations: [], pouvoirs: [] };
