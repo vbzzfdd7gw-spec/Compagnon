@@ -141,6 +141,23 @@ const PERSOS3D = {
   spectre: { glb: 'skeleton_mage', recolorer: 'spectre', anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
   chef_kobold: { glb: 'mage', montrer: ['1H_Wand', 'Spellbook'], echelle: 0.85, recolorer: 'kobold', anims: { sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Spellcast_Raise' } },
   seigneur_guerre: { glb: 'knight', montrer: ['2H_Sword'], echelle: 1.45, recolorer: 'hobgobelin', anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw', soutien: 'Cheer', invoque: 'Cheer' } },
+  // Marais
+  homme_lezard: { glb: 'barbarian', montrer: ['1H_Axe', 'Barbarian_Round_Shield'], cacher: ['Barbarian_Hat'], recolorer: 'lezard', anims: { tir: 'Throw', soutien: 'Taunt' } },
+  chef_lezard: { glb: 'barbarian', montrer: ['2H_Axe'], cacher: ['Barbarian_Hat'], echelle: 1.35, recolorer: 'lezard_chef', anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', invoque: 'Taunt', soutien: 'Taunt' } },
+  noye: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], recolorer: 'noye', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A' } },
+  troll: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat'], echelle: 1.35, recolorer: 'troll', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', tir: 'Throw' } },
+  guenaude: { glb: 'mage', montrer: ['2H_Staff'], echelle: 1.2, recolorer: 'guenaude', anims: { attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Spellcast_Raise', idle: '2H_Melee_Idle' } },
+  // Givre
+  yeti: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat'], echelle: 1.15, recolorer: 'yeti', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', sort: 'Taunt', soutien: 'Taunt' } },
+  pretresse_givre: { glb: 'mage', montrer: ['1H_Wand', 'Spellbook_open'], recolorer: 'givre', anims: { attaque: 'Spellcast_Shoot', soutien: 'Spellcast_Raise' } },
+  geant_givre: { glb: 'barbarian', montrer: ['2H_Axe'], cacher: ['Barbarian_Hat'], echelle: 1.6, recolorer: 'geant_givre', anims: { idle: '2H_Melee_Idle', attaque: '2H_Melee_Attack_Chop', tir: 'Throw', invoque: 'Taunt', soutien: 'Taunt' } },
+  reine_hiver: { glb: 'mage', montrer: ['2H_Staff'], cacher: ['Mage_Hat'], echelle: 1.25, recolorer: 'reine_hiver', anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', soutien: 'Spellcast_Raise', idle: '2H_Melee_Idle' } },
+  // Tombeau
+  momie: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], recolorer: 'momie', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', sort: 'Taunt' } },
+  chacal: { glb: 'barbarian', montrer: ['1H_Axe', 'Barbarian_Round_Shield'], cacher: ['Barbarian_Hat'], echelle: 1.05, recolorer: 'chacal', anims: { tir: 'Throw', sort: 'Taunt' } },
+  pretre_momie: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' }, echelle: 1.1, recolorer: 'or_desert',
+    anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', soutien: 'Spellcast_Raise', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
+  pharaon: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat'], echelle: 1.45, recolorer: 'pharaon', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', sort: 'Taunt', invoque: 'Taunt', soutien: 'Taunt' } },
   morvagne: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' }, echelle: 1.12, recolorer: 'necro',
     anims: { attaque: '1H_Melee_Attack_Chop', sort: 'Spellcast_Shoot', invoque: 'Spellcast_Summon', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose', soutien: 'Taunt' } }
 };
@@ -179,6 +196,22 @@ const RECOLORATIONS = {
   tyran: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [70, 0.3, l * 0.55] : (s > 0.15 ? [0, Math.min(1, s + 0.2), l * 0.6] : null),
   // Culte de l'Éclipse : noir et violet
   eclipse: (h, s, l) => (h >= 10 && h <= 45 && l > 0.55) ? null : (s > 0.12 ? [270, Math.min(1, s + 0.2), l * 0.5] : null),
+  // Marais : écailles vertes, chef aux écailles rouges et or, noyés bleuâtres, troll mousse, guenaude
+  lezard: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [140, 0.45, l * 0.62] : (s > 0.15 ? [30, s * 0.5, l * 0.6] : null),
+  lezard_chef: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [8, 0.6, l * 0.6] : (s > 0.15 ? [45, Math.min(1, s + 0.3), l * 0.9] : null),
+  noye: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [190, 0.22, l * 0.66] : (s > 0.1 ? [200, s * 0.3, l * 0.5] : null),
+  troll: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [65, 0.22, l * 0.5] : (s > 0.15 ? [95, s * 0.5, l * 0.38] : null),
+  guenaude: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [85, 0.35, l * 0.6] : ((h > 200 || h < 10) && s > 0.15 ? [100, 0.3, l * 0.35] : null),
+  // Givre : yéti blanc, prêtresse cyan, géant à peau bleue, reine argentée
+  yeti: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [205, 0.12, Math.min(0.92, l * 1.2)] : (s > 0.1 ? [205, 0.18, Math.min(0.9, l * 1.35 + 0.1)] : null),
+  givre: (h, s, l) => (h > 200 && s > 0.15) ? [195, Math.min(1, s + 0.1), Math.min(0.85, l * 1.2)] : null,
+  geant_givre: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [205, 0.45, l * 0.72] : (s > 0.15 ? [210, s * 0.4, l * 0.6] : null),
+  reine_hiver: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [210, 0.25, Math.min(0.92, l * 1.05)] : ((h > 200 || h < 10) && s > 0.15 ? [200, 0.3, Math.min(0.95, l * 1.5)] : null),
+  // Tombeau : bandelettes, chacals noir et or, prêtre doré, pharaon or et lapis
+  momie: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [40, 0.25, Math.min(0.9, l * 1.05)] : (s > 0.08 ? [38, 0.28, Math.min(0.85, l * 1.15)] : null),
+  chacal: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [25, 0.15, l * 0.33] : (s > 0.15 ? [45, 0.75, l * 0.9] : null),
+  or_desert: (h, s, l) => (l > 0.45 && (h < 70 || s < 0.25)) ? [42, 0.5, Math.min(0.85, l * 0.92)] : (s > 0.15 ? [215, 0.6, l * 0.5] : null),
+  pharaon: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [40, 0.25, Math.min(0.9, l * 1.05)] : (s > 0.15 ? (h < 60 ? [45, 0.8, l * 0.9] : [215, 0.7, l * 0.55]) : null),
   // Nécromancienne : tenue violet profond
   necro: (h, s, l) => (s > 0.2 && h > 150 && h < 270) ? [280, Math.min(1, s + 0.15), l * 0.75] : null
 };

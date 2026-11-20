@@ -468,12 +468,15 @@ const THEMES_3D = {
   sanctuaire: { brouillard: 0x12060c, ciel: 0xffb0c8, ambiance: 0.36, sol: 0x8a6a72, flamme: 0xd070ff },
   volcan: { brouillard: 0x1a0603, ciel: 0xff9a6a, ambiance: 0.42, sol: 0x6a3a2a, flamme: 0xff5a1a },
   toiles: { brouillard: 0x0a0812, ciel: 0xa8a0d8, ambiance: 0.3, sol: 0x5a5468, flamme: 0x8a7aff },
-  abime: { brouillard: 0x050a08, ciel: 0x8affc0, ambiance: 0.3, sol: 0x4a5a50, flamme: 0x4aff9a }
+  abime: { brouillard: 0x050a08, ciel: 0x8affc0, ambiance: 0.3, sol: 0x4a5a50, flamme: 0x4aff9a },
+  marais: { brouillard: 0x0b120a, ciel: 0xc8e0a0, ambiance: 0.34, sol: 0x5a6648, flamme: 0xb8ff6a },
+  givre: { brouillard: 0x0a1220, ciel: 0xd8f0ff, ambiance: 0.46, sol: 0x9fb4c6, flamme: 0x7ad0ff },
+  desert: { brouillard: 0x1a1208, ciel: 0xffe0a0, ambiance: 0.44, sol: 0xb89a68, flamme: 0xffb040 }
 };
 
 const COULEURS_DEGATS = {
   feu: [1, 0.5, 0.12], froid: [0.55, 0.9, 1], force: [0.85, 0.45, 1], radiant: [1, 0.88, 0.45], 'nécrotique': [0.45, 1, 0.5],
-  psychique: [0.95, 0.4, 1], tonnerre: [0.6, 0.75, 1], poison: [0.6, 1, 0.3], perforant: [1, 0.95, 0.8], tranchant: [1, 0.95, 0.8], contondant: [1, 0.95, 0.8], soin: [0.45, 1, 0.55]
+  psychique: [0.95, 0.4, 1], tonnerre: [0.6, 0.75, 1], foudre: [0.7, 0.85, 1], poison: [0.6, 1, 0.3], perforant: [1, 0.95, 0.8], tranchant: [1, 0.95, 0.8], contondant: [1, 0.95, 0.8], soin: [0.45, 1, 0.55]
 };
 
 // --- Animations des personnages KayKit ---
@@ -840,6 +843,74 @@ const FIGURINES = {
   dragonnet() { return figurineDragon({ ech: 1.0 }); },
   ignaroth() { return figurineDragon({ peau: 0x9a1c14, peauS: 0x5e0e0a, ventre: 0xf0b050, ventreS: 0xb87a28, membrane: 0x9a3044, corne: 0xf0cc70, oeil: 0xffe060, boss: true, ech: 1.35 }); },
   dracoliche() { return figurineDragon({ corne: 0xddd4b6, membrane: 0x2e4a3a, oeil: 0x7dff9a, boss: true, os: true, ech: 1.15 }); },
+
+  crapaud() {
+    const peau = mat(0x5f9a3a), peauS = mat(0x3e6e24), ventre = mat(0xe8d68a), verrue = mat(0x8ab84a), bouche = mat(0x5a1a1a);
+    return G(
+      // Pattes arrière repliées, pattes avant
+      [-1, 1].map(c => G(F.boule(0.2, peau, c * 0.3, 0.2, -0.12, 0, 0, 0, 1, 0.8, 1.3), F.capsule(0.06, 0.18, peauS, c * 0.36, 0.06, 0.12, Math.PI / 2, 0, 0),
+        F.capsule(0.06, 0.2, peau, c * 0.22, 0.2, 0.26, 0.3, 0, 0), F.boule(0.07, peauS, c * 0.23, 0.05, 0.36, 0, 0, 0, 1.3, 0.5, 1.2))),
+      F.boule(0.42, peau, 0, 0.45, 0, 0, 0, 0, 1.1, 0.82, 1),
+      F.boule(0.33, ventre, 0, 0.36, 0.14, 0, 0, 0, 1, 0.75, 0.8),
+      // Large bouche et gros yeux sur le dessus
+      F.boite(0.5, 0.03, 0.05, bouche, 0, 0.5, 0.39, 0, 0, 0),
+      [-1, 1].map(c => G(F.boule(0.13, peau, c * 0.2, 0.8, 0.12), yeuxMignons(0, 0.07, 0, 0.09, 0xc89a10).translateX(c * 0.2).translateY(0.82).translateZ(0.12))),
+      [[-0.25, 0.62, -0.2], [0.3, 0.55, -0.15], [0.05, 0.75, -0.25], [-0.32, 0.4, 0.05]].map(([x, y, z]) => F.boule(0.045, verrue, x, y, z))
+    );
+  },
+  feu_follet() {
+    const coeur = sansContour(F.boule(0.24, mat(0xe8ffb0, { lueur: 0xb0ff60 }), 0, 0.85, 0));
+    const halo = sansContour(F.boule(0.4, new THREE.MeshBasicMaterial({ color: 0x9aff6a, transparent: true, opacity: 0.25, depthWrite: false }), 0, 0.85, 0));
+    const halo2 = sansContour(F.boule(0.56, new THREE.MeshBasicMaterial({ color: 0x6aff9a, transparent: true, opacity: 0.12, depthWrite: false }), 0, 0.85, 0));
+    const queue = sansContour(F.cone(0.2, 0.55, new THREE.MeshBasicMaterial({ color: 0x9aff6a, transparent: true, opacity: 0.35, depthWrite: false }), 0, 0.5, -0.05, Math.PI, 0, 0.2));
+    return G(halo2, halo, coeur, queue, yeuxLueur(0.9, 0.22, 0.08, 0.045, 0x103010, 0x000000));
+  },
+  loup_givre() {
+    const g = FIGURINES.loup();
+    g.traverse(o => {
+      if (!o.isMesh || !o.material || !o.material.color || (o.material.emissive && o.material.emissive.getHex())) return;
+      const hsl = {}; o.material.color.getHSL(hsl);
+      if (hsl.l < 0.15) return;  // nez, pupilles
+      o.material = mat(new THREE.Color().setHSL(0.56, 0.35, Math.min(0.92, 0.35 + hsl.l * 0.7)).getHex());
+    });
+    // Cristaux de glace le long du dos
+    const glace = mat(0xa8e8ff, { lueur: 0x1a4a60 });
+    [0, 1, 2].forEach(i => g.add(F.cone(0.06 - i * 0.012, 0.22 - i * 0.04, glace, 0, 0.78 - i * 0.04, 0.05 - i * 0.22, -0.4, 0, 0)));
+    return g;
+  },
+  esprit_glace() {
+    const cristal = new THREE.MeshToonMaterial({ color: 0xbfeeff, gradientMap: degradeToon(), emissive: 0x1a4a66 });
+    const sombre = new THREE.MeshToonMaterial({ color: 0x6ab8e0, gradientMap: degradeToon(), emissive: 0x0a2a40 });
+    const pic = (r, h, m, x, y, z, rx, rz) => P(new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), m), x, y, z, rx, 0, rz);
+    return G(
+      P(new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 0), cristal), 0, 0.9, 0, 0, 0.4, 0, 1, 1.25, 1),
+      pic(0.12, 0.5, sombre, -0.32, 0.95, -0.05, 0, 0.7), pic(0.12, 0.5, sombre, 0.32, 0.95, -0.05, 0, -0.7),
+      pic(0.09, 0.4, cristal, -0.18, 1.3, -0.1, -0.2, 0.35), pic(0.09, 0.4, cristal, 0.18, 1.3, -0.1, -0.2, -0.35), pic(0.1, 0.45, cristal, 0, 1.38, -0.12, -0.25, 0),
+      pic(0.08, 0.32, sombre, -0.15, 0.45, 0.05, Math.PI, -0.25), pic(0.08, 0.32, sombre, 0.15, 0.45, 0.05, Math.PI, 0.25), pic(0.1, 0.4, cristal, 0, 0.38, 0, Math.PI, 0),
+      yeuxLueur(0.96, 0.28, 0.1, 0.05, 0xffffff, 0x60c0ff),
+      sansContour(F.boule(0.5, new THREE.MeshBasicMaterial({ color: 0x9adcff, transparent: true, opacity: 0.1, depthWrite: false }), 0, 0.9, 0))
+    );
+  },
+  scarabees() {
+    const carapace = mat(0x1e6a6a), reflet = mat(0xd8a838), sombre = mat(0x10201e);
+    const scarabee = (x, y, z, e, ry) => {
+      const b = G(
+        F.boule(0.13, carapace, 0, 0, 0, 0, 0, 0, 0.85, 0.6, 1.1),
+        F.boite(0.012, 0.05, 0.22, sombre, 0, 0.07, -0.01),
+        F.boule(0.05, reflet, -0.05, 0.06, -0.02, 0, 0, 0, 0.7, 0.4, 1.2), F.boule(0.05, reflet, 0.05, 0.06, -0.02, 0, 0, 0, 0.7, 0.4, 1.2),
+        F.boule(0.07, sombre, 0, 0, 0.14),
+        F.cone(0.015, 0.08, sombre, -0.04, 0.02, 0.22, Math.PI / 2 - 0.3, 0, -0.3), F.cone(0.015, 0.08, sombre, 0.04, 0.02, 0.22, Math.PI / 2 - 0.3, 0, 0.3)
+      );
+      b.position.set(x, y, z); b.rotation.y = ry; b.scale.setScalar(e);
+      return b;
+    };
+    return G(
+      scarabee(0, 0.62, 0.12, 2.1, 0),
+      yeuxLueur(0.7, 0.42, 0.07, 0.035, 0xffd04a, 0xc08000),
+      scarabee(-0.32, 0.12, 0.2, 1, 0.5), scarabee(0.3, 0.1, 0.25, 1, -0.4), scarabee(-0.1, 0.1, -0.2, 1.1, 2.6), scarabee(0.25, 0.3, -0.15, 0.9, 1.4),
+      scarabee(-0.35, 0.35, -0.05, 0.9, -1.2), scarabee(0.38, 0.45, 0.02, 0.8, 0.9), scarabee(0.05, 0.12, 0.38, 0.9, 0.1), scarabee(-0.15, 0.95, -0.1, 0.8, 2)
+    );
+  },
 
   inconnu() { return G(F.boule(0.4, mat(0x888888), 0, 0.5, 0)); }
 };

@@ -142,7 +142,7 @@ class Combat {
       id: 'm' + (++this.compteur), modele: id, camp: 'ennemi',
       nom: d.nom + suffixe, icone: d.icone,
       pv, pvMax: pv, ca: d.ca + f.ca, caracs: d.caracs,
-      actions, etats: {}, usages: {}, recharges: {},
+      actions, etats: {}, usages: {}, recharges: {}, traits: { ...(d.traits || {}) },
       boss: !!d.boss, elite: !!d.elite
     };
   }
@@ -264,7 +264,8 @@ class Combat {
     if (c.traits && c.traits.regen && c.pv < c.pvMax) {
       const avant = c.pv;
       c.pv = Math.min(c.pvMax, c.pv + c.traits.regen);
-      this.log(`💍 ${this.nomHtml(c)} récupère ${c.pv - avant} PV (objet).`, 'bon');
+      this.log(c.camp === 'pj' ? `💍 ${this.nomHtml(c)} récupère ${c.pv - avant} PV (objet).` : `💚 ${this.nomHtml(c)} se régénère : +${c.pv - avant} PV.`, c.camp === 'pj' ? 'bon' : 'mauvais');
+      this.evt({ t: 'soin', cible: c.id, n: c.pv - avant, pvAvant: avant, pvApres: c.pv, pvMax: c.pvMax });
     }
     if (c.traits && c.traits.saigne && c.pv > 1) {
       const perte = Math.min(c.traits.saigne, c.pv - 1);
