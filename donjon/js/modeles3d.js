@@ -206,7 +206,7 @@ const Modeles3D = {
       corps.traverse(o => { if (o.isMesh && !o.userData.contour) o.castShadow = true; });
     }
     g.add(corps);
-    const anneau = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 32), new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.9, depthWrite: false }));
+    const anneau = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 32), new THREE.MeshBasicMaterial({ color: lin(0xffd98a), transparent: true, opacity: 0.9, depthWrite: false }));
     anneau.rotation.x = -Math.PI / 2;
     anneau.position.y = 0.03;
     anneau.visible = false;
@@ -536,11 +536,19 @@ function degradeToon() {
   }
   return DEGRADE_TOON;
 }
+// Couleur donnée en sRGB (comme dans un logiciel de dessin) → espace linéaire du rendu,
+// pour avoir exactement les mêmes teintes que les textures KayKit
+function lin(c) { return new THREE.Color(c).convertSRGBToLinear(); }
+// Matériau des figurines dessinées : même rendu que les modèles KayKit
+// (MeshStandardMaterial, rugosité 0,5, sans métal)
 function mat(couleur, o = {}) {
-  return new THREE.MeshToonMaterial({ color: couleur, gradientMap: degradeToon(), emissive: o.lueur ?? 0x000000 });
+  const m = new THREE.MeshStandardMaterial({ color: lin(couleur), roughness: o.rugosite ?? 0.55, metalness: 0, emissive: lin(o.lueur ?? o.emissive ?? 0x000000) });
+  if (o.transparent) { m.transparent = true; m.opacity = o.opacity ?? 1; if (o.depthWrite === false) m.depthWrite = false; }
+  if (o.side) m.side = o.side;
+  return m;
 }
 function compilerContour(sh) {
-  sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normalize(normal) * 0.028;');
+  sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normalize(normal) * 0.018;');
 }
 function ajouterContours(racine) {
   const meshes = [];
@@ -580,7 +588,7 @@ function yeuxMignons(y, z, ecart = 0.12, r = 0.075, pupille = 0x1a1210) {
   const un = () => G(
     F.boule(r, mat(0xffffff), 0, 0, 0, 0, 0, 0, 0.85, 1.1, 0.6),
     sansContour(F.boule(r * 0.6, mat(pupille), 0, -r * 0.05, r * 0.38, 0, 0, 0, 1, 1.15, 0.6)),
-    sansContour(F.boule(r * 0.28, new THREE.MeshBasicMaterial({ color: 0xffffff }), r * 0.2, r * 0.25, r * 0.6))
+    sansContour(F.boule(r * 0.28, new THREE.MeshBasicMaterial({ color: lin(0xffffff )}), r * 0.2, r * 0.25, r * 0.6))
   );
   const g1 = un(); g1.position.set(-ecart, y, z);
   const g2 = un(); g2.position.set(ecart, y, z);
@@ -732,21 +740,28 @@ const FIGURINES = {
   },
 
   loup() {
-    const poil = mat(0x8a8e9a), clair = mat(0xdcd8d0), sombre = mat(0x4a4e58), nez = mat(0x1a1a1a), dent = mat(0xffffff);
-    const pattes = [[-0.14, 0.25], [0.14, 0.25], [-0.14, -0.28], [0.14, -0.28]].map(([x, z]) => F.capsule(0.07, 0.2, poil, x, 0.16, z));
+    const poil = mat(0x8a8e9a), clair = mat(0xe4e0d8), sombre = mat(0x5a5e68), nez = mat(0x1a1a1a), dent = mat(0xffffff), rose = mat(0xd88a8a);
+    const patte = (x, z, avant) => G(
+      F.capsule(0.075, avant ? 0.16 : 0.12, poil, x, avant ? 0.2 : 0.22, z),
+      F.boule(0.085, clair, x, 0.06, z + 0.04, 0, 0, 0, 1, 0.65, 1.25)
+    );
+    const queue = tubeEffile([[0, 0.55, -0.4], [0, 0.72, -0.62], [0.05, 0.95, -0.66], [0.08, 1.05, -0.55]], 0.1, 0.03, sombre, 14).mesh;
     return G(
-      pattes,
-      F.capsule(0.24, 0.5, poil, 0, 0.48, -0.02, Math.PI / 2, 0, 0),
-      F.boule(0.22, clair, 0, 0.5, 0.25),
-      F.boule(0.3, poil, 0, 0.82, 0.38),
-      F.boule(0.13, clair, 0, 0.72, 0.62, 0, 0, 0, 1, 0.8, 1.3),
-      F.boule(0.05, nez, 0, 0.77, 0.79),
-      F.cone(0.09, 0.22, poil, -0.16, 1.1, 0.33, 0, 0, 0.25), F.cone(0.09, 0.22, poil, 0.16, 1.1, 0.33, 0, 0, -0.25),
-      F.cone(0.05, 0.12, clair, -0.16, 1.08, 0.36, 0, 0, 0.25), F.cone(0.05, 0.12, clair, 0.16, 1.08, 0.36, 0, 0, -0.25),
-      yeuxMignons(0.9, 0.62, 0.12, 0.065, 0xc89a10),
-      sourcils(0.98, 0.65, 0.12, 0x3a3e48, 0.5),
-      F.cone(0.025, 0.06, dent, -0.05, 0.64, 0.7, Math.PI, 0, 0), F.cone(0.025, 0.06, dent, 0.05, 0.64, 0.7, Math.PI, 0, 0),
-      F.cone(0.12, 0.45, sombre, 0, 0.62, -0.55, -2.1, 0, 0)
+      patte(-0.15, 0.2, true), patte(0.15, 0.2, true), patte(-0.16, -0.25, false), patte(0.16, -0.25, false),
+      F.boule(0.27, poil, 0, 0.48, -0.08, 0, 0, 0, 1, 0.92, 1.45),
+      F.boule(0.2, clair, 0, 0.55, 0.22, 0, 0, 0, 1.05, 1.1, 0.8),
+      [-0.12, 0, 0.12].map(x => F.cone(0.07, 0.16, clair, x, 0.45, 0.33, Math.PI + 0.3, 0, 0)),
+      queue,
+      // Tête : crâne, museau long, oreilles pointues à l'intérieur clair
+      F.boule(0.3, poil, 0, 0.88, 0.32, 0, 0, 0, 1.05, 0.95, 1),
+      F.boule(0.16, poil, 0, 0.78, 0.6, 0, 0, 0, 0.95, 0.75, 1.3),
+      F.boule(0.12, clair, 0, 0.72, 0.6, 0, 0, 0, 1, 0.6, 1.25),
+      F.boule(0.055, nez, 0, 0.83, 0.79, 0, 0, 0, 1.2, 0.9, 1),
+      [-1, 1].map(c => G(F.cone(0.1, 0.24, poil, c * 0.17, 1.15, 0.28, -0.15, 0, -c * 0.3), F.cone(0.05, 0.13, rose, c * 0.17, 1.13, 0.32, -0.15, 0, -c * 0.3))),
+      [-1, 1].map(c => F.boule(0.1, clair, c * 0.2, 0.78, 0.42, 0, 0, 0, 0.8, 0.8, 0.7)),
+      yeuxMignons(0.93, 0.55, 0.12, 0.065, 0xc89a10),
+      sourcils(1.01, 0.58, 0.12, 0x3a3e48, 0.5),
+      F.cone(0.022, 0.06, dent, -0.06, 0.66, 0.68, Math.PI, 0, 0), F.cone(0.022, 0.06, dent, 0.06, 0.66, 0.68, Math.PI, 0, 0)
     );
   },
 
@@ -837,7 +852,7 @@ const FIGURINES = {
 
   loup_alpha() {
     const g = FIGURINES.loup();
-    g.traverse(o => { if (o.material && o.material.emissive && !o.material.emissive.getHex()) o.material = mat(o.material.color.clone().multiplyScalar(0.55).getHex()); });
+    g.traverse(o => { if (o.material && o.material.emissive && !o.material.emissive.getHex()) o.material = mat(o.material.color.clone().convertLinearToSRGB().multiplyScalar(0.55).getHex()); });
     return g;
   },
 
@@ -862,17 +877,20 @@ const FIGURINES = {
     );
   },
   feu_follet() {
-    const coeur = sansContour(F.boule(0.24, mat(0xe8ffb0, { lueur: 0xb0ff60 }), 0, 0.85, 0));
-    const halo = sansContour(F.boule(0.4, new THREE.MeshBasicMaterial({ color: 0x9aff6a, transparent: true, opacity: 0.25, depthWrite: false }), 0, 0.85, 0));
-    const halo2 = sansContour(F.boule(0.56, new THREE.MeshBasicMaterial({ color: 0x6aff9a, transparent: true, opacity: 0.12, depthWrite: false }), 0, 0.85, 0));
-    const queue = sansContour(F.cone(0.2, 0.55, new THREE.MeshBasicMaterial({ color: 0x9aff6a, transparent: true, opacity: 0.35, depthWrite: false }), 0, 0.5, -0.05, Math.PI, 0, 0.2));
-    return G(halo2, halo, coeur, queue, yeuxLueur(0.9, 0.22, 0.08, 0.045, 0x103010, 0x000000));
+    // Une flamme pâle : cœur lumineux, langues de feu, traînée qui s'efface
+    const coeur = sansContour(F.boule(0.17, mat(0xf4ffd0, { lueur: 0xb8ff70 }), 0, 0.85, 0));
+    const flamme = (r, h, o, x, y, z, rz) => sansContour(F.cone(r, h, new THREE.MeshBasicMaterial({ color: lin(0xb0ff80), transparent: true, opacity: o, depthWrite: false }), x, y, z, 0, 0, rz));
+    const halo = sansContour(F.boule(0.32, new THREE.MeshBasicMaterial({ color: lin(0x9aff6a), transparent: true, opacity: 0.1, depthWrite: false }), 0, 0.85, 0));
+    return G(halo, coeur,
+      flamme(0.13, 0.32, 0.35, 0, 1.08, 0, 0), flamme(0.08, 0.22, 0.3, -0.1, 1.0, 0, 0.5), flamme(0.08, 0.22, 0.3, 0.1, 1.0, 0, -0.5),
+      sansContour(F.cone(0.12, 0.5, new THREE.MeshBasicMaterial({ color: lin(0x80e0a0), transparent: true, opacity: 0.2, depthWrite: false }), 0, 0.55, -0.05, Math.PI, 0, 0.2)),
+      yeuxLueur(0.88, 0.15, 0.06, 0.035, 0x103010, 0x000000));
   },
   loup_givre() {
     const g = FIGURINES.loup();
     g.traverse(o => {
       if (!o.isMesh || !o.material || !o.material.color || (o.material.emissive && o.material.emissive.getHex())) return;
-      const hsl = {}; o.material.color.getHSL(hsl);
+      const hsl = {}; o.material.color.clone().convertLinearToSRGB().getHSL(hsl);
       if (hsl.l < 0.15) return;  // nez, pupilles
       o.material = mat(new THREE.Color().setHSL(0.56, 0.35, Math.min(0.92, 0.35 + hsl.l * 0.7)).getHex());
     });
@@ -882,8 +900,8 @@ const FIGURINES = {
     return g;
   },
   esprit_glace() {
-    const cristal = new THREE.MeshToonMaterial({ color: 0xbfeeff, gradientMap: degradeToon(), emissive: 0x1a4a66 });
-    const sombre = new THREE.MeshToonMaterial({ color: 0x6ab8e0, gradientMap: degradeToon(), emissive: 0x0a2a40 });
+    const cristal = mat(0xbfeeff, { emissive: 0x1a4a66 });
+    const sombre = mat(0x6ab8e0, { emissive: 0x0a2a40 });
     const pic = (r, h, m, x, y, z, rx, rz) => P(new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), m), x, y, z, rx, 0, rz);
     return G(
       P(new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 0), cristal), 0, 0.9, 0, 0, 0.4, 0, 1, 1.25, 1),
@@ -891,7 +909,7 @@ const FIGURINES = {
       pic(0.09, 0.4, cristal, -0.18, 1.3, -0.1, -0.2, 0.35), pic(0.09, 0.4, cristal, 0.18, 1.3, -0.1, -0.2, -0.35), pic(0.1, 0.45, cristal, 0, 1.38, -0.12, -0.25, 0),
       pic(0.08, 0.32, sombre, -0.15, 0.45, 0.05, Math.PI, -0.25), pic(0.08, 0.32, sombre, 0.15, 0.45, 0.05, Math.PI, 0.25), pic(0.1, 0.4, cristal, 0, 0.38, 0, Math.PI, 0),
       yeuxLueur(0.96, 0.28, 0.1, 0.05, 0xffffff, 0x60c0ff),
-      sansContour(F.boule(0.5, new THREE.MeshBasicMaterial({ color: 0x9adcff, transparent: true, opacity: 0.1, depthWrite: false }), 0, 0.9, 0))
+      sansContour(F.boule(0.5, new THREE.MeshBasicMaterial({ color: lin(0x9adcff), transparent: true, opacity: 0.1, depthWrite: false }), 0, 0.9, 0))
     );
   },
   scarabees() {
@@ -919,7 +937,7 @@ const FIGURINES = {
     const g = FIGURINES.loup();
     g.traverse(o => {
       if (!o.isMesh || !o.material || !o.material.color || (o.material.emissive && o.material.emissive.getHex())) return;
-      const hsl = {}; o.material.color.getHSL(hsl);
+      const hsl = {}; o.material.color.clone().convertLinearToSRGB().getHSL(hsl);
       if (hsl.l < 0.15) return;
       o.material = mat(new THREE.Color().setHSL(0.05, 0.3, 0.06 + hsl.l * 0.2).getHex());
     });
@@ -943,20 +961,28 @@ const FIGURINES = {
     return G([[0, 0.9, 0.1, 1.6, 0], [-0.32, 0.65, 0, 1.2, 0.4], [0.3, 0.7, 0.05, 1.3, -0.3], [-0.15, 1.15, -0.1, 1.1, 0.2], [0.2, 1.1, -0.15, 1, -0.5], [0.05, 0.45, 0.15, 1.1, 0.1], [-0.4, 0.95, -0.15, 0.9, 0.8]].map(a => chauve(...a)));
   },
   ombre() {
-    const nuit = new THREE.MeshToonMaterial({ color: 0x14101c, gradientMap: degradeToon(), transparent: true, opacity: 0.88 });
-    const voile = new THREE.MeshBasicMaterial({ color: 0x2a1a40, transparent: true, opacity: 0.35, depthWrite: false });
-    return G(
-      F.cone(0.34, 0.9, nuit, 0, 0.45, 0, 0, 0, 0, 1, 1, 0.8),
-      F.boule(0.28, nuit, 0, 1.0, 0.02),
-      F.capsule(0.06, 0.4, nuit, -0.32, 0.65, 0.12, -0.6, 0, 0.5), F.capsule(0.06, 0.4, nuit, 0.32, 0.65, 0.12, -0.6, 0, -0.5),
-      yeuxLueur(1.02, 0.25, 0.1, 0.045, 0xd0e0ff, 0x8090ff),
-      sansContour(F.boule(0.5, voile, 0, 0.75, 0, 0, 0, 0, 1, 1.5, 1))
+    const cape = mat(0x2c2440, { lueur: 0x0a0614 }), capeS = mat(0x1c1630), vide = mat(0x08060c), griffe = mat(0x6a6080, { lueur: 0x100a20 });
+    const g = G(
+      // Manteau en lambeaux qui flotte
+      F.cyl(0.2, 0.4, 0.75, cape, 0, 0.55, 0),
+      [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const a = i / 8 * Math.PI * 2; return F.cone(0.09, 0.26, i % 2 ? capeS : cape, Math.sin(a) * 0.34, 0.12, Math.cos(a) * 0.34, Math.PI, 0, 0); }),
+      // Capuche et visage vide
+      F.boule(0.32, cape, 0, 1.05, -0.02, 0, 0, 0, 1, 1.05, 1.05),
+      F.cone(0.16, 0.35, cape, 0, 1.32, -0.2, -0.9, 0, 0),
+      F.boule(0.24, vide, 0, 1.02, 0.1, 0, 0, 0, 1, 1, 0.75),
+      yeuxLueur(1.05, 0.3, 0.09, 0.045, 0xd8e4ff, 0x90a0ff),
+      // Bras tendus aux griffes pâles
+      [-1, 1].map(c => G(
+        segment([c * 0.22, 0.85, 0.05], [c * 0.4, 0.6, 0.35], 0.09, cape),
+        [-1, 0, 1].map(k => F.cone(0.025, 0.14, griffe, c * 0.42 + k * 0.035, 0.5, 0.42, 0.5, 0, 0))))
     );
+    g.position.y = 0.08;
+    return G(g);
   },
   gelee_ocre() { return figurineVase(0xd8a030, 0xf0c860, 0.95, false); },
   pouding_noir() { return figurineVase(0x1a1418, 0x3a3038, 1.15, false); },
   cube_gelatineux() {
-    const gel = new THREE.MeshToonMaterial({ color: 0x7ae8a0, gradientMap: degradeToon(), transparent: true, opacity: 0.55, emissive: 0x0a3a1a, depthWrite: false });
+    const gel = mat(0x7ae8a0, { transparent: true, opacity: 0.55, emissive: 0x0a3a1a, depthWrite: false });
     const os = mat(0xf2ead2), metal = mat(0x9aa0a8);
     const cube = sansContour(F.boite(1.05, 1.05, 1.05, gel, 0, 0.53, 0));
     const aretes = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.06, 1.06, 1.06)), new THREE.LineBasicMaterial({ color: 0x2a6a3a }));
@@ -990,47 +1016,71 @@ const FIGURINES = {
     );
   },
   gargouille() {
-    const pierre = mat(0x7a7a80), pierreS = mat(0x55555c), corne = mat(0x4a4a50);
-    const o = { os: false, peau: 0x7a7a80, peauS: 0x55555c, membrane: 0x6a6a72, corne: 0x4a4a50 };
-    const ailes = [-1, 1].map(c => { const a = aileDragon(o); a.position.set(0.12, 0.8, -0.2); a.rotation.set(-0.2, 0.1, 0.5); a.scale.setScalar(0.8); const m = G(a); m.scale.x = c; return m; });
+    const pierre = mat(0x7c7884), pierreS = mat(0x5c5866), socle = mat(0x4e4a56), corne = mat(0x3e3a46), dent = mat(0xe8e2d0);
+    const o = { os: false, peau: 0x7c7884, peauS: 0x5c5866, membrane: 0x66626e, corne: 0x3e3a46 };
+    const ailes = [-1, 1].map(c => { const a = aileDragon(o); a.position.set(0.1, 0.95, -0.25); a.rotation.set(-0.35, 0.25, 0.75); a.scale.setScalar(0.85); const m = G(a); m.scale.x = c; return m; });
     return G(
-      // Accroupie, griffes au sol
-      [-1, 1].map(c => G(F.boule(0.16, pierre, c * 0.2, 0.25, -0.05, 0, 0, 0, 1, 1, 1.2), F.capsule(0.07, 0.12, pierreS, c * 0.22, 0.07, 0.1, Math.PI / 2, 0, 0))),
-      F.boule(0.32, pierre, 0, 0.55, 0, 0.3, 0, 0, 1, 1, 0.9),
-      [-1, 1].map(c => segment([c * 0.25, 0.65, 0.1], [c * 0.3, 0.12, 0.3], 0.06, pierreS)),
-      F.boule(0.28, pierre, 0, 0.95, 0.12),
-      F.boule(0.15, pierreS, 0, 0.86, 0.33, 0, 0, 0, 1.1, 0.8, 1),
-      [-0.06, 0.06].map(x => F.cone(0.025, 0.07, mat(0xfff6dc), x, 0.8, 0.42, Math.PI, 0, 0)),
-      corneCourbe(0.05, 0.25, -2.5, corne, -0.14, 1.15, 0.05, -0.2, 0, 0.35), corneCourbe(0.05, 0.25, -2.5, corne, 0.14, 1.15, 0.05, -0.2, 0, -0.35),
-      yeuxLueur(1.0, 0.34, 0.11, 0.04, 0xffa030, 0xc06000),
-      sourcils(1.08, 0.36, 0.11, 0x45454c, 0.5),
+      // Socle de pierre
+      F.boite(0.8, 0.16, 0.7, socle, 0, 0.08, 0), F.boite(0.9, 0.06, 0.8, pierreS, 0, 0.18, 0),
+      // Accroupie, griffes agrippées au bord
+      [-1, 1].map(c => G(F.boule(0.17, pierre, c * 0.22, 0.42, -0.08, 0, 0, 0, 1, 1, 1.25),
+        F.capsule(0.07, 0.14, pierreS, c * 0.24, 0.3, 0.2, 0.6, 0, 0),
+        [-1, 0, 1].map(k => F.cone(0.025, 0.08, corne, c * 0.24 + k * 0.05, 0.22, 0.38, Math.PI / 2 + 0.6, 0, 0)))),
+      F.boule(0.32, pierre, 0, 0.7, 0, 0.35, 0, 0, 1, 1, 0.9),
+      [0, 1, 2].map(i => F.cone(0.05, 0.14, corne, 0, 0.98 - i * 0.12, -0.22 - i * 0.06, -0.7, 0, 0)),
+      [-1, 1].map(c => G(segment([c * 0.26, 0.82, 0.08], [c * 0.3, 0.32, 0.36], 0.065, pierreS),
+        [-1, 0, 1].map(k => F.cone(0.022, 0.07, corne, c * 0.3 + k * 0.04, 0.24, 0.44, Math.PI / 2 + 0.3, 0, 0)))),
+      // Tête de démon : cornes, oreilles pointues, gueule aux crocs
+      F.boule(0.27, pierre, 0, 1.08, 0.12),
+      F.boule(0.15, pierreS, 0, 0.98, 0.32, 0, 0, 0, 1.15, 0.75, 1),
+      F.boite(0.22, 0.03, 0.04, mat(0x2a1820), 0, 0.93, 0.44),
+      [-0.07, 0.07].map(x => F.cone(0.024, 0.08, dent, x, 0.93, 0.45, Math.PI, 0, 0)),
+      corneCourbe(0.06, 0.32, -2.6, corne, -0.14, 1.28, 0.08, -0.25, 0, 0.35), corneCourbe(0.06, 0.32, -2.6, corne, 0.14, 1.28, 0.08, -0.25, 0, -0.35),
+      F.cone(0.06, 0.2, pierre, -0.28, 1.12, 0.1, 0, 0, Math.PI / 2 + 0.4), F.cone(0.06, 0.2, pierre, 0.28, 1.12, 0.1, 0, 0, -Math.PI / 2 - 0.4),
+      yeuxLueur(1.12, 0.33, 0.1, 0.04, 0xffa030, 0xc06000),
+      sourcils(1.2, 0.35, 0.1, 0x45424e, 0.55),
+      tubeEffile([[0, 0.5, -0.3], [0.15, 0.3, -0.45], [0.3, 0.22, -0.35]], 0.06, 0.02, pierreS, 10).mesh,
       ailes
     );
   },
   oxydeur() {
-    const carapace = mat(0xb8642a), ventre = mat(0xd8a060), patte = mat(0x7a4a2a), rouille = mat(0xa0502a);
+    const plaque = mat(0xb85a26), plaqueS = mat(0x8a3e1a), ventre = mat(0xd8a868), patte = mat(0x6a3e22), rouille = mat(0xc8782e), noir = mat(0x1a1210);
+    const queue = tubeEffile([[0, 0.45, -0.45], [0, 0.55, -0.75], [0, 0.75, -0.95]], 0.09, 0.04, plaque, 12);
+    const bout = queue.chemin.getPointAt(1);
+    const helice = G(F.boite(0.3, 0.04, 0.1, plaqueS), F.boite(0.04, 0.3, 0.1, plaqueS));
+    helice.position.copy(bout); helice.rotation.set(0.3, 0, 0.6);
     return G(
-      [0, 1, 2].flatMap(i => [-1, 1].map(c => segment([c * 0.2, 0.3, 0.2 - i * 0.22], [c * 0.4, 0.04, 0.25 - i * 0.24], 0.04, patte))),
-      F.boule(0.32, carapace, 0, 0.42, -0.15, 0, 0, 0, 1, 0.8, 1.4),
-      [0, 1, 2].map(i => F.tore(0.24 - i * 0.03, 0.03, rouille, Math.PI, 0, 0.45, -0.05 - i * 0.18, 0, Math.PI / 2, 0)),
-      F.boule(0.25, ventre, 0, 0.45, 0.25),
-      F.cone(0.06, 0.1, patte, 0, 0.32, 0.47, Math.PI / 2, 0, 0),
-      yeuxMignons(0.55, 0.42, 0.1, 0.06, 0x2a1a10),
-      // Longues antennes plumeuses
-      [-1, 1].map(c => G(segment([c * 0.08, 0.65, 0.3], [c * 0.3, 1.15, 0.45], 0.018, patte), F.capsule(0.05, 0.18, rouille, c * 0.32, 1.22, 0.47, 0.3, 0, c * -0.4)))
+      // Quatre pattes d'insecte
+      [[-1, 0.18], [1, 0.18], [-1, -0.22], [1, -0.22]].map(([c, z]) => G(segment([c * 0.2, 0.35, z], [c * 0.38, 0.25, z + 0.05], 0.045, patte), segment([c * 0.38, 0.25, z + 0.05], [c * 0.4, 0.02, z + 0.1], 0.04, patte))),
+      // Corps en plaques rouillées
+      F.boule(0.3, ventre, 0, 0.4, 0, 0, 0, 0, 1, 0.75, 1.3),
+      [0, 1, 2, 3].map(i => F.boule(0.28 - i * 0.03, i % 2 ? plaqueS : plaque, 0, 0.5 + Math.sin(i) * 0.03, 0.15 - i * 0.16, 0, 0, 0, 1.05, 0.55, 0.6)),
+      queue.mesh, helice,
+      // Tête : mandibules, grands yeux, antennes plumeuses
+      F.boule(0.2, plaque, 0, 0.48, 0.38, 0, 0, 0, 1, 0.85, 0.95),
+      [-1, 1].map(c => F.cone(0.035, 0.12, noir, c * 0.07, 0.36, 0.55, Math.PI / 2 + 0.5, 0, c * 0.4)),
+      yeuxMignons(0.55, 0.52, 0.09, 0.055, 0x2a1a10),
+      [-1, 1].map(c => G(segment([c * 0.07, 0.62, 0.45], [c * 0.28, 1.05, 0.62], 0.016, patte),
+        [0, 1, 2, 3, 4].map(k => F.cone(0.012, 0.09, rouille, c * (0.12 + k * 0.035), 0.72 + k * 0.08, 0.5 + k * 0.025, 0, 0, c * 1.2))))
     );
   },
   crabe_geant() {
-    const c1 = mat(0xd04a2a), c2 = mat(0xe87a4a), noir = mat(0x1a1010);
+    const c1 = mat(0xc8402a), c2 = mat(0xe8804e), ventre = mat(0xf2c89a), noir = mat(0x1a1010);
+    const patte = (c, z) => G(segment([c * 0.32, 0.32, z], [c * 0.6, 0.42, z - 0.05], 0.04, c1), segment([c * 0.6, 0.42, z - 0.05], [c * 0.72, 0.02, z - 0.1], 0.035, c1));
+    const pince = c => G(
+      segment([c * 0.38, 0.38, 0.22], [c * 0.52, 0.48, 0.48], 0.06, c1),
+      F.boule(0.16, c1, c * 0.55, 0.55, 0.62, 0, 0, 0, 0.9, 0.85, 1.25),
+      F.cone(0.07, 0.24, c2, c * 0.5, 0.64, 0.82, Math.PI / 2 - 0.4, 0, 0),
+      F.cone(0.06, 0.2, c2, c * 0.6, 0.48, 0.82, Math.PI / 2 + 0.3, 0, 0)
+    );
     return G(
-      [0, 1, 2].flatMap(i => [-1, 1].map(c => segment([c * 0.3, 0.3, 0.1 - i * 0.18], [c * 0.6, 0.02, 0.05 - i * 0.2], 0.04, c1))),
-      F.boule(0.42, c1, 0, 0.4, 0, 0, 0, 0, 1.25, 0.6, 1),
-      F.boule(0.3, c2, 0, 0.32, 0.12, 0, 0, 0, 1.2, 0.5, 0.9),
-      [-1, 1].map(c => G(
-        segment([c * 0.4, 0.42, 0.25], [c * 0.55, 0.6, 0.5], 0.06, c1),
-        F.boule(0.17, c1, c * 0.58, 0.68, 0.62, 0, 0, 0, 1, 0.8, 1.2),
-        F.cone(0.07, 0.22, c2, c * 0.52, 0.78, 0.78, 0.9, 0, 0), F.cone(0.06, 0.2, c2, c * 0.64, 0.62, 0.8, 1.8, 0, 0))),
-      [-1, 1].map(c => G(F.cyl(0.02, 0.02, 0.2, c1, c * 0.1, 0.62, 0.3), F.boule(0.055, mat(0xffffff), c * 0.1, 0.74, 0.3), sansContour(F.boule(0.03, noir, c * 0.1, 0.75, 0.35))))
+      [0.05, -0.12, -0.3].flatMap(z => [patte(-1, z), patte(1, z)]),
+      F.boule(0.42, c1, 0, 0.4, 0, 0, 0, 0, 1.25, 0.55, 1),
+      F.boule(0.3, ventre, 0, 0.3, 0.1, 0, 0, 0, 1.2, 0.45, 0.9),
+      [-0.32, -0.16, 0.16, 0.32].map(x => F.cone(0.035, 0.08, c2, x, 0.52, 0.32, 0.6, 0, 0)),
+      pince(-1), pince(1),
+      [-1, 1].map(c => G(F.cyl(0.022, 0.022, 0.2, c1, c * 0.11, 0.6, 0.3), F.boule(0.06, mat(0xffffff), c * 0.11, 0.73, 0.3), sansContour(F.boule(0.032, noir, c * 0.11, 0.74, 0.35)))),
+      F.boite(0.16, 0.025, 0.03, noir, 0, 0.36, 0.42)
     );
   },
   hydre() {
@@ -1094,8 +1144,8 @@ function figurineAraignee(corps, motif, ech = 1, couronne = false) {
 
 // Vase (gelée, pouding) : flaque bombée et luisante, gouttes, yeux flottants
 function figurineVase(couleur, clair, ech, transparent) {
-  const m = new THREE.MeshToonMaterial({ color: couleur, gradientMap: degradeToon(), emissive: 0x050505 });
-  const reflet = sansContour(F.boule(0.08, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }), -0.18, 0.62, 0.22, 0, 0, 0, 1.4, 0.6, 0.6));
+  const m = mat(couleur, { emissive: 0x050505, rugosite: 0.2 });
+  const reflet = sansContour(F.boule(0.08, new THREE.MeshBasicMaterial({ color: lin(0xffffff), transparent: true, opacity: 0.7 }), -0.18, 0.62, 0.22, 0, 0, 0, 1.4, 0.6, 0.6));
   const g = G(
     F.boule(0.5, m, 0, 0.3, 0, 0, 0, 0, 1.2, 0.62, 1.05),
     F.boule(0.32, m, 0.05, 0.55, -0.05, 0, 0, 0, 1, 0.8, 1),
@@ -1108,6 +1158,7 @@ function figurineVase(couleur, clair, ech, transparent) {
   return g;
 }
 
+const AILE_HARPIE = { rx: -0.3, ry: 0, rz: 0.2, e: 1.8 };
 // Accessoires accrochés aux os des modèles animés (ressources3d.js : `ajouts`)
 const AJOUTS_3D = {
   // Méduse : chevelure de serpents
@@ -1127,15 +1178,9 @@ const AJOUTS_3D = {
   },
   // Harpie : ailes de plumes dans le dos
   ailesPlumes() {
-    const plume = mat(0x8a6a4a), plumeS = mat(0x5a4030);
-    const aile = c => {
-      const g = G([0, 1, 2, 3, 4].map(i => F.capsule(0.07 - i * 0.006, 0.45 - i * 0.05, i % 2 ? plumeS : plume, 0.12 + i * 0.12, 0.1 - i * 0.07, 0, 0, 0, 0.9 + i * 0.12)));
-      g.position.set(0.1, 0.1, -0.25); g.rotation.set(0.3, -0.5, 0.95);
-      const m = G(g); m.scale.x = c; return m;
-    };
-    const g = G(aile(1), aile(-1));
-    g.scale.setScalar(2);
-    return g;
+    const o = { os: false, peau: 0x6a4a30, peauS: 0x4a3420, membrane: 0x9a7650, corne: 0x3a2a1c };
+    const aile = c => { const a = aileDragon(o); a.position.set(0.12, 0.05, -0.18); a.rotation.set(AILE_HARPIE.rx, AILE_HARPIE.ry, AILE_HARPIE.rz); a.scale.setScalar(AILE_HARPIE.e); const m = G(a); m.scale.x = c; return m; };
+    return G(aile(1), aile(-1));
   }
 };
 
@@ -1187,7 +1232,7 @@ function yeuxDragon(y, z, ecart, r, iris, lueur) {
     const g = G(
       F.boule(r, mat(iris, { lueur }), 0, 0, 0, 0, 0, 0, 0.9, 1, 0.55),
       sansContour(F.boule(r * 0.55, mat(0x120806), 0, 0, r * 0.32, 0, 0, 0, 0.3, 1.45, 0.6)),
-      sansContour(F.boule(r * 0.22, new THREE.MeshBasicMaterial({ color: 0xffffff }), r * 0.3, r * 0.35, r * 0.48))
+      sansContour(F.boule(r * 0.22, new THREE.MeshBasicMaterial({ color: lin(0xffffff )}), r * 0.3, r * 0.35, r * 0.48))
     );
     g.position.set(cote * ecart, y, z);
     g.rotation.y = cote * 0.35;
@@ -1209,7 +1254,7 @@ function aileDragon(o) {
   const geo = new THREE.ExtrudeGeometry(forme, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 1, curveSegments: 10 });
   geo.translate(0, 0, -0.01);
   const membrane = o.os
-    ? new THREE.MeshToonMaterial({ color: o.membrane, gradientMap: degradeToon(), transparent: true, opacity: 0.78 })
+    ? mat(o.membrane, { transparent: true, opacity: 0.78 })
     : mat(o.membrane);
   const osAile = mat(o.os ? o.corne : o.peau), doigt = mat(o.os ? o.corne : o.peauS);
   const coude = [0.42, 0.44, 0.03];
@@ -1245,7 +1290,7 @@ function figurineDragon(o) {
       F.boule(0.2, p, 0, 0.36, 0, 0, 0, 0, 1.4, 0.6, 1),
       segment([0, 0.36, -0.12], [0, 0.95, -0.1], 0.06, p),
       sansContour(F.boule(0.2, mat(0x7dff9a, { lueur: 0x40e070 }), 0, 0.64, 0.02)),
-      F.boule(0.26, new THREE.MeshToonMaterial({ color: 0x1a2a20, gradientMap: degradeToon(), transparent: true, opacity: 0.55 }), 0, 0.64, -0.02),
+      F.boule(0.26, mat(0x1a2a20, { transparent: true, opacity: 0.55 }), 0, 0.64, -0.02),
       ...[0, 1, 2, 3].map(i => F.tore(0.32 - Math.abs(i - 1.3) * 0.045, 0.042, p, Math.PI * 1.55, 0, 0.47 + i * 0.11, 0, Math.PI / 2, 0, Math.PI * 0.725)),
       F.capsule(0.05, 0.1, p, 0, 0.62, 0.27)
     );
@@ -1387,8 +1432,8 @@ function texturePoint() {
 function brasero() {
   const fer = mat(0x3a3236), braise = mat(0xff6a20, { lueur: 0xff4a00 });
   const flammes = G(
-    sansContour(F.cone(0.2, 0.55, new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.9 }), 0, 0.3, 0)),
-    sansContour(F.cone(0.12, 0.4, new THREE.MeshBasicMaterial({ color: 0xffe25a, transparent: true, opacity: 0.95 }), 0, 0.24, 0.02))
+    sansContour(F.cone(0.2, 0.55, new THREE.MeshBasicMaterial({ color: lin(0xff7a1a), transparent: true, opacity: 0.9 }), 0, 0.3, 0)),
+    sansContour(F.cone(0.12, 0.4, new THREE.MeshBasicMaterial({ color: lin(0xffe25a), transparent: true, opacity: 0.95 }), 0, 0.24, 0.02))
   );
   flammes.position.y = 0.72;
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturePoint(), color: 0xff9a3a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
