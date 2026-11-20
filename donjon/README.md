@@ -12,6 +12,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/des.js` | Lancers de dés (`Des.lancer('2d6+3')`, `Des.d20(avantage)`) |
 | `js/donnees/actions.js` | Toutes les actions des PJ (format documenté en tête de fichier) |
 | `js/donnees/classes.js` | Les 11 classes (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`) |
+| `js/donnees/sousclasses.js` | Les 2 ou 3 sous-classes de chaque classe (`SOUS_CLASSES`) : capacités, actions remplacées, gains au niveau 5, campagne qui les débloque |
 | `js/donnees/monstres.js` | Monstres, boss et listes de rencontres |
 | `js/donnees/objets.js` | Objets magiques, améliorations, génération des récompenses |
 | `js/donnees/evenements.js` | Événements à choix (cases ❓) |
@@ -31,6 +32,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Une campagne** : une entrée dans `CAMPAGNES` avec ses `etages` et `apres` (campagne à terminer pour la débloquer).
 - **Un monstre** : une entrée dans `MONSTRES`, puis son identifiant dans une rencontre de `RENCONTRES` (`{ avant: [...], arriere: [...] }`).
 - **Une classe** : une entrée dans `CLASSES` (avec `role`), son identifiant dans `TOUTES_CLASSES`, ses gains dans `PROGRESSION`, son apparence dans `PERSOS3D` (`ressources3d.js`).
+- **Une sous-classe** : une entrée dans `SOUS_CLASSES` (`sousclasses.js`), avec `deblocage` (campagne à terminer), ses `traits` (liste en tête du fichier, lus par `combat.js`), `remplace` et `niv5`.
 - **Une action** : une entrée dans `ACTIONS`, puis son identifiant dans `actions` ou `poolActions` d'une classe.
 - **Un objet** : une entrée dans `OBJETS` avec sa `rarete` et ses effets dans `mods` (bonus chiffrés et `traits` lus par le moteur de combat ; liste en tête de `objets.js`). Les objets peuvent ainsi être donnés d'un héros à l'autre.
 - **Un consommable** : une entrée dans `CONSOMMABLES` (`objets.js`) et l'action correspondante dans `ACTIONS_SAC` (`actions.js`).
@@ -48,7 +50,13 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 `node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions avec l'équipe de base ;
 `node outils-simulation.js 1500 crypte classes` joue avec des équipes aléatoires (au moins un héros de front et un soigneur) et affiche le taux de victoire de chaque classe. Il joue 400 expéditions complètes sans affichage (stratégie simple : soigner
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
-Réglage actuel (joueur automatique simple, équipes aléatoires) : Crypte 44 %, Horde 42 %, Éclipse 31 %, Dragon 22 %, Toiles 12 %, Légion 8 %, Abîme 8 %.
+`node outils-simulation.js 2000 crypte sousclasses` fait de même avec des sous-classes au hasard et affiche le taux de chaque sous-classe ;
+`SC_SEUL=clerc:vie node outils-simulation.js 800 crypte classes` donne la sous-classe à une seule classe (comparaison avec `SANS_SC=1`).
+Réglage actuel (sous-classes au hasard) : Crypte 56 %, Éclipse 36 %, Dragon 36 %, Toiles 15 %.
+
+## Mode test
+
+Ouvrez le jeu avec `?test` à la fin de l'adresse (ou touchez 5 fois le titre) : toutes les campagnes et sous-classes sont débloquées. `?test=0` (ou le bouton sur l'écran titre) le désactive.
 `RENFORT_GLOBAL` (`etages.js`) ajuste la puissance de tous les monstres d'un coup.
 
 ## Crédits graphiques

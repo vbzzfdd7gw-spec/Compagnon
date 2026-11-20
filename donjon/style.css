@@ -547,3 +547,25 @@ body { overscroll-behavior: none; }
 .peur-txt { color: #c09ae8; }
 .progression { flex-wrap: wrap; justify-content: center; gap: 7px; max-width: 360px; }
 .prog { font-size: 1.15rem; padding: 4px 7px; }
+
+/* ---------- sous-classes ---------- */
+.sc-choix { margin-top: 4px; width: 100%; background: #0005; border: 1px solid var(--ligne); border-radius: 8px; color: var(--texte); font: inherit; font-size: .7rem; padding: 4px 4px; cursor: pointer; line-height: 1.2; }
+.sc-choix:hover { border-color: var(--or); }
+.sc-nb { color: var(--discret); font-size: .62rem; white-space: nowrap; }
+.place-sc { font-size: .5rem !important; color: var(--or) !important; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-liste { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.sc-carte { border: 2px solid var(--ligne); border-radius: 12px; padding: 8px 10px; background: var(--panneau2); cursor: pointer; transition: border-color .12s; }
+.sc-carte.choisie { border-color: var(--or); background: #4a382055; box-shadow: 0 0 10px #d8a64a44; }
+.sc-carte.verrou { cursor: default; opacity: .6; }
+.sc-tete { display: flex; align-items: center; gap: 6px; }
+.sc-ic { font-size: 1.3rem; }
+.sc-ok, .sc-btn { margin-left: auto; font-size: .72rem; padding: 2px 8px; border-radius: 10px; }
+.sc-ok { background: var(--or); color: #1a1208; font-weight: 700; }
+.sc-btn { border: 1px solid var(--or); color: var(--or); }
+.sc-details { margin: 4px 0 2px; padding-left: 18px; font-size: .78rem; }
+.sc-details li { margin: 2px 0; }
+.verrou-txt { margin-top: 3px; }
+.sc-fiche { margin: 4px 0 6px; font-size: .85rem; }
+.sc-fiche summary { cursor: pointer; }
+.badge-test { display: inline-block; margin: 6px auto 0; background: #2a4a2a; border: 1px solid #6c6; color: #cfc; border-radius: 10px; padding: 3px 9px; font: inherit; font-size: .75rem; cursor: pointer; }
+.combattant.ennemi .barre-jauge.peur { margin-top: 2px; }

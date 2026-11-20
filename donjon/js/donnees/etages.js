@@ -9,7 +9,7 @@
 
 // Renfort appliqué à tous les étages de toutes les campagnes (compense la
 // puissance des objets) : ajouté à la `force` de chaque étage.
-const RENFORT_GLOBAL = { pv: 0.1, toucher: 0, degats: 0, dd: 0 };
+const RENFORT_GLOBAL = { pv: 0.2, toucher: 1, degats: 0, dd: 0 };
 
 const ETAGES = [
   {

@@ -441,7 +441,7 @@ const CAMPAGNES = [
 // ---------------------------------------------------------------------
 const Progression = {
   cle: 'donjon-progression',
-  donnees: { terminees: {}, records: {} },
+  donnees: { terminees: {}, records: {}, test: false },
   charger() {
     try { Object.assign(this.donnees, JSON.parse(localStorage.getItem(this.cle) || '{}')); } catch (e) { /* rien */ }
   },
@@ -449,7 +449,10 @@ const Progression = {
     try { localStorage.setItem(this.cle, JSON.stringify(this.donnees)); } catch (e) { /* rien */ }
   },
   campagne(id) { return CAMPAGNES.find(c => c.id === id) || CAMPAGNES[0]; },
-  debloquee(c) { return c.debloquee || !!this.donnees.terminees[c.apres]; },
+  debloquee(c) { return c.debloquee || this.toutDebloque() || !!this.donnees.terminees[c.apres]; },
+  // Mode test : toutes les campagnes et sous-classes sont accessibles
+  toutDebloque() { return !!this.donnees.test; },
+  basculerTest(actif) { this.donnees.test = actif; this.sauver(); },
   victoires(c) { return this.donnees.terminees[c.id] || 0; },
   record(c) { return this.donnees.records[c.id] || 0; },
   // Note l'étage atteint ; renvoie la campagne nouvellement débloquée s'il y en a une
@@ -465,3 +468,8 @@ const Progression = {
   }
 };
 Progression.charger();
+// Adresse « …/donjon/?test » : active le mode test ; « ?test=0 » le désactive
+try {
+  const q = new URLSearchParams(location.search);
+  if (q.has('test')) Progression.basculerTest(q.get('test') !== '0');
+} catch (e) { /* hors navigateur */ }
