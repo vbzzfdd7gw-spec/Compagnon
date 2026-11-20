@@ -655,6 +655,18 @@ const CAMPAGNES = [
   }
 ];
 
+// Le Dédale du Chaos reste TOUJOURS la dernière campagne, la plus difficile :
+// il est replacé en fin de liste et sa difficulté suit la plus haute des autres.
+// Ses rencontres, ses boss et ses renforts sont tirés de toutes les autres
+// campagnes : une campagne ou un monstre ajouté y entre automatiquement.
+(function chaosEnDernier() {
+  const i = CAMPAGNES.findIndex(c => c.aleatoire);
+  if (i < 0) return;
+  const [chaos] = CAMPAGNES.splice(i, 1);
+  chaos.difficulte = Math.max(...CAMPAGNES.map(c => c.difficulte)) + 1;
+  CAMPAGNES.push(chaos);
+})();
+
 // Mode Chaos : deux étages tirés de toutes les campagnes. Le premier mélange
 // les étages du milieu (héros niveau 4), le second les étages finaux (niveau 5).
 // Chaque rencontre garde la puissance (`force`) et le décor de son étage d'origine.
