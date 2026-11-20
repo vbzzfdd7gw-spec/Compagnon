@@ -439,8 +439,8 @@ const CAMPAGNES = [
   {
     id: 'chaos', nom: 'Le Dédale du Chaos', icone: '🎲', difficulte: 8, aleatoire: true, apresTout: true,
     resume: 'Toutes les campagnes se mélangent : une seule carte deux fois plus longue, des monstres de partout et deux boss tirés au hasard. Les héros partent au niveau 4.',
-    regles: { potions: 4, peurMult: 1.2, or: 120 },
-    regleTexte: 'Carte double, 2 boss aléatoires, départ au niveau 4 avec 4 potions et 120 or.',
+    regles: { potions: 5, peurMult: 1.2, or: 120 },
+    regleTexte: 'Carte double, monstres mutants, 2 boss aléatoires dotés de pouvoirs du chaos. Départ au niveau 4 avec 5 potions et 120 or.',
     fin: 'Le Dédale se referme derrière vous. Plus aucun cauchemar ne vous résiste.',
     etages: []
   }

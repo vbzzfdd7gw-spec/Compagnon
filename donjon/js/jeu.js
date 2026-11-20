@@ -248,6 +248,7 @@ const Jeu = {
     this.combat = new Combat(this.equipe, rencontre, this, rencontre.force || this.etageCourant().force);
     this.combat.type = type;
     this.combat.theme = rencontre.theme || this.etageCourant().theme;
+    if (this.campagneCourante().aleatoire) this.combat.appliquerChaos(type, this.dernierEtage());
     this.combat.surMaj = () => Ui.majCombat();
     this.combat.surFin = r => this.finCombat(r);
     this.combat.vitesse = Reglages.vitesse;

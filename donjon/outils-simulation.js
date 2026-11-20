@@ -7,6 +7,10 @@ vm.createContext(ctx);
 for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'donnees/campagnes.js', 'donnees/sousclasses.js', 'combat.js', 'carte.js'])
   vm.runInContext(fs.readFileSync(D + f, 'utf8').replace(/^const (\w+) =/gm, 'var $1 =').replace(/^class (\w+)/gm, 'var $1 = class $1'), ctx);
 // SANS_SC=1 : héros sans sous-classe (comparaison)
+// CHAOS_SEUL=mutation|pouvoir|aucun : ne garde que cet effet du Chaos (comparaison)
+if (process.env.CHAOS_SEUL) vm.runInContext(`var _ac = Combat.prototype.appliquerChaos; Combat.prototype.appliquerChaos = function (t, f) {
+  _ac.call(this, t, f); const k = '${process.env.CHAOS_SEUL}';
+  for (const m of this.ennemis) { m.chaos.mutations = m.chaos.mutations.filter(x => x === k); m.chaos.pouvoirs = m.chaos.pouvoirs.filter(x => x === k); } };`, ctx);
 if (process.env.SANS_SC) vm.runInContext('appliquerSousClasse = pj => pj; niveauSousClasse = () => [];', ctx);
 // SC_SEUL=classe[:sousclasse] : seule cette classe reçoit une sous-classe
 if (process.env.SC_SEUL) vm.runInContext(`var _asc = appliquerSousClasse, _nsc = niveauSousClasse;
@@ -60,6 +64,7 @@ function iaPJ(cb, a) {
 function combattre(equipe, rencontre, jeu, force) {
   const cb = new Combat(equipe, rencontre, jeu, force);
   cb.surMaj = () => 0; cb.delaiMonstre = 0;
+  if (jeu.chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final);
   let fin = null; cb.surFin = r => { fin = r; };
   cb.demarrer();
   let garde = 0;
@@ -93,6 +98,7 @@ function expedition(idC, classes, scs) {
         const liste = n.type === 'combat' ? R[Carte.niveau(n)] : R[n.type];
         const pvAvant = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
         const renc = liste[Math.floor(Math.random() * liste.length)];
+        jeu.chaos = camp.aleatoire; jeu.typeCombat = n.type; jeu.final = etage === ETAGES.length - 1;
         const r = combattre(equipe, renc, jeu, renc.force || ETAGES[etage].force);
         const pvApres = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
         PERTES[etage + n.type] = PERTES[etage + n.type] || [];

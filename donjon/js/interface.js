@@ -105,6 +105,8 @@ const Ui = {
       • Une fois sur quatre, il se révèle au contraire 🌟 <b>héroïque</b> : Peur ramenée à 40, +2 au toucher et aux dégâts, et l'équipe reprend courage.</p>
       <h3>Sous-classes</h3>
       <p>Chaque classe a 2 ou 3 sous-classes (bouton ▾ sur l'écran d'équipe). La première est disponible d'office, les autres se débloquent en terminant des campagnes. Le Pacte du Grand Ancien donne une jauge de Peur aux monstres : 😟 ébranlés à 50 (−2 au toucher et aux sauvegardes), 😱 terrifiés à 100 (ils s'enfuient, ou perdent leur tour pour un élite ou un boss).</p>
+      <h3>Dédale du Chaos</h3>
+      <p>Mode final : toutes les campagnes mélangées sur une carte double. Les monstres peuvent muter (icônes après leur nom : 💪 robuste, 🛡️ blindé, 😤 enragé, 🩸 vampirique, 🌵 épineux, 💚 régénérant, 👁️ terrifiant, ⚡ rapide) et chaque boss reçoit des pouvoirs du chaos (1, ou 2 pour le boss final). Touchez un monstre pour voir le détail.</p>
       <h3>À terre</h3>
       <p>À 0 PV, un personnage est à terre. Il le reste au combat suivant tant qu'il n'est pas soigné (sort, potion, repos). Si toute l'équipe est à terre, l'expédition échoue.</p>
       <h3>Carte</h3>
@@ -343,6 +345,10 @@ const Ui = {
     if (m.mortVivant) extras.push('Mort-vivant');
     if (m.robustesse) extras.push('Robustesse des morts-vivants : à 0 PV, sauvegarde de CON (DD 5 + dégâts) pour rester à 1 PV, sauf dégâts radiants ou critique');
     if (m.actionsParTour) extras.push(`Agit ${m.actionsParTour} fois par tour`);
+    if (c.chaos) {
+      for (const k of c.chaos.mutations) extras.push(`${MUTATIONS_CHAOS[k].icone} <b>${MUTATIONS_CHAOS[k].nom}</b> (chaos) : ${MUTATIONS_CHAOS[k].desc}`);
+      for (const k of c.chaos.pouvoirs) extras.push(`${POUVOIRS_BOSS[k].icone} <b>${POUVOIRS_BOSS[k].nom}</b> (pouvoir du chaos) : ${POUVOIRS_BOSS[k].desc}`);
+    }
     this.modal(`<h2>${c.icone} ${c.nom}</h2>
       <div class="fiche-stats"><span>❤️ ${c.pv}/${c.pvMax} PV</span><span>🛡 CA ${c.ca}</span>${Jeu.combat && Jeu.combat.peurMonstres ? `<span>😨 Peur ${c.peur || 0}/100</span>` : ''}</div>
       <div class="petit">${Object.entries(c.caracs).map(([k, v]) => `${k} ${v} (${signe(modCarac(v))})`).join(' · ')}</div>
