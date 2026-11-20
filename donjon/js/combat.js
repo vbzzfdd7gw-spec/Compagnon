@@ -318,6 +318,18 @@ class Combat {
     return null;
   }
 
+  // Zone en triangle : la cible + ses voisins les plus proches (même ligne, puis l'autre ligne)
+  cibleTriangle(acteur, action, cible) {
+    const valides = this.ciblesValides(acteur, action);
+    const groupe = this.adversaires(acteur);
+    const rang = c => groupe.filter(x => x.ligne === c.ligne).indexOf(c);
+    const autres = valides.filter(c => c !== cible).sort((x, y) => {
+      const dx = (x.ligne === cible.ligne ? 0 : 1.5) + Math.abs(rang(x) - rang(cible));
+      const dy = (y.ligne === cible.ligne ? 0 : 1.5) + Math.abs(rang(y) - rang(cible));
+      return dx - dy;
+    });
+    return [cible, ...autres.slice(0, action.triangle - 1)];
+  }
   ciblesValides(acteur, action) {
     if (action.cible === 'soi') return [acteur];
     const groupe = action.cible === 'ennemi' ? this.adversaires(acteur) : this.camp(acteur);
@@ -376,7 +388,7 @@ class Combat {
     const cibleTxt = (act.zone || act.cible === 'soi' || !cible) ? '' : ` sur ${this.nomHtml(cible)}`;
     this.log(`${act.icone || '▶'} ${this.nomHtml(a)} utilise <i>${act.nom}</i>${cibleTxt}${coutTxt}`, 'action');
 
-    const cibles = act.zone ? this.ciblesValides(a, act) : (act.cible === 'soi' ? [a] : [cible]);
+    const cibles = act.zone ? this.ciblesValides(a, act) : act.cible === 'soi' ? [a] : act.triangle && cible ? this.cibleTriangle(a, act, cible) : [cible];
     const distance = act.cible === 'ennemi' && (act.sort || act.vise.includes('arriere') || act.type === 'sauvegarde' || act.type === 'auto');
     this.evt({ t: 'action', source: a.id, camp: a.camp, nom: act.nom, icone: act.icone || '✦',
       cibles: cibles.map(c => c.id), melee: act.cible === 'ennemi' && !distance, distance,
