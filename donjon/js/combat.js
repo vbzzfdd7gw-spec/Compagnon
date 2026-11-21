@@ -31,6 +31,7 @@ const ETATS = {
   armeSacree: { nom: 'Arme sacrée', icone: '🌟', desc: '+2 au toucher avec les armes.' },
   inimitie: { nom: 'Vœu d\'inimitié', icone: '🔥', desc: 'Le paladin qui l\'a juré a l\'avantage contre lui.' },
   concentre: { nom: 'Concentration', icone: '🧠', desc: 'Maintient un sort de concentration. Chaque fois qu\'il subit des dégâts : sauvegarde de CON (DD 10 ou moitié des dégâts) ou le sort prend fin. Un seul à la fois.', permanent: true },
+  zephyr: { nom: 'Frappe du zéphyr', icone: '🌬️', desc: 'Sa prochaine attaque d\'arme a l\'avantage et inflige +1d8 force.' },
   heroisme: { nom: 'Héroïsme', icone: '🦸', desc: 'Ne gagne plus de Peur ; 3 PV temporaires au début de chacun de ses tours.' },
   illumine: { nom: 'Illuminé', icone: '🎆', desc: 'Entouré de lueurs féeriques : les attaques contre lui ont l\'avantage.' },
   ralenti: { nom: 'Ralenti', icone: '🐌', desc: '−2 CA et désavantage à ses attaques.' },
@@ -794,6 +795,7 @@ class Combat {
   modeAttaque(a, act, c) {
     const av = [], dv = [];
     if (a.etats.cache && !act.compagnon) av.push('caché');
+    if (a.etats.zephyr && act.arme && !act.compagnon) av.push('zéphyr');
     if (act.avantage) av.push('feinte');
     if (c.etats.renverse) av.push('cible renversée');
     if (c.etats.paralyse) av.push('cible paralysée');
@@ -827,6 +829,9 @@ class Combat {
       if (a.etats.cache) delete a.etats.cache;
       if (a.etats.entrave) delete a.etats.entrave;
     }
+    // Frappe du zéphyr : servie une seule fois, la concentration s'arrête ensuite
+    const zephyr = !!(a.etats.zephyr && act.arme && !act.compagnon);
+    if (zephyr) { delete a.etats.zephyr; if (a.concentration && a.concentration.nom === 'Frappe du zéphyr') { a.concentration = null; delete a.etats.concentre; } }
     const r = Des.d20(mode);
     const bonus = this.bonusToucher(a, act);
     let total = r.nat + bonus;
@@ -909,6 +914,7 @@ class Combat {
     if (c.etats.marque && c.marquePar === a.id && bonusHeros) { const m = Des.lancer('1d6', critique); degats += m.total; dTxt += ` + marque ${m.texte}`; }
     if (critique && act.arme && a.traits && a.traits.brutal && act.degats) { const de = act.degats.match(/\d*d\d+/); if (de) { const b = Des.lancer('1' + de[0].slice(de[0].indexOf('d'))); degats += b.total; dTxt += ` + brutal ${b.texte}`; } }
     if (critique && act.arme && a.traits && a.traits.vorpale) { const v = Des.lancer(a.traits.vorpale); degats += v.total; dTxt += ` + vorpale ${v.texte}`; }
+    if (zephyr) { const z = Des.lancer('1d8', critique); degats += z.total; dTxt += ` + zéphyr ${z.texte} force`; }
     if (act.arme && a.traits && a.traits.armeElem) {
       const e = Des.lancer(a.traits.armeElem.des, critique);
       degats += e.total;

@@ -102,7 +102,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 4, ddSort: 12,
     sauvegardes: ['FOR', 'DEX'], deVie: 10, emplacements: { 1: 3 },
     actions: ['arc_long', 'epees_jumelles', 'marque_chasseur', 'volee'],
-    poolActions: ['tir_precis', 'piege', 'coup_bas', 'soins', 'passage_sans_trace'],
+    poolActions: ['tir_precis', 'piege', 'coup_bas', 'soins', 'frappe_zephyr'],
     desc: 'Tireur régulier. Sa Marque du chasseur ajoute 1d6 à toutes ses attaques contre la cible.'
   },
   barde: {
