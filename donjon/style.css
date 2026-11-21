@@ -606,3 +606,8 @@ body { overscroll-behavior: none; }
 .barre-xp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #a07a2c, #e7c062); }
 .barre-xp span { position: relative; display: block; text-align: center; font-size: .72rem; line-height: 16px; color: #fff4dc; text-shadow: 0 1px 2px #000; }
 .barre-xp.max { background: #3b2d14; }
+.niv-sort { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .78rem; color: var(--discret); }
+.pastille-niv { background: #2a2017; color: #f1e3c8; border: 1px solid var(--ligne); border-radius: 999px; padding: 3px 10px; font: inherit; font-weight: bold; cursor: pointer; }
+.pastille-niv small { font-weight: normal; color: #9fd0ff; }
+.pastille-niv.actif { background: var(--or); color: #1d140c; border-color: var(--or); }
+.pastille-niv.actif small { color: #3a2a10; }
