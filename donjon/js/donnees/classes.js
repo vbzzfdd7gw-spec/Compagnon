@@ -92,7 +92,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 5, ddSort: 13,
     sauvegardes: ['SAG', 'CHA'], deVie: 10, emplacements: { 1: 2 },
     actions: ['epee_longue', 'chatiment', 'imposition', 'benediction'],
-    poolActions: ['faveur_divine', 'defi', 'renvoi', 'soins', 'chatiment_tonnerre', 'bouclier_foi'],
+    poolActions: ['faveur_divine', 'defi', 'renvoi', 'soins', 'bouclier_foi', 'heroisme', 'injonction'],
     desc: 'Aura de protection : +1 aux sauvegardes de toute l\'équipe tant qu\'il est debout. Châtiment divin dévastateur.'
   },
   rodeur: {
@@ -102,7 +102,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 4, ddSort: 12,
     sauvegardes: ['FOR', 'DEX'], deVie: 10, emplacements: { 1: 3 },
     actions: ['arc_long', 'epees_jumelles', 'marque_chasseur', 'volee'],
-    poolActions: ['tir_precis', 'piege', 'coup_bas', 'grele_epines', 'croissance_epines'],
+    poolActions: ['tir_precis', 'piege', 'coup_bas', 'soins', 'passage_sans_trace'],
     desc: 'Tireur régulier. Sa Marque du chasseur ajoute 1d6 à toutes ses attaques contre la cible.'
   },
   barde: {
@@ -122,7 +122,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 3, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 8, emplacements: { 1: 4, 2: 2 },
     actions: ['flammeche', 'soins', 'enchevetrement', 'rayon_lune'],
-    poolActions: ['gourdin', 'peau_ecorce', 'vague_tonnante', 'appel_foudre', 'fletrissement', 'tempete_grele', 'lueurs_feeriques', 'croissance_epines', 'immobilisation', 'tempete_neige'],
+    poolActions: ['gourdin', 'peau_ecorce', 'vague_tonnante', 'appel_foudre', 'fletrissement', 'tempete_grele', 'lueurs_feeriques', 'chaleur_metal', 'immobilisation', 'tempete_neige'],
     desc: 'Soigne, entrave les ennemis et frappe avec la magie de la nature.'
   },
   moine: {

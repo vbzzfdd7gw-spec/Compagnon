@@ -659,17 +659,21 @@ const ACTIONS = {
     depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true, etat: { nom: 'foi', duree: 10 },
     desc: '🧠 Concentration. Niv. 1, action bonus. Un allié gagne +2 CA tant que dure la concentration.'
   },
-  chatiment_tonnerre: {
-    nom: 'Châtiment tonitruant', icone: '🔊', type: 'special', special: 'charge_arme', niveau: 1, sort: true, actionBonus: true, parNiveau: '1d6',
-    charge: { des: '3d6', type: 'tonnerre', effet: 'tonnerre', icone: '🔊', nom: 'Châtiment tonitruant' },
-    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
-    desc: 'Niv. 1, action bonus (vous jouez aussitôt). Votre prochain coup d\'arme qui touche inflige +3d6 tonnerre, repousse la cible et la renverse (sauvegarde de FOR).'
+  heroisme: {
+    nom: 'Héroïsme', icone: '🦸', concentration: true, concPermanent: true, type: 'soutien', niveau: 1, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true, etat: { nom: 'heroisme', duree: 10 }, peur: -20,
+    desc: '🧠 Concentration. Niv. 1. Un allié perd 20 Peur, n\'en gagne plus et reçoit 3 PV temporaires au début de chacun de ses tours, tant que dure la concentration.'
   },
-  grele_epines: {
-    nom: 'Grêle d\'épines', icone: '🌵', type: 'special', special: 'charge_arme', niveau: 1, sort: true, actionBonus: true, parNiveau: '1d10',
-    charge: { des: '2d10', type: 'perforant', effet: 'grele', icone: '🌵', nom: 'Grêle d\'épines' },
-    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
-    desc: 'Niv. 1, action bonus (vous jouez aussitôt). Votre prochain coup d\'arme qui touche fait exploser une pluie d\'épines : +2d10 perforant à la cible et à ses 2 voisins (sauvegarde de DEX, moitié).'
+  injonction: {
+    nom: 'Injonction', icone: '☝️', type: 'sauvegarde', niveau: 1, sort: true, triangle: 2,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'etourdi', duree: 1 },
+    desc: 'Niv. 1. « À genoux ! » La cible et un voisin : sauvegarde de SAG ou ils perdent leur prochain tour.'
+  },
+  passage_sans_trace: {
+    nom: 'Passage sans trace', icone: '🍂', concentration: true, type: 'soutien', niveau: 2, sort: true, zone: true,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true, etat: { nom: 'cache', duree: 99 },
+    desc: '🧠 Concentration. Niv. 2. Une ombre enveloppe l\'équipe : chaque allié est caché (avantage à sa prochaine attaque).'
   },
   soins_groupe: {
     parNiveau: '1d4',
@@ -699,11 +703,11 @@ const ACTIONS = {
     depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'voile', duree: 99 },
     desc: 'Niv. 2. Des doubles illusoires : la prochaine attaque qui le toucherait rate.'
   },
-  croissance_epines: {
-    nom: 'Croissance d\'épines', icone: '🌿', concentration: true, persistant: true, type: 'sauvegarde', niveau: 2, sort: true, zone: true, parNiveau: '1d4',
-    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', degats: '3d4+3', typeDeg: 'perforant', moitie: true,
-    effetSiEchec: { etat: 'ralenti', duree: 1 },
-    desc: '🧠 Concentration. Niv. 2. Le sol se couvre de ronces sous tous les ennemis : sauvegarde de DEX, 3d4+3 perforant (moitié) et ralentis 1 tour si échec, au lancer puis à chacun de vos tours.'
+  chaleur_metal: {
+    nom: 'Chaleur du métal', icone: '♨️', concentration: true, relanceGratuite: true, type: 'sauvegarde', niveau: 2, sort: true, parNiveau: '1d8',
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 'sort', degats: '2d8', typeDeg: 'feu', moitie: true,
+    effetSiEchec: { etat: 'entrave', duree: 1 },
+    desc: '🧠 Concentration. Niv. 2. L\'arme ou l\'armure d\'un ennemi rougit : sauvegarde de CON, 2d8 feu (moitié) et désavantage à sa prochaine attaque si échec. Tant que dure la concentration, vous pouvez le relancer à chaque tour sans emplacement.'
   },
   lenteur: {
     nom: 'Lenteur', icone: '🐌', concentration: true, concPermanent: true, type: 'sauvegarde', niveau: 3, sort: true, triangle: 3, niveauMin: 5,

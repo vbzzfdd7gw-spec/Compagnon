@@ -31,7 +31,7 @@ const ETATS = {
   armeSacree: { nom: 'Arme sacrée', icone: '🌟', desc: '+2 au toucher avec les armes.' },
   inimitie: { nom: 'Vœu d\'inimitié', icone: '🔥', desc: 'Le paladin qui l\'a juré a l\'avantage contre lui.' },
   concentre: { nom: 'Concentration', icone: '🧠', desc: 'Maintient un sort de concentration. Chaque fois qu\'il subit des dégâts : sauvegarde de CON (DD 10 ou moitié des dégâts) ou le sort prend fin. Un seul à la fois.', permanent: true },
-  charge: { nom: 'Arme chargée', icone: '⚡', desc: 'Son prochain coup d\'arme qui touche libère un châtiment.', permanent: true },
+  heroisme: { nom: 'Héroïsme', icone: '🦸', desc: 'Ne gagne plus de Peur ; 3 PV temporaires au début de chacun de ses tours.' },
   illumine: { nom: 'Illuminé', icone: '🎆', desc: 'Entouré de lueurs féeriques : les attaques contre lui ont l\'avantage.' },
   ralenti: { nom: 'Ralenti', icone: '🐌', desc: '−2 CA et désavantage à ses attaques.' },
   foi: { nom: 'Bouclier de la foi', icone: '✝️', desc: '+2 CA.' },
@@ -250,7 +250,6 @@ class Combat {
       pj.engloutiPar = null;
       pj.egide = 0;
       pj.concentration = null;
-      pj.chargeArme = null;
       if (pj.pv <= 0) this.log(`${this.nomHtml(pj)} est toujours à terre (0 PV) : soignez-le pour qu'il se relève.`, 'mauvais');
       if (pj.pv <= 0) continue;
       if (pj.crise) this.log(`${CRISES[pj.crise].icone} ${this.nomHtml(pj)} est toujours en proie à : <b>${CRISES[pj.crise].nom}</b>.`, 'mauvais');
@@ -353,6 +352,10 @@ class Combat {
     }
     if (c.camp === 'ennemi' && c.chaos && c.pv > 0) this.pouvoirsDebutTour(c);
     if (c.camp === 'ennemi' && c.pv > 0) this.debutTourMonstre(c);
+    if (c.camp === 'pj' && c.etats.heroisme && c.pv > 0 && (c.egide || 0) < 3) {
+      c.egide = 3;
+      this.log(`🦸 ${this.nomHtml(c)} puise dans son héroïsme : 3 PV temporaires.`, 'bon');
+    }
     if (c.camp === 'pj' && c.concentration && c.pv > 0) {
       this.tickConcentration(c);
       if (this.verifierFin()) return;
@@ -645,30 +648,6 @@ class Combat {
     this.intensifier = false;
   }
 
-  // Coup chargé (Châtiment tonitruant, Grêle d'épines)
-  dechargerArme(a, c, critique) {
-    const ch = a.chargeArme;
-    a.chargeArme = null;
-    delete a.etats.charge;
-    if (ch.effet === 'tonnerre') {
-      const d = Des.lancer(ch.des, critique);
-      this.log(`→ ${ch.icone} ${ch.nom} : ${d.texte} ${ch.type} !`, 'jet');
-      this.evt({ t: 'texte', cible: c.id, texte: `${ch.icone} ${ch.nom}`, classe: 'crit' });
-      this.infliger(c, d.total, ch.type, a, false);
-      if (c.pv > 0) {
-        const s = this.jetSauvegarde(c, 'FOR', a.ddSort || 13);
-        this.log(`→ ${s.texte}`, 'jet');
-        if (!s.reussite) { this.appliquerEtat(c, 'renverse', 1); this.reculer(c); }
-      }
-    } else if (ch.effet === 'grele') {
-      const groupe = this.ciblesValides(a, { cible: 'ennemi', vise: ['avant', 'arriere'] });
-      const cibles = groupe.includes(c) ? this.cibleTriangle(a, { cible: 'ennemi', vise: ['avant', 'arriere'] }, c).slice(0, 3) : [c];
-      this.log(`→ ${ch.icone} ${ch.nom} : une pluie d'épines explose !`, 'jet');
-      this.evt({ t: 'action', source: a.id, camp: a.camp, nom: ch.nom, icone: ch.icone, cibles: cibles.map(x => x.id), melee: false, distance: true, typeAct: 'sauvegarde', typeDeg: ch.type, sort: true });
-      for (const x of cibles) if (x.pv > 0) this.resoudreSauvegarde(a, { carac: 'DEX', dd: 'sort', degats: ch.des, typeDeg: ch.type, moitie: true, sort: true }, x);
-    }
-  }
-
   // ------------------------------------------- lancer à un niveau supérieur
   // Copie de l'action renforcée de k niveaux (dés de dégâts ou de soin, rayons, réserve)
   surcharger(act, k) {
@@ -956,7 +935,6 @@ class Combat {
       this.evt({ t: 'soin', cible: a.id, n: a.pv - av, pvAvant: av, pvApres: a.pv, pvMax: a.pvMax });
     }
     if (act.effetSiTouche && c.pv > 0) this.appliquerEffet(a, act.effetSiTouche, c);
-    if (act.arme && a.chargeArme && !act.compagnon) this.dechargerArme(a, c, critique);
     if (this.appliquerApres) { const e = this.appliquerApres; this.appliquerApres = null; if (c.pv > 0) this.appliquerEffet(a, e, c); }
     // Totem du loup (niv. 5) : en rage, les coups d'arme au corps à corps renversent
     if (a.traits && a.traits.chefMeute && a.etats.rage && act.arme && c.pv > 0 && !c.etats.renverse && act.vise && act.vise.length === 1)
@@ -1452,6 +1430,7 @@ class Combat {
     if (n > 0 && pj.traits.peurReduite) n = Math.ceil(n / 2);
     if (n > 0 && this.pjs.some(p => p.pv > 0 && p.traits.auraCourage)) n = Math.ceil(n / 2);
     if (n > 0 && pj.traits.rageInconsciente && pj.etats.rage) n = 0;
+    if (n > 0 && pj.etats.heroisme) n = 0;
     const avant = pj.peur;
     pj.peur = Math.max((pj.traits && pj.traits.peurMin) || 0, Math.min(100, pj.peur + n));
     const diff = pj.peur - avant;
@@ -1596,14 +1575,6 @@ const SPECIAUX = {
     const e = a.emplacements[1];
     if (e && e.restant < e.max) { e.restant++; cb.log(`→ 🌟 ${cb.nomHtml(a)} façonne un emplacement de sort de niveau 1.`, 'bon'); }
     else cb.log('→ Tous ses emplacements de niveau 1 sont déjà pleins.', 'jet rate');
-  },
-
-  // Châtiment tonitruant, Grêle d'épines : le prochain coup d'arme qui touche est chargé
-  charge_arme(cb, a, act) {
-    const k = (cb.niveauSort || act.niveau) - act.niveau;
-    a.chargeArme = { ...act.charge, des: act.charge.des + (k > 0 && act.parNiveau ? '+' + multiplierDes(act.parNiveau, k) : '') };
-    a.etats.charge = 99;
-    cb.log(`→ ${act.charge.icone} ${cb.nomHtml(a)} charge son arme : ${act.charge.nom} (${a.chargeArme.des} ${act.charge.type}) au prochain coup qui touche.`, 'bon');
   },
 
   esprit_combatif(cb, a) {
