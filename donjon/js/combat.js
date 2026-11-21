@@ -30,6 +30,7 @@ const ETATS = {
   affaibli: { nom: 'Affaibli', icone: '🦴', desc: 'Inflige moitié dégâts avec ses armes.' },
   armeSacree: { nom: 'Arme sacrée', icone: '🌟', desc: '+2 au toucher avec les armes.' },
   inimitie: { nom: 'Vœu d\'inimitié', icone: '🔥', desc: 'Le paladin qui l\'a juré a l\'avantage contre lui.' },
+  concentre: { nom: 'Concentration', icone: '🧠', desc: 'Maintient un sort de concentration. Chaque fois qu\'il subit des dégâts : sauvegarde de CON (DD 10 ou moitié des dégâts) ou le sort prend fin. Un seul à la fois.', permanent: true },
   banni: { nom: 'Banni', icone: '🌀', desc: 'Envoyé dans un autre plan : perd ses tours et ne peut pas être ciblé.' },
   ours: { nom: 'Forme d\'ours', icone: '🐻', desc: 'Druide changé en ours tant qu\'il lui reste des PV temporaires.', permanent: true },
   vengeance: { nom: 'Vengeance', icone: '⚔️', desc: '+2 au toucher et aux dégâts jusqu\'à la fin du combat.', permanent: true },
@@ -219,6 +220,7 @@ class Combat {
       pj.caMalus = 0;
       pj.engloutiPar = null;
       pj.egide = 0;
+      pj.concentration = null;
       if (pj.pv <= 0) this.log(`${this.nomHtml(pj)} est toujours à terre (0 PV) : soignez-le pour qu'il se relève.`, 'mauvais');
       if (pj.pv <= 0) continue;
       if (pj.crise) this.log(`${CRISES[pj.crise].icone} ${this.nomHtml(pj)} est toujours en proie à : <b>${CRISES[pj.crise].nom}</b>.`, 'mauvais');
@@ -320,6 +322,10 @@ class Combat {
     }
     if (c.camp === 'ennemi' && c.chaos && c.pv > 0) this.pouvoirsDebutTour(c);
     if (c.camp === 'ennemi' && c.pv > 0) this.debutTourMonstre(c);
+    if (c.camp === 'pj' && c.concentration && c.pv > 0) {
+      this.tickConcentration(c);
+      if (this.verifierFin()) return;
+    }
     if (c.camp === 'pj' && c.etats.maudit) {
       this.log(`🩸 La marque du culte ronge l'esprit de ${this.nomHtml(c)}.`, 'peur');
       this.modifierPeur(c, 5);
@@ -401,7 +407,7 @@ class Combat {
   // Renvoie { ok, raison }
   disponibilite(acteur, action) {
     if (!action.depuis.includes(acteur.ligne)) return { ok: false, raison: `Seulement depuis la ligne ${this.nomLigne(action.depuis[0])}` };
-    if (action.niveau && !this.emplacementDispo(acteur, action.niveau)) return { ok: false, raison: 'Plus d\'emplacement' };
+    if (action.niveau && !this.relanceGratuite(acteur, action) && !this.emplacementDispo(acteur, action.niveau)) return { ok: false, raison: 'Plus d\'emplacement' };
     if (action.parCombat && (acteur.usages[action.nom] || 0) >= action.parCombat) return { ok: false, raison: 'Déjà utilisée' };
     if (action.ressource && !((acteur.ressources || {})[action.ressource] > 0)) return { ok: false, raison: 'Épuisée (repos)' };
     if (action.requiertEtat && !acteur.etats[action.requiertEtat]) return { ok: false, raison: `Seulement en ${ETATS[action.requiertEtat].nom.toLowerCase()}` };
@@ -494,7 +500,9 @@ class Combat {
   executer(a, act, cible) {
     // Coûts
     let coutTxt = '';
-    if (act.niveau) {
+    const gratuit = this.relanceGratuite(a, act);
+    if (gratuit) { coutTxt = ' <span class="cout">(🧠 concentration, sans emplacement)</span>'; this.niveauSort = a.concentration.niveau; }
+    else if (act.niveau) {
       const n = this.emplacementDispo(a, act.niveau);
       a.emplacements[n].restant--;
       coutTxt = ` <span class="cout">(emplacement niv. ${n})</span>`;
@@ -524,6 +532,8 @@ class Combat {
     const cibleTxt = (act.zone || act.cible === 'soi' || !cible) ? '' : ` sur ${this.nomHtml(cible)}`;
     this.log(`${act.icone || '▶'} ${this.nomHtml(a)} utilise <i>${act.nom}</i>${cibleTxt}${coutTxt}`, 'action');
 
+    if (act.concentration && !gratuit) this.debuterConcentration(a, act, cible);
+    this.concEnCours = act.concentration ? a : null;
     this.sortsTouches = new Set();
     const cibles = act.zone ? this.ciblesValides(a, act) : act.cible === 'soi' ? [a] : act.triangle && cible ? this.cibleTriangle(a, act, cible) : [cible];
     // Métamagie : sort jumelé (une deuxième cible), sort intensifié (×1,5 dégâts)
@@ -587,8 +597,77 @@ class Combat {
     }
     // Magie sauvage : après un sort à emplacement, un effet imprévisible
     if (a.traits && a.traits.magieSauvage && this.niveauSort && a.pv > 0 && !this.fini && alea() < a.traits.magieSauvage) this.monteeSauvage(a);
+    if (act.concentration && a.concentration && a.concentration.nom === act.nom && !act.zone && act.cible !== 'soi' && cible) a.concentration.cible = cible.id;
+    this.concEnCours = null;
     this.niveauSort = 0;
     this.intensifier = false;
+  }
+
+  // ------------------------------------------------- concentration
+  // Un seul sort de concentration à la fois ; les états qu'il pose sont
+  // retirés quand elle se rompt (nouveau sort, sauvegarde de CON ratée
+  // après des dégâts, lanceur à terre). Les sorts `persistant` frappent à
+  // nouveau au début de chaque tour du lanceur.
+  relanceGratuite(a, act) {
+    return !!(act.relanceGratuite && a.concentration && a.concentration.nom === act.nom);
+  }
+
+  debuterConcentration(a, act, cible) {
+    if (a.concentration) this.finConcentration(a, `lance ${act.nom}`);
+    a.concentration = { nom: act.nom, icone: act.icone, niveau: this.niveauSort || act.niveau || 0, etats: [], cible: cible ? cible.id : null, act };
+    a.etats.concentre = 99;
+  }
+
+  finConcentration(a, raison) {
+    const conc = a.concentration;
+    if (!conc) return;
+    a.concentration = null;
+    delete a.etats.concentre;
+    for (const [id, nom] of conc.etats) {
+      const c = [...this.pjs, ...this.ennemis].find(x => x.id === id);
+      if (!c || !c.etats[nom]) continue;
+      delete c.etats[nom];
+      if (nom === 'marque' && c.marquePar === a.id) c.marquePar = null;
+    }
+    this.log(`🧠 ${this.nomHtml(a)} perd sa concentration (${raison}) : <i>${conc.nom}</i> prend fin.`, 'etat');
+    this.evt({ t: 'texte', cible: a.id, texte: '🧠 Concentration rompue', classe: 'rate' });
+  }
+
+  testConcentration(a, n) {
+    if (n <= 0 || this.fini) return;
+    const dd = Math.max(10, Math.floor(n / 2));
+    const s = this.jetSauvegardeConcentration(a, dd);
+    this.log(`→ 🧠 Concentration : ${s.texte}`, 'jet');
+    if (!s.reussite) this.finConcentration(a, 'dégâts');
+  }
+
+  jetSauvegardeConcentration(a, dd) {
+    if (!(a.traits && a.traits.mageGuerre)) return this.jetSauvegarde(a, 'CON', dd);
+    const s1 = this.jetSauvegarde(a, 'CON', dd);
+    return s1.reussite ? s1 : this.jetSauvegarde(a, 'CON', dd);   // avantage
+  }
+
+  // Début du tour du lanceur : les sorts persistants frappent encore
+  tickConcentration(a) {
+    const conc = a.concentration;
+    if (!conc || !conc.act.persistant) return;
+    const act = { ...conc.act, degats: conc.act.degatsTick || conc.act.degats };
+    let cibles;
+    if (act.zone) cibles = this.ciblesValides(a, act);
+    else {
+      const valides = this.ciblesValides(a, act);
+      let centre = valides.find(x => x.id === conc.cible);
+      if (!centre) centre = valides.sort((x, y) => x.pv - y.pv)[0];
+      if (!centre) return;
+      conc.cible = centre.id;
+      cibles = act.triangle ? this.cibleTriangle(a, act, centre) : [centre];
+    }
+    if (!cibles.length) return;
+    this.log(`${conc.icone} 🧠 <i>${conc.nom}</i> (${this.nomHtml(a)}) frappe encore.`, 'action');
+    this.evt({ t: 'action', source: a.id, camp: a.camp, nom: conc.nom, icone: conc.icone, cibles: cibles.map(c => c.id), melee: false, distance: true, typeAct: act.type, typeDeg: act.typeDeg, sort: true });
+    this.niveauSort = conc.niveau;
+    for (const c of cibles) if (c.pv > 0) this.resoudreSauvegarde(a, act, c);
+    this.niveauSort = 0;
   }
 
   // Affinité élémentaire et sort intensifié
@@ -1101,6 +1180,11 @@ class Combat {
       this.log(`→ ${this.nomHtml(c)} est immunisé (${ETATS[nom].nom}).`, 'jet rate');
       return;
     }
+    const conc = this.concEnCours && this.concEnCours.concentration;
+    if (conc && nom !== 'concentre') {
+      if (conc.act.concPermanent) duree = 99;
+      conc.etats.push([c.id, nom]);
+    }
     c.etats[nom] = Math.max(c.etats[nom] || 0, duree);
     this.evt({ t: 'texte', cible: c.id, texte: ETATS[nom].icone + ' ' + ETATS[nom].nom, classe: 'etat' });
     this.log(`→ ${this.nomHtml(c)} : ${ETATS[nom].icone} ${ETATS[nom].nom}.`, 'etat');
@@ -1143,6 +1227,7 @@ class Combat {
       this.log(`→ 🐚 La carapace de ${this.nomHtml(c)} absorbe la moitié : ${n} dégâts.`, 'jet');
       if (n <= 0) return;
     }
+    if (c.concentration) this.testConcentration(c, n);
     // PV temporaires (égide, forme d'ours, ténébreux) : absorbent d'abord
     if (c.egide > 0) {
       const abs = Math.min(c.egide, n);
@@ -1154,6 +1239,7 @@ class Combat {
     }
     const pvAvant = Math.max(0, c.pv);
     c.pv -= n;
+    if (c.pv <= 0 && c.concentration) this.finConcentration(c, 'tombe à terre');
     if (c.camp === 'pj' && c.pv > 0 && n >= c.pvMax * 0.3) {
       this.log(`→ 😨 Le coup ébranle ${this.nomHtml(c)} !`, 'peur');
       this.modifierPeur(c, PEUR.grosCoup, true);

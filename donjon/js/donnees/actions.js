@@ -35,6 +35,10 @@
 //   actionBonus                : le héros rejoue aussitôt (une fois par tour)
 //   requiertEtat               : utilisable seulement sous cet état (ex. 'ours')
 //   effroi                     : Peur infligée aux monstres (moitié si sauvegarde réussie)
+//   concentration              : un seul à la fois par héros ; rompu par les dégâts (CON) ou à 0 PV
+//   concPermanent              : ses états durent tant que la concentration tient
+//   persistant / degatsTick    : refrappe au début de chaque tour du lanceur (dégâts du rappel)
+//   relanceGratuite            : relançable sans emplacement tant que la concentration tient
 // =====================================================================
 
 const ACTIONS = {
@@ -109,10 +113,10 @@ const ACTIONS = {
     desc: 'Niv. 1. Un allié (même à terre) récupère 1d8+3 PV.'
   },
   benediction: {
-    nom: 'Bénédiction', icone: '✨', type: 'soutien', niveau: 1, zone: true, sort: true,
+    nom: 'Bénédiction', icone: '✨', concentration: true, concPermanent: true, type: 'soutien', niveau: 1, zone: true, sort: true,
     depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
     etat: { nom: 'benit', duree: 3 },
-    desc: 'Niv. 1. Tous les alliés : +1d4 aux attaques et sauvegardes pendant 3 tours.'
+    desc: '🧠 Concentration. Niv. 1. Tous les alliés : +1d4 aux attaques et sauvegardes tant que dure la concentration.'
   },
   mot_guerison: {
     nom: 'Mot de guérison', icone: '💬', type: 'soin', niveau: 1, sort: true,
@@ -140,10 +144,10 @@ const ACTIONS = {
   },
 
   esprits_gardiens: {
-    nom: 'Esprits gardiens', icone: '👼', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
+    nom: 'Esprits gardiens', icone: '👼', concentration: true, persistant: true, type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'SAG', dd: 'sort', degats: '3d8', typeDeg: 'radiant', moitie: true,
-    desc: 'Niv. 3. Tous les ennemis : sauvegarde de SAG, 3d8 radiant (moitié si réussite).'
+    desc: '🧠 Concentration. Niv. 3. Des esprits entourent le lanceur : tous les ennemis font une sauvegarde de SAG (3d8 radiant, moitié si réussite), au lancer puis au début de chacun de vos tours tant que dure la concentration.'
   },
 
   // ------------------------------- ROUBLARD ---------------------------
@@ -292,10 +296,10 @@ const ACTIONS = {
     desc: 'Un allié (même à terre) récupère 2d6+3 PV. Une fois par combat.'
   },
   faveur_divine: {
-    nom: 'Serment de protection', icone: '🛡️', type: 'soutien', niveau: 1,
+    nom: 'Serment de protection', icone: '🛡️', concentration: true, concPermanent: true, type: 'soutien', niveau: 1,
     depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
     etat: { nom: 'ecorce', duree: 3 },
-    desc: 'Niv. 1. Un allié gagne +3 CA pendant 3 tours.'
+    desc: '🧠 Concentration. Niv. 1. Un allié gagne +3 CA tant que dure la concentration.'
   },
 
   // -------------------------------- RÔDEUR ----------------------------
@@ -312,9 +316,9 @@ const ACTIONS = {
     desc: 'Deux coups au corps à corps, 1d6+2 chacun.'
   },
   marque_chasseur: {
-    nom: 'Marque du chasseur', icone: '🎯', type: 'special', special: 'marque', niveau: 1,
+    nom: 'Marque du chasseur', icone: '🎯', concentration: true, type: 'special', special: 'marque', niveau: 1,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
-    desc: 'Niv. 1. Marque un ennemi : vos attaques contre lui infligent +1d6 jusqu\'à la fin du combat.'
+    desc: '🧠 Concentration. Niv. 1. Marque un ennemi : vos attaques contre lui infligent +1d6 tant que dure la concentration.'
   },
   volee: {
     nom: 'Volée de flèches', icone: '🌧️', type: 'attaque', arme: true, zone: true, parCombat: 1,
@@ -363,10 +367,10 @@ const ACTIONS = {
     desc: 'Tous les alliés : 1d4 PV et −15 Peur. Deux fois par combat.'
   },
   hypnose: {
-    nom: 'Motif hypnotique', icone: '🌀', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
+    nom: 'Motif hypnotique', icone: '🌀', concentration: true, type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'SAG', dd: 'sort', moitie: false, effetSiEchec: { etat: 'etourdi', duree: 1 },
-    desc: 'Niv. 3. Tous les ennemis : sauvegarde de SAG ou étourdis 1 tour.'
+    desc: '🧠 Concentration. Niv. 3. Tous les ennemis : sauvegarde de SAG ou étourdis 1 tour (l\'effet cesse si la concentration se rompt).'
   },
 
   // --------------------------------- DRUIDE ---------------------------
@@ -383,28 +387,28 @@ const ACTIONS = {
     desc: 'Tour de magie. Attaque de sort, 1d10 feu.'
   },
   enchevetrement: {
-    nom: 'Enchevêtrement', icone: '🌿', type: 'sauvegarde', niveau: 1, zone: true, sort: true,
+    nom: 'Enchevêtrement', icone: '🌿', concentration: true, concPermanent: true, type: 'sauvegarde', niveau: 1, zone: true, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
     carac: 'FOR', dd: 'sort', degats: '1d8', typeDeg: 'perforant', moitie: false, effetSiEchec: { etat: 'entrave', duree: 2 },
-    desc: 'Niv. 1. Ligne Avant : sauvegarde de FOR ou 1d8 et entravés (désavantage) 2 tours.'
+    desc: '🧠 Concentration. Niv. 1. Ligne Avant : sauvegarde de FOR ou 1d8 et entravés tant que dure la concentration.'
   },
   rayon_lune: {
-    nom: 'Rayon de lune', icone: '🌙', type: 'sauvegarde', niveau: 2, sort: true, triangle: 3,
+    nom: 'Rayon de lune', icone: '🌙', concentration: true, persistant: true, type: 'sauvegarde', niveau: 2, sort: true, triangle: 3,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'CON', dd: 'sort', degats: '2d10', typeDeg: 'radiant', moitie: true,
-    desc: 'Niv. 2. Un triangle de lumière : la cible et ses 2 voisins les plus proches (3 ennemis au moins s\'ils sont là). Sauvegarde de CON, 2d10 radiant (moitié si réussite).'
+    desc: '🧠 Concentration. Niv. 2. Un rayon de lune frappe la cible et ses 2 voisins (sauvegarde de CON, 2d10 radiant, moitié si réussite), puis frappe encore au début de chacun de vos tours tant que dure la concentration.'
   },
   peau_ecorce: {
-    nom: 'Peau d\'écorce', icone: '🌳', type: 'soutien', niveau: 2,
+    nom: 'Peau d\'écorce', icone: '🌳', concentration: true, concPermanent: true, type: 'soutien', niveau: 2,
     depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
     etat: { nom: 'ecorce', duree: 4 },
-    desc: 'Niv. 2. Un allié gagne +3 CA pendant 4 tours.'
+    desc: '🧠 Concentration. Niv. 2. Un allié gagne +3 CA tant que dure la concentration.'
   },
   appel_foudre: {
-    nom: 'Appel de la foudre', icone: '🌩️', type: 'sauvegarde', niveau: 3, sort: true, niveauMin: 5,
+    nom: 'Appel de la foudre', icone: '🌩️', concentration: true, relanceGratuite: true, type: 'sauvegarde', niveau: 3, sort: true, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
-    carac: 'DEX', dd: 'sort', degats: '4d10', typeDeg: 'tonnerre', moitie: true,
-    desc: 'Niv. 3. Sauvegarde de DEX, 4d10 tonnerre (moitié si réussite).'
+    carac: 'DEX', dd: 'sort', degats: '3d10', typeDeg: 'foudre', moitie: true,
+    desc: '🧠 Concentration. Niv. 3. Une nuée d\'orage : sauvegarde de DEX, 3d10 foudre (moitié si réussite). Tant que dure la concentration, vous pouvez rappeler la foudre à chaque tour sans dépenser d\'emplacement.'
   },
 
   // ---------------------------------- MOINE ---------------------------
@@ -462,9 +466,9 @@ const ACTIONS = {
     desc: 'Tour de magie. Rayon de force : 1d10+3 (Décharge déchirante). Deux rayons au niveau 5.'
   },
   malefice: {
-    nom: 'Maléfice', icone: '🧿', type: 'special', special: 'marque', niveau: 1, sort: true, actionBonus: true,
+    nom: 'Maléfice', icone: '🧿', concentration: true, type: 'special', special: 'marque', niveau: 1, sort: true, actionBonus: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
-    desc: 'Action bonus. Maudit un ennemi : vos attaques contre lui infligent +1d6 jusqu\'à la fin du combat.'
+    desc: '🧠 Concentration. Action bonus. Maudit un ennemi : vos attaques contre lui infligent +1d6 tant que dure la concentration.'
   },
   bras_hadar: {
     nom: 'Bras d\'Hadar', icone: '🦑', type: 'sauvegarde', niveau: 1, zone: true, sort: true,
@@ -492,11 +496,11 @@ const ACTIONS = {
     desc: 'Tour de magie. 1d10+3 force et repousse la cible en ligne Arrière.'
   },
   faim_hadar: {
-    nom: 'Faim d\'Hadar', icone: '🌑', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
+    nom: 'Faim d\'Hadar', icone: '🌑', concentration: true, persistant: true, degatsTick: '2d6', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'DEX', dd: 'sort', degats: '4d6', typeDeg: 'froid', moitie: true,
     effetSiEchec: { etat: 'entrave', duree: 1 },
-    desc: 'Pacte. Un néant glacial engloutit tous les ennemis : sauvegarde de DEX, 4d6 froid (moitié), entravés si échec.'
+    desc: '🧠 Concentration. Pacte. Un néant glacial engloutit tous les ennemis : sauvegarde de DEX, 4d6 froid (moitié), entravés si échec ; puis 2d6 froid au début de chacun de vos tours tant que dure la concentration.'
   },
 
   // ------------------------------ ENSORCELEUR --------------------------
@@ -538,15 +542,15 @@ const ACTIONS = {
     desc: 'Niv. 4. Une cible : sauvegarde de CON, 8d8 nécrotique (moitié si réussite).'
   },
   bannissement: {
-    nom: 'Bannissement', icone: '🌀', type: 'special', special: 'bannissement', niveau: 4, sort: true, niveauMin: 7,
+    nom: 'Bannissement', icone: '🌀', concentration: true, type: 'special', special: 'bannissement', niveau: 4, sort: true, niveauMin: 7,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
-    desc: 'Niv. 4. Une cible : sauvegarde de CHA ou bannie 2 tours (perd ses tours, ne peut pas être ciblée). Un boss fait deux jets.'
+    desc: '🧠 Concentration. Niv. 4. Une cible : sauvegarde de CHA ou bannie 2 tours (perd ses tours, ne peut pas être ciblée ; revient si la concentration se rompt). Un boss fait deux jets.'
   },
   confusion: {
-    nom: 'Confusion', icone: '😵‍💫', type: 'sauvegarde', niveau: 4, sort: true, triangle: 3, niveauMin: 7,
+    nom: 'Confusion', icone: '😵‍💫', concentration: true, type: 'sauvegarde', niveau: 4, sort: true, triangle: 3, niveauMin: 7,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
     effetSiEchec: { etat: 'etourdi', duree: 2 },
-    desc: 'Niv. 4. La cible et ses 2 voisins : sauvegarde de SAG ou étourdis 2 tours.'
+    desc: '🧠 Concentration. Niv. 4. La cible et ses 2 voisins : sauvegarde de SAG ou étourdis 2 tours (l\'effet cesse si la concentration se rompt).'
   },
   // ------------------------------ ARTIFICIER ----------------------------
   arbalete_artificier: {
@@ -606,11 +610,11 @@ const ACTIONS = {
     desc: 'Deux coups de masse (1d6+2 chacun). Une fois par combat.'
   },
   rayon_affaiblissant: {
-    nom: 'Rayon affaiblissant', icone: '🦴', type: 'sauvegarde', niveau: 1, sort: true,
+    nom: 'Rayon affaiblissant', icone: '🦴', concentration: true, concPermanent: true, type: 'sauvegarde', niveau: 1, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'CON', dd: 'sort', degats: '2d6', typeDeg: 'nécrotique', moitie: true,
     effetSiEchec: { etat: 'affaibli', duree: 3 },
-    desc: 'Niv. 1. Sauvegarde de CON, 2d6 nécrotique (moitié si réussite) ; si échec, la cible inflige moitié dégâts avec ses armes pendant 3 tours.'
+    desc: '🧠 Concentration. Niv. 1. Sauvegarde de CON, 2d6 nécrotique (moitié si réussite) ; si échec, la cible inflige moitié dégâts avec ses armes tant que dure la concentration.'
   },
   arme_sacree: {
     nom: 'Arme sacrée', icone: '🌟', type: 'soutien', parCombat: 1, actionBonus: true,

@@ -62,6 +62,14 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 - **Difficultés** (`DIFFICULTES` dans `campagnes.js`) : Normal, Héroïque (débloquée en gagnant en Normal), Cauchemar (débloquée en gagnant en Héroïque). Elles réutilisent les mutations du Chaos (`appliquerChaos(type, final, reglage)`) avec une chance réglable, plus de Peur et plus d'or. `DIFF=heroique node outils-simulation.js 400 crypte` les simule.
 - **Défi quotidien** (`DefiDuJour` dans `jeu.js`) : la date donne une graine qui choisit campagne, équipe, sous-classes et un modificateur, puis fixe le hasard de toute la partie. Le score (étage, salles, combats, or, victoire) et le record sont gardés dans le navigateur.
 
+## Concentration
+
+Comme dans D&D, certains sorts (`concentration: true` dans `actions.js` : Bénédiction, Marque du chasseur, Maléfice, Rayon de lune, Appel de la foudre, Esprits gardiens, Faim d'Hadar, Motif hypnotique, Confusion, Bannissement…) demandent de la concentration (`combat.js`, partie « concentration ») :
+- un seul à la fois par héros : en lancer un autre met fin au premier ;
+- à chaque dégât subi, sauvegarde de CON (DD 10 ou la moitié des dégâts) ; à 0 PV, le sort cesse ; ses états sont alors retirés ;
+- `concPermanent` : ses états durent tant que la concentration tient ; `persistant` (Rayon de lune, Esprits gardiens, Faim d'Hadar) : le sort refrappe au début de chaque tour du lanceur ; `relanceGratuite` (Appel de la foudre) : relancé sans emplacement tant qu'elle tient ;
+- trait `mageGuerre` (Anneau du mage de guerre) : avantage aux sauvegardes de concentration.
+
 ## Équilibrage
 
 `node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions avec l'équipe de base ;
@@ -69,7 +77,7 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire, le niveau moyen de l'équipe à chaque boss et les PV perdus par combat (`XP=1` affiche aussi l'XP au boss ; `SANS_ELITE=1` retire le renfort des élites).
 `node outils-simulation.js 2000 crypte sousclasses` fait de même avec des sous-classes au hasard et affiche le taux de chaque sous-classe ;
 `SC_SEUL=clerc:vie node outils-simulation.js 800 crypte classes` donne la sous-classe à une seule classe (comparaison avec `SANS_SC=1`).
-Réglage actuel (sous-classes au hasard) : Crypte 50 %, Éclipse 33 %, Marais 33 %, Côtes 32 %, Souterrains 29 %, Givre 28 %, Dragon 26 %, Abîme 19 %, Château 17 %, Toiles 16 %, Tombeau 14 %, Légion 12 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
+Réglage actuel (sous-classes au hasard) : Crypte 50 %, Éclipse 37 %, Marais 37 %, Côtes 32 %, Souterrains 29 %, Givre 28 %, Dragon 28 %, Abîme 19 %, Légion 18 %, Château 17 %, Tombeau 17 %, Toiles 16 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
 
 ## Mode test
 
