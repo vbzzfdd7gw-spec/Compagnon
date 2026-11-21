@@ -104,6 +104,28 @@ const PHASES_BOSS = {
   dracoliche: 'Morthaxx déploie ses ailes décharnées : l\'Abîme hurle et vomit ses serviteurs.'
 };
 
+// Actions de repaire des boss finaux : au début de chaque round, le décor frappe
+//   cibles : nombre de héros visés ; carac/dd : sauvegarde ; degats/type (moitié si réussie) ;
+//   etat : appliqué si échec ; peur : Peur ajoutée si échec
+const REPAIRES = {
+  morvagne: { nom: 'Mains des morts', icone: '💀', cibles: 2, carac: 'FOR', dd: 13, degats: '1d6', type: 'nécrotique', etat: 'entrave', texte: 'Des mains décharnées jaillissent du sol de la crypte.' },
+  grukk_tyran: { nom: 'Éboulement', icone: '🪨', cibles: 2, carac: 'DEX', dd: 13, degats: '1d8', type: 'contondant', texte: 'Les coups de Grukk font trembler la grotte : des rochers tombent.' },
+  velkor: { nom: 'Ombre de l\'éclipse', icone: '🌑', cibles: 4, carac: 'SAG', dd: 13, peur: 8, texte: 'Les ténèbres de l\'éclipse se referment sur l\'équipe.' },
+  guenaude: { nom: 'Vase empoisonnée', icone: '🫧', cibles: 2, carac: 'CON', dd: 13, degats: '1d8', type: 'poison', etat: 'empoisonne', texte: 'Le marais bouillonne et crache une vase toxique.' },
+  hydre: { nom: 'Raz-de-marée', icone: '🌊', cibles: 2, carac: 'FOR', dd: 13, degats: '1d8', type: 'contondant', etat: 'renverse', texte: 'Une vague déferle sur la grève.' },
+  meduse: { nom: 'Regard des statues', icone: '🗿', cibles: 1, carac: 'CON', dd: 13, etat: 'petrification', texte: 'Les statues de la salle tournent la tête vers un héros…' },
+  ignaroth: { nom: 'Geyser de magma', icone: '🌋', cibles: 2, carac: 'DEX', dd: 13, degats: '1d8', type: 'feu', texte: 'Le sol de l\'antre se fend : la lave jaillit.' },
+  reine_araignee: { nom: 'Toiles tombantes', icone: '🕸️', cibles: 2, carac: 'DEX', dd: 13, etat: 'entrave', texte: 'Des toiles gluantes tombent de la voûte.' },
+  reine_hiver: { nom: 'Blizzard', icone: '❄️', cibles: 3, carac: 'CON', dd: 13, degats: '1d6', type: 'froid', texte: 'Le blizzard hurle dans la salle du trône.' },
+  seigneur_guerre: { nom: 'Volée de flèches', icone: '🏹', cibles: 2, carac: 'DEX', dd: 13, degats: '1d8', type: 'perforant', texte: 'Les archers de la Légion tirent depuis les remparts.' },
+  pharaon: { nom: 'Malédiction du tombeau', icone: '𓂀', cibles: 1, carac: 'SAG', dd: 13, degats: '2d6', type: 'nécrotique', peur: 10, texte: 'Les hiéroglyphes s\'illuminent d\'une lueur maudite.' },
+  vampire: { nom: 'Nuée de chauves-souris', icone: '🦇', cibles: 2, carac: 'DEX', dd: 13, degats: '1d8', type: 'perforant', texte: 'Une nuée de chauves-souris s\'abat sur l\'équipe.' },
+  dracoliche: { nom: 'Murmures de l\'Abîme', icone: '🌀', cibles: 3, carac: 'SAG', dd: 13, degats: '1d6', type: 'psychique', peur: 6, texte: 'L\'Abîme murmure des choses innommables.' }
+};
+const REPAIRE_DEFAUT = { nom: 'Tremblement', icone: '💥', cibles: 2, carac: 'DEX', dd: 13, degats: '1d8', type: 'contondant', texte: 'Le repaire tremble.' };
+const POINTS_LEGENDAIRES = 1;   // actions légendaires du boss final par round
+const PV_BOSS_LEGENDAIRE = 0.75; // les boss finaux ont moins de PV, en échange de leurs actions légendaires et de repaire
+
 // Renforts des boss invocateurs : tous les monstres ordinaires (ni élite ni boss) des
 // rencontres de toutes les campagnes. Calculé à la demande : une nouvelle campagne
 // ou un nouveau monstre est pris en compte sans rien modifier ici.
@@ -182,6 +204,7 @@ class Combat {
   }
 
   creerMonstre(id, suffixe = '') {
+    if (typeof Bestiaire !== 'undefined') Bestiaire.noter(id, 'vus');
     const d = MONSTRES[id], f = this.force || { pv: 1, toucher: 0, degats: 0, dd: 0, ca: 0 };
     const pv = Math.round(d.pv * f.pv);
     const actions = d.actions.map(a => {
@@ -258,10 +281,12 @@ class Combat {
       if (t.cacheDebut) pj.etats.cache = 99;
       pj.indomptableUtilise = false;
       pj.presagesUtilises = 0;
+      pj.chanceUtilisee = 0;
       if (t.voile) pj.etats.voile = 99;
       if (t.phenix) pj.usages.phenixDispo = true;
       pj.egide = t.egide ? 2 * (pj.niveau || 3) + t.egide : 0;
       if (pj.egide) this.log(`💠 ${this.nomHtml(pj)} lève son égide arcanique (${pj.egide} PV).`, 'bon');
+      if (this.pjs.some(p => p.pv > 0 && p.traits.meneur)) pj.egide = Math.max(pj.egide || 0, 5);
       if (t.manaDebut && pj.emplacements[1] && pj.emplacements[1].restant < pj.emplacements[1].max) {
         pj.emplacements[1].restant++;
         this.log(`🔮 ${this.nomHtml(pj)} récupère un emplacement de sort (pierre de mana).`, 'bon');
@@ -294,6 +319,7 @@ class Combat {
     this.round++;
     this.indexTour = -1;
     this.log(`— Round ${this.round} —`, 'round');
+    if (this.bossFinal && !(typeof SANS_REPAIRE !== 'undefined' && SANS_REPAIRE)) { this.actionRepaire(); if (this.verifierFin()) return; }
     if (this.round >= 5) {
       this.log('😰 Le combat s\'éternise : l\'angoisse monte dans l\'équipe.', 'peur');
       for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, PEUR.combatLong, true);
@@ -401,6 +427,12 @@ class Combat {
     }
     this.actif = null;
     if (this.verifierFin()) return;
+    if (c.camp === 'ennemi' && c.boss) c.pointsLeg = POINTS_LEGENDAIRES;
+    if (c.camp === 'pj' && this.bossFinal && !(typeof SANS_LEG !== 'undefined' && SANS_LEG) && this.actionLegendaire()) {
+      const d = this.maj();
+      if (this.verifierFin()) return;
+      return setTimeout(() => this.prochainTour(), d + this.attente(350));
+    }
     this.prochainTour();
   }
 
@@ -578,6 +610,8 @@ class Combat {
     const cibleTxt = (act.zone || act.cible === 'soi' || !cible) ? '' : ` sur ${this.nomHtml(cible)}`;
     this.log(`${act.icone || '▶'} ${this.nomHtml(a)} utilise <i>${act.nom}</i>${cibleTxt}${coutTxt}`, 'action');
 
+    // Tours de magie : 2 dés de dégâts à partir du niveau 5
+    if (a.camp === 'pj' && (a.niveau || 3) >= 5 && estTourDeMagie(act)) act = { ...act, degats: act.degats.replace(/(\d*)d(\d+)/, (m, n, f) => `${2 * parseInt(n || '1', 10)}d${f}`) };
     if (act.concentration && !gratuit) this.debuterConcentration(a, act, cible);
     this.concEnCours = act.concentration ? a : null;
     this.sortsTouches = new Set();
@@ -744,6 +778,7 @@ class Combat {
     let txt = '';
     const af = a.traits && a.traits.affinite;
     if (act.sort && af && act.typeDeg === af.type && n > 0) { n += af.bonus; txt += ` +${af.bonus} (affinité)`; }
+    if (act.sort && a.traits && a.traits.adepte && n > 0) { n += a.traits.adepte; txt += ` +${a.traits.adepte} (adepte)`; }
     if (act.sort && this.intensifier && n > 0) { n = Math.round(n * 1.5); txt += ' ×1,5 (intensifié)'; }
     return { n, txt };
   }
@@ -859,6 +894,15 @@ class Combat {
     let critique = r.nat >= seuilCrit;
     if (critique && c.traits && c.traits.antiCrit) { critique = false; this.log(`→ 🛡️ L'armure d'adamantine de ${this.nomHtml(c)} annule le critique !`, 'bon'); }
     let touche = critique || (r.nat !== 1 && total >= ca);
+    // Don Chanceux : relance une attaque ratée (3 fois par combat, partagé avec les sauvegardes)
+    if (!touche && a.camp === 'pj' && !act.compagnon && a.traits && a.traits.chanceux && (a.chanceUtilisee || 0) < a.traits.chanceux) {
+      a.chanceUtilisee = (a.chanceUtilisee || 0) + 1;
+      const r2 = Des.d20(mode), t2 = r2.nat + (total - r.nat);
+      txt += ` → 🍀 chanceux, relance ${r2.texte}`;
+      total = t2;
+      critique = r2.nat >= seuilCrit && !(c.traits && c.traits.antiCrit);
+      touche = critique || (r2.nat !== 1 && total >= ca);
+    }
     // Assassinat : au 1er round, toucher un ennemi qui n'a pas encore joué est un critique
     if (touche && !critique && a.traits && a.traits.assassin && this.round === 1 && !c.aJoue) critique = true;
     if (touche && !critique && c.etats.paralyse && act.vise && act.vise.length === 1 && act.vise[0] === 'avant') critique = true;
@@ -1038,6 +1082,22 @@ class Combat {
       txt += ` → 💪 indomptable, relance ${r2.texte}`;
       if (t2 > total) total = t2;
       reussite = total >= dd;
+    }
+    // Don Chanceux : relance une sauvegarde ratée (3 fois par combat)
+    if (!reussite && c.camp === 'pj' && c.traits && c.traits.chanceux && (c.chanceUtilisee || 0) < c.traits.chanceux) {
+      c.chanceUtilisee = (c.chanceUtilisee || 0) + 1;
+      const r4 = Des.d20(mode), t4 = r4.nat + bonus + (mal || 0);
+      txt += ` → 🍀 chanceux, relance ${r4.texte}`;
+      if (t4 > total) total = t4;
+      reussite = total >= dd;
+    }
+    // Résistance légendaire des boss : une sauvegarde ratée devient réussie (3 fois pour le boss final, 1 sinon)
+    if (!reussite && c.camp === 'ennemi' && c.boss && (c.resistLegUtil || 0) < (this.bossFinal ? 3 : 1)) {
+      c.resistLegUtil = (c.resistLegUtil || 0) + 1;
+      txt += ` → 👑 résistance légendaire (${(this.bossFinal ? 3 : 1) - c.resistLegUtil} restante${(this.bossFinal ? 3 : 1) - c.resistLegUtil > 1 ? 's' : ''})`;
+      reussite = true;
+      total = Math.max(total, dd);
+      this.evt({ t: 'texte', cible: c.id, texte: '👑 Résistance légendaire', classe: 'rate' });
     }
     // Divination : un présage remplace le jet raté d'un allié
     if (!reussite && c.camp === 'pj' && this.pjs) {
@@ -1303,6 +1363,7 @@ class Combat {
       else if (m.resist && m.resist.includes(type)) { n = Math.floor(n / 2); note = ' (résistance ÷2)'; }
       else if (m.vuln && m.vuln.includes(type)) { n = n * 2; note = ' (vulnérable ×2)'; }
       if (note) this.log(`→ ${this.nomHtml(c)}${note} : ${n} dégâts.`, 'jet');
+      if (note && typeof Bestiaire !== 'undefined') Bestiaire.decouvrir(c.modele, note.includes('immun') ? 'immun' : note.includes('résist') ? 'resist' : 'vuln', type);
     } else if (c.etats && c.etats.rage && (['contondant', 'perforant', 'tranchant'].includes(type) || (c.traits && c.traits.espritOurs && type !== 'psychique'))) {
       // Rage : résistance aux dégâts physiques ; Totem de l'Ours : à tout sauf psychique
       n = Math.floor(n / 2);
@@ -1335,6 +1396,7 @@ class Combat {
     const pvAvant = Math.max(0, c.pv);
     c.pv -= n;
     if (c.pv <= 0 && c.concentration) this.finConcentration(c, 'tombe à terre');
+    if (c.pv <= 0 && c.camp === 'pj') this.heroTombe = true;
     if (c.boss && this.bossFinal && !c.phase2 && c.pv > 0 && c.pv <= c.pvMax / 2) this.secondePhase(c);
     if (c.camp === 'pj' && c.pv > 0 && n >= c.pvMax * 0.3) {
       this.log(`→ 😨 Le coup ébranle ${this.nomHtml(c)} !`, 'peur');
@@ -1391,6 +1453,7 @@ class Combat {
       if (c.camp === 'ennemi') {
         this.evt({ t: 'mort', cible: c.id });
         this.log(`☠ ${this.nomHtml(c)} est vaincu !`, 'bon');
+        if (typeof Bestiaire !== 'undefined') Bestiaire.noter(c.modele, 'tues');
         for (const p of this.pjs) if (p.engloutiPar === c.id) { delete p.etats.englouti; p.engloutiPar = null; this.log(`→ ${this.nomHtml(p)} est libéré du cube !`, 'bon'); }
         if (m && m.criMort) {
           this.log(`💀 ${this.nomHtml(c)} lance une malédiction dans son dernier souffle !`, 'peur');
@@ -1492,6 +1555,53 @@ class Combat {
     return false;
   }
 
+
+  // Combat contre le boss final : PV ajustés (actions légendaires et de repaire en contrepartie)
+  marquerBossFinal(renforts) {
+    this.bossFinal = true;
+    this.renfortsPhase = renforts || [];
+    for (const e of this.ennemis) if (e.boss) { e.pvMax = Math.round(e.pvMax * PV_BOSS_LEGENDAIRE); e.pv = Math.min(e.pv, e.pvMax); }
+  }
+
+  // Action de repaire (début de round, boss final debout)
+  actionRepaire() {
+    const boss = this.ennemis.find(e => e.boss && e.pv > 0);
+    if (!boss) return;
+    const r = REPAIRES[boss.modele] || REPAIRE_DEFAUT;
+    const cibles = Des.melanger(this.pjs.filter(p => p.pv > 0)).slice(0, r.cibles);
+    if (!cibles.length) return;
+    this.log(`${r.icone} <b>Repaire — ${r.nom}</b> : ${r.texte}`, 'titre mauvais');
+    for (const c of cibles) {
+      const s = this.jetSauvegarde(c, r.carac, r.dd);
+      let ligne = '→ ' + s.texte;
+      if (r.degats) {
+        const d = Des.lancer(r.degats), n = s.reussite ? Math.floor(d.total / 2) : d.total;
+        ligne += `. ${d.texte}${s.reussite ? ' ÷2' : ''} → <b>${n}</b> ${r.type}`;
+        this.log(ligne, 'jet');
+        if (n > 0) this.infliger(c, n, r.type, boss, false);
+      } else this.log(ligne, 'jet');
+      if (!s.reussite && c.pv > 0) {
+        if (r.etat) this.appliquerEtat(c, r.etat, r.etat === 'petrification' ? 3 : 1);
+        if (r.peur) this.modifierPeur(c, r.peur);
+      }
+    }
+  }
+
+  // Action légendaire : après le tour d'un héros, le boss final frappe hors de son tour
+  actionLegendaire() {
+    const boss = this.ennemis.find(e => e.boss && e.pv > 0);
+    if (!boss || (boss.pointsLeg ?? POINTS_LEGENDAIRES) <= 0 || alea() < 0.5) return false;
+    if (['banni', 'etourdi', 'endormi', 'paralyse', 'charme', 'petrifie'].some(e => boss.etats[e])) return false;
+    // Comme dans D&D : une simple attaque, la moins forte du boss
+    const options = boss.actions.filter(act => act.type === 'attaque' && !act.zone && act.cible === 'ennemi' && !act.recharge && act.degats && this.disponibilite(boss, act).ok)
+      .sort((x, y) => Des.moyenne(x.degats) - Des.moyenne(y.degats));
+    if (!options.length) return false;
+    boss.pointsLeg = (boss.pointsLeg ?? POINTS_LEGENDAIRES) - 1;
+    const act = options[0];
+    this.log(`👑 <b>Action légendaire</b> de ${this.nomHtml(boss)} !`, 'mauvais');
+    this.executer(boss, act, this.choisirCible(boss, act));
+    return true;
+  }
 
   // Boss final à la moitié de ses PV : il se libère de ses entraves, s'enrage et appelle des renforts
   secondePhase(c) {

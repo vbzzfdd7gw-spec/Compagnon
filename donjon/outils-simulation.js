@@ -2,7 +2,7 @@
 const fs = require('fs'), vm = require('vm');
 const D = require('path').join(__dirname, 'js') + '/';
 const file = [];
-const ctx = { DIFF_SIM: process.env.DIFF || '', SANS_ELITE: !!process.env.SANS_ELITE, SANS_PHASE: !!process.env.SANS_PHASE, localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
+const ctx = { DIFF_SIM: process.env.DIFF || '', SANS_ELITE: !!process.env.SANS_ELITE, SANS_PHASE: !!process.env.SANS_PHASE, SANS_LEG: !!process.env.SANS_LEG, SANS_REPAIRE: !!process.env.SANS_REPAIRE, localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
 vm.createContext(ctx);
 for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'donnees/campagnes.js', 'donnees/sousclasses.js', 'combat.js', 'carte.js'])
   vm.runInContext(fs.readFileSync(D + f, 'utf8').replace(/^const (\w+) =/gm, 'var $1 =').replace(/^class (\w+)/gm, 'var $1 = class $1'), ctx);
@@ -77,7 +77,7 @@ function combattre(equipe, rencontre, jeu, force) {
   if (jeu.chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final);
   else if (DIFF_SIM && difficulte(DIFF_SIM).chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final, difficulte(DIFF_SIM).chaos);
   else if (jeu.typeCombat === 'elite' && !SANS_ELITE) cb.appliquerChaos(jeu.typeCombat, jeu.final, ELITE_MUTEE);
-  if (jeu.final && jeu.typeCombat === 'boss' && !SANS_PHASE) { cb.bossFinal = true; cb.renfortsPhase = jeu.renfortsPhase || []; }
+  if (jeu.final && jeu.typeCombat === 'boss' && !SANS_PHASE) cb.marquerBossFinal(jeu.renfortsPhase);
   let fin = null; cb.surFin = r => { fin = r; };
   cb.demarrer();
   let garde = 0;
