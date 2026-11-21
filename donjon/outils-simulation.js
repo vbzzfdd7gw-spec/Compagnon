@@ -23,7 +23,7 @@ function iaPJ(cb, a) {
   const ids = [...a.actions, ...ACTIONS_COMMUNES, ...Object.keys(ACTIONS_SAC)].filter(id => id !== 'sac' && dispo(id));
   // Concentration : ne pas rompre un sort en cours ; rappeler la foudre gratuitement
   if (a.concentration) for (let i = ids.length - 1; i >= 0; i--) if (ACTIONS[ids[i]].concentration && !cb.relanceGratuite(a, ACTIONS[ids[i]])) ids.splice(i, 1);
-  if (ids.includes('appel_foudre') && cb.relanceGratuite(a, ACTIONS.appel_foudre) && !cb.pjs.some(p => p.pv <= 0)) { const cs = cb.ciblesValides(a, ACTIONS.appel_foudre).sort((x, y) => x.pv - y.pv); if (cs.length) return [ACTIONS.appel_foudre, cs[0]]; }
+  for (const id of ['appel_foudre', 'rayon_lune']) if (ids.includes(id) && cb.relanceGratuite(a, ACTIONS[id]) && !cb.pjs.some(p => p.pv <= 0)) { const cs = cb.ciblesValides(a, ACTIONS[id]).sort((x, y) => x.pv - y.pv); if (cs.length) return [ACTIONS[id], cs[0]]; }
   // 1) Soins si un allié est à terre ou bas
   const blesses = cb.pjs.filter(p => p.pv <= 0 || p.pv < p.pvMax * 0.35).sort((x, y) => x.pv / x.pvMax - y.pv / y.pvMax);
   if (blesses.length) {
