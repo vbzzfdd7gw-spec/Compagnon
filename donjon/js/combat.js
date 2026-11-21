@@ -499,12 +499,13 @@ class Combat {
       }
     }
     if (!a.traits || !a.traits.compagnon || a.pv <= 0) return;
-    const morsure = { nom: 'Morsure du loup', icone: '🐺', type: 'attaque', compagnon: true, jet: 4, degats: a.traits.compagnon, typeDeg: 'perforant', cible: 'ennemi', vise: ['avant'], depuis: ['avant', 'arriere'] };
+    const t = a.traits, nomC = t.compagnonNom || 'loup', icC = t.compagnonIcone || '🐺', typeC = t.compagnonType || 'perforant';
+    const morsure = { nom: t.compagnonNom ? `Coup du ${nomC.toLowerCase()}` : 'Morsure du loup', icone: icC, type: 'attaque', compagnon: true, jet: t.compagnonNom ? a.bonusSort : 4, degats: t.compagnon, typeDeg: typeC, cible: 'ennemi', vise: ['avant'], depuis: ['avant', 'arriere'] };
     const cibles = this.ciblesValides(a, morsure);
     if (!cibles.length) return;
     const c = cibles.sort((x, y) => x.pv - y.pv)[0];
-    this.log(`🐺 Le loup de ${this.nomHtml(a)} bondit sur ${this.nomHtml(c)} !`, 'action');
-    this.evt({ t: 'action', source: a.id, camp: a.camp, nom: 'Loup', icone: '🐺', cibles: [c.id], melee: false, distance: true, typeAct: 'attaque', typeDeg: 'perforant' });
+    this.log(`${icC} Le ${nomC.toLowerCase()} de ${this.nomHtml(a)} bondit sur ${this.nomHtml(c)} !`, 'action');
+    this.evt({ t: 'action', source: a.id, camp: a.camp, nom: t.compagnonNom || 'Loup', icone: icC, cibles: [c.id], melee: false, distance: true, typeAct: 'attaque', typeDeg: typeC });
     this.resoudreAttaque(a, morsure, c, 0);
   }
 
@@ -936,6 +937,12 @@ class Combat {
     if (c.etats && c.etats.agathys && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && a.pv > 0) {
       this.log(`→ ❄️ L'armure d'Agathys de ${this.nomHtml(c)} gèle ${this.nomHtml(a)} : 5 froid.`, 'jet');
       this.infliger(a, 5, 'froid', c, false);
+    }
+    // Cercle des Spores : le halo ronge l'attaquant au corps à corps
+    if (tc.halo && c.pv > 0 && a.pv > 0 && act.vise && act.vise.length === 1 && act.vise[0] === 'avant') {
+      const d = Des.lancer(tc.halo);
+      this.log(`→ 🍄 Le halo de spores de ${this.nomHtml(c)} ronge ${this.nomHtml(a)} : ${d.texte} nécrotique.`, 'jet');
+      this.infliger(a, d.total, 'nécrotique', c, false);
     }
     // Domaine de la Tempête : foudroie l'attaquant au corps à corps
     if (tc.colereTempete && c.pv > 0 && a.pv > 0 && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && (c.usages.colere || 0) < tc.colereTempete) {
