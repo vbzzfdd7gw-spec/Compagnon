@@ -117,7 +117,7 @@ const SOUS_CLASSES = {
       details: ['Frénésie : en rage, ses attaques d\'arme frappent une fois de plus. Contrecoup : +5 Peur à chacun de ses tours en rage.', 'Niv. 5 — Rage inconsciente : il ne gagne plus de Peur tant qu\'il est en rage.'],
       traits: { frenesie: true }, niv5: { traits: { rageInconsciente: true }, texte: 'Rage inconsciente (aucune Peur en rage)' } },
     { id: 'ours', nom: 'Totem de l\'Ours', icone: '🐻', desc: 'Encaisse et attire les coups.', deblocage: 'horde',
-      details: ['+4 PV max.', 'Esprit de l\'ours : en rage, les ennemis le prennent pour cible en priorité.', 'Niv. 5 — Aspect de l\'ours : +2 CA en rage.'],
+      details: ['+4 PV max.', 'Esprit de l\'ours : en rage, résistance à tous les dégâts sauf psychiques, et les ennemis le prennent pour cible en priorité.', 'Niv. 5 — Aspect de l\'ours : +2 CA en rage.'],
       pv: 4, traits: { espritOurs: true }, niv5: { traits: { aspectOurs: true }, texte: 'Aspect de l\'ours (+2 CA en rage)' } },
     { id: 'loup', nom: 'Totem du Loup', icone: '🐺', desc: 'Chef de meute : l\'équipe frappe mieux.', deblocage: 'legion',
       details: ['Esprit du loup : en rage, ses alliés ont l\'avantage au corps à corps contre les ennemis de la ligne Avant.', 'Niv. 5 — Chef de meute : en rage, ses coups d\'arme renversent la cible (sauvegarde de FOR).'],

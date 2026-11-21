@@ -1269,9 +1269,10 @@ class Combat {
       else if (m.resist && m.resist.includes(type)) { n = Math.floor(n / 2); note = ' (résistance ÷2)'; }
       else if (m.vuln && m.vuln.includes(type)) { n = n * 2; note = ' (vulnérable ×2)'; }
       if (note) this.log(`→ ${this.nomHtml(c)}${note} : ${n} dégâts.`, 'jet');
-    } else if (c.etats && c.etats.rage) {
+    } else if (c.etats && c.etats.rage && (['contondant', 'perforant', 'tranchant'].includes(type) || (c.traits && c.traits.espritOurs && type !== 'psychique'))) {
+      // Rage : résistance aux dégâts physiques ; Totem de l'Ours : à tout sauf psychique
       n = Math.floor(n / 2);
-      this.log(`→ 😡 ${this.nomHtml(c)} encaisse grâce à sa rage (÷2) : ${n} dégâts.`, 'jet');
+      this.log(`→ 😡 ${this.nomHtml(c)} encaisse grâce à sa rage${c.traits && c.traits.espritOurs && !['contondant', 'perforant', 'tranchant'].includes(type) ? ' (esprit de l\'ours)' : ''} (÷2) : ${n} dégâts.`, 'jet');
     } else if (c.traits && c.traits.resist && c.traits.resist.includes(type)) {
       n = Math.floor(n / 2);
       this.log(`→ ${this.nomHtml(c)} résiste (${type}, ÷2) : ${n} dégâts.`, 'jet');
