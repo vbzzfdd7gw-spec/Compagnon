@@ -670,10 +670,10 @@ const ACTIONS = {
     effetSiEchec: { etat: 'etourdi', duree: 1 },
     desc: 'Niv. 1. « À genoux ! » La cible et un voisin : sauvegarde de SAG ou ils perdent leur prochain tour.'
   },
-  passage_sans_trace: {
-    nom: 'Passage sans trace', icone: '🍂', concentration: true, type: 'soutien', niveau: 2, sort: true, zone: true,
-    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true, etat: { nom: 'cache', duree: 99 },
-    desc: '🧠 Concentration. Niv. 2. Une ombre enveloppe l\'équipe : chaque allié est caché (avantage à sa prochaine attaque).'
+  frappe_zephyr: {
+    nom: 'Frappe du zéphyr', icone: '🌬️', concentration: true, type: 'soutien', niveau: 1, sort: true, actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'zephyr', duree: 99 },
+    desc: '🧠 Concentration. Niv. 1, action bonus (vous jouez aussitôt). Porté par le vent : votre prochaine attaque d\'arme a l\'avantage et inflige +1d8 force si elle touche.'
   },
   soins_groupe: {
     parNiveau: '1d4',
