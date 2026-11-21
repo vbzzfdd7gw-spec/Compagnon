@@ -1201,6 +1201,14 @@ const AJOUTS_3D = {
     g.scale.setScalar(1.7);
     return g;
   },
+  // Artificier : lunettes d'inventeur sur le front
+  lunettes() {
+    const cuir = mat(0x4a3020), laiton = mat(0xd8a040, { rugosite: 0.35 }), verre = mat(0x7ad0ff, { lueur: 0x1a4a60, rugosite: 0.1 });
+    const g = G(F.tore(0.42, 0.04, cuir, undefined, 0, 0, 0, Math.PI / 2, 0, 0),
+      ...[-1, 1].map(c => G(F.cyl(0.12, 0.12, 0.08, laiton, c * 0.16, 0, 0.4, Math.PI / 2, 0, 0), F.cyl(0.09, 0.09, 0.09, verre, c * 0.16, 0, 0.42, Math.PI / 2, 0, 0))));
+    g.position.set(0, 0.55, 0.05); g.rotation.x = -0.35;
+    return g;
+  },
   // Harpie : ailes de plumes dans le dos
   ailesPlumes() {
     const o = { os: false, peau: 0x6a4a30, peauS: 0x4a3420, membrane: 0x9a7650, corne: 0x3a2a1c };

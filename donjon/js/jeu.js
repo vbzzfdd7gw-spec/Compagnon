@@ -4,6 +4,50 @@
 
 const CLE_SAUVEGARDE = 'donjon-roguelike-v1';
 
+// ---------------------------------------------------------------------
+// Défi du jour : campagne, équipe et modificateur tirés d'après la date ;
+// le hasard de la partie suit la même graine pour tout le monde.
+// ---------------------------------------------------------------------
+const DefiDuJour = {
+  cle: 'donjon-defi',
+  MODIFS: [
+    { id: 'mutants', icone: '🧬', nom: 'Monstres mutants', desc: '30 % des monstres mutent, comme en Héroïque.' },
+    { id: 'peur', icone: '😱', nom: 'Nuit d\'effroi', desc: 'La Peur monte 30 % plus vite.' },
+    { id: 'pauvres', icone: '🪙', nom: 'Bourse vide', desc: 'Départ sans or, et l\'or gagné est réduit de 40 %.' },
+    { id: 'robustes', icone: '💪', nom: 'Héros endurcis', desc: '+8 PV maximum pour chaque héros, mais aucune potion au départ.' },
+    { id: 'benis', icone: '✨', nom: 'Bénédiction', desc: 'Toute l\'équipe commence chaque combat bénie.' },
+    { id: 'boss', icone: '👑', nom: 'Boss enragés', desc: 'Chaque boss reçoit un pouvoir du chaos.' }
+  ],
+  aujourdhui() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; },
+  graine(date) { let h = 2166136261; for (const ch of 'cryptes-' + date) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; },
+  // Configuration du jour, tirée avec un générateur à part (indépendant de la partie)
+  config(date = this.aujourdhui()) {
+    let e = this.graine(date);
+    const r = () => { e = (e + 0x6D2B79F5) >>> 0; let t = Math.imul(e ^ (e >>> 15), e | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const pioche = l => l[Math.floor(r() * l.length)];
+    const camps = CAMPAGNES.filter(c => !c.aleatoire && c.difficulte <= 6);
+    const campagne = pioche(camps).id;
+    const fronts = TOUTES_CLASSES.filter(k => CLASSES[k].ligne === 'avant');
+    const classes = [pioche(fronts)];
+    classes.push(pioche(SOIGNEURS.filter(k => !classes.includes(k))));
+    while (classes.length < 4) { const k = pioche(TOUTES_CLASSES); if (!classes.includes(k)) classes.push(k); }
+    const sousClasses = {};
+    for (const k of classes) sousClasses[k] = pioche(SOUS_CLASSES[k]).id;
+    return { date, campagne, classes, sousClasses, modif: pioche(this.MODIFS).id };
+  },
+  modif(id) { return this.MODIFS.find(m => m.id === id); },
+  scores() { try { return JSON.parse(localStorage.getItem(this.cle) || '{}'); } catch (e) { return {}; } },
+  record(date = this.aujourdhui()) { return (this.scores()[date] || {}).record || 0; },
+  noter(date, score) {
+    const s = this.scores(), j = s[date] = s[date] || { record: 0, essais: 0 };
+    j.essais++;
+    const nouveau = score > j.record;
+    if (nouveau) j.record = score;
+    try { localStorage.setItem(this.cle, JSON.stringify(s)); } catch (e) { /* rien */ }
+    return nouveau;
+  }
+};
+
 const Jeu = {
   ecran: 'titre',
   equipe: [],
@@ -27,10 +71,14 @@ const Jeu = {
   finale: null,
 
   // --------------------------------------------------------- partie
-  nouvellePartie(idCampagne = 'crypte', classes = ORDRE_CLASSES, sousClasses = null) {
+  nouvellePartie(idCampagne = 'crypte', classes = ORDRE_CLASSES, sousClasses = null, diff = 'normal') {
     const c = Progression.campagne(idCampagne);
     this.campagne = c.id;
-    this.peurMult = c.regles.peurMult || 1;
+    this.defi = null;
+    this.scoreDefi = null;
+    Hasard.libre();
+    this.difficulte = c.aleatoire ? 'normal' : diff;
+    this.peurMult = (c.regles.peurMult || 1) + difficulte(this.difficulte).peur;
     this.debloquee = null;
     this.equipe = classes.map(k => creerPJ(k, (sousClasses || {})[k]));
     // Mode Chaos : étages tirés au hasard, carte double, héros niveau 4
@@ -64,7 +112,7 @@ const Jeu = {
   sauvegarder() {
     try {
       localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
-        equipe: this.equipe, carte: this.carte, etagesAleatoires: this.etagesAleatoires, potions: this.potions, or: this.or, sac: this.sac, evenementsVus: this.evenementsVus, etage: this.etage, campagne: this.campagne,
+        equipe: this.equipe, carte: this.carte, etagesAleatoires: this.etagesAleatoires, difficulte: this.difficulte, defi: this.defi, hasard: Hasard.etat, potions: this.potions, or: this.or, sac: this.sac, evenementsVus: this.evenementsVus, etage: this.etage, campagne: this.campagne,
         reposLongUtilise: this.reposLongUtilise, stats: this.stats
       }));
     } catch (e) { /* stockage indisponible : on continue sans sauvegarde */ }
@@ -84,7 +132,10 @@ const Jeu = {
       this.or = this.or || 0;
       this.sac = this.sac || {};
       this.evenementsVus = this.evenementsVus || [];
-      this.peurMult = Progression.campagne(this.campagne).regles.peurMult || 1;
+      this.difficulte = this.difficulte || 'normal';
+      this.defi = d.defi || null;
+      if (this.defi && d.hasard !== null && d.hasard !== undefined) Hasard.graine(d.hasard); else Hasard.libre();
+      this.peurMult = (Progression.campagne(this.campagne).regles.peurMult || 1) + difficulte(this.difficulte).peur;
       this.equipe.forEach(p => {
         p.niveau = p.niveau || 3;
         p.actions = p.actions.filter(id => ACTIONS[id]);           // actions retirées du jeu
@@ -110,8 +161,10 @@ const Jeu = {
   lanceur() { return this.debout().find(p => p.emplacements[1] && p.emplacements[1].restant > 0) || null; },
 
   // ------------------------------------------- composition d'équipe
-  choisirCampagne(id) {
+  choisirCampagne(id, diff) {
     this.campagneChoisie = id;
+    this.difficulteChoisie = diff || (this.diffParCampagne || {})[id] || 'normal';
+    if (!Progression.difficulteOuverte(Progression.campagne(id), this.difficulteChoisie)) this.difficulteChoisie = 'normal';
     this.composition = Reglages.equipe && Reglages.equipe.length === 4 && Reglages.equipe.every(c => CLASSES[c]) ? Reglages.equipe.slice() : ORDRE_CLASSES.slice();
     this.ecran = 'composition';
     Ui.rendu();
@@ -141,7 +194,7 @@ const Jeu = {
     Reglages.sauver();
     const sc = {};
     for (const k of this.composition) sc[k] = this.sousClasseChoisie(k);
-    this.nouvellePartie(this.campagneChoisie, this.composition, sc);
+    this.nouvellePartie(this.campagneChoisie, this.composition, sc, this.difficulteChoisie || 'normal');
   },
   // Sous-classe retenue pour une classe (la première si le choix est verrouillé)
   sousClasseChoisie(k) {
@@ -158,6 +211,27 @@ const Jeu = {
     Ui.rendu();
   },
   debout() { return this.equipe.filter(p => p.pv > 0); },
+
+  // ------------------------------------------------- défi du jour
+  lancerDefi() {
+    const c = DefiDuJour.config();
+    this.nouvellePartie(c.campagne, c.classes, c.sousClasses, c.modif === 'mutants' ? 'heroique' : 'normal');
+    this.defi = { date: c.date, modif: c.modif };
+    Hasard.graine(DefiDuJour.graine(c.date) ^ 0x9e3779b9);
+    this.carte = Carte.generer();     // carte tirée avec la graine du jour
+    if (c.modif === 'peur') this.peurMult += 0.3;
+    if (c.modif === 'pauvres') this.or = 0;
+    if (c.modif === 'robustes') { this.equipe.forEach(p => { p.pvMax += 8; p.pv += 8; }); this.potions = 0; }
+    if (c.modif === 'benis') this.equipe.forEach(p => { p.traits.benitDebut = true; });
+    this.allerCarte();
+  },
+  // Score : étages, salles, combats, or ; gros bonus et PV restants en cas de victoire
+  noterDefi(victoire) {
+    if (!this.defi) return;
+    const pv = this.equipe.reduce((s, p) => s + Math.max(0, p.pv), 0);
+    const score = (this.etage + 1) * 300 + this.stats.salles * 15 + this.stats.combats * 40 + this.or + (victoire ? 1500 + pv * 5 : 0);
+    this.scoreDefi = { score, record: DefiDuJour.noter(this.defi.date, score), meilleur: DefiDuJour.record(this.defi.date) };
+  },
   listeSousClassesDebloquees() {
     const l = [];
     for (const k of TOUTES_CLASSES) for (const sc of SOUS_CLASSES[k]) if (sousClasseDebloquee(sc)) l.push(k + ':' + sc.id);
@@ -249,6 +323,8 @@ const Jeu = {
     this.combat.type = type;
     this.combat.theme = rencontre.theme || this.etageCourant().theme;
     if (this.campagneCourante().aleatoire) this.combat.appliquerChaos(type, this.dernierEtage());
+    else if (difficulte(this.difficulte).chaos) this.combat.appliquerChaos(type, this.dernierEtage(), difficulte(this.difficulte).chaos);
+    else if (this.defi && this.defi.modif === 'boss') this.combat.appliquerChaos(type, this.dernierEtage(), { chance: 0, pouvoirs: true, pouvoirsMax: 1 });
     this.combat.surMaj = () => Ui.majCombat();
     this.combat.surFin = r => this.finCombat(r);
     this.combat.vitesse = Reglages.vitesse;
@@ -263,6 +339,7 @@ const Jeu = {
     const type = this.combat.type;
     if (resultat === 'defaite') {
       this.finale = 'defaite';
+      this.noterDefi(false);
       this.ecran = 'fin';
       this.effacerSauvegarde();
       return Ui.rendu();
@@ -272,7 +349,8 @@ const Jeu = {
     if (type === 'boss' && !this.dernierEtage()) { this.potions++; return this.etageSuivant(gain); }
     if (type === 'boss') {
       const scAvant = this.listeSousClassesDebloquees();
-      this.debloquee = Progression.noterVictoire(this.campagne);
+      this.debloquee = this.defi ? null : Progression.noterVictoire(this.campagne, this.difficulte);
+      this.noterDefi(true);
       this.scDebloquees = this.listeSousClassesDebloquees().filter(x => !scAvant.includes(x));
       this.finale = 'victoire';
       this.ecran = 'fin';
@@ -280,8 +358,13 @@ const Jeu = {
       return Ui.rendu();
     }
     let bonus = `💰 +${gain} or. `;
+    if (this.equipe.some(p => p.traits.sacSansFond) && alea() < 0.5) {
+      const x = Recompenses.offreConsommable();
+      this.ajouterStock(x.cle, x.quantite);
+      bonus += `👝 Le sac sans fond contient ${x.icone} ${x.titre}. `;
+    }
     if (type === 'elite') { this.potions++; bonus += 'Vous trouvez aussi une potion de soins.'; }
-    else if (Math.random() < 0.3) { this.potions++; bonus += 'Vous trouvez une potion de soins sur un cadavre.'; }
+    else if (alea() < 0.3) { this.potions++; bonus += 'Vous trouvez une potion de soins sur un cadavre.'; }
     const offres = Recompenses.generer(this.equipe, { elite: type === 'elite' });
     if (type === 'elite') bonus += ' Objets magiques garantis !';
     else if (!offres.some(o => o.categorie === 'objet')) bonus += ' Pas d\'objet magique cette fois.';
@@ -316,7 +399,7 @@ const Jeu = {
   ouvrirTresor() {
     // Souterrains : certains coffres sont des mimiques (combat d'élite, butin d'élite)
     const mimiques = this.campagneCourante().regles.mimiques || 0;
-    if (mimiques && Math.random() < mimiques) return this.lancerCombat({ avant: ['mimique'], arriere: [] }, 'elite', '📦 Le coffre ouvre une gueule pleine de crocs : c\'est une <b>mimique</b> !');
+    if (mimiques && alea() < mimiques) return this.lancerCombat({ avant: ['mimique'], arriere: [] }, 'elite', '📦 Le coffre ouvre une gueule pleine de crocs : c\'est une <b>mimique</b> !');
     this.potions++;
     const gain = this.gagnerOr('tresor');
     const extra = Recompenses.offreConsommable();
@@ -342,8 +425,8 @@ const Jeu = {
   // ----------------------------------------------------------- or
   gagnerOr(type) {
     const [min, max] = GAINS_OR[type] || [0, 0];
-    const mult = 1 + this.equipe.reduce((s, p) => s + (p.traits.orMult || 0), 0);
-    const g = Math.round((min + Math.floor(Math.random() * (max - min + 1))) * mult);
+    const mult = (1 + this.equipe.reduce((s, p) => s + (p.traits.orMult || 0), 0)) * difficulte(this.difficulte).or * (this.defi && this.defi.modif === 'pauvres' ? 0.6 : 1);
+    const g = Math.round((min + Math.floor(alea() * (max - min + 1))) * mult);
     this.or += g;
     return g;
   },
@@ -421,9 +504,12 @@ const Jeu = {
   // ------------------------------------------------------ événement
   // Tire un événement pas encore vu pendant l'expédition (et disponible)
   tirerEvenement() {
-    let poss = EVENEMENTS.filter(e => !this.evenementsVus.includes(e.id) && (!e.disponible || e.disponible(this)));
-    if (!poss.length) { this.evenementsVus = []; poss = EVENEMENTS.filter(e => !e.disponible || e.disponible(this)); }
-    const e = Des.hasard(poss);
+    // Événements de campagne : seulement dans leur campagne (ou dans le Chaos), et plus souvent
+    const permis = e => (!e.disponible || e.disponible(this)) && (!e.campagne || e.campagne === this.campagne || this.campagne === 'chaos');
+    let poss = EVENEMENTS.filter(e => !this.evenementsVus.includes(e.id) && permis(e));
+    if (!poss.length) { this.evenementsVus = []; poss = EVENEMENTS.filter(permis); }
+    const propres = poss.filter(e => e.campagne && e.campagne === this.campagne);
+    const e = propres.length && alea() < 0.45 ? Des.hasard(propres) : Des.hasard(poss);
     this.evenementsVus.push(e.id);
     return e;
   },
@@ -474,7 +560,7 @@ const Jeu = {
     const heros = pj ? [pj] : this.equipe;
     const poss = [];
     for (const [cle, o] of Object.entries(OBJETS)) {
-      if (!rar.includes(o.rarete)) continue;
+      if (!rar.includes(o.rarete) || !Recompenses.objetPermis(o)) continue;
       for (const h of heros) if ((!o.classes || o.classes.includes(h.classe)) && !h.objets.includes(cle)) poss.push([cle, h]);
     }
     if (!poss.length) return pj ? this.donnerObjet(rarete) : this.gagnerOrFixe(50) + ' (aucun objet disponible, compensation en or)';

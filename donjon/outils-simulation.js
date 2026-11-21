@@ -2,7 +2,7 @@
 const fs = require('fs'), vm = require('vm');
 const D = require('path').join(__dirname, 'js') + '/';
 const file = [];
-const ctx = { localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
+const ctx = { DIFF_SIM: process.env.DIFF || '', localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
 vm.createContext(ctx);
 for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'donnees/campagnes.js', 'donnees/sousclasses.js', 'combat.js', 'carte.js'])
   vm.runInContext(fs.readFileSync(D + f, 'utf8').replace(/^const (\w+) =/gm, 'var $1 =').replace(/^class (\w+)/gm, 'var $1 = class $1'), ctx);
@@ -24,7 +24,7 @@ function iaPJ(cb, a) {
   // 1) Soins si un allié est à terre ou bas
   const blesses = cb.pjs.filter(p => p.pv <= 0 || p.pv < p.pvMax * 0.35).sort((x, y) => x.pv / x.pvMax - y.pv / y.pvMax);
   if (blesses.length) {
-    for (const id of ['priere_soins', 'imposition', 'mot_guerison', 'soins', 'second_souffle', 'plenitude', 'cri_ralliement', 'potion_sup', 'potion']) {
+    for (const id of ['priere_soins', 'imposition', 'mot_guerison', 'elixir', 'soins', 'second_souffle', 'plenitude', 'cri_ralliement', 'potion_sup', 'potion']) {
       if (!ids.includes(id)) continue;
       const act = ACTIONS[id];
       if ((id === 'second_souffle' || id === 'plenitude') && a.pv > a.pvMax * 0.5) continue;
@@ -36,7 +36,12 @@ function iaPJ(cb, a) {
   }
   // 1 bis) Capacités de soutien utiles
   if (ids.includes('rage') && !a.etats.rage) return [ACTIONS.rage, null];
-  for (const b of ['forme_ours', 'arme_sacree', 'pas_ombre']) if (ids.includes(b) && !(b === 'pas_ombre' && a.etats.cache)) return [ACTIONS[b], null];
+  for (const b of ['forme_ours', 'arme_sacree', 'pas_ombre', 'canon_occulte']) if (ids.includes(b) && !(b === 'pas_ombre' && a.etats.cache)) return [ACTIONS[b], null];
+  if (ids.includes('sort_intensifie') && cb.emplacementDispo(a, 1)) return [ACTIONS.sort_intensifie, null];
+  if (ids.includes('sort_jumele') && cb.ennemis.filter(e => e.pv > 0).length > 1) return [ACTIONS.sort_jumele, null];
+  if (ids.includes('source_magie') && a.emplacements[1] && a.emplacements[1].restant < a.emplacements[1].max) return [ACTIONS.source_magie, null];
+  if (ids.includes('infusion_arme')) { const cs = cb.ciblesValides(a, ACTIONS.infusion_arme).filter(p => !p.etats.infuse && p.bonusArme >= 5 && p.ligne === 'avant'); if (cs.length) return [ACTIONS.infusion_arme, cs[0]]; }
+  if (ids.includes('aide') && cb.pjs.filter(p => p.pv > 0 && p.pv < p.pvMax * 0.6).length >= 2) return [ACTIONS.aide, null];
   if (ids.includes('voeu_inimitie')) { const cs = cb.ciblesValides(a, ACTIONS.voeu_inimitie).sort((x, y) => y.pv - x.pv); if (cs.length) return [ACTIONS.voeu_inimitie, cs[0]]; }
   for (const mq of ['marque_chasseur', 'malefice']) if (ids.includes(mq) && !cb.ennemis.some(e => e.marquePar === a.id && e.pv > 0)) {
     const cs = cb.ciblesValides(a, ACTIONS[mq]).sort((x, y) => y.pv - x.pv); if (cs.length) return [ACTIONS[mq], cs[0]];
@@ -65,6 +70,7 @@ function combattre(equipe, rencontre, jeu, force) {
   const cb = new Combat(equipe, rencontre, jeu, force);
   cb.surMaj = () => 0; cb.delaiMonstre = 0;
   if (jeu.chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final);
+  else if (DIFF_SIM && difficulte(DIFF_SIM).chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final, difficulte(DIFF_SIM).chaos);
   let fin = null; cb.surFin = r => { fin = r; };
   cb.demarrer();
   let garde = 0;
@@ -82,7 +88,7 @@ function expedition(idC, classes, scs) {
   if (camp.aleatoire) equipe.forEach(p => { monterNiveau(p); p.ressources = ressourcesPJ(p); });
   if (!equipe.some(p => p.ligne === 'avant')) equipe[0].ligne = 'avant';
   if (!equipe.some(p => p.ligne === 'arriere')) equipe[3].ligne = 'arriere';
-  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult, or: camp.regles.or || 30, equipe, sac: {},
+  const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult + (DIFF_SIM ? difficulte(DIFF_SIM).peur : 0), or: camp.regles.or || 30, equipe, sac: {},
     stock(c) { return c === 'potion' ? this.potions : (this.sac[c] || 0); },
     ajouterStock(c, n = 1) { if (c === 'potion') this.potions += n; else this.sac[c] = (this.sac[c] || 0) + n; },
     retirerStock(c) { if (c === 'potion') this.potions--; else this.sac[c]--; } }; let long = false;

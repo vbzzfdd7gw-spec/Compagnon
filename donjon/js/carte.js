@@ -48,7 +48,7 @@ const Carte = {
     let id = 0;
     const noeud = (r, c) => {
       const k = r + ',' + c;
-      if (!grille[k]) grille[k] = { id: id++, rangee: r, col: c, type: null, liens: [], visite: false, decalage: (Math.random() - 0.5) * 16 };
+      if (!grille[k]) grille[k] = { id: id++, rangee: r, col: c, type: null, liens: [], visite: false, decalage: (alea() - 0.5) * 16 };
       return grille[k];
     };
     const liens = new Set();                 // "r,c1>c2"

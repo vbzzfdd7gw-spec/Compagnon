@@ -74,7 +74,7 @@ function cadavreChoix() {
       resoudre(j) {
         const e = j.etat(), risque = e.risque || 25;
         if (!e.butin) e.butin = Des.melanger(['or', 'objet', 'rien', 'potion']);
-        if (Math.random() * 100 < risque) return { lignes: ['Un grognement derrière vous… le meurtrier est revenu !'], combat: j.rencontreElite() };
+        if (alea() * 100 < risque) return { lignes: ['Un grognement derrière vous… le meurtrier est revenu !'], combat: j.rencontreElite() };
         e.risque = risque + 25;
         const b = e.butin.pop(), lignes = [];
         if (b === 'or') lignes.push('Une bourse bien remplie !', j.gagnerOrFixe(45));
@@ -253,7 +253,7 @@ const EVENEMENTS = [
       {
         texte: 'S\'emparer de l\'idole', risque: true,
         resoudre(j) {
-          const ligne = j.donnerObjet(Math.random() < 0.5 ? 'legendaire' : 'rare');
+          const ligne = j.donnerObjet(alea() < 0.5 ? 'legendaire' : 'rare');
           return {
             lignes: [ligne, '<b>CLAC !</b> Le plafond commence à s\'effondrer et un grondement monte du couloir !'],
             choix: [
@@ -416,7 +416,7 @@ const EVENEMENTS = [
         texte: 'Miser 30 or',
         condition: j => j.or >= 30,
         resoudre(j) {
-          if (Math.random() < 0.4) return { lignes: ['Gagné ! « Grmbl… » ', j.gagnerOrFixe(30)] };
+          if (alea() < 0.4) return { lignes: ['Gagné ! « Grmbl… » ', j.gagnerOrFixe(30)] };
           j.gagnerOrFixe(-30);
           return { lignes: ['Perdu ! Le gnome empoche vos 30 pièces avec un sourire.'] };
         }
@@ -539,3 +539,243 @@ const EVENEMENTS = [
     ]
   }
 ];
+
+// ---------------------------------------------------------------------
+// Événements propres à une campagne (`campagne` : n'apparaissent que là,
+// et dans le Chaos). Ils sortent plus souvent que les événements communs.
+// ---------------------------------------------------------------------
+const meilleurSur = (j, carac) => j.meilleur(carac) || j.heros();
+EVENEMENTS.push(
+  {
+    id: 'reliquaire', campagne: 'crypte', titre: 'Le reliquaire de Morvagne',
+    texte: 'Une châsse d\'os gravés de runes. Une magie froide s\'en échappe encore.',
+    choix: [
+      { texte: 'Le briser à coups de masse', resoudre(j) { j.debout().forEach(p => j.peur(p, -15)); return { lignes: ['Les os éclatent dans un dernier gémissement. L\'air se réchauffe : −15 Peur pour toute l\'équipe.', j.donnerObjet('commun')] }; } },
+      { texte: 'L\'étudier (INT DD 13)', resoudre(j) {
+        const h = meilleurSur(j, 'INT'), t = j.test(h, 'INT', 13, true);
+        if (t.reussite) return { lignes: [t.texte, 'Vous percez le secret de la châsse.', j.donnerObjet('rare', h)] };
+        j.debout().forEach(p => j.peur(p, 20));
+        return { lignes: [t.texte, 'Des visions de morts vous assaillent : +20 Peur pour toute l\'équipe.'] };
+      } },
+      { texte: 'Ne pas y toucher', resoudre: () => ({ lignes: ['Vous refermez la crypte derrière vous.'] }) }
+    ]
+  },
+  {
+    id: 'gobelin_enchaine', campagne: 'horde', titre: 'Le gobelin enchaîné',
+    texte: '« Moi Snik ! Moi connaître cachette du chef ! Libérer Snik ! » piaille un gobelin enchaîné au mur.',
+    choix: [
+      { texte: 'Le libérer et le suivre', risque: true, resoudre(j) {
+        if (alea() < 0.35) return { lignes: ['Snik détale en hurlant… droit vers ses copains. C\'était un piège !'], combat: { avant: ['gobelin', 'gobelin', 'loup'], arriere: ['gobelin'] } };
+        return { lignes: ['Snik tient parole et vous mène à la réserve du chef.', j.gagnerOrFixe(60), j.donnerObjet('commun')] };
+      } },
+      { texte: 'L\'intimider pour qu\'il parle (CHA DD 12)', resoudre(j) {
+        const h = meilleurSur(j, 'CHA'), t = j.test(h, 'CHA', 12, false);
+        if (t.reussite) { j.ajouterStock('potion', 1); return { lignes: [t.texte, 'Snik crache le morceau : une cachette de potions et de pièces.', j.gagnerOrFixe(35), '🧴 +1 potion.'] }; }
+        return { lignes: [t.texte, 'Snik vous mord le doigt et se tait.'] };
+      } },
+      { texte: 'Le laisser là', resoudre: () => ({ lignes: ['« Méchants ! » crie Snik dans votre dos.'] }) }
+    ]
+  },
+  {
+    id: 'rituel_eclipse', campagne: 'eclipse', titre: 'Le rituel interrompu',
+    texte: 'Trois cultistes psalmodient autour d\'un cercle qui s\'assombrit. Ils ne vous ont pas encore vus.',
+    choix: [
+      { texte: 'Les attaquer par surprise', risque: true, resoudre: () => ({ lignes: ['Vous fondez sur eux avant la fin de l\'incantation !'], combat: { avant: ['cultiste', 'cultiste'], arriere: ['pretre_eclipse'] } }) },
+      { texte: 'Écouter la prière (SAG DD 13)', resoudre(j) {
+        const h = meilleurSur(j, 'SAG'), t = j.test(h, 'SAG', 13, true);
+        if (t.reussite) { j.debout().forEach(p => j.peur(p, -20)); return { lignes: [t.texte, 'Vous retenez la contre-prière qui brise leur emprise : −20 Peur.'] }; }
+        j.debout().forEach(p => j.peur(p, 20));
+        return { lignes: [t.texte, 'La psalmodie vous envahit l\'esprit : +20 Peur.'] };
+      } },
+      { texte: 'Faire un détour', resoudre: () => ({ lignes: ['Vous contournez la salle en silence.'] }) }
+    ]
+  },
+  {
+    id: 'chaudron', campagne: 'marais', titre: 'Le chaudron de la guenaude',
+    texte: 'Une cabane sur pilotis. Un chaudron bouillonne d\'une soupe verdâtre qui sent… étonnamment bon.',
+    choix: [
+      { texte: 'Goûter la soupe', risque: true, resoudre(j) {
+        const r = Des.d20(), h = j.heros(), lignes = [`🎲 ${r.texte}`];
+        if (r.nat <= 6) { j.blesserPct(0.15); lignes.push('Beurk ! C\'était du poison : tout le monde perd 15 % de ses PV.'); }
+        else if (r.nat <= 14) { j.equipe.forEach(p => j.soigner(p, 10)); lignes.push('Une soupe revigorante : +10 PV pour toute l\'équipe.'); }
+        else { j.pvMax(h, 5); lignes.push(`${h.nom} se sent plus robuste : +5 PV maximum.`); }
+        return { lignes };
+      } },
+      { texte: 'Voler les ingrédients', risque: true, resoudre(j) {
+        j.ajouterStock('potion', 2);
+        if (alea() < 0.4) return { lignes: ['🧴 +2 potions… mais les crapauds de la guenaude montent la garde !'], combat: { avant: ['crapaud', 'crapaud'], arriere: ['feu_follet'] } };
+        return { lignes: ['🧴 Vous filez avec deux fioles avant que quiconque ne revienne.'] };
+      } },
+      { texte: 'Partir', resoudre: () => ({ lignes: ['Le chaudron gargouille dans votre dos.'] }) }
+    ]
+  },
+  {
+    id: 'epave', campagne: 'cote', titre: 'L\'épave échouée',
+    texte: 'Un navire marchand éventré sur les rochers. La cale est à moitié inondée.',
+    choix: [
+      { texte: 'Fouiller la cale', risque: true, resoudre(j) {
+        const r = alea();
+        if (r < 0.3) return { lignes: ['Une silhouette massive émerge de l\'eau trouble : un merrow !'], combat: { avant: ['merrow'], arriere: ['sahuagin'] } };
+        if (r < 0.65) return { lignes: ['Un coffre de solde intact !', j.gagnerOrFixe(70)] };
+        return { lignes: ['Une malle d\'officier, bien scellée.', j.donnerObjet('rare')] };
+      } },
+      { texte: 'Sauver le marin coincé sous le mât (FOR DD 12)', resoudre(j) {
+        const h = meilleurSur(j, 'FOR'), t = j.test(h, 'FOR', 12, true);
+        if (t.reussite) { j.ajouterStock('potion_sup', 1); return { lignes: [t.texte, 'Le marin, reconnaissant, vous confie sa réserve.', '🍷 +1 potion supérieure.', j.gagnerOrFixe(30)] }; }
+        j.blesser(h, 6);
+        return { lignes: [t.texte, `Le mât glisse et écrase la main de ${h.nom} (−6 PV). Le marin vous remercie quand même.`] };
+      } },
+      { texte: 'Passer', resoudre: () => ({ lignes: ['Les mouettes se disputent l\'épave.'] }) }
+    ]
+  },
+  {
+    id: 'chant_rochers', campagne: 'cote', titre: 'Le chant des rochers',
+    texte: 'Une mélodie envoûtante monte des récifs. Vos jambes avancent toutes seules vers l\'eau…',
+    choix: [
+      { texte: 'Résister (SAG DD 13)', resoudre(j) {
+        const h = meilleurSur(j, 'SAG'), t = j.test(h, 'SAG', 13, true);
+        if (t.reussite) return { lignes: [t.texte, `${h.nom} secoue ses compagnons : vous trouvez le nid des harpies, vide… et plein de trésors.`, j.gagnerOrFixe(50), j.donnerObjet('commun')] };
+        j.blesserPct(0.12);
+        return { lignes: [t.texte, 'Vous vous réveillez trempés, griffés de toutes parts : −12 % PV.'] };
+      } },
+      { texte: 'Se boucher les oreilles et charger', risque: true, resoudre: () => ({ lignes: ['Vous fondez sur les chanteuses !'], combat: { avant: [], arriere: ['harpie', 'harpie', 'harpie'] } }) }
+    ]
+  },
+  {
+    id: 'coffre_suspect', campagne: 'souterrains', titre: 'Le coffre trop beau',
+    texte: 'Un coffre doré, impeccable, au milieu d\'une salle crasseuse. Un filet de bave coule de la serrure… ou est-ce de l\'eau ?',
+    choix: [
+      { texte: 'L\'ouvrir', risque: true, resoudre(j) {
+        if (alea() < 0.5) return { lignes: ['Le couvercle se hérisse de crocs : une mimique !'], combat: { avant: ['mimique'], arriere: [] } };
+        return { lignes: ['Ce n\'était qu\'un coffre. Un vrai !'], recompense: 'objets' };
+      } },
+      { texte: 'Le frapper d\'abord (FOR DD 12)', resoudre(j) {
+        const h = meilleurSur(j, 'FOR'), t = j.test(h, 'FOR', 12, true);
+        if (alea() < 0.5) return { lignes: [t.texte, t.reussite ? 'Le coffre hurle ! Votre coup l\'a sonné avant qu\'il n\'attaque.' : 'Le coffre hurle et se jette sur vous !'], combat: { avant: ['mimique'], arriere: [] } };
+        return { lignes: [t.texte, 'Le coffre éclate en morceaux. Il en reste quelques pièces.', j.gagnerOrFixe(40)] };
+      } },
+      { texte: 'Le laisser tranquille', resoudre: () => ({ lignes: ['Vous croyez entendre un soupir déçu.'] }) }
+    ]
+  },
+  {
+    id: 'gelee_doree', campagne: 'souterrains', titre: 'La gelée pleine d\'or',
+    texte: 'Une gelée immobile scintille : des dizaines de pièces flottent dans sa masse translucide.',
+    choix: [
+      { texte: 'Y plonger la main (CON DD 13)', risque: true, resoudre(j) {
+        const h = meilleurSur(j, 'CON'), t = j.test(h, 'CON', 13, true);
+        if (t.reussite) return { lignes: [t.texte, 'Vous ressortez une poignée d\'or, la peau à peine rougie.', j.gagnerOrFixe(70)] };
+        const d = Des.lancer('2d6'); j.blesser(h, d.total);
+        return { lignes: [t.texte, `L'acide ronge le bras de ${h.nom} : ${d.texte} dégâts.`, j.gagnerOrFixe(25)] };
+      } },
+      { texte: 'La brûler avec un sort (1 emplacement)', condition: j => !!j.lanceur(), resoudre(j) {
+        const h = j.lanceur(); h.emplacements[1].restant--;
+        return { lignes: [`${h.nom} incendie la gelée, qui se dissout en grésillant.`, j.gagnerOrFixe(70)] };
+      } },
+      { texte: 'Ne pas y toucher', resoudre: () => ({ lignes: ['La gelée tremble doucement quand vous passez.'] }) }
+    ]
+  },
+  {
+    id: 'bal_spectral', campagne: 'chateau', titre: 'Le bal des spectres',
+    texte: 'Dans la grande salle, des couples fantomatiques valsent. Une dame pâle vous tend la main.',
+    choix: [
+      { texte: 'Accepter la danse (CHA DD 14)', resoudre(j) {
+        const h = meilleurSur(j, 'CHA'), t = j.test(h, 'CHA', 14, false);
+        if (t.reussite) { j.debout().forEach(p => j.peur(p, -10)); return { lignes: [t.texte, 'La dame sourit et glisse un présent dans votre main.', j.donnerObjet('rare', h), '−10 Peur pour l\'équipe.'] }; }
+        j.pvMax(h, -3);
+        return { lignes: [t.texte, `Sa main glacée aspire la chaleur de ${h.nom} : −3 PV maximum.`] };
+      } },
+      { texte: 'Boire le vin du buffet', resoudre(j) { j.equipe.forEach(p => { j.soigner(p, Des.lancer('1d6').total); j.peur(p, 15); }); return { lignes: ['Un vin capiteux qui revigore… et met mal à l\'aise : 1d6 PV et +15 Peur pour chacun.'] }; } },
+      { texte: 'Fuir la salle', resoudre: () => ({ lignes: ['La musique s\'arrête net derrière vous.'] }) }
+    ]
+  },
+  {
+    id: 'portrait_comte', campagne: 'chateau', titre: 'Le portrait du comte',
+    texte: 'Un immense portrait du comte Vladislav Morn. Ses yeux peints suivent chacun de vos gestes.',
+    choix: [
+      { texte: 'Lacérer la toile', risque: true, resoudre: () => ({ lignes: ['Le cadre explose : ses gardiens jaillissent de derrière le tableau !'], combat: { avant: ['rejeton_vampire'], arriere: ['chauves_souris'] } }) },
+      { texte: 'Prier devant (clerc ou paladin)', condition: j => j.debout().some(p => ['clerc', 'paladin'].includes(p.classe)), resoudre(j) {
+        j.ajouterStock('eau_benite', 2);
+        return { lignes: ['Votre prière fait suinter la toile. Derrière, une niche cache des fioles consacrées : 💧 +2 eau bénite.'] };
+      } },
+      { texte: 'Détourner le regard', resoudre(j) { j.debout().forEach(p => j.peur(p, 5)); return { lignes: ['Vous sentez son regard dans votre dos (+5 Peur).'] }; } }
+    ]
+  },
+  {
+    id: 'tas_or', campagne: 'dragon', titre: 'Le tas d\'or du dragon',
+    texte: 'Une montagne de pièces, de coupes et de joyaux. Quelque part, une respiration lente et chaude.',
+    choix: [
+      { texte: 'Prendre une poignée, discrètement', resoudre: j => ({ lignes: ['Vous empochez quelques pièces sans un bruit.', j.gagnerOrFixe(45)] }) },
+      { texte: 'Remplir les sacs', risque: true, resoudre: j => ({ lignes: [j.gagnerOrFixe(120), 'Les pièces dégringolent… un grondement répond !'], combat: { avant: ['dragonnet'], arriere: ['kobold', 'kobold'] } }) },
+      { texte: 'Partir', resoudre: () => ({ lignes: ['La respiration continue, paisible.'] }) }
+    ]
+  },
+  {
+    id: 'cocon_vivant', campagne: 'toiles', titre: 'Le cocon qui remue',
+    texte: 'Un cocon de soie pend du plafond. Une voix étouffée appelle à l\'aide.',
+    choix: [
+      { texte: 'Le découper (DEX DD 12)', resoudre(j) {
+        const h = meilleurSur(j, 'DEX'), t = j.test(h, 'DEX', 12, true);
+        if (t.reussite) return { lignes: [t.texte, 'Un aventurier en sort, à bout de forces, et vous donne son équipement.', j.donnerObjet('rare')] };
+        return { lignes: [t.texte, 'Les fils vibrent… et alertent les araignées !'], combat: { avant: ['araignee', 'araignee'], arriere: [] } };
+      } },
+      { texte: 'Le brûler', resoudre(j) { j.debout().forEach(p => j.peur(p, 10)); return { lignes: ['Le cri s\'éteint dans les flammes (+10 Peur). Dans les cendres, une bourse.', j.gagnerOrFixe(35)] }; } },
+      { texte: 'L\'ignorer', resoudre: () => ({ lignes: ['La voix s\'affaiblit derrière vous.'] }) }
+    ]
+  },
+  {
+    id: 'aventurier_gele', campagne: 'givre', titre: 'L\'aventurier pris dans la glace',
+    texte: 'Un aventurier figé dans un bloc de glace, l\'épée levée. Il cligne des yeux.',
+    choix: [
+      { texte: 'Le dégeler avec un sort (1 emplacement)', condition: j => !!j.lanceur(), resoudre(j) {
+        const h = j.lanceur(); h.emplacements[1].restant--; j.ajouterStock('potion', 1);
+        return { lignes: ['La glace fond. L\'aventurier, grelottant, vous offre son épée et une potion.', j.donnerObjet('rare'), '🧴 +1 potion.'] };
+      } },
+      { texte: 'Briser la glace (FOR DD 14)', resoudre(j) {
+        const h = meilleurSur(j, 'FOR'), t = j.test(h, 'FOR', 14, true);
+        if (t.reussite) return { lignes: [t.texte, 'La glace cède. L\'aventurier, libre, vous remercie d\'un présent.', j.donnerObjet('commun')] };
+        j.blesser(h, 5);
+        return { lignes: [t.texte, `Des éclats de glace entaillent ${h.nom} (−5 PV). Le bloc ne bouge pas.`] };
+      } },
+      { texte: 'Continuer', resoudre: () => ({ lignes: ['Ses yeux vous suivent longtemps.'] }) }
+    ]
+  },
+  {
+    id: 'deserteur', campagne: 'legion', titre: 'Le déserteur',
+    texte: 'Un soldat de la Légion de Fer, blessé, se cache derrière des caisses. « Pitié… je ne veux plus me battre. »',
+    choix: [
+      { texte: 'Le soigner (1 potion)', condition: j => j.potions > 0, resoudre(j) {
+        j.potions--;
+        return { lignes: ['Reconnaissant, il vous donne les plans du camp et son équipement.', j.gagnerOrFixe(50), j.donnerObjet('commun')] };
+      } },
+      { texte: 'Le livrer à ses officiers contre une prime', resoudre(j) { j.debout().forEach(p => j.peur(p, 10)); return { lignes: ['La prime est généreuse, la conscience moins légère (+10 Peur).', j.gagnerOrFixe(70)] }; } },
+      { texte: 'Le laisser filer', resoudre: () => ({ lignes: ['Il disparaît dans l\'ombre.'] }) }
+    ]
+  },
+  {
+    id: 'sarcophage', campagne: 'tombeau', titre: 'Le sarcophage scellé',
+    texte: 'Un sarcophage peint d\'or et de lapis. Des hiéroglyphes avertissent : « Que le voleur soit maudit ».',
+    choix: [
+      { texte: 'Briser les scellés', risque: true, resoudre(j) {
+        const r = Des.d20(), lignes = [`🎲 ${r.texte}`];
+        if (r.nat <= 6) return { lignes: [...lignes, 'La momie qu\'il contenait se redresse !'], combat: { avant: ['momie', 'momie'], arriere: [] } };
+        if (r.nat <= 15) return { lignes: [...lignes, 'Des bijoux funéraires !', j.donnerObjet('rare')] };
+        return { lignes: [...lignes, 'Le trésor d\'un prince oublié !', j.donnerObjet('legendaire')] };
+      } },
+      { texte: 'Déchiffrer les hiéroglyphes (INT DD 14)', resoudre(j) {
+        const h = meilleurSur(j, 'INT'), t = j.test(h, 'INT', 14, true);
+        if (t.reussite) { j.equipe.forEach(p => j.pvMax(p, 3)); return { lignes: [t.texte, 'Une bénédiction des anciens rois : +3 PV maximum pour toute l\'équipe.'] }; }
+        j.debout().forEach(p => j.peur(p, 15));
+        return { lignes: [t.texte, 'La malédiction vous frappe : +15 Peur.'] };
+      } },
+      { texte: 'Respecter le mort', resoudre: () => ({ lignes: ['Vous inclinez la tête et passez.'] }) }
+    ]
+  },
+  {
+    id: 'voix_abime', campagne: 'abime', titre: 'La voix de l\'Abîme',
+    texte: 'Une voix douce, venue de partout à la fois : « Je peux te rendre invincible. Il suffit d\'écouter. »',
+    choix: [
+      { texte: 'Écouter', risque: true, resoudre(j) { j.equipe.forEach(p => j.peur(p, 30)); return { lignes: ['Un savoir interdit vous traverse (+30 Peur pour tous)…', j.donnerObjet('legendaire')] }; } },
+      { texte: 'Refuser et prier', resoudre(j) { j.debout().forEach(p => j.peur(p, -20)); return { lignes: ['La voix se tait, vexée. Vous vous sentez plus forts : −20 Peur.'] }; } }
+    ]
+  }
+);

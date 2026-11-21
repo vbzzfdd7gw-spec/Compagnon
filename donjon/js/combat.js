@@ -37,6 +37,10 @@ const ETATS = {
   englouti: { nom: 'Englouti', icone: '🟩', desc: 'Prisonnier d\'un cube gélatineux : perd ses tours (sauvegarde de FOR pour s\'échapper), subit de l\'acide à chaque tour du cube.', permanent: true },
   petrification: { nom: 'Pétrification', icone: '🪨', desc: 'Commence à se changer en pierre : désavantage aux attaques. Un second échec le pétrifie.' },
   petrifie: { nom: 'Pétrifié', icone: '🗿', desc: 'Changé en pierre : perd ses tours, mais ne subit que la moitié des dégâts.' },
+  jumele: { nom: 'Sort jumelé', icone: '♊', desc: 'Son prochain sort à cible unique touche aussi une deuxième cible.', permanent: true },
+  intensifie: { nom: 'Sort intensifié', icone: '💢', desc: 'Son prochain sort de dégâts inflige ×1,5 dégâts.', permanent: true },
+  infuse: { nom: 'Arme infusée', icone: '🔧', desc: '+1 au toucher et +1d4 force avec ses armes.', permanent: true },
+  canon: { nom: 'Canon occulte', icone: '💣', desc: 'Un canon tire après chacune de ses actions.', permanent: true },
   ebranle: { nom: 'Ébranlé', icone: '😟', desc: 'Peur du monstre ≥ 50 : −2 au toucher et aux sauvegardes.', permanent: true }
 };
 
@@ -101,7 +105,7 @@ const CRISES = {
 };
 // Renvoie 'heroique' (vertu : la Peur retombe à 40) ou la clé d'une crise (posée sur pj.crise)
 function tirerCrise(pj) {
-  if (Math.random() < PEUR.chanceVertu) { pj.peur = 40; return 'heroique'; }
+  if (alea() < PEUR.chanceVertu) { pj.peur = 40; return 'heroique'; }
   pj.crise = Des.hasard(Object.keys(CRISES));
   return pj.crise;
 }
@@ -243,7 +247,7 @@ class Combat {
     for (const c of tous) {
       const mod = modCarac(c.caracs.DEX) + ((c.traits && c.traits.init) || 0);
       const r = Des.d20();
-      c.initiative = r.nat + mod + Math.random() * 0.1; // départage
+      c.initiative = r.nat + mod + alea() * 0.1; // départage
       lignes.push(`${c.nom} ${r.texte}${signe(mod)} = <b>${r.nat + mod}</b>`);
     }
     this.log('🎲 Initiative : ' + lignes.join(' · '), 'jet');
@@ -465,6 +469,16 @@ class Combat {
 
   // Maître des bêtes : le loup mord un ennemi de la ligne Avant
   attaqueCompagnon(a) {
+    // Artilleur : le canon occulte tire sur l'ennemi le plus faible
+    if (a.etats && a.etats.canon && a.pv > 0) {
+      const tir = { nom: 'Canon occulte', icone: '💣', type: 'attaque', compagnon: true, sort: true, jet: a.bonusSort - 1, degats: (a.traits && a.traits.canon) || '1d6', typeDeg: 'force', cible: 'ennemi', vise: ['avant', 'arriere'], depuis: ['avant', 'arriere'] };
+      const cs = this.ciblesValides(a, tir).sort((x, y) => x.pv - y.pv);
+      if (cs.length) {
+        this.log(`💣 Le canon occulte de ${this.nomHtml(a)} fait feu sur ${this.nomHtml(cs[0])} !`, 'action');
+        this.evt({ t: 'action', source: a.id, camp: a.camp, nom: 'Canon', icone: '💣', cibles: [cs[0].id], melee: false, distance: true, typeAct: 'attaque', typeDeg: 'force', sort: true });
+        this.resoudreAttaque(a, tir, cs[0], 0);
+      }
+    }
     if (!a.traits || !a.traits.compagnon || a.pv <= 0) return;
     const morsure = { nom: 'Morsure du loup', icone: '🐺', type: 'attaque', compagnon: true, jet: 4, degats: a.traits.compagnon, typeDeg: 'perforant', cible: 'ennemi', vise: ['avant'], depuis: ['avant', 'arriere'] };
     const cibles = this.ciblesValides(a, morsure);
@@ -510,6 +524,13 @@ class Combat {
 
     this.sortsTouches = new Set();
     const cibles = act.zone ? this.ciblesValides(a, act) : act.cible === 'soi' ? [a] : act.triangle && cible ? this.cibleTriangle(a, act, cible) : [cible];
+    // Métamagie : sort jumelé (une deuxième cible), sort intensifié (×1,5 dégâts)
+    if (a.etats && a.etats.jumele && act.sort && !act.zone && !act.triangle && act.cible !== 'soi' && cible) {
+      const autres = this.ciblesValides(a, act).filter(x => x !== cible && (x.pv > 0 || act.type === 'soin'));
+      if (autres.length) { const b = Des.hasard(autres); cibles.push(b); delete a.etats.jumele; this.log(`→ ♊ Sort jumelé : il frappe aussi ${this.nomHtml(b)} !`, 'bon'); }
+    }
+    this.intensifier = !!(a.etats && a.etats.intensifie && act.sort && act.degats);
+    if (this.intensifier) { delete a.etats.intensifie; this.log('→ 💢 Sort intensifié !', 'bon'); }
     const distance = act.cible === 'ennemi' && (act.sort || act.vise.includes('arriere') || act.type === 'sauvegarde' || act.type === 'auto');
     this.evt({ t: 'action', source: a.id, camp: a.camp, nom: act.nom, icone: act.icone || '✦',
       cibles: cibles.map(c => c.id), melee: act.cible === 'ennemi' && !distance, distance,
@@ -543,8 +564,9 @@ class Combat {
         for (const c of cibles) {
           const d = Des.lancer(act.degats);
           const evo = this.bonusEvocation(a, act, c);
-          this.log(`→ Touche automatiquement : ${d.texte}${evo ? ` +${evo} (évocation)` : ''} ${act.typeDeg}`, 'jet');
-          this.infliger(c, d.total + evo, act.typeDeg, a, false);
+          const aj = this.ajusterSort(a, act, d.total + evo);
+          this.log(`→ Touche automatiquement : ${d.texte}${evo ? ` +${evo} (évocation)` : ''}${aj.txt} ${act.typeDeg}`, 'jet');
+          this.infliger(c, aj.n, act.typeDeg, a, false);
           this.effroiDuSort(a, act, c, false);
         }
         break;
@@ -561,7 +583,35 @@ class Combat {
         SPECIAUX[act.special](this, a, act, cible, cibles);
         break;
     }
+    // Magie sauvage : après un sort à emplacement, un effet imprévisible
+    if (a.traits && a.traits.magieSauvage && this.niveauSort && a.pv > 0 && !this.fini && alea() < a.traits.magieSauvage) this.monteeSauvage(a);
     this.niveauSort = 0;
+    this.intensifier = false;
+  }
+
+  // Affinité élémentaire et sort intensifié
+  ajusterSort(a, act, n) {
+    let txt = '';
+    const af = a.traits && a.traits.affinite;
+    if (act.sort && af && act.typeDeg === af.type && n > 0) { n += af.bonus; txt += ` +${af.bonus} (affinité)`; }
+    if (act.sort && this.intensifier && n > 0) { n = Math.round(n * 1.5); txt += ' ×1,5 (intensifié)'; }
+    return { n, txt };
+  }
+
+  // Table de magie sauvage (les effets néfastes sont relancés une fois avec Contrôle du chaos)
+  monteeSauvage(a) {
+    const effets = ['soin', 'explosion', 'emplacement', 'bouclier', 'beni', 'boule', 'peur'];
+    let e = Des.hasard(effets);
+    if (['boule', 'peur'].includes(e) && a.traits.controleChaos) e = Des.hasard(effets);
+    this.log(`🎲 <b>Montée de magie sauvage !</b>`, 'titre');
+    this.evt({ t: 'texte', cible: a.id, texte: '🎲 Magie sauvage !', classe: 'crit' });
+    if (e === 'soin') { const d = Des.lancer('2d8'); const av = a.pv; a.pv = Math.min(a.pvMax, a.pv + d.total); this.log(`→ Une lumière verte soigne ${this.nomHtml(a)} : +${a.pv - av} PV.`, 'bon'); this.evt({ t: 'soin', cible: a.id, n: a.pv - av, pvAvant: av, pvApres: a.pv, pvMax: a.pvMax }); }
+    else if (e === 'explosion') { this.log('→ Une explosion de force frappe tous les ennemis !', 'bon'); for (const m of this.ennemis.filter(x => x.pv > 0)) { const d = Des.lancer('2d6'); this.infliger(m, d.total, 'force', a, false); } }
+    else if (e === 'emplacement') { const n = Object.keys(a.emplacements).find(k => a.emplacements[k].restant < a.emplacements[k].max); if (n) { a.emplacements[n].restant++; this.log(`→ La magie reflue : ${this.nomHtml(a)} récupère un emplacement de niveau ${n}.`, 'bon'); } else this.log('→ Des étincelles inoffensives.', 'jet'); }
+    else if (e === 'bouclier') { a.egide = Math.max(a.egide || 0, 10); this.log(`→ Un bouclier chatoyant entoure ${this.nomHtml(a)} (10 PV temporaires).`, 'bon'); }
+    else if (e === 'beni') { for (const p of this.pjs) if (p.pv > 0) this.appliquerEtat(p, 'benit', 2); }
+    else if (e === 'boule') { this.log('→ Une boule de feu éclate… au milieu de tout le monde !', 'mauvais'); for (const c of [...this.ennemis, ...this.pjs].filter(x => x.pv > 0)) { const d = Des.lancer('2d6'); this.infliger(c, d.total, 'feu', a, false); } }
+    else if (e === 'peur') { this.log('→ Des visions de cauchemar envahissent l\'équipe (+10 Peur).', 'mauvais'); for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, 10, true); }
   }
 
   // Nombre de coups d'une attaque (attaque supplémentaire, frénésie, embuscade…)
@@ -637,6 +687,7 @@ class Combat {
     if (a.etats.heroique && bonusHeros) { total += 2; txt += ' +2 (héroïque)'; }
     if (a.etats.vengeance && bonusHeros) { total += 2; txt += ' +2 (vengeance)'; }
     if (a.etats.armeSacree && act.arme) { total += 2; txt += ' +2 (arme sacrée)'; }
+    if (a.etats.infuse && act.arme) { total += 1; txt += ' +1 (infusion)'; }
     let inspireDegats = false;
     if (a.etats.inspire && bonusHeros) {
       const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete a.etats.inspire;
@@ -650,6 +701,7 @@ class Combat {
     const ca = this.caTotale(c);
     const seuilCrit = Math.min((a.traits && a.traits.critMin) || 20, 20) - ((a.traits && a.traits.critAmeliore) || 0);
     let critique = r.nat >= seuilCrit;
+    if (critique && c.traits && c.traits.antiCrit) { critique = false; this.log(`→ 🛡️ L'armure d'adamantine de ${this.nomHtml(c)} annule le critique !`, 'bon'); }
     let touche = critique || (r.nat !== 1 && total >= ca);
     // Assassinat : au 1er round, toucher un ennemi qui n'a pas encore joué est un critique
     if (touche && !critique && a.traits && a.traits.assassin && this.round === 1 && !c.aJoue) critique = true;
@@ -697,11 +749,14 @@ class Combat {
     if (inspireDegats) { const b = Des.lancer('1d6', critique); degats += b.total; dTxt += ` + inspiration ${b.texte}`; }
     const evo = this.bonusEvocation(a, act, c);
     if (evo) { degats += evo; dTxt += ` +${evo} (évocation)`; }
+    if (a.etats.infuse && act.arme) { const f = Des.lancer('1d4', critique); degats += f.total; dTxt += ` + infusion ${f.texte}`; }
+    { const aj = this.ajusterSort(a, act, degats); degats = aj.n; dTxt += aj.txt; }
     // Tueur de colosses : une fois par tour contre une cible déjà blessée
     if (a.traits && a.traits.colosse && !a.colosseUtilise && c.pv < c.pvMax && (act.arme || act.type === 'attaque')) {
       const k = Des.lancer(a.traits.colosse, critique); degats += k.total; dTxt += ` + colosse ${k.texte}`; a.colosseUtilise = true;
     }
     if (c.etats.marque && c.marquePar === a.id && bonusHeros) { const m = Des.lancer('1d6', critique); degats += m.total; dTxt += ` + marque ${m.texte}`; }
+    if (critique && act.arme && a.traits && a.traits.vorpale) { const v = Des.lancer(a.traits.vorpale); degats += v.total; dTxt += ` + vorpale ${v.texte}`; }
     if (act.arme && a.traits && a.traits.armeElem) {
       const e = Des.lancer(a.traits.armeElem.des, critique);
       degats += e.total;
@@ -828,8 +883,9 @@ class Combat {
       } else {
         const d = Des.lancer(act.degats);
         const evo = this.bonusEvocation(a, act, c);
-        const total = s.reussite ? Math.floor((d.total + evo) / 2) : d.total + evo;
-        this.log(`${ligne}. Dégâts : ${d.texte}${evo ? ` +${evo} (évocation)` : ''}${s.reussite ? ' ÷2' : ''} → <b>${total}</b> ${act.typeDeg}`, 'jet');
+        const aj = this.ajusterSort(a, act, d.total + evo);
+        const total = s.reussite ? Math.floor(aj.n / 2) : aj.n;
+        this.log(`${ligne}. Dégâts : ${d.texte}${evo ? ` +${evo} (évocation)` : ''}${aj.txt}${s.reussite ? ' ÷2' : ''} → <b>${total}</b> ${act.typeDeg}`, 'jet');
         this.infliger(c, total, act.typeDeg, a, false);
       }
     } else {
@@ -850,13 +906,16 @@ class Combat {
 
   // Dédale du Chaos : mutations des monstres (combat : 35 % de chance,
   // élite et boss : toujours) et pouvoirs des boss (1, ou 2 pour le boss final)
-  appliquerChaos(type, final) {
-    const chance = type === 'combat' ? 0.35 : 1;
+  // reglage : { chance (mutation en combat ordinaire), pouvoirs (boss dotés de pouvoirs) }
+  // Chaos : 35 % + pouvoirs ; Héroïque : 30 % ; Cauchemar : 40 % + pouvoirs (DIFFICULTES dans campagnes.js)
+  appliquerChaos(type, final, reglage = { chance: 0.35, pouvoirs: true }) {
+    const chance = type === 'combat' ? reglage.chance : 1;
     for (const m of this.ennemis) {
       m.chaos = { mutations: [], pouvoirs: [] };
-      if (m.boss) {
-        m.chaos.pouvoirs = Des.melanger(Object.keys(POUVOIRS_BOSS)).slice(0, final ? 2 : 1);
-      } else if (Math.random() < chance) {
+      if (m.boss && !reglage.pouvoirs) { /* boss sans pouvoir */ }
+      else if (m.boss) {
+        m.chaos.pouvoirs = Des.melanger(Object.keys(POUVOIRS_BOSS)).slice(0, Math.min(reglage.pouvoirsMax || 2, final ? 2 : 1));
+      } else if (alea() < chance) {
         const n = 1;
         m.chaos.mutations = Des.melanger(Object.keys(MUTATIONS_CHAOS)).slice(0, n);
       }
@@ -1017,7 +1076,8 @@ class Combat {
     if (effet.peur && c.camp === 'pj') this.modifierPeur(c, effet.peur);
     if (effet.recul) this.reculer(c, effet.recul);
     if (effet.attirer && c.ligne !== 'avant' && c.pv > 0) { this.deplacer(c, 'avant'); this.log(`→ ${this.nomHtml(c)} est attiré en ligne Avant !`, 'etat'); }
-    if (effet.rouille && c.camp === 'pj' && (c.caMalus || 0) < 4) {
+    if (effet.rouille && c.camp === 'pj' && c.traits && c.traits.antiRouille) this.log(`→ 🛡️ Le bouclier inoxydable de ${this.nomHtml(c)} résiste à la rouille.`, 'bon');
+    else if (effet.rouille && c.camp === 'pj' && (c.caMalus || 0) < 4) {
       c.caMalus = (c.caMalus || 0) + effet.rouille;
       this.log(`→ 🟤 L'armure de ${this.nomHtml(c)} se couvre de rouille : −${effet.rouille} CA (jusqu'à la fin du combat).`, 'mauvais');
       this.evt({ t: 'texte', cible: c.id, texte: '🟤 −1 CA', classe: 'etat' });
@@ -1215,12 +1275,12 @@ class Combat {
       this.log(`😭 Les lamentations de ${this.nomHtml(c)} glacent ses compagnons.`, 'peur');
       for (const p of this.pjs) if (p !== c && p.pv > 0) this.modifierPeur(p, 6, true);
     }
-    if (c.crise === 'terreur' && Math.random() < 0.5) {
+    if (c.crise === 'terreur' && alea() < 0.5) {
       this.log(`😱 ${this.nomHtml(c)} tremble de tous ses membres et ne peut pas agir.`, 'mauvais');
       this.evt({ t: 'texte', cible: c.id, texte: '😱 Paralysé', classe: 'peur' });
       return fin(this.maj());
     }
-    if (c.crise === 'rage_aveugle' && Math.random() < 0.5) {
+    if (c.crise === 'rage_aveugle' && alea() < 0.5) {
       const options = c.actions.map(id => ACTIONS[id]).filter(a => a && a.cible === 'ennemi' && !a.niveau && this.disponibilite(c, a).ok);
       if (options.length) {
         const act = Des.hasard(options), cibles = this.ciblesValides(c, act);
@@ -1270,9 +1330,9 @@ class Combat {
   choisirCible(m, act) {
     const cibles = this.ciblesValides(m, act);
     const provocateur = cibles.find(c => c.etats.defi);
-    if (provocateur && Math.random() < 0.8) return provocateur;
+    if (provocateur && alea() < 0.8) return provocateur;
     const ours = cibles.find(c => c.traits && c.traits.espritOurs && c.etats.rage);
-    if (ours && Math.random() < 0.6) return ours;
+    if (ours && alea() < 0.6) return ours;
     // Préférence légère pour les cibles blessées
     return Des.pondere(cibles.map(c => ({ c, poids: 1 + (1 - c.pv / c.pvMax) * 2 }))).c;
   }
@@ -1297,6 +1357,31 @@ const SPECIAUX = {
     for (const e of cb.ennemis) if (e.marquePar === a.id) { delete e.etats.marque; e.marquePar = null; }
     cible.marquePar = a.id;
     cb.appliquerEtat(cible, 'marque', 99);
+  },
+
+  sourceMagie(cb, a) {
+    const e = a.emplacements[1];
+    if (e && e.restant < e.max) { e.restant++; cb.log(`→ 🌟 ${cb.nomHtml(a)} façonne un emplacement de sort de niveau 1.`, 'bon'); }
+    else cb.log('→ Tous ses emplacements de niveau 1 sont déjà pleins.', 'jet rate');
+  },
+
+  aide(cb, a, act, cible, cibles) {
+    for (const p of cibles) {
+      p.egide = Math.max(p.egide || 0, 6);
+      cb.resoudreSoin(a, { soin: '6', sort: true }, p);
+    }
+    cb.log('→ 💪 Toute l\'équipe gagne 6 PV temporaires.', 'bon');
+  },
+
+  elixir(cb, a, act, cible) {
+    if (!cible) return;
+    cb.resoudreSoin(a, { soin: '2d4+4', sort: true }, cible);
+    if (cible.pv <= 0) return;
+    const e = Des.hasard(['benit', 'esquive', 'peur', 'egide']);
+    if (e === 'benit') cb.appliquerEtat(cible, 'benit', 3);
+    else if (e === 'esquive') cb.appliquerEtat(cible, 'esquive', 2);
+    else if (e === 'peur') cb.modifierPeur(cible, -20);
+    else { cible.egide = Math.max(cible.egide || 0, 8); cb.log(`→ ${cb.nomHtml(cible)} gagne 8 PV temporaires.`, 'bon'); }
   },
 
   inimitie(cb, a, act, cible) {

@@ -578,3 +578,11 @@ body { overscroll-behavior: none; }
 .sc-fiche summary { cursor: pointer; }
 .badge-test { display: inline-block; margin: 6px auto 0; background: #2a4a2a; border: 1px solid #6c6; color: #cfc; border-radius: 10px; padding: 3px 9px; font: inherit; font-size: .75rem; cursor: pointer; }
 .combattant.ennemi .barre-jauge.peur { margin-top: 2px; }
+
+/* ---------- difficultés ---------- */
+.diffs { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.diff { font-size: .7rem; padding: 3px 8px; border-radius: 10px; border: 1px solid var(--ligne); background: #0004; color: var(--texte); cursor: pointer; }
+.diff.choisie { border-color: var(--or); background: #4a382088; color: #ffe2a0; font-weight: 700; }
+.diff.verrou { opacity: .45; cursor: default; }
+.diff-desc { display: block; font-size: .68rem; color: #ffb48a; margin-top: 3px; }
+.campagne.defi { border-color: #6aa8ff; background: linear-gradient(135deg, #1a2a44cc, #2a1e14cc); margin-bottom: 8px; }

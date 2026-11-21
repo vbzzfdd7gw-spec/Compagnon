@@ -112,6 +112,26 @@ const CLASSES = {
     poolActions: ['coup_pied_vol', 'coup_tete', 'feinte'],
     desc: 'Plusieurs coups par tour, étourdit ses cibles et esquive facilement.'
   },
+  ensorceleur: {
+    nom: 'Ensorceleur', icone: '🌟', couleur: '#d0503a', ligne: 'arriere', role: 'Dégâts · métamagie',
+    pv: 24, ca: 13, ressources: { sorcellerie: 4 }, ressourcesNiv5: { sorcellerie: 6 },
+    caracs: { FOR: 8, DEX: 14, CON: 14, INT: 10, SAG: 10, CHA: 16 },
+    maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
+    sauvegardes: ['CON', 'CHA'], deVie: 6, emplacements: { 1: 4, 2: 3 },
+    actions: ['trait_feu', 'orbe_chromatique', 'rayon_ardent', 'sort_jumele', 'sort_intensifie'],
+    poolActions: ['poigne_electrique', 'mains_brulantes', 'source_magie', 'eclair'],
+    desc: 'Magie innée : 4 points de sorcellerie (6 au niveau 5) pour la métamagie, en action bonus : sort jumelé (deux cibles) ou intensifié (×1,5 dégâts).'
+  },
+  artificier: {
+    nom: 'Artificier', icone: '⚙️', couleur: '#b8863a', ligne: 'avant', role: 'Soutien · inventions',
+    pv: 26, ca: 17,
+    caracs: { FOR: 10, DEX: 14, CON: 14, INT: 16, SAG: 12, CHA: 8 },
+    maitrise: 2, bonusArme: 5, bonusSort: 5, ddSort: 13,
+    sauvegardes: ['CON', 'INT'], deVie: 8, emplacements: { 1: 3 },
+    actions: ['arbalete_artificier', 'trait_feu', 'soins', 'infusion_arme'],
+    poolActions: ['graisse', 'fiole_acide', 'vague_tonnante', 'aide'],
+    desc: 'Inventeur polyvalent : arbalète et tours de magie, soins, et infusions qui enchantent les armes des alliés.'
+  },
   occultiste: {
     nom: 'Occultiste', icone: '🧿', couleur: '#7a3fb0', ligne: 'arriere', role: 'Distance · malédictions',
     pv: 24, ca: 13, pacte: true,
@@ -126,9 +146,9 @@ const CLASSES = {
 
 // Équipe par défaut, et ordre d'affichage de toutes les classes
 const ORDRE_CLASSES = ['guerrier', 'clerc', 'roublard', 'magicien'];
-const TOUTES_CLASSES = ['guerrier', 'barbare', 'paladin', 'moine', 'clerc', 'druide', 'barde', 'roublard', 'rodeur', 'magicien', 'occultiste'];
+const TOUTES_CLASSES = ['guerrier', 'barbare', 'paladin', 'moine', 'artificier', 'clerc', 'druide', 'barde', 'roublard', 'rodeur', 'magicien', 'ensorceleur', 'occultiste'];
 // Classes capables de soigner (pour les conseils de composition)
-const SOIGNEURS = ['clerc', 'paladin', 'druide', 'barde'];
+const SOIGNEURS = ['clerc', 'paladin', 'druide', 'barde', 'artificier'];
 
 // Crée un personnage jouable à partir de sa classe (et de sa sous-classe, la première par défaut)
 function creerPJ(idClasse, idSousClasse) {
@@ -167,18 +187,18 @@ function creerPJ(idClasse, idSousClasse) {
 // ---------------------------------------------------------------------
 const PROGRESSION = {
   4: {
-    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6, occultiste: 6 },
-    emplacements: { clerc: { 2: 1 }, magicien: { 2: 1 }, barde: { 2: 1 }, druide: { 2: 1 }, paladin: { 1: 1 }, rodeur: { 1: 1 } },
-    bonus: { guerrier: 'arme', roublard: 'arme', clerc: 'sort', magicien: 'sort', barbare: 'arme', paladin: 'arme', rodeur: 'arme', barde: 'sort', druide: 'sort', moine: 'arme', occultiste: 'sort' }
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6, occultiste: 6, ensorceleur: 5, artificier: 6 },
+    emplacements: { clerc: { 2: 1 }, magicien: { 2: 1 }, barde: { 2: 1 }, druide: { 2: 1 }, paladin: { 1: 1 }, rodeur: { 1: 1 }, ensorceleur: { 2: 1 }, artificier: { 1: 1 } },
+    bonus: { guerrier: 'arme', roublard: 'arme', clerc: 'sort', magicien: 'sort', barbare: 'arme', paladin: 'arme', rodeur: 'arme', barde: 'sort', druide: 'sort', moine: 'arme', occultiste: 'sort', ensorceleur: 'sort', artificier: 'sort' }
   },
   5: {
-    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6, occultiste: 6 },
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6, occultiste: 6, ensorceleur: 5, artificier: 6 },
     maitrise: true,
-    emplacements: { clerc: { 3: 2 }, magicien: { 3: 2 }, barde: { 3: 2 }, druide: { 3: 2 }, paladin: { 2: 2 }, rodeur: { 2: 2 } },
+    emplacements: { clerc: { 3: 2 }, magicien: { 3: 2 }, barde: { 3: 2 }, druide: { 3: 2 }, paladin: { 2: 2 }, rodeur: { 2: 2 }, ensorceleur: { 3: 2 }, artificier: { 2: 2 } },
     traits: { guerrier: { attaqueSupp: true }, roublard: { sournoise: '3d6' }, barbare: { attaqueSupp: true }, paladin: { attaqueSupp: true }, rodeur: { attaqueSupp: true }, occultiste: { decharge2: true } },
     // Magie de pacte : les emplacements montent tous d'un niveau (et non s'ajoutent)
     pacte: { occultiste: { 3: 2 } },
-    sort: { magicien: 'boule_feu', clerc: 'esprits_gardiens', barde: 'hypnose', druide: 'appel_foudre', occultiste: 'faim_hadar' }
+    sort: { magicien: 'boule_feu', clerc: 'esprits_gardiens', barde: 'hypnose', druide: 'appel_foudre', occultiste: 'faim_hadar', ensorceleur: 'eclair', artificier: 'aide' }
   }
 };
 

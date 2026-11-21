@@ -158,6 +158,8 @@ const PERSOS3D = {
   pretre_momie: { glb: 'skeleton_mage', armes: { droite: 'skeleton_staff' }, echelle: 1.1, recolorer: 'or_desert',
     anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', soutien: 'Spellcast_Raise', mort: 'Death_C_Skeletons', poseMort: 'Death_C_Pose' } },
   pharaon: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat'], echelle: 1.45, recolorer: 'pharaon', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A', sort: 'Taunt', invoque: 'Taunt', soutien: 'Taunt' } },
+  ensorceleur: { glb: 'mage', montrer: ['1H_Wand'], cacher: ['Mage_Hat'], recolorer: 'ensorceleur', anims: { attaque: 'Spellcast_Shoot', sort: 'Spellcast_Shoot', soutien: 'Spellcast_Raise' } },
+  artificier: { glb: 'rogue', montrer: ['1H_Crossbow'], recolorer: 'artificier', ajouts: [{ os: 'head', fabrique: 'lunettes' }], anims: { attaque: '1H_Ranged_Shoot', tir: '1H_Ranged_Shoot', sort: 'Spellcast_Shoot', soutien: 'Use_Item' } },
   // Château du vampire
   goule: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat', 'Barbarian_Cape'], recolorer: 'goule', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A' } },
   bleme: { glb: 'barbarian', montrer: [], cacher: ['Barbarian_Hat'], echelle: 1.05, recolorer: 'bleme', anims: { attaque: 'Unarmed_Melee_Attack_Punch_A' } },
@@ -227,6 +229,9 @@ const RECOLORATIONS = {
   chacal: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [25, 0.15, l * 0.33] : (s > 0.15 ? [45, 0.75, l * 0.9] : null),
   or_desert: (h, s, l) => (l > 0.45 && (h < 70 || s < 0.25)) ? [42, 0.5, Math.min(0.85, l * 0.92)] : (s > 0.15 ? [215, 0.6, l * 0.5] : null),
   pharaon: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [40, 0.25, Math.min(0.9, l * 1.05)] : (s > 0.15 ? (h < 60 ? [45, 0.8, l * 0.9] : [215, 0.7, l * 0.55]) : null),
+  // Ensorceleur : robe pourpre et or ; artificier : cuir brun et cuivre
+  ensorceleur: (h, s, l) => (h > 200 && s > 0.15) ? [350, Math.min(1, s + 0.2), l * 0.8] : null,
+  artificier: (h, s, l) => (h >= 10 && h <= 45 && l > 0.55) ? null : (s > 0.15 ? [32, Math.min(1, s + 0.25), l * 0.9] : null),
   // Château : goule grise, blême violacé, nécrophage cendreux, vampires pâles en noir et rouge
   goule: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [90, 0.12, l * 0.6] : (s > 0.1 ? [30, s * 0.25, l * 0.4] : null),
   bleme: (h, s, l) => (h >= 10 && h <= 45 && l > 0.5) ? [270, 0.12, l * 0.55] : (s > 0.1 ? [280, s * 0.3, l * 0.35] : null),
