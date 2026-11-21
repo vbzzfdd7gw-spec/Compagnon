@@ -408,10 +408,10 @@ const ACTIONS = {
   },
   rayon_lune: {
     parNiveau: '1d10',
-    nom: 'Rayon de lune', icone: '🌙', concentration: true, persistant: true, type: 'sauvegarde', niveau: 2, sort: true, triangle: 3,
+    nom: 'Rayon de lune', icone: '🌙', concentration: true, relanceGratuite: true, type: 'sauvegarde', niveau: 2, sort: true, triangle: 3,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'CON', dd: 'sort', degats: '2d10', typeDeg: 'radiant', moitie: true,
-    desc: '🧠 Concentration. Niv. 2. Un rayon de lune frappe la cible et ses 2 voisins (sauvegarde de CON, 2d10 radiant, moitié si réussite), puis frappe encore au début de chacun de vos tours tant que dure la concentration.'
+    desc: '🧠 Concentration. Niv. 2. Un rayon de lune frappe la cible et ses 2 voisins (sauvegarde de CON, 2d10 radiant, moitié si réussite). Tant que dure la concentration, vous pouvez le déplacer et le relancer à chaque tour sans dépenser d\'emplacement.'
   },
   peau_ecorce: {
     nom: 'Peau d\'écorce', icone: '🌳', concentration: true, concPermanent: true, type: 'soutien', niveau: 2,

@@ -67,7 +67,7 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 Comme dans D&D, certains sorts (`concentration: true` dans `actions.js` : Bénédiction, Marque du chasseur, Maléfice, Rayon de lune, Appel de la foudre, Esprits gardiens, Faim d'Hadar, Motif hypnotique, Confusion, Bannissement…) demandent de la concentration (`combat.js`, partie « concentration ») :
 - un seul à la fois par héros : en lancer un autre met fin au premier ;
 - à chaque dégât subi, sauvegarde de CON (DD 10 ou la moitié des dégâts) ; à 0 PV, le sort cesse ; ses états sont alors retirés ;
-- `concPermanent` : ses états durent tant que la concentration tient ; `persistant` (Rayon de lune, Esprits gardiens, Faim d'Hadar) : le sort refrappe au début de chaque tour du lanceur ; `relanceGratuite` (Appel de la foudre) : relancé sans emplacement tant qu'elle tient ;
+- `concPermanent` : ses états durent tant que la concentration tient ; `persistant` (Esprits gardiens, Faim d'Hadar) : le sort refrappe au début de chaque tour du lanceur ; `relanceGratuite` (Appel de la foudre, Rayon de lune) : relancé sans emplacement tant qu'elle tient ;
 - trait `mageGuerre` (Anneau du mage de guerre) : avantage aux sauvegardes de concentration.
 
 ## Lancer un sort à un niveau supérieur
