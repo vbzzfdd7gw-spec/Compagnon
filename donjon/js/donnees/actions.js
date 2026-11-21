@@ -729,6 +729,16 @@ const ACTIONS = {
     effetSiEchec: { etat: 'etourdi', duree: 1 }, effroi: 40,
     desc: '🧠 Concentration. Niv. 3. La cible et ses 2 voisins : sauvegarde de SAG ou paralysés d\'effroi 1 tour ; +40 Peur aux monstres (moitié si réussite).'
   },
+  fioriture_tranchante: {
+    nom: 'Fioriture tranchante', icone: '⚔️', type: 'attaque', arme: true, ressource: 'fioritures', triangle: 2, nbAttaques: 1,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'arme', degats: '1d8+3+1d6', typeDeg: 'tranchant',
+    desc: 'Fioriture de lame (1 dé d\'inspiration). La lame tourbillonne : la cible et un ennemi voisin subissent 1d8+3 + 1d6 tranchant.'
+  },
+  fioriture_defensive: {
+    nom: 'Fioriture défensive', icone: '🤺', type: 'attaque', arme: true, ressource: 'fioritures',
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'arme', degats: '1d8+3+1d6', typeDeg: 'perforant', etatLanceur: { nom: 'parade', duree: 1 },
+    desc: 'Fioriture de lame (1 dé d\'inspiration). Coup de rapière (+1d6) puis parade : +4 CA jusqu\'à son prochain tour.'
+  },
   // ------------------------------ ARTIFICIER ----------------------------
   arbalete_artificier: {
     nom: 'Arbalète à répétition', icone: '🏹', type: 'attaque', arme: true,

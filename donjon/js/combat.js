@@ -31,6 +31,7 @@ const ETATS = {
   armeSacree: { nom: 'Arme sacrée', icone: '🌟', desc: '+2 au toucher avec les armes.' },
   inimitie: { nom: 'Vœu d\'inimitié', icone: '🔥', desc: 'Le paladin qui l\'a juré a l\'avantage contre lui.' },
   concentre: { nom: 'Concentration', icone: '🧠', desc: 'Maintient un sort de concentration. Chaque fois qu\'il subit des dégâts : sauvegarde de CON (DD 10 ou moitié des dégâts) ou le sort prend fin. Un seul à la fois.', permanent: true },
+  parade: { nom: 'Parade', icone: '🤺', desc: '+4 CA jusqu\'à son prochain tour.', finDebut: true },
   zephyr: { nom: 'Frappe du zéphyr', icone: '🌬️', desc: 'Sa prochaine attaque d\'arme a l\'avantage et inflige +1d8 force.' },
   heroisme: { nom: 'Héroïsme', icone: '🦸', desc: 'Ne gagne plus de Peur ; 3 PV temporaires au début de chacun de ses tours.' },
   illumine: { nom: 'Illuminé', icone: '🎆', desc: 'Entouré de lueurs féeriques : les attaques contre lui ont l\'avantage.' },
@@ -822,7 +823,7 @@ class Combat {
 
   // CA effective (états et capacités compris)
   caTotale(c) {
-    return c.ca + (c.etats.foi ? 2 : 0) - (c.etats.ralenti ? 2 : 0) + (c.etats.ecorce ? 3 : 0) + (c.etats.agathys ? 2 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0)
+    return c.ca + (c.etats.parade ? 4 : 0) + (c.etats.foi ? 2 : 0) - (c.etats.ralenti ? 2 : 0) + (c.etats.ecorce ? 3 : 0) + (c.etats.agathys ? 2 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0)
       + (c.traits && c.traits.aspectOurs && c.etats.rage ? 2 : 0) - (c.caMalus || 0);
   }
 
@@ -942,7 +943,7 @@ class Combat {
     const d = Des.lancer(act.degats, critique);
     let degats = d.total;
     let dTxt = d.texte;
-    if (act.arme && a.bonusDegats) { degats += a.bonusDegats; dTxt += ` +${a.bonusDegats} (objet)`; }
+    if (act.arme && a.bonusDegats) { degats += a.bonusDegats; dTxt += ` +${a.bonusDegats} (bonus)`; }
     if (act.arme && a.etats.rage) { degats += 2; dTxt += ' +2 (rage)'; }
     if (a.etats.heroique && bonusHeros) { degats += 2; dTxt += ' +2 (héroïque)'; }
     if (a.etats.vengeance && bonusHeros) { degats += 2; dTxt += ' +2 (vengeance)'; }
