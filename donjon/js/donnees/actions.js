@@ -634,6 +634,99 @@ const ACTIONS = {
     depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'sort', degats: '1d10+3', typeDeg: 'tranchant',
     desc: 'Corps à corps. Attaque avec son Charisme : 1d10+3 tranchant.'
   },
+  // ----------------------------- SORTS SUPPLÉMENTAIRES (D&D) ---------------
+  bouclier_mage: {
+    nom: 'Bouclier', icone: '🛡️', type: 'soutien', niveau: 1, sort: true, actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'bouclier', duree: 1 },
+    desc: 'Niv. 1, action bonus. Une barrière invisible : +5 CA jusqu\'à son prochain tour.'
+  },
+  rayon_empoisonne: {
+    parNiveau: '1d8',
+    nom: 'Rayon empoisonné', icone: '🤢', type: 'attaque', niveau: 1, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 'sort', degats: '2d8', typeDeg: 'poison',
+    effetSiTouche: { etat: 'empoisonne', duree: 2, sauvegarde: { carac: 'CON', dd: 'sort' } },
+    desc: 'Niv. 1. Attaque de sort : 2d8 poison ; sauvegarde de CON ou empoisonné 2 tours (désavantage aux attaques).'
+  },
+  lueurs_feeriques: {
+    nom: 'Lueurs féeriques', icone: '🎆', concentration: true, concPermanent: true, type: 'sauvegarde', niveau: 1, sort: true, triangle: 3,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'illumine', duree: 3 },
+    desc: '🧠 Concentration. Niv. 1. La cible et ses 2 voisins : sauvegarde de DEX ou illuminés (toutes les attaques contre eux ont l\'avantage) tant que dure la concentration.'
+  },
+  blessure: {
+    parNiveau: '1d10',
+    nom: 'Blessure', icone: '🩸', type: 'attaque', niveau: 1, sort: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'sort', degats: '3d10', typeDeg: 'nécrotique',
+    desc: 'Niv. 1. Contact : attaque de sort, 3d10 nécrotique.'
+  },
+  bouclier_foi: {
+    nom: 'Bouclier de la foi', icone: '✝️', concentration: true, concPermanent: true, type: 'soutien', niveau: 1, sort: true, actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true, etat: { nom: 'foi', duree: 10 },
+    desc: '🧠 Concentration. Niv. 1, action bonus. Un allié gagne +2 CA tant que dure la concentration.'
+  },
+  chatiment_tonnerre: {
+    nom: 'Châtiment tonitruant', icone: '🔊', type: 'attaque', niveau: 1, sort: true, arme: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'arme', degats: '1d8+3+2d6', typeDeg: 'tonnerre', recul: 1,
+    effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'FOR', dd: 'sort' } },
+    desc: 'Niv. 1. Coup d\'arme : 1d8+3 + 2d6 tonnerre, repousse ; sauvegarde de FOR ou renversé.'
+  },
+  grele_epines: {
+    parNiveau: '1d10',
+    nom: 'Grêle d\'épines', icone: '🌵', type: 'attaque', niveau: 1, sort: true, arme: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 'arme', degats: '1d8+3+1d10', typeDeg: 'perforant',
+    desc: 'Niv. 1. Tir : 1d8+3 + 1d10 perforant (une pluie d\'épines jaillit de la flèche).'
+  },
+  soins_groupe: {
+    parNiveau: '1d4',
+    nom: 'Mot de guérison de groupe', icone: '💞', type: 'soin', niveau: 3, sort: true, zone: true, actionBonus: true, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], soin: '1d4+3', peur: -5,
+    desc: 'Niv. 3, action bonus. Tous les alliés (même à terre) récupèrent 1d4+3 PV.'
+  },
+  fracassement: {
+    parNiveau: '1d8',
+    nom: 'Fracassement', icone: '💢', type: 'sauvegarde', niveau: 2, sort: true, triangle: 3,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 'sort', degats: '3d8', typeDeg: 'tonnerre', moitie: true,
+    desc: 'Niv. 2. Un bruit assourdissant frappe la cible et ses 2 voisins : sauvegarde de CON, 3d8 tonnerre (moitié si réussite).'
+  },
+  immobilisation: {
+    nom: 'Immobilisation de personne', icone: '⛓️', concentration: true, type: 'sauvegarde', niveau: 2, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'paralyse', duree: 2 },
+    desc: '🧠 Concentration. Niv. 2. Une cible : sauvegarde de SAG ou paralysée 2 tours (perd ses tours ; les coups au contact sont des critiques).'
+  },
+  invisibilite: {
+    nom: 'Invisibilité', icone: '👻', type: 'soutien', niveau: 2, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true, etat: { nom: 'cache', duree: 99 },
+    desc: 'Niv. 2. Un allié devient invisible : avantage à sa prochaine attaque.'
+  },
+  image_miroir: {
+    nom: 'Image miroir', icone: '🪞', type: 'soutien', niveau: 2, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'voile', duree: 99 },
+    desc: 'Niv. 2. Des doubles illusoires : la prochaine attaque qui le toucherait rate.'
+  },
+  croissance_epines: {
+    nom: 'Croissance d\'épines', icone: '🌿', concentration: true, persistant: true, type: 'sauvegarde', niveau: 2, sort: true, zone: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 'sort', degats: '2d4+2', typeDeg: 'perforant', moitie: true,
+    desc: '🧠 Concentration. Niv. 2. Le sol de la ligne Avant ennemie se hérisse d\'épines : sauvegarde de DEX, 2d4+2 perforant (moitié), au lancer puis à chacun de vos tours.'
+  },
+  lenteur: {
+    nom: 'Lenteur', icone: '🐌', concentration: true, concPermanent: true, type: 'sauvegarde', niveau: 3, sort: true, triangle: 3, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'ralenti', duree: 3 },
+    desc: '🧠 Concentration. Niv. 3. La cible et ses 2 voisins : sauvegarde de SAG ou ralentis (−2 CA, désavantage aux attaques) tant que dure la concentration.'
+  },
+  tempete_neige: {
+    nom: 'Tempête de neige', icone: '🌨️', concentration: true, persistant: true, type: 'sauvegarde', niveau: 3, sort: true, zone: true, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'renverse', duree: 1 },
+    desc: '🧠 Concentration. Niv. 3. Grésil et verglas sur tous les ennemis : sauvegarde de DEX ou renversés, au lancer puis à chacun de vos tours.'
+  },
+  terreur: {
+    nom: 'Terreur', icone: '😱', concentration: true, type: 'sauvegarde', niveau: 3, sort: true, triangle: 3, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'etourdi', duree: 1 }, effroi: 40,
+    desc: '🧠 Concentration. Niv. 3. La cible et ses 2 voisins : sauvegarde de SAG ou paralysés d\'effroi 1 tour ; +40 Peur aux monstres (moitié si réussite).'
+  },
   // ------------------------------ ARTIFICIER ----------------------------
   arbalete_artificier: {
     nom: 'Arbalète à répétition', icone: '🏹', type: 'attaque', arme: true,

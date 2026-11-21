@@ -249,7 +249,7 @@ const Recompenses = {
     const possibles = [];
     for (const pj of equipe) {
       for (const cle of CLASSES[pj.classe].poolActions) {
-        if (!pj.actions.includes(cle) && (pj.niveau || 3) >= (ACTIONS[cle].niveauMin || 0)) possibles.push({ pj, cle });
+        if (!pj.actions.includes(cle) && !(pj.grimoire || []).includes(cle) && (pj.niveau || 3) >= (ACTIONS[cle].niveauMin || 0)) possibles.push({ pj, cle });
       }
     }
     if (!possibles.length) return null;
@@ -334,7 +334,7 @@ const Marchand = {
     const pj = art.pj ? jeu.equipe.find(p => p.id === art.pj) : null;
     switch (art.categorie) {
       case 'consommable': jeu.ajouterStock(art.cle, art.quantite || 1); break;
-      case 'action': pj.actions.push(art.cle); break;
+      case 'action': if (art.versGrimoire) { pj.grimoire = pj.grimoire || []; pj.grimoire.push(art.cle); } else pj.actions.push(art.cle); break;
       case 'objet': case 'amelioration': Recompenses.appliquer(art, pj, jeu); break;
       case 'soin': jeu.equipe.forEach(p => { p.pv = Math.min(p.pvMax, Math.max(0, p.pv) + Math.ceil(p.pvMax / 2)); }); break;
       case 'encens': jeu.equipe.forEach(p => { p.peur = Math.max(p.traits.peurMin || 0, p.peur - 30); }); break;

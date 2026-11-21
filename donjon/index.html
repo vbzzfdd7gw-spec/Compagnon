@@ -9,16 +9,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg?v=31" type="image/svg+xml">
-<link rel="icon" href="icon-192.png?v=31" type="image/png" sizes="192x192">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=31">
+<link rel="icon" href="icon.svg?v=32" type="image/svg+xml">
+<link rel="icon" href="icon-192.png?v=32" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=32">
 <meta name="apple-mobile-web-app-title" content="Cryptes & Dés">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Police chargée sans bloquer l'affichage (hors ligne : police de secours) -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=31">
+<link rel="stylesheet" href="style.css?v=32">
 <style>
   /* Écran de chargement : visible dès la première image, avant tout script */
   #ecran-chargement { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
@@ -43,7 +43,7 @@
 <script>
   // Barre de chargement : avance en continu vers l'étape en cours (jamais figée),
   // et l'écran se ferme quoi qu'il arrive (sécurité).
-  window.VERSION_JEU='31';
+  window.VERSION_JEU='32';
   (function () {
     var barre = document.getElementById('ec-prog'), aff = 2, cible = 6;
     function fermer() {
@@ -69,26 +69,26 @@
 <div id="modal"></div>
 
 <!-- Ordre de chargement : 3D (Three.js, MIT), outils, données, moteur, carte, partie, figurines, interface -->
-<script defer src="lib/three.min.js?v=31" onload="EC.cible(14)"></script>
-<script defer src="lib/GLTFLoader.js?v=31"></script>
-<script defer src="lib/SkeletonUtils.js?v=31"></script>
-<script defer src="js/son.js?v=31"></script>
-<script defer src="js/des.js?v=31"></script>
-<script defer src="js/donnees/actions.js?v=31"></script>
-<script defer src="js/donnees/classes.js?v=31"></script>
-<script defer src="js/donnees/monstres.js?v=31"></script>
-<script defer src="js/donnees/objets.js?v=31"></script>
-<script defer src="js/donnees/evenements.js?v=31"></script>
-<script defer src="js/donnees/etages.js?v=31"></script>
-<script defer src="js/donnees/campagnes.js?v=31"></script>
-<script defer src="js/donnees/sousclasses.js?v=31"></script>
-<script defer src="js/combat.js?v=31"></script>
-<script defer src="js/carte.js?v=31"></script>
-<script defer src="js/jeu.js?v=31"></script>
-<script defer src="js/modeles3d.js?v=31"></script>
-<script defer src="js/decor3d.js?v=31"></script>
-<script defer src="js/ressources3d.js?v=31"></script>
-<script defer src="js/interface.js?v=31" onload="EC.cible(20)"></script>
+<script defer src="lib/three.min.js?v=32" onload="EC.cible(14)"></script>
+<script defer src="lib/GLTFLoader.js?v=32"></script>
+<script defer src="lib/SkeletonUtils.js?v=32"></script>
+<script defer src="js/son.js?v=32"></script>
+<script defer src="js/des.js?v=32"></script>
+<script defer src="js/donnees/actions.js?v=32"></script>
+<script defer src="js/donnees/classes.js?v=32"></script>
+<script defer src="js/donnees/monstres.js?v=32"></script>
+<script defer src="js/donnees/objets.js?v=32"></script>
+<script defer src="js/donnees/evenements.js?v=32"></script>
+<script defer src="js/donnees/etages.js?v=32"></script>
+<script defer src="js/donnees/campagnes.js?v=32"></script>
+<script defer src="js/donnees/sousclasses.js?v=32"></script>
+<script defer src="js/combat.js?v=32"></script>
+<script defer src="js/carte.js?v=32"></script>
+<script defer src="js/jeu.js?v=32"></script>
+<script defer src="js/modeles3d.js?v=32"></script>
+<script defer src="js/decor3d.js?v=32"></script>
+<script defer src="js/ressources3d.js?v=32"></script>
+<script defer src="js/interface.js?v=32" onload="EC.cible(20)"></script>
 <script>
   // Hors connexion (uniquement servi en http/https, pas en ouvrant le fichier)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

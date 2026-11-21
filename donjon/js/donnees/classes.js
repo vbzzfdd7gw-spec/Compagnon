@@ -9,6 +9,29 @@
 // =====================================================================
 
 const MAX_ACTIONS = 5;
+// Actions préparées : 5, ou 6 pour les lanceurs de sorts ; les autres attendent dans le grimoire
+function maxActions(pj) { return CLASSES[pj.classe] && CLASSES[pj.classe].emplacements ? MAX_ACTIONS + 1 : MAX_ACTIONS; }
+// Apprend une action : préparée s'il reste de la place, sinon rangée dans le grimoire
+function apprendre(pj, id) {
+  pj.grimoire = pj.grimoire || [];
+  if (pj.actions.includes(id) || pj.grimoire.includes(id)) return '';
+  if (pj.actions.length < maxActions(pj)) { pj.actions.push(id); return `nouveau sort préparé : ${ACTIONS[id].nom}`; }
+  pj.grimoire.push(id);
+  return `${ACTIONS[id].nom} rangé dans le grimoire`;
+}
+// Trois sorts proposés à la montée de niveau (le sort de PROGRESSION en fait toujours partie)
+function optionsSorts(pj, niv, fixe) {
+  const connus = new Set([...pj.actions, ...(pj.grimoire || [])]);
+  const maxEmpl = Math.max(0, ...Object.keys(pj.emplacements || {}).map(Number));
+  const ok = id => ACTIONS[id] && !connus.has(id) && (ACTIONS[id].niveauMin || 0) <= niv && (!ACTIONS[id].niveau || ACTIONS[id].niveau <= maxEmpl);
+  const pool = Des.melanger((CLASSES[pj.classe].poolActions || []).filter(id => ok(id) && id !== fixe && (ACTIONS[id].sort || ACTIONS[id].niveau)));
+  const choix = (fixe && ok(fixe) ? [fixe] : []).concat(pool).slice(0, 3);
+  return choix;
+}
+// Choix en attente résolus sans le joueur (Chaos, simulateur, ancienne sauvegarde)
+function resoudreChoixSorts(pj, auHasard = false) {
+  while (pj.choixSorts && pj.choixSorts.length) { const c = pj.choixSorts.shift(); if (c.length) apprendre(pj, auHasard ? Des.hasard(c) : c[0]); }
+}
 
 const CLASSES = {
   guerrier: {
@@ -28,7 +51,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['SAG', 'CHA'], deVie: 8, emplacements: { 1: 4, 2: 2 },
     actions: ['masse', 'flamme_sacree', 'soins', 'benediction'],
-    poolActions: ['mot_guerison', 'paroles_espoir', 'priere_soins', 'renvoi', 'esprits_gardiens', 'bannissement'],
+    poolActions: ['mot_guerison', 'paroles_espoir', 'priere_soins', 'renvoi', 'esprits_gardiens', 'bannissement', 'blessure', 'bouclier_foi', 'immobilisation', 'soins_groupe'],
     desc: 'Soigne, bénit et calme la Peur. Emplacements de sorts limités.'
   },
   roublard: {
@@ -49,7 +72,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 6, emplacements: { 1: 4, 2: 2 },
     actions: ['trait_feu', 'projectile_magique', 'mains_brulantes', 'rayon_ardent'],
-    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'orbe_chromatique', 'boule_feu', 'tempete_grele', 'bannissement'],
+    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'orbe_chromatique', 'boule_feu', 'tempete_grele', 'bannissement', 'bouclier_mage', 'rayon_empoisonne', 'fracassement', 'immobilisation', 'invisibilite', 'image_miroir', 'lenteur', 'terreur'],
     desc: 'Fragile mais dévastateur depuis l\'arrière. Emplacements de sorts limités.'
   },
   barbare: {
@@ -69,7 +92,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 5, ddSort: 13,
     sauvegardes: ['SAG', 'CHA'], deVie: 10, emplacements: { 1: 2 },
     actions: ['epee_longue', 'chatiment', 'imposition', 'benediction'],
-    poolActions: ['faveur_divine', 'defi', 'renvoi', 'soins'],
+    poolActions: ['faveur_divine', 'defi', 'renvoi', 'soins', 'chatiment_tonnerre', 'bouclier_foi'],
     desc: 'Aura de protection : +1 aux sauvegardes de toute l\'équipe tant qu\'il est debout. Châtiment divin dévastateur.'
   },
   rodeur: {
@@ -79,7 +102,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 4, ddSort: 12,
     sauvegardes: ['FOR', 'DEX'], deVie: 10, emplacements: { 1: 3 },
     actions: ['arc_long', 'epees_jumelles', 'marque_chasseur', 'volee'],
-    poolActions: ['tir_precis', 'piege', 'coup_bas'],
+    poolActions: ['tir_precis', 'piege', 'coup_bas', 'grele_epines', 'croissance_epines'],
     desc: 'Tireur régulier. Sa Marque du chasseur ajoute 1d6 à toutes ses attaques contre la cible.'
   },
   barde: {
@@ -89,7 +112,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['DEX', 'CHA'], deVie: 8, emplacements: { 1: 4, 2: 2 },
     actions: ['rapiere', 'moquerie', 'inspiration', 'mot_guerison'],
-    poolActions: ['murmure', 'chant_courage', 'sommeil', 'hypnose', 'confusion'],
+    poolActions: ['murmure', 'chant_courage', 'sommeil', 'hypnose', 'confusion', 'lueurs_feeriques', 'fracassement', 'immobilisation', 'invisibilite', 'soins_groupe', 'terreur'],
     desc: 'Inspire ses alliés (+1d6), affaiblit les ennemis, soigne et calme la Peur.'
   },
   druide: {
@@ -99,7 +122,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 3, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 8, emplacements: { 1: 4, 2: 2 },
     actions: ['flammeche', 'soins', 'enchevetrement', 'rayon_lune'],
-    poolActions: ['gourdin', 'peau_ecorce', 'vague_tonnante', 'appel_foudre', 'fletrissement', 'tempete_grele'],
+    poolActions: ['gourdin', 'peau_ecorce', 'vague_tonnante', 'appel_foudre', 'fletrissement', 'tempete_grele', 'lueurs_feeriques', 'croissance_epines', 'immobilisation', 'tempete_neige'],
     desc: 'Soigne, entrave les ennemis et frappe avec la magie de la nature.'
   },
   moine: {
@@ -119,7 +142,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['CON', 'CHA'], deVie: 6, emplacements: { 1: 4, 2: 3 },
     actions: ['trait_feu', 'orbe_chromatique', 'rayon_ardent', 'sort_jumele', 'sort_intensifie'],
-    poolActions: ['poigne_electrique', 'mains_brulantes', 'source_magie', 'eclair', 'tempete_grele', 'fletrissement'],
+    poolActions: ['poigne_electrique', 'mains_brulantes', 'source_magie', 'eclair', 'tempete_grele', 'fletrissement', 'bouclier_mage', 'rayon_empoisonne', 'fracassement', 'immobilisation', 'image_miroir', 'lenteur', 'tempete_neige', 'terreur'],
     desc: 'Magie innée : 4 points de sorcellerie (6 au niveau 5) pour la métamagie, en action bonus : sort jumelé (deux cibles) ou intensifié (×1,5 dégâts).'
   },
   artificier: {
@@ -129,7 +152,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 5, ddSort: 13,
     sauvegardes: ['CON', 'INT'], deVie: 8, emplacements: { 1: 3 },
     actions: ['arbalete_artificier', 'trait_feu', 'soins', 'infusion_arme'],
-    poolActions: ['graisse', 'fiole_acide', 'vague_tonnante', 'aide'],
+    poolActions: ['graisse', 'fiole_acide', 'vague_tonnante', 'aide', 'bouclier_mage', 'lueurs_feeriques', 'invisibilite'],
     desc: 'Inventeur polyvalent : arbalète et tours de magie, soins, et infusions qui enchantent les armes des alliés.'
   },
   occultiste: {
@@ -139,7 +162,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['SAG', 'CHA'], deVie: 8, emplacements: { 2: 2 },
     actions: ['decharge_occulte', 'malefice', 'bras_hadar', 'effroi'],
-    poolActions: ['armure_agathys', 'decharge_repoussante', 'faim_hadar', 'fletrissement', 'bannissement'],
+    poolActions: ['armure_agathys', 'decharge_repoussante', 'faim_hadar', 'fletrissement', 'bannissement', 'fracassement', 'immobilisation', 'invisibilite', 'image_miroir', 'terreur'],
     desc: 'Magie de pacte : seulement 2 emplacements, toujours lancés au niveau maximum et récupérés à chaque repos court. Décharge occulte à volonté, Maléfice en action bonus.'
   }
 };
@@ -269,10 +292,10 @@ function monterNiveau(pj) {
     if (t.brutal) gains.push('Critique brutal (+1 dé aux critiques) et Instinct sauvage (+4 initiative)');
     if (t.evasion) gains.push('Évasion (sauvegarde de DEX réussie : aucun dégât ; ratée : moitié)');
   }
-  const sort = p.sort && p.sort[pj.classe];
-  if (sort && !pj.actions.includes(sort)) {
-    if (pj.actions.length < MAX_ACTIONS) { pj.actions.push(sort); gains.push(`nouveau sort : ${ACTIONS[sort].nom}`); }
-    else gains.push(`${ACTIONS[sort].nom} peut maintenant être appris en récompense`);
+  // Lanceurs de sorts : un nouveau sort au choix parmi trois
+  if (CLASSES[pj.classe].emplacements) {
+    const choix = optionsSorts(pj, niv, p.sort && p.sort[pj.classe]);
+    if (choix.length) { pj.choixSorts = pj.choixSorts || []; pj.choixSorts.push(choix); gains.push('📜 un nouveau sort à choisir'); }
   }
   if (typeof niveauSousClasse === 'function') gains.push(...niveauSousClasse(pj, niv));
   // Ressources gagnées (rages, charges…) : la différence est ajoutée tout de suite

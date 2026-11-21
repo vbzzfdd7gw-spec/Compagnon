@@ -611,3 +611,10 @@ body { overscroll-behavior: none; }
 .pastille-niv small { font-weight: normal; color: #9fd0ff; }
 .pastille-niv.actif { background: var(--or); color: #1d140c; border-color: var(--or); }
 .pastille-niv.actif small { color: #3a2a10; }
+.grimoire { margin-top: 8px; border-top: 1px solid var(--ligne); padding-top: 6px; }
+.grimoire summary { cursor: pointer; font-size: .85rem; }
+.ligne-grim { display: flex; align-items: center; gap: 6px; }
+.ligne-grim > :first-child { flex: 1; min-width: 0; }
+.choix-sort { border-top: 1px solid var(--ligne); padding-top: 6px; margin-top: 4px; font-size: .84rem; }
+.choix-sort .btn.bloc { display: block; width: 100%; margin: 5px 0; text-align: left; }
+.choix-sort small { color: var(--discret); font-size: .74rem; }

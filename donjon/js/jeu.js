@@ -83,7 +83,7 @@ const Jeu = {
     this.equipe = classes.map(k => creerPJ(k, (sousClasses || {})[k]));
     // Mode Chaos : étages tirés au hasard, carte double, héros niveau 4
     this.etagesAleatoires = c.aleatoire ? genererEtagesAleatoires() : null;
-    if (c.aleatoire) this.equipe.forEach(pj => { monterNiveau(pj); this.restaurerRessources(pj); pj.pv = pj.pvMax; });
+    if (c.aleatoire) this.equipe.forEach(pj => { monterNiveau(pj); resoudreChoixSorts(pj); this.restaurerRessources(pj); pj.pv = pj.pvMax; });
     this.xp = c.aleatoire ? SEUILS_XP[4] : 0;
     this.niveauxEnAttente = [];
     // Au moins un héros en ligne Avant et un en ligne Arrière
@@ -144,6 +144,8 @@ const Jeu = {
       this.equipe.forEach(p => {
         p.niveau = p.niveau || 3;
         p.actions = p.actions.filter(id => ACTIONS[id]);           // actions retirées du jeu
+        p.grimoire = (p.grimoire || []).filter(id => ACTIONS[id]);
+        resoudreChoixSorts(p);
         if (!p.ressources) this.restaurerRessources(p);
       });
       // Sauvegardes d'avant les lignes : les deux premiers devant
@@ -335,7 +337,7 @@ const Jeu = {
         if (!gains.length) break;
         const f = this.niveauxEnAttente.find(x => x.pj === pj.id);
         if (f) { f.gains.push(...gains); f.niveau = pj.niveau; f.apres = this.photoHeros(pj); }
-        else this.niveauxEnAttente.push({ pj: pj.id, depuis, niveau: pj.niveau, gains, avant, apres: this.photoHeros(pj) });
+        else this.niveauxEnAttente.push({ pj: pj.id, depuis, niveau: pj.niveau, gains, avant, avantGrimoire: [...(pj.grimoire || [])], apres: this.photoHeros(pj) });
       }
     }
     return `⭐ +${n} XP${this.niveauxEnAttente.length ? ' — <b>niveau supérieur !</b>' : ''}`;
@@ -355,8 +357,33 @@ const Jeu = {
       emplacements: empl, actions: [...pj.actions], ressources: { ...ressourcesPJ(pj) }, desVie: pj.desVie.max };
   },
 
+  // Grimoire : préparer ou ranger une action (hors combat)
+  preparerAction(pjId, id) {
+    const pj = this.equipe.find(p => p.id === pjId);
+    if (!pj || this.combat || !pj.grimoire || !pj.grimoire.includes(id) || pj.actions.length >= maxActions(pj)) return;
+    pj.grimoire.splice(pj.grimoire.indexOf(id), 1);
+    pj.actions.push(id);
+    this.sauvegarder();
+  },
+  rangerAction(pjId, id) {
+    const pj = this.equipe.find(p => p.id === pjId);
+    if (!pj || this.combat || !pj.actions.includes(id) || pj.actions.length <= 1) return;
+    pj.actions.splice(pj.actions.indexOf(id), 1);
+    pj.grimoire = pj.grimoire || [];
+    pj.grimoire.push(id);
+    this.sauvegarder();
+  },
+  // Écran de niveau : sort choisi parmi les trois proposés
+  choisirSort(pjId, id) {
+    const pj = this.equipe.find(p => p.id === pjId);
+    if (!pj || !pj.choixSorts || !pj.choixSorts.length || !pj.choixSorts[0].includes(id)) return;
+    pj.choixSorts.shift();
+    apprendre(pj, id);
+  },
+
   // Écran de niveau validé : on reprend là où on allait (récompense ou carte)
   apresNiveau() {
+    if (this.equipe.some(p => p.choixSorts && p.choixSorts.length)) return;   // sorts à choisir d'abord
     this.niveauxEnAttente = [];
     if (this.suiteNiveau === 'recompense') { this.ecran = 'recompense'; return Ui.rendu(); }
     this.allerCarte();
@@ -374,6 +401,11 @@ const Jeu = {
     else if (difficulte(this.difficulte).chaos) this.combat.appliquerChaos(type, this.dernierEtage(), difficulte(this.difficulte).chaos);
     else if (this.defi && this.defi.modif === 'boss') this.combat.appliquerChaos(type, this.dernierEtage(), { chance: 0, pouvoirs: true, pouvoirsMax: 1 });
     else if (type === 'elite') this.combat.appliquerChaos(type, this.dernierEtage(), ELITE_MUTEE);
+    if (type === 'boss' && this.dernierEtage()) {
+      this.combat.bossFinal = true;
+      const R = this.rencontres();
+      this.combat.renfortsPhase = [...new Set([...(R.facile || []), ...(R.moyen || [])].flatMap(r => [...r.avant, ...r.arriere]))];
+    }
     this.combat.surMaj = () => Ui.majCombat();
     this.combat.surFin = r => this.finCombat(r);
     this.combat.vitesse = Reglages.vitesse;
@@ -436,9 +468,12 @@ const Jeu = {
     const offre = this.offres[index];
     const pj = this.equipe.find(p => p.id === offre.pj);
     if (offre.categorie === 'action') {
-      if (pj.actions.length >= MAX_ACTIONS) {
+      pj.grimoire = pj.grimoire || [];
+      if (pj.actions.length >= maxActions(pj)) {
         if (!oublier) return Ui.choisirActionAOublier(index, pj, offre);
+        if (oublier === '__grimoire__') { pj.grimoire.push(offre.cle); return this.allerCarte(); }
         pj.actions.splice(pj.actions.indexOf(oublier), 1);
+        pj.grimoire.push(oublier);
       }
       pj.actions.push(offre.cle);
     } else {
@@ -495,9 +530,11 @@ const Jeu = {
     if (!art || art.vendu || this.or < art.prix) return;
     if (art.categorie === 'action') {
       const pj = this.equipe.find(p => p.id === art.pj);
-      if (pj.actions.length >= MAX_ACTIONS) {
+      pj.grimoire = pj.grimoire || [];
+      if (pj.actions.length >= maxActions(pj)) {
         if (!oublier) return Ui.choisirActionAOublier(index, pj, art, 'marchand');
-        pj.actions.splice(pj.actions.indexOf(oublier), 1);
+        if (oublier === '__grimoire__') art.versGrimoire = true;
+        else { pj.actions.splice(pj.actions.indexOf(oublier), 1); pj.grimoire.push(oublier); }
       }
     }
     this.or -= art.prix;

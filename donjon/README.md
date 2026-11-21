@@ -70,6 +70,13 @@ Comme dans D&D, certains sorts (`concentration: true` dans `actions.js` : Béné
 - `concPermanent` : ses états durent tant que la concentration tient ; `persistant` (Esprits gardiens, Faim d'Hadar) : le sort refrappe au début de chaque tour du lanceur ; `relanceGratuite` (Appel de la foudre, Rayon de lune) : relancé sans emplacement tant qu'elle tient ;
 - trait `mageGuerre` (Anneau du mage de guerre) : avantage aux sauvegardes de concentration.
 
+## Grimoire, choix des sorts et boss finaux
+
+- **Actions préparées** : 5 (6 pour les lanceurs de sorts, `maxActions`). Une action apprise en trop va dans le **grimoire** (`pj.grimoire`, `apprendre()` dans `classes.js`) ; rien n'est oublié. Hors combat, la fenêtre 👥 Équipe permet de préparer ou ranger ses actions (`Jeu.preparerAction`, `Jeu.rangerAction`).
+- **Choix de sort à la montée de niveau** : les lanceurs choisissent un sort parmi trois (`optionsSorts` : le sort de `PROGRESSION` + des sorts de la `poolActions` de la classe utilisables à leur niveau). Les choix en attente sont dans `pj.choixSorts` ; `resoudreChoixSorts` les règle seul (Chaos, simulateur).
+- **Sorts D&D supplémentaires** (`actions.js`) : Bouclier, Rayon empoisonné, Lueurs féeriques, Blessure, Bouclier de la foi, Châtiment tonitruant, Grêle d'épines, Mot de guérison de groupe, Fracassement, Immobilisation de personne, Invisibilité, Image miroir, Croissance d'épines, Lenteur, Tempête de neige, Terreur ; nouveaux états Illuminé, Ralenti, Bouclier de la foi.
+- **Seconde phase des boss finaux** (`PHASE2`, `PHASES_BOSS`, `Combat.secondePhase`) : à la moitié de ses PV, le boss du dernier étage se libère de ses entraves, frappe plus fort (+1 dégât) et appelle un renfort de son étage ; chaque boss a sa réplique. `SANS_PHASE=1` la retire du simulateur.
+
 ## Lancer un sort à un niveau supérieur
 
 En combat, quand un sort est sélectionné et que le héros a des emplacements plus hauts, des pastilles « Emplacement : niv. 1 / niv. 2… » permettent de choisir (`Ui.choixNiveauSort`, `Combat.jouer(…, niveau)`). Le bonus vient de l'action : `parNiveau` (dés de dégâts ou de soin par niveau en plus, ex. `'1d6'`, `'1d4+1'`), `parNiveauRayons` (Rayon ardent), `parNiveauReserve` (Sommeil) ; `Combat.surcharger(act, k)` fabrique l'action renforcée. Un sort lancé faute d'emplacement plus bas en profite aussi, et un sort de concentration garde son niveau (Appel de la foudre relancé au même niveau).
@@ -81,7 +88,7 @@ En combat, quand un sort est sélectionné et que le héros a des emplacements p
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire, le niveau moyen de l'équipe à chaque boss et les PV perdus par combat (`XP=1` affiche aussi l'XP au boss ; `SANS_ELITE=1` retire le renfort des élites).
 `node outils-simulation.js 2000 crypte sousclasses` fait de même avec des sous-classes au hasard et affiche le taux de chaque sous-classe ;
 `SC_SEUL=clerc:vie node outils-simulation.js 800 crypte classes` donne la sous-classe à une seule classe (comparaison avec `SANS_SC=1`).
-Réglage actuel (sous-classes au hasard) : Crypte 50 %, Marais 36 %, Souterrains 36 %, Éclipse 35 %, Côtes 29 %, Dragon 26 %, Givre 24 %, Toiles 19 %, Château 17 %, Abîme 16 %, Légion 13 %, Tombeau 11 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
+Réglage actuel (sous-classes au hasard, avec la seconde phase des boss) : Crypte 50 %, Dragon 20 %, Château 10 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
 
 ## Mode test
 
