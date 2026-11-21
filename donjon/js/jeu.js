@@ -97,7 +97,15 @@ const Jeu = {
     this.evenementsVus = [];
     Progression.noterRecord(c.id, 1);
     this.reposLongUtilise = false;
+    this.reposLongJamais = true;
     this.stats = { combats: 0, ennemis: 0, salles: 0 };
+    // Relique de départ (succès) : donnée au premier héros qui peut la porter
+    const rel = this.reliqueChoisie;
+    this.reliqueChoisie = null;
+    if (rel && OBJETS[rel]) {
+      const pj = this.equipe.find(p => !OBJETS[rel].classes || OBJETS[rel].classes.includes(p.classe));
+      if (pj) Recompenses.appliquer({ categorie: 'objet', cle: rel }, pj, this);
+    }
     this.allerCarte();
   },
 
@@ -116,7 +124,7 @@ const Jeu = {
     try {
       localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
         equipe: this.equipe, carte: this.carte, etagesAleatoires: this.etagesAleatoires, difficulte: this.difficulte, defi: this.defi, hasard: Hasard.etat, potions: this.potions, or: this.or, sac: this.sac, evenementsVus: this.evenementsVus, etage: this.etage, campagne: this.campagne,
-        reposLongUtilise: this.reposLongUtilise, stats: this.stats, xp: this.xp
+        reposLongUtilise: this.reposLongUtilise, reposLongJamais: this.reposLongJamais, stats: this.stats, xp: this.xp
       }));
     } catch (e) { /* stockage indisponible : on continue sans sauvegarde */ }
   },
@@ -201,6 +209,7 @@ const Jeu = {
     Reglages.sauver();
     const sc = {};
     for (const k of this.composition) sc[k] = this.sousClasseChoisie(k);
+    this.reliqueChoisie = this.reliqueSelection || null;
     this.nouvellePartie(this.campagneChoisie, this.composition, sc, this.difficulteChoisie || 'normal');
   },
   // Sous-classe retenue pour une classe (la première si le choix est verrouillé)
@@ -325,6 +334,21 @@ const Jeu = {
       `<i>${e.intro}</i><br>L'équipe récupère toutes ses forces. 💰 +${gain} or · ⭐ +${GAINS_XP.boss} XP.<br>Choisissez le butin du boss :`);
   },
 
+  // Succès obtenus en terminant une campagne
+  succesDeVictoire() {
+    const c = this.campagneCourante(), classes = this.equipe.map(p => p.classe);
+    if (this.defi) Succes.debloquer('defi');
+    if (c.id === 'crypte') Succes.debloquer('crypte');
+    if (c.id === 'dragon') Succes.debloquer('dragon');
+    if (c.aleatoire) Succes.debloquer('chaos');
+    if (this.reposLongJamais) Succes.debloquer('sans_repos');
+    if (this.difficulte === 'heroique') Succes.debloquer('heroique');
+    if (this.difficulte === 'cauchemar') { Succes.debloquer('heroique'); Succes.debloquer('cauchemar'); }
+    if (classes.every(k => ['clerc', 'druide', 'barde', 'magicien', 'ensorceleur', 'occultiste'].includes(k))) Succes.debloquer('lanceurs');
+    if (classes.every(k => ['guerrier', 'barbare', 'roublard', 'moine'].includes(k))) Succes.debloquer('martiaux');
+    if (CAMPAGNES.every(x => x.aleatoire || Progression.victoires(x) > 0)) Succes.debloquer('toutes');
+  },
+
   // Expérience : toute l'équipe partage la même ; renvoie une ligne de texte
   gagnerXP(n) {
     this.xp = (this.xp || 0) + n;
@@ -337,9 +361,10 @@ const Jeu = {
         if (!gains.length) break;
         const f = this.niveauxEnAttente.find(x => x.pj === pj.id);
         if (f) { f.gains.push(...gains); f.niveau = pj.niveau; f.apres = this.photoHeros(pj); }
-        else this.niveauxEnAttente.push({ pj: pj.id, depuis, niveau: pj.niveau, gains, avant, avantGrimoire: [...(pj.grimoire || [])], apres: this.photoHeros(pj) });
+        else this.niveauxEnAttente.push({ pj: pj.id, depuis, niveau: pj.niveau, gains, avant, avantGrimoire: [...(pj.grimoire || [])], donsAvant: [...(pj.dons || [])], apres: this.photoHeros(pj) });
       }
     }
+    if (this.equipe.some(p => p.niveau >= NIVEAU_MAX)) Succes.debloquer('niveau7');
     return `⭐ +${n} XP${this.niveauxEnAttente.length ? ' — <b>niveau supérieur !</b>' : ''}`;
   },
 
@@ -381,9 +406,17 @@ const Jeu = {
     apprendre(pj, id);
   },
 
+  // Écran de niveau : don choisi
+  choisirDon(pjId, id) {
+    const pj = this.equipe.find(p => p.id === pjId);
+    if (!pj || !pj.choixDons || !pj.choixDons.length || !pj.choixDons[0].includes(id)) return;
+    pj.choixDons.shift();
+    prendreDon(pj, id);
+  },
+
   // Écran de niveau validé : on reprend là où on allait (récompense ou carte)
   apresNiveau() {
-    if (this.equipe.some(p => p.choixSorts && p.choixSorts.length)) return;   // sorts à choisir d'abord
+    if (this.equipe.some(p => (p.choixSorts && p.choixSorts.length) || (p.choixDons && p.choixDons.length))) return;   // choix à faire d'abord
     this.niveauxEnAttente = [];
     if (this.suiteNiveau === 'recompense') { this.ecran = 'recompense'; return Ui.rendu(); }
     this.allerCarte();
@@ -402,9 +435,8 @@ const Jeu = {
     else if (this.defi && this.defi.modif === 'boss') this.combat.appliquerChaos(type, this.dernierEtage(), { chance: 0, pouvoirs: true, pouvoirsMax: 1 });
     else if (type === 'elite') this.combat.appliquerChaos(type, this.dernierEtage(), ELITE_MUTEE);
     if (type === 'boss' && this.dernierEtage()) {
-      this.combat.bossFinal = true;
       const R = this.rencontres();
-      this.combat.renfortsPhase = [...new Set([...(R.facile || []), ...(R.moyen || [])].flatMap(r => [...r.avant, ...r.arriere]))];
+      this.combat.marquerBossFinal([...new Set([...(R.facile || []), ...(R.moyen || [])].flatMap(r => [...r.avant, ...r.arriere]))]);
     }
     this.combat.surMaj = () => Ui.majCombat();
     this.combat.surFin = r => this.finCombat(r);
@@ -421,18 +453,24 @@ const Jeu = {
     if (resultat === 'defaite') {
       this.finale = 'defaite';
       this.noterDefi(false);
+      Bestiaire.sauver();
       this.ecran = 'fin';
       this.effacerSauvegarde();
       return Ui.rendu();
     }
     this.stats.combats++;
+    Succes.debloquer('premier_sang');
+    if (type === 'boss' && !this.combat.heroTombe) Succes.debloquer('intact');
+    Bestiaire.sauver();
     const gain = this.gagnerOr(type);
+    if (this.or >= 300) Succes.debloquer('riche');
     if (!(type === 'boss' && this.dernierEtage())) this.gagnerXP(GAINS_XP[type] || GAINS_XP.combat);
     if (type === 'boss' && !this.dernierEtage()) { this.potions++; return this.etageSuivant(gain); }
     if (type === 'boss') {
       const scAvant = this.listeSousClassesDebloquees();
       this.debloquee = this.defi ? null : Progression.noterVictoire(this.campagne, this.difficulte);
       this.noterDefi(true);
+      this.succesDeVictoire();
       this.scDebloquees = this.listeSousClassesDebloquees().filter(x => !scAvant.includes(x));
       this.finale = 'victoire';
       this.ecran = 'fin';
@@ -574,6 +612,7 @@ const Jeu = {
   reposLong() {
     if (this.reposLongUtilise) return;
     this.reposLongUtilise = true;
+    this.reposLongJamais = false;
     const lignes = ['L\'équipe dort quelques heures, l\'arme à la main.'];
     for (const pj of this.equipe) {
       const avant = Math.max(0, pj.pv);

@@ -31,6 +31,54 @@ function optionsSorts(pj, niv, fixe) {
 // Choix en attente résolus sans le joueur (Chaos, simulateur, ancienne sauvegarde)
 function resoudreChoixSorts(pj, auHasard = false) {
   while (pj.choixSorts && pj.choixSorts.length) { const c = pj.choixSorts.shift(); if (c.length) apprendre(pj, auHasard ? Des.hasard(c) : c[0]); }
+  while (pj.choixDons && pj.choixDons.length) { const c = pj.choixDons.shift(); if (c.length) prendreDon(pj, auHasard ? Des.hasard(c) : c[0]); }
+}
+
+// Tour de magie : sort sans emplacement qui inflige des dégâts (2 dés à partir du niveau 5)
+function estTourDeMagie(act) { return !!(act && act.sort && !act.niveau && !act.parCombat && act.degats && !act.sansEvolution); }
+
+// ---------------------------------------------------------------------
+// Dons (niveaux 4 et 7). pour(pj) : qui peut le prendre ; appliquer(pj)
+// ---------------------------------------------------------------------
+const EST_LANCEUR = pj => !!CLASSES[pj.classe].emplacements;
+const DONS = {
+  caracteristique: { nom: 'Amélioration de caractéristique', icone: '📈', desc: '+2 à sa caractéristique principale : +1 au toucher (armes et sorts) et +1 au DD de ses sorts.',
+    appliquer(pj) { pj.bonusArme += 1; pj.bonusSort += 1; if (pj.ddSort) pj.ddSort += 1; } },
+  robuste: { nom: 'Robuste', icone: '💪', desc: '+2 PV maximum par niveau (rétroactif) et à chaque niveau suivant.',
+    appliquer(pj) { const n = 2 * (pj.niveau || 3); pj.pvMax += n; if (pj.pv > 0) pj.pv += n; pj.traits.robuste = true; } },
+  chanceux: { nom: 'Chanceux', icone: '🍀', desc: 'Trois fois par combat, relance une attaque ou une sauvegarde ratée.',
+    appliquer(pj) { pj.traits.chanceux = 3; } },
+  alerte: { nom: 'Alerte', icone: '⚡', desc: '+5 à l\'initiative.', appliquer(pj) { pj.traits.init = (pj.traits.init || 0) + 5; } },
+  resilient: { nom: 'Résilient', icone: '🛡️', desc: 'Maîtrise des sauvegardes de Constitution (et +1 à toutes ses sauvegardes).',
+    appliquer(pj) { if (!pj.sauvegardes.includes('CON')) pj.sauvegardes.push('CON'); pj.bonusSauv += 1; } },
+  mage_guerre: { nom: 'Mage de guerre', icone: '🧠', desc: 'Avantage aux sauvegardes de concentration.', pour: EST_LANCEUR,
+    appliquer(pj) { pj.traits.mageGuerre = true; } },
+  armes_lourdes: { nom: 'Maître d\'armes lourdes', icone: '🪓', desc: '+4 aux dégâts avec les armes, −1 au toucher.',
+    pour: pj => ['guerrier', 'barbare', 'paladin'].includes(pj.classe),
+    appliquer(pj) { pj.bonusDegats += 4; pj.bonusArme -= 1; } },
+  tireur_elite: { nom: 'Tireur d\'élite', icone: '🎯', desc: '+1 au toucher et +2 aux dégâts avec les armes.',
+    pour: pj => ['rodeur', 'roublard', 'guerrier', 'artificier', 'moine'].includes(pj.classe),
+    appliquer(pj) { pj.bonusArme += 1; pj.bonusDegats += 2; } },
+  guerisseur: { nom: 'Guérisseur', icone: '🩹', desc: '+3 à tous ses soins.', pour: pj => SOIGNEURS.includes(pj.classe) || pj.classe === 'barde',
+    appliquer(pj) { pj.bonusSoin += 3; } },
+  meneur: { nom: 'Meneur inspirant', icone: '📯', desc: 'Au début de chaque combat, toute l\'équipe gagne 5 PV temporaires.',
+    pour: pj => ['paladin', 'barde', 'guerrier', 'clerc'].includes(pj.classe), appliquer(pj) { pj.traits.meneur = true; } },
+  adepte_elementaire: { nom: 'Adepte élémentaire', icone: '🔥', desc: '+2 aux dégâts de tous ses sorts.', pour: EST_LANCEUR,
+    appliquer(pj) { pj.traits.adepte = 2; } },
+  sentinelle: { nom: 'Sentinelle', icone: '🗼', desc: 'Contre-attaque quand un ennemi le rate au corps à corps.',
+    pour: pj => CLASSES[pj.classe].ligne === 'avant', appliquer(pj) { pj.traits.riposte = true; } }
+};
+function optionsDons(pj) {
+  const pris = pj.dons || [];
+  const possibles = Des.melanger(Object.keys(DONS).filter(k => k !== 'caracteristique' && !pris.includes(k) && (!DONS[k].pour || DONS[k].pour(pj))));
+  return ['caracteristique', ...possibles.slice(0, 3)];
+}
+function prendreDon(pj, id) {
+  const d = DONS[id];
+  if (!d) return '';
+  d.appliquer(pj);
+  pj.dons = [...(pj.dons || []), id];
+  return `${d.icone} ${d.nom}`;
 }
 
 const CLASSES = {
@@ -67,13 +115,13 @@ const CLASSES = {
   },
   magicien: {
     nom: 'Magicien', icone: '🔮', couleur: '#6b72d6', ligne: 'arriere', role: 'Dégâts de zone',
-    pv: 22, ca: 13,
+    pv: 26, ca: 13, ressources: { restauration: 1 },
     caracs: { FOR: 8, DEX: 14, CON: 12, INT: 16, SAG: 12, CHA: 10 },
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 6, emplacements: { 1: 4, 2: 2 },
     actions: ['trait_feu', 'projectile_magique', 'mains_brulantes', 'rayon_ardent'],
     poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'orbe_chromatique', 'boule_feu', 'tempete_grele', 'bannissement', 'rayon_empoisonne', 'fracassement', 'immobilisation', 'invisibilite', 'image_miroir', 'lenteur', 'terreur'],
-    desc: 'Fragile mais dévastateur depuis l\'arrière. Emplacements de sorts limités.'
+    desc: 'Fragile mais dévastateur depuis l\'arrière. Restauration arcanique : une fois par repos long, un repos court lui rend des emplacements (moitié de son niveau en niveaux de sorts).'
   },
   barbare: {
     nom: 'Barbare', icone: '🪓', couleur: '#b5562f', ligne: 'avant', role: 'Front · encaisse',
@@ -147,7 +195,7 @@ const CLASSES = {
   },
   artificier: {
     nom: 'Artificier', icone: '⚙️', couleur: '#b8863a', ligne: 'avant', role: 'Soutien · inventions',
-    pv: 28, ca: 17,
+    pv: 28, ca: 17, traits: { presage: 1 },
     caracs: { FOR: 10, DEX: 14, CON: 14, INT: 16, SAG: 12, CHA: 8 },
     maitrise: 2, bonusArme: 5, bonusSort: 5, ddSort: 13,
     sauvegardes: ['CON', 'INT'], deVie: 8, emplacements: { 1: 3 },
@@ -236,7 +284,7 @@ const PROGRESSION = {
     emplacements: { clerc: { 4: 1 }, magicien: { 4: 1 }, barde: { 4: 1 }, druide: { 4: 1 }, ensorceleur: { 4: 1 }, paladin: { 2: 1 }, rodeur: { 2: 1 }, artificier: { 2: 1 } },
     pacte: { occultiste: { 4: 2 } },
     bonus: { paladin: 'arme', rodeur: 'arme', artificier: 'sort' },
-    traits: { guerrier: { indomptable: true }, barbare: { brutal: true, init: 4 }, moine: { evasion: true }, roublard: { evasion: true, sournoise: '4d6' } },
+    traits: { guerrier: { indomptable: true }, barbare: { brutal: true, init: 4 }, moine: { evasion: true }, roublard: { evasion: true, sournoise: '4d6' }, artificier: { presage: 2 } },
     sort: { magicien: 'tempete_grele', clerc: 'bannissement', barde: 'confusion', druide: 'fletrissement', occultiste: 'fletrissement', ensorceleur: 'tempete_grele' }
   }
 };
@@ -291,7 +339,12 @@ function monterNiveau(pj) {
     if (t.indomptable) gains.push('Indomptable (relance une sauvegarde ratée par combat)');
     if (t.brutal) gains.push('Critique brutal (+1 dé aux critiques) et Instinct sauvage (+4 initiative)');
     if (t.evasion) gains.push('Évasion (sauvegarde de DEX réussie : aucun dégât ; ratée : moitié)');
+    if (t.presage) gains.push(`Éclair de génie : ${t.presage} fois par combat, un allié relance une sauvegarde ratée`);
   }
+  if (niv === 5 && [...pj.actions, ...(CLASSES[pj.classe].poolActions || [])].some(id => estTourDeMagie(ACTIONS[id]))) gains.push('Tours de magie renforcés : 2 dés de dégâts');
+  // Dons (niveaux 4 et 7) : un don au choix parmi trois, ou l'amélioration de caractéristique
+  if (niv === 4 || niv === 7) { pj.choixDons = pj.choixDons || []; pj.choixDons.push(optionsDons(pj)); gains.push('🎖️ un don à choisir'); }
+  if (pj.traits.robuste) { pj.pvMax += 2; if (pj.pv > 0) pj.pv += 2; }
   // Lanceurs de sorts : un nouveau sort au choix parmi trois
   if (CLASSES[pj.classe].emplacements) {
     const choix = optionsSorts(pj, niv, p.sort && p.sort[pj.classe]);

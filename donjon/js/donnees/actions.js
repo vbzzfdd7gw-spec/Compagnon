@@ -477,6 +477,7 @@ const ACTIONS = {
 
   // ------------------------------- OCCULTISTE --------------------------
   decharge_occulte: {
+    sansEvolution: true,
     nom: 'Décharge occulte', icone: '🟣', type: 'attaque', sort: true, rayons: 'decharge2',
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     jet: 'sort', degats: '1d10+3', typeDeg: 'force',
@@ -509,6 +510,7 @@ const ACTIONS = {
     desc: 'Pacte. Jusqu\'à la fin du combat : +2 CA, et un ennemi qui vous frappe au corps à corps subit 5 dégâts de froid.'
   },
   decharge_repoussante: {
+    sansEvolution: true,
     nom: 'Décharge repoussante', icone: '💨', type: 'attaque', sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
     jet: 'sort', degats: '1d10+3', typeDeg: 'force', recul: 1,

@@ -77,6 +77,15 @@ Comme dans D&D, certains sorts (`concentration: true` dans `actions.js` : Béné
 - **Sorts D&D supplémentaires** (`actions.js`, aucune réaction) : Rayon empoisonné, Lueurs féeriques, Blessure, Bouclier de la foi, Héroïsme, Injonction, Frappe du zéphyr (action bonus), Chaleur du métal (relançable sous concentration), Mot de guérison de groupe, Fracassement, Immobilisation de personne, Invisibilité, Image miroir, Lenteur, Tempête de neige, Terreur ; nouveaux états Illuminé, Ralenti, Bouclier de la foi.
 - **Seconde phase des boss finaux** (`PHASE2`, `PHASES_BOSS`, `Combat.secondePhase`) : à la moitié de ses PV, le boss du dernier étage se libère de ses entraves, frappe plus fort (+1 dégât) et appelle un renfort de son étage ; chaque boss a sa réplique. `SANS_PHASE=1` la retire du simulateur.
 
+## Dons, boss légendaires, bestiaire et succès
+
+- **Dons** (`DONS`, `classes.js`) aux niveaux 4 et 7 : Amélioration de caractéristique ou un don parmi trois (Robuste, Chanceux, Alerte, Résilient, Mage de guerre, Maître d'armes lourdes, Tireur d'élite, Guérisseur, Meneur inspirant, Adepte élémentaire, Sentinelle). Choix en attente : `pj.choixDons`.
+- **Tours de magie** : 2 dés de dégâts à partir du niveau 5 (`estTourDeMagie` ; `sansEvolution` pour la Décharge occulte, qui tire déjà deux fois).
+- **Boss finaux** : résistances légendaires (3 ; 1 pour les boss d'étage), une action légendaire par round (leur attaque la plus faible, après le tour d'un héros, `POINTS_LEGENDAIRES`), une action de repaire au début de chaque round (`REPAIRES`), en échange de 25 % de PV en moins (`PV_BOSS_LEGENDAIRE`). `SANS_LEG=1` et `SANS_REPAIRE=1` les retirent du simulateur.
+- **Bestiaire** (`Bestiaire`, `campagnes.js`) : monstres vus et vaincus, résistances découvertes en combat ; bouton 🐉 sur l'écran titre.
+- **Succès** (`SUCCES`, `Succes`) : bouton 🏆 sur l'écran titre ; certains offrent une relique de départ choisie à la composition de l'équipe.
+- **Magicien** : Restauration arcanique (ressource `restauration`, au repos court) et +4 PV ; **Artificier** : Éclair de génie (`presage` 1, puis 2 au niveau 7).
+
 ## Lancer un sort à un niveau supérieur
 
 En combat, quand un sort est sélectionné et que le héros a des emplacements plus hauts, des pastilles « Emplacement : niv. 1 / niv. 2… » permettent de choisir (`Ui.choixNiveauSort`, `Combat.jouer(…, niveau)`). Le bonus vient de l'action : `parNiveau` (dés de dégâts ou de soin par niveau en plus, ex. `'1d6'`, `'1d4+1'`), `parNiveauRayons` (Rayon ardent), `parNiveauReserve` (Sommeil) ; `Combat.surcharger(act, k)` fabrique l'action renforcée. Un sort lancé faute d'emplacement plus bas en profite aussi, et un sort de concentration garde son niveau (Appel de la foudre relancé au même niveau).
@@ -88,7 +97,7 @@ En combat, quand un sort est sélectionné et que le héros a des emplacements p
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire, le niveau moyen de l'équipe à chaque boss et les PV perdus par combat (`XP=1` affiche aussi l'XP au boss ; `SANS_ELITE=1` retire le renfort des élites).
 `node outils-simulation.js 2000 crypte sousclasses` fait de même avec des sous-classes au hasard et affiche le taux de chaque sous-classe ;
 `SC_SEUL=clerc:vie node outils-simulation.js 800 crypte classes` donne la sous-classe à une seule classe (comparaison avec `SANS_SC=1`).
-Réglage actuel (sous-classes au hasard, avec la seconde phase des boss) : Crypte 50 %, Dragon 20 %, Château 10 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
+Réglage actuel (sous-classes au hasard, boss légendaires) : Crypte 44 %, Éclipse 28 %, Dragon 15 %, Légion 14 %, Château 10 %, Tombeau 9 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
 
 ## Mode test
 

@@ -79,6 +79,8 @@ const Ui = {
         <button class="plaque ${sauve ? '' : 'principale'}" data-clic="nouvelle">⚔️ Nouvelle expédition</button>
         <div class="accueil-outils">
           <button class="btn-icone" data-clic="regles" title="Règles">📖</button>
+          <button class="btn-icone" data-clic="bestiaire" title="Bestiaire">🐉</button>
+          <button class="btn-icone" data-clic="succes" title="Succès">🏆</button>
           ${this.boutonsAudio()}
         </div>
         ${Progression.toutDebloque() ? '<button class="badge-test" data-clic="test-off">🧪 Mode test : tout est débloqué · désactiver</button>' : ''}
@@ -196,12 +198,63 @@ const Ui = {
           <button class="sc-choix" data-sc-classe="${k}">${sc.icone} ${sc.nom} <span class="sc-nb">${nbSc}/${SOUS_CLASSES[k].length} ▾</span></button>
         </div>`;
       }).join('')}</div>
+      ${this.choixRelique()}
       <div class="boutons-compo">
         <button class="btn" data-clic="campagnes">← Campagnes</button>
         <button class="btn" data-clic="aleatoire">🎲 Aléatoire</button>
         <button class="btn principal" data-clic="partir" ${choix.length === 4 ? '' : 'disabled'}>Partir ▶</button>
       </div>
     </div>`;
+  },
+
+  // Relique de départ (débloquée par les succès)
+  choixRelique() {
+    const rel = Succes.reliques();
+    if (!rel.length) return '';
+    if (Jeu.reliqueSelection && !rel.includes(Jeu.reliqueSelection)) Jeu.reliqueSelection = null;
+    return `<div class="reliques"><b>🎁 Relique de départ :</b>
+      <button class="diff ${!Jeu.reliqueSelection ? 'actif' : ''}" data-clic="relique" data-rel="">Aucune</button>
+      ${rel.map(id => `<button class="diff ${Jeu.reliqueSelection === id ? 'actif' : ''}" data-clic="relique" data-rel="${id}" title="${OBJETS[id].desc}">${OBJETS[id].icone} ${OBJETS[id].nom}</button>`).join('')}
+      ${Jeu.reliqueSelection ? `<div class="diff-desc">${OBJETS[Jeu.reliqueSelection].desc}</div>` : ''}</div>`;
+  },
+
+  // Notification brève (succès…)
+  toast(html) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = html;
+    document.body.appendChild(t);
+    try { Son.jouer('objet'); } catch (e) { /* rien */ }
+    setTimeout(() => t.classList.add('part'), 3800);
+    setTimeout(() => t.remove(), 4500);
+  },
+
+  fenetreSucces() {
+    const n = Object.keys(SUCCES).filter(id => Succes.a(id)).length;
+    this.modal(`<h2>🏆 Succès <span class="discret">${n}/${Object.keys(SUCCES).length}</span></h2>
+      <p class="petit">Certains succès offrent une <b>relique de départ</b>, à choisir au moment de composer l'équipe.</p>
+      <div class="liste-succes">${Object.entries(SUCCES).map(([id, x]) => `<div class="succes ${Succes.a(id) ? 'obtenu' : ''}">
+        <span class="ic">${Succes.a(id) ? x.icone : '🔒'}</span><div><b>${x.nom}</b><small>${x.desc}${x.relique ? ` · 🎁 ${OBJETS[x.relique].icone} ${OBJETS[x.relique].nom}` : ''}</small></div></div>`).join('')}</div>`);
+  },
+
+  fenetreBestiaire() {
+    const f = Bestiaire.fiches(), ids = Object.keys(MONSTRES);
+    const vus = ids.filter(id => f[id] && f[id].vus);
+    const ligne = id => {
+      const m = MONSTRES[id], x = f[id];
+      const dec = x.decouvert || [];
+      const lst = (genre, liste) => (liste || []).map(t => dec.includes(genre + ':' + t) ? t : '?');
+      const res = [['immun', 'Immunisé', m.immun], ['resist', 'Résiste', m.resist], ['vuln', 'Vulnérable', m.vuln]]
+        .filter(([, , l]) => l && l.length).map(([g, nom, l]) => `${nom} : ${lst(g, l).join(', ')}`).join(' · ');
+      return `<div class="fiche-bete ${m.boss ? 'boss' : m.elite ? 'elite' : ''}"><span class="ic">${m.icone}</span><div>
+        <b>${m.nom}</b>${m.boss ? ' <span class="badge-niv">Boss</span>' : m.elite ? ' <span class="badge-niv">Élite</span>' : ''}
+        <small>❤️ ${m.pv} PV · 🛡 CA ${m.ca} · vu ${x.vus}× · vaincu ${x.tues}×</small>
+        <small>⚔️ ${m.actions.map(a => a.nom).join(', ')}</small>
+        ${res ? `<small>🧪 ${res}</small>` : ''}</div></div>`;
+    };
+    this.modal(`<h2>🐉 Bestiaire <span class="discret">${vus.length}/${ids.length}</span></h2>
+      <p class="petit">Les monstres rencontrés s'ajoutent ici. Leurs résistances (?) se dévoilent quand vous les frappez avec le bon type de dégâts.</p>
+      <div class="liste-betes">${vus.sort((a, b) => MONSTRES[a].nom.localeCompare(MONSTRES[b].nom)).map(ligne).join('') || '<p class="discret">Aucun monstre rencontré pour l\'instant.</p>'}</div>`);
   },
 
   ficheClasse(k) {
@@ -834,7 +887,7 @@ const Ui = {
       for (const r of new Set([...Object.keys(a.ressources), ...Object.keys(b.ressources)]))
         ligne('🔋', NOMS_RES[r] || r, a.ressources[r] || 0, b.ressources[r] || 0, 'Utilisations de plus de cette capacité.');
       const nouvelles = [...pj.actions, ...(pj.grimoire || [])].filter(id => !a.actions.includes(id) && !(f.avantGrimoire || []).includes(id)).map(id => ACTIONS[id]);
-      const autres = f.gains.filter(g => !/^\+\d+ PV$|maîtrise|au toucher|sorts et DD|emplacement|nouveau sort|sort à choisir/.test(g));
+      const autres = f.gains.filter(g => !/^\+\d+ PV$|maîtrise|au toucher|sorts et DD|emplacement|nouveau sort|sort à choisir|don à choisir/.test(g));
       const blocsSC = [];
       for (let n = f.depuis + 1; n <= f.niveau; n++) {
         const detail = sc && (sc.details || []).find(d => d.startsWith(`Niv. ${n} `));
@@ -850,6 +903,9 @@ const Ui = {
         ${autres.map(g => `<div class="gain-niv">✨ <b>${g}</b>${/Attaque supplémentaire/.test(g) ? '<small>Ses attaques d\'arme frappent deux fois par action.</small>' : /sournoise/.test(g) ? '<small>Dégâts en plus quand il a l\'avantage ou qu\'un allié est au contact de la cible.</small>' : ''}</div>`).join('')}
         ${blocsSC.join('')}
         ${nouvelles.map(x => `<div class="gain-niv nouveau">${x.icone} <b>Nouveau : ${x.nom}</b><small>${x.desc}</small></div>`).join('')}
+        ${pj.choixDons && pj.choixDons.length ? `<div class="choix-sort"><b>🎖️ Choisissez un don :</b>
+          ${pj.choixDons[0].map(id => `<button class="btn bloc" data-clic="choix-don" data-pj="${pj.id}" data-don="${id}"><b>${DONS[id].icone} ${DONS[id].nom}</b><br><span class="discret">${DONS[id].desc}</span></button>`).join('')}</div>` : ''}
+        ${(pj.dons || []).filter(id => !(f.donsAvant || []).includes(id)).map(id => `<div class="gain-niv nouveau">${DONS[id].icone} <b>Don : ${DONS[id].nom}</b><small>${DONS[id].desc}</small></div>`).join('')}
         ${pj.choixSorts && pj.choixSorts.length ? `<div class="choix-sort"><b>📜 Choisissez un nouveau sort${pj.choixSorts.length > 1 ? ` (${pj.choixSorts.length} à choisir)` : ''} :</b>
           ${pj.choixSorts[0].map(id => `<button class="btn bloc" data-clic="choix-sort" data-pj="${pj.id}" data-act="${id}">${this.ligneAction(ACTIONS[id])}</button>`).join('')}
           <small>${pj.actions.length >= maxActions(pj) ? 'Ses actions sont pleines : le sort ira dans le grimoire (à préparer depuis 👥 Équipe).' : 'Il sera préparé tout de suite.'}</small></div>` : ''}
@@ -859,7 +915,7 @@ const Ui = {
       <h2>⬆️ Niveau ${niveauMax} !</h2>
       <p>L'équipe a gagné assez d'expérience : chaque héros devient plus fort. Les PV, emplacements et charges gagnés sont disponibles tout de suite.</p>
       <div class="fiches-niv">${fiches.map(fiche).join('')}</div>
-      ${Jeu.equipe.some(p => p.choixSorts && p.choixSorts.length) ? '<button class="btn" disabled>Choisissez d\'abord les nouveaux sorts</button>' : '<button class="btn principal" data-clic="suite-niveau">Continuer ▶</button>'}
+      ${Jeu.equipe.some(p => (p.choixSorts && p.choixSorts.length) || (p.choixDons && p.choixDons.length)) ? '<button class="btn" disabled>Choisissez d\'abord les dons et les sorts</button>' : '<button class="btn principal" data-clic="suite-niveau">Continuer ▶</button>'}
     </div>`;
   },
 
@@ -1058,7 +1114,11 @@ const Ui = {
         if (this.tapsLogo >= 5) { this.tapsLogo = 0; Progression.basculerTest(!Progression.toutDebloque()); this.rendu(); }
         return;
       case 'test-off': Progression.basculerTest(false); return this.rendu();
-      case 'defi': return Jeu.lancerDefi();
+      case 'defi': Jeu.reliqueChoisie = null; return Jeu.lancerDefi();
+      case 'bestiaire': return this.fenetreBestiaire();
+      case 'succes': return this.fenetreSucces();
+      case 'relique': Jeu.reliqueSelection = t.dataset.rel || null; return this.rendu();
+      case 'choix-don': Jeu.choisirDon(t.dataset.pj, t.dataset.don); Son.jouer('objet'); return this.rendu();
       case 'ranger': Jeu.rangerAction(t.dataset.pj, t.dataset.act); return this.fenetreEquipe();
       case 'preparer': Jeu.preparerAction(t.dataset.pj, t.dataset.act); return this.fenetreEquipe();
       case 'choix-sort': Jeu.choisirSort(t.dataset.pj, t.dataset.act); Son.jouer('objet'); return this.rendu();

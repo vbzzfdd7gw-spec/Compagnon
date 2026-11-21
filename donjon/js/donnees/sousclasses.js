@@ -386,8 +386,14 @@ function reposCourtPJ(pj) {
     const base = ressourcesPJ(pj);
     for (const r of sc.reposCourtUn) if ((pj.ressources[r] || 0) < base[r]) { pj.ressources[r]++; lignes.push(`${pj.icone} ${pj.nom} récupère une charge (${pj.ressources[r]}/${base[r]}).`); }
   }
-  // Cercle de la Terre : emplacements pour un total de N niveaux, les plus hauts d'abord
+  // Magicien : restauration arcanique, une fois par repos long (moitié de son niveau en niveaux de sorts)
   let budget = pj.traits.recuperation || 0, gagne = 0;
+  if (pj.ressources && pj.ressources.restauration > 0 && Object.values(pj.emplacements).some(e => e.restant < e.max)) {
+    pj.ressources.restauration--;
+    budget += Math.ceil((pj.niveau || 3) / 2);
+    lignes.push(`${pj.icone} ${pj.nom} étudie son grimoire : restauration arcanique.`);
+  }
+  // Cercle de la Terre : emplacements pour un total de N niveaux, les plus hauts d'abord
   for (let n = 9; n >= 1 && budget > 0; n--) {
     const e = pj.emplacements[n];
     while (e && n <= budget && e.restant < e.max) { e.restant++; budget -= n; gagne++; }

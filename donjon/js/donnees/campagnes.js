@@ -900,7 +900,7 @@ const CAMPAGNES = [
 // tous les monstres et tous les boss peuvent sortir. Chaque rencontre garde le
 // décor de son étage d'origine et sa puissance est ramenée à celle de sa place
 // sur la carte (`rang` 1 = première moitié, héros niveau 4 ; 2 = seconde, niveau 5).
-const PV_CHAOS = 0.87;
+const PV_CHAOS = 0.96;
 function forceChaos(force, depuis, rang) {
   // ecart > 0 : rencontre d'un étage plus facile, renforcée ; < 0 : à peine adoucie
   const ecart = rang - depuis, haut = Math.max(0, ecart);
@@ -1015,3 +1015,57 @@ function forceEtage(force, etage) {
   for (const k in r) f[k] = (f[k] || (k === 'pv' ? 1 : 0)) + r[k];
   return f;
 }
+
+// ---------------------------------------------------------------------
+// Bestiaire : monstres rencontrés, vaincus, et résistances découvertes
+// (mémorisé entre les parties dans Progression.donnees.bestiaire)
+// ---------------------------------------------------------------------
+const Bestiaire = {
+  fiches() { return (Progression.donnees.bestiaire = Progression.donnees.bestiaire || {}); },
+  fiche(id) { const f = this.fiches(); return (f[id] = f[id] || { vus: 0, tues: 0, decouvert: [] }); },
+  noter(id, quoi) {
+    if (!MONSTRES[id] || typeof window === 'undefined') return;
+    this.fiche(id)[quoi]++;
+    this.aSauver = true;
+    if (quoi === 'vus' && typeof Succes !== 'undefined' && Object.keys(this.fiches()).length >= 40) Succes.debloquer('bestiaire');
+  },
+  decouvrir(id, genre, type) {
+    if (!MONSTRES[id] || typeof window === 'undefined') return;
+    const f = this.fiche(id), cle = genre + ':' + type;
+    if (!f.decouvert.includes(cle)) { f.decouvert.push(cle); this.aSauver = true; }
+  },
+  sauver() { if (this.aSauver) { this.aSauver = false; Progression.sauver(); } }
+};
+
+// ---------------------------------------------------------------------
+// Succès : certains offrent une relique de départ (objet choisi à la
+// composition de l'équipe, hors défi quotidien)
+// ---------------------------------------------------------------------
+const SUCCES = {
+  premier_sang: { nom: 'Premier sang', icone: '🩸', desc: 'Gagner un combat.' },
+  crypte: { nom: 'Fossoyeur', icone: '⚰️', desc: 'Terminer la Crypte de Morvagne.', relique: 'amulette_vigueur' },
+  niveau7: { nom: 'Vétérans', icone: '⭐', desc: 'Atteindre le niveau 7.', relique: 'bottes_vivacite' },
+  intact: { nom: 'Sans une égratignure', icone: '🛡️', desc: 'Vaincre un boss sans qu\'aucun héros ne tombe.', relique: 'heaume_fer' },
+  riche: { nom: 'Trésor de dragon', icone: '💰', desc: 'Posséder 300 or.', relique: 'gants_archer' },
+  sans_repos: { nom: 'Infatigables', icone: '🔥', desc: 'Terminer une campagne sans prendre de repos long.', relique: 'pierre_chance' },
+  lanceurs: { nom: 'Cercle des mages', icone: '🔮', desc: 'Terminer une campagne avec 4 lanceurs de sorts (clerc, druide, barde, magicien, ensorceleur, occultiste).', relique: 'robe_etoilee' },
+  martiaux: { nom: 'Acier et sueur', icone: '⚔️', desc: 'Terminer une campagne avec 4 héros sans sorts (guerrier, barbare, roublard, moine).', relique: 'gantelets_ogre' },
+  defi: { nom: 'Champion du jour', icone: '📅', desc: 'Remporter un défi quotidien.' },
+  dragon: { nom: 'Tueur de dragon', icone: '🐉', desc: 'Vaincre Ignaroth le Dragon rouge.', relique: 'cape_protection' },
+  heroique: { nom: 'Héroïque', icone: '🏅', desc: 'Terminer une campagne en difficulté Héroïque.', relique: 'cristal_lumiere' },
+  cauchemar: { nom: 'Cauchemar éveillé', icone: '😈', desc: 'Terminer une campagne en difficulté Cauchemar.', relique: 'anneau_regeneration' },
+  chaos: { nom: 'Maître du chaos', icone: '🌀', desc: 'Vaincre le Dédale du Chaos.', relique: 'anneau_mage_guerre' },
+  bestiaire: { nom: 'Érudit', icone: '📖', desc: 'Rencontrer 40 monstres différents.' },
+  toutes: { nom: 'Légende des Cryptes', icone: '👑', desc: 'Terminer toutes les campagnes.' }
+};
+const Succes = {
+  obtenus() { return (Progression.donnees.succes = Progression.donnees.succes || {}); },
+  a(id) { return !!this.obtenus()[id]; },
+  debloquer(id) {
+    if (!SUCCES[id] || this.a(id) || typeof window === 'undefined') return;
+    this.obtenus()[id] = Date.now();
+    Progression.sauver();
+    if (typeof Ui !== 'undefined' && Ui.toast) Ui.toast(`🏆 Succès : ${SUCCES[id].icone} <b>${SUCCES[id].nom}</b>${SUCCES[id].relique ? ` · relique : ${OBJETS[SUCCES[id].relique].nom}` : ''}`);
+  },
+  reliques() { return Object.entries(SUCCES).filter(([id, x]) => x.relique && OBJETS[x.relique] && (this.a(id) || Progression.toutDebloque())).map(([, x]) => x.relique); }
+};
