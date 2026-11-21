@@ -900,7 +900,7 @@ const CAMPAGNES = [
 // tous les monstres et tous les boss peuvent sortir. Chaque rencontre garde le
 // décor de son étage d'origine et sa puissance est ramenée à celle de sa place
 // sur la carte (`rang` 1 = première moitié, héros niveau 4 ; 2 = seconde, niveau 5).
-const PV_CHAOS = 0.92;
+const PV_CHAOS = 0.95;
 function forceChaos(force, depuis, rang) {
   // ecart > 0 : rencontre d'un étage plus facile, renforcée ; < 0 : à peine adoucie
   const ecart = rang - depuis, haut = Math.max(0, ecart);

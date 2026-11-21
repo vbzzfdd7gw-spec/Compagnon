@@ -38,6 +38,8 @@
 //   concentration              : un seul à la fois par héros ; rompu par les dégâts (CON) ou à 0 PV
 //   concPermanent              : ses états durent tant que la concentration tient
 //   persistant / degatsTick    : refrappe au début de chaque tour du lanceur (dégâts du rappel)
+//   parNiveau                  : dés ajoutés aux dégâts ou aux soins par niveau d'emplacement au-dessus du sort
+//   parNiveauRayons            : rayons en plus par niveau (Rayon ardent) ; parNiveauReserve : idem pour Sommeil
 //   relanceGratuite            : relançable sans emplacement tant que la concentration tient
 // =====================================================================
 
@@ -107,6 +109,7 @@ const ACTIONS = {
     desc: 'Tour de magie. Sauvegarde de DEX ou 1d8 radiant.'
   },
   soins: {
+    parNiveau: '1d8',
     nom: 'Soins', icone: '✚', type: 'soin', niveau: 1, sort: true,
     depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'],
     soin: '1d8+3', peur: -5,
@@ -119,6 +122,7 @@ const ACTIONS = {
     desc: '🧠 Concentration. Niv. 1. Tous les alliés : +1d4 aux attaques et sauvegardes tant que dure la concentration.'
   },
   mot_guerison: {
+    parNiveau: '1d4',
     nom: 'Mot de guérison', icone: '💬', type: 'soin', niveau: 1, sort: true,
     depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'],
     soin: '2d4+3', peur: -10,
@@ -131,6 +135,7 @@ const ACTIONS = {
     desc: 'Tour de magie. Un allié perd 25 points de Peur.'
   },
   priere_soins: {
+    parNiveau: '1d8',
     nom: 'Prière de soins', icone: '🙏', type: 'soin', niveau: 2, zone: true, sort: true,
     depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'],
     soin: '2d8+3', peur: -5,
@@ -144,6 +149,7 @@ const ACTIONS = {
   },
 
   esprits_gardiens: {
+    parNiveau: '1d8',
     nom: 'Esprits gardiens', icone: '👼', concentration: true, persistant: true, type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'SAG', dd: 'sort', degats: '3d8', typeDeg: 'radiant', moitie: true,
@@ -198,24 +204,28 @@ const ACTIONS = {
     desc: 'Tour de magie. Attaque de sort, 1d10 feu.'
   },
   projectile_magique: {
+    parNiveau: '1d4+1',
     nom: 'Projectile magique', icone: '✴️', type: 'auto', niveau: 1, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     degats: '3d4+3', typeDeg: 'force',
     desc: 'Niv. 1. Touche automatiquement : 3d4+3 force.'
   },
   mains_brulantes: {
+    parNiveau: '1d6',
     nom: 'Mains brûlantes', icone: '🖐️', type: 'sauvegarde', niveau: 1, zone: true, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
     carac: 'DEX', dd: 'sort', degats: '3d6', typeDeg: 'feu', moitie: true,
     desc: 'Niv. 1. Toute la ligne Avant ennemie : sauvegarde de DEX, 3d6 feu (moitié si réussite).'
   },
   rayon_ardent: {
+    parNiveauRayons: 1,
     nom: 'Rayon ardent', icone: '☄️', type: 'attaque', niveau: 2, nbAttaques: 3, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     jet: 'sort', degats: '2d6', typeDeg: 'feu',
     desc: 'Niv. 2. Trois attaques de sort sur la cible, 2d6 feu chacune.'
   },
   sommeil: {
+    reserve: '5d8', parNiveauReserve: '2d8',
     nom: 'Sommeil', icone: '💤', type: 'special', special: 'sommeil', niveau: 1, zone: true, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     desc: 'Niv. 1. Lancez 5d8 : les ennemis aux PV les plus bas s\'endorment dans cette limite (sauf morts-vivants).'
@@ -228,6 +238,7 @@ const ACTIONS = {
     desc: 'Tour de magie. 1d8 froid ; la cible a désavantage à sa prochaine attaque.'
   },
   vague_tonnante: {
+    parNiveau: '1d8',
     nom: 'Vague tonnante', icone: '🌊', type: 'sauvegarde', niveau: 1, zone: true, sort: true,
     depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
     carac: 'CON', dd: 'sort', degats: '2d8', typeDeg: 'tonnerre', moitie: true,
@@ -237,6 +248,7 @@ const ACTIONS = {
 
 
   boule_feu: {
+    parNiveau: '1d6',
     nom: 'Boule de feu', icone: '💥', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'DEX', dd: 'sort', degats: '8d6', typeDeg: 'feu', moitie: true,
@@ -284,6 +296,7 @@ const ACTIONS = {
 
   // -------------------------------- PALADIN ---------------------------
   chatiment: {
+    parNiveau: '1d8',
     nom: 'Châtiment divin', icone: '⚡', type: 'attaque', arme: true, niveau: 1,
     depuis: ['avant'], cible: 'ennemi', vise: ['avant'],
     jet: 'arme', degats: '1d8+1d8+3', typeDeg: 'radiant',
@@ -355,6 +368,7 @@ const ACTIONS = {
     desc: 'Un allié ajoute 1d6 à sa prochaine attaque ou sauvegarde. −5 Peur.'
   },
   murmure: {
+    parNiveau: '1d6',
     nom: 'Murmure dissonant', icone: '🎶', type: 'sauvegarde', niveau: 1, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'SAG', dd: 'sort', degats: '3d6', typeDeg: 'psychique', moitie: true,
@@ -393,6 +407,7 @@ const ACTIONS = {
     desc: '🧠 Concentration. Niv. 1. Ligne Avant : sauvegarde de FOR ou 1d8 et entravés tant que dure la concentration.'
   },
   rayon_lune: {
+    parNiveau: '1d10',
     nom: 'Rayon de lune', icone: '🌙', concentration: true, persistant: true, type: 'sauvegarde', niveau: 2, sort: true, triangle: 3,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'CON', dd: 'sort', degats: '2d10', typeDeg: 'radiant', moitie: true,
@@ -405,6 +420,7 @@ const ACTIONS = {
     desc: '🧠 Concentration. Niv. 2. Un allié gagne +3 CA tant que dure la concentration.'
   },
   appel_foudre: {
+    parNiveau: '1d10',
     nom: 'Appel de la foudre', icone: '🌩️', concentration: true, relanceGratuite: true, type: 'sauvegarde', niveau: 3, sort: true, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'DEX', dd: 'sort', degats: '3d10', typeDeg: 'foudre', moitie: true,
@@ -445,6 +461,7 @@ const ACTIONS = {
   },
 
   orbe_chromatique: {
+    parNiveau: '1d8',
     nom: 'Orbe chromatique', icone: '🔴', type: 'attaque', niveau: 1, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     jet: 'sort', degats: '3d8', typeDeg: 'tonnerre',
@@ -471,12 +488,14 @@ const ACTIONS = {
     desc: '🧠 Concentration. Action bonus. Maudit un ennemi : vos attaques contre lui infligent +1d6 tant que dure la concentration.'
   },
   bras_hadar: {
+    parNiveau: '1d6',
     nom: 'Bras d\'Hadar', icone: '🦑', type: 'sauvegarde', niveau: 1, zone: true, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'],
     carac: 'FOR', dd: 'sort', degats: '3d6', typeDeg: 'nécrotique', moitie: true,
     desc: 'Pacte. Des tentacules jaillissent sur la ligne Avant ennemie : sauvegarde de FOR, 3d6 nécrotique (moitié si réussite).'
   },
   effroi: {
+    parNiveau: '1d6',
     nom: 'Effroi', icone: '👁️', type: 'sauvegarde', niveau: 1, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'SAG', dd: 'sort', degats: '2d6', typeDeg: 'psychique', moitie: false,
@@ -496,6 +515,7 @@ const ACTIONS = {
     desc: 'Tour de magie. 1d10+3 force et repousse la cible en ligne Arrière.'
   },
   faim_hadar: {
+    parNiveau: '1d6',
     nom: 'Faim d\'Hadar', icone: '🌑', concentration: true, persistant: true, degatsTick: '2d6', type: 'sauvegarde', niveau: 3, zone: true, sort: true, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'DEX', dd: 'sort', degats: '4d6', typeDeg: 'froid', moitie: true,
@@ -525,18 +545,21 @@ const ACTIONS = {
     desc: 'Tour de magie, corps à corps avec avantage. 1d8+1 foudre ; la cible a désavantage à sa prochaine attaque.'
   },
   eclair: {
+    parNiveau: '1d6',
     nom: 'Éclair', icone: '🌩️', type: 'sauvegarde', niveau: 3, sort: true, triangle: 3, niveauMin: 5,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', degats: '8d6', typeDeg: 'foudre', moitie: true,
     desc: 'Niv. 3. Un trait de foudre traverse la cible et ses 2 voisins : sauvegarde de DEX, 8d6 foudre (moitié si réussite).'
   },
   // ----------------------------- SORTS DE NIVEAU 4 (niveau 7) ---------------
   tempete_grele: {
+    parNiveau: '1d8',
     nom: 'Tempête de grêle', icone: '🌨️', type: 'sauvegarde', niveau: 4, zone: true, sort: true, niveauMin: 7,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', degats: '2d8+4d6', typeDeg: 'froid', moitie: true,
     effetSiEchec: { etat: 'entrave', duree: 1 },
     desc: 'Niv. 4. Tous les ennemis : sauvegarde de DEX, 2d8+4d6 (grêle et froid), moitié si réussite ; entravés si échec.'
   },
   fletrissement: {
+    parNiveau: '1d8',
     nom: 'Flétrissement', icone: '🥀', type: 'sauvegarde', niveau: 4, sort: true, niveauMin: 7,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 'sort', degats: '8d8', typeDeg: 'nécrotique', moitie: true,
     desc: 'Niv. 4. Une cible : sauvegarde de CON, 8d8 nécrotique (moitié si réussite).'
@@ -610,6 +633,7 @@ const ACTIONS = {
     desc: 'Deux coups de masse (1d6+2 chacun). Une fois par combat.'
   },
   rayon_affaiblissant: {
+    parNiveau: '1d6',
     nom: 'Rayon affaiblissant', icone: '🦴', concentration: true, concPermanent: true, type: 'sauvegarde', niveau: 1, sort: true,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'CON', dd: 'sort', degats: '2d6', typeDeg: 'nécrotique', moitie: true,
@@ -665,6 +689,7 @@ const ACTIONS = {
     desc: 'Tour de magie. Sauvegarde de SAG ou 1d8 psychique (+15 Peur au monstre avec Esprit éveillé).'
   },
   murmures_dements: {
+    parNiveau: '1d8',
     nom: 'Murmures déments', icone: '🌀', type: 'sauvegarde', niveau: 1, sort: true, triangle: 3, effroi: 20,
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
     carac: 'SAG', dd: 'sort', degats: '2d8', typeDeg: 'psychique', moitie: true,

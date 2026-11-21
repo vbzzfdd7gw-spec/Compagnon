@@ -714,9 +714,21 @@ const Ui = {
       const zone = act.cible === 'soi' || act.zone || (act.triangle && this.cibleTri);
       const indice = act.triangle ? '👆 Touchez le centre du triangle' : '👆 Touchez une cible';
       aide = `<div class="aide-sel"><div><b>${act.icone} ${act.nom}</b> <span class="discret">${act.desc}</span></div>
-        ${zone ? `<button class="btn principal petit" data-clic="confirmer">Lancer ▶</button>` : `<span class="indice">${indice}</span>`}</div>`;
+        ${zone ? `<button class="btn principal petit" data-clic="confirmer">Lancer ▶</button>` : `<span class="indice">${indice}</span>`}</div>${this.choixNiveauSort(cb, a, act)}`;
     }
     return `<div class="aide">${aide}</div><div class="actions">${boutons}</div>`;
+  },
+
+  // Lancer un sort à un niveau supérieur : pastilles des emplacements disponibles
+  niveauxPossibles(cb, a, act) {
+    if (!act.niveau || cb.relanceGratuite(a, act)) return [];
+    return Object.keys(a.emplacements).map(Number).filter(n => n >= act.niveau && a.emplacements[n].restant > 0).sort((x, y) => x - y);
+  },
+  choixNiveauSort(cb, a, act) {
+    const nivs = this.niveauxPossibles(cb, a, act);
+    if (nivs.length < 2) return '';
+    if (!nivs.includes(this.niveauSort)) this.niveauSort = nivs[0];
+    return `<div class="niv-sort">Emplacement : ${nivs.map(n => `<button class="pastille-niv ${n === this.niveauSort ? 'actif' : ''}" data-niv-sort="${n}">niv. ${n}${n > act.niveau ? ` <small>${cb.texteSurcharge(act, n - act.niveau)}</small>` : ''}</button>`).join('')}</div>`;
   },
 
   choisirAction(id) {
@@ -732,6 +744,7 @@ const Ui = {
     if (!d.ok) { this.selection = null; this.raison = { nom: act.nom, texte: d.raison, desc: act.desc }; return this.majCombat(); }
     this.selection = this.selection === id ? null : id;
     this.cibleTri = null;
+    this.niveauSort = null;
     this.majCombat();
   },
 
@@ -747,7 +760,7 @@ const Ui = {
         this.selection = null;
         this.cibleTri = null;
         this.modeSac = false;
-        return cb.jouer(cb.actif, act, c);
+        return cb.jouer(cb.actif, act, c, this.niveauSort);
       }
       if ((act.zone || act.cible === 'soi') && cibles.some(x => x.id === id)) return this.confirmer();
     }
@@ -763,7 +776,7 @@ const Ui = {
     this.cibleTri = null;
     this.modeSac = false;
     if (act.triangle && !tri) return;
-    cb.jouer(cb.actif, act, tri);
+    cb.jouer(cb.actif, act, tri, this.niveauSort);
   },
 
   journal() {
@@ -949,9 +962,10 @@ const Ui = {
     document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
     document.addEventListener('click', e => {
       Son.debloquer();
-      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat],[data-classe],[data-info-classe],[data-sc],[data-sc-classe],[data-diff]');
+      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat],[data-classe],[data-info-classe],[data-sc],[data-sc-classe],[data-diff],[data-niv-sort]');
       if (!t || t.disabled) return;
       const d = t.dataset;
+      if (d.nivSort) { this.niveauSort = parseInt(d.nivSort, 10); return this.majCombat(); }
       if (d.clic) return this.clic(d.clic, t);
       if (d.action) return this.choisirAction(d.action);
       if (d.id && Jeu.ecran === 'combat') return this.cliquerCombattant(d.id);

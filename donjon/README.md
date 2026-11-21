@@ -70,6 +70,10 @@ Comme dans D&D, certains sorts (`concentration: true` dans `actions.js` : Béné
 - `concPermanent` : ses états durent tant que la concentration tient ; `persistant` (Rayon de lune, Esprits gardiens, Faim d'Hadar) : le sort refrappe au début de chaque tour du lanceur ; `relanceGratuite` (Appel de la foudre) : relancé sans emplacement tant qu'elle tient ;
 - trait `mageGuerre` (Anneau du mage de guerre) : avantage aux sauvegardes de concentration.
 
+## Lancer un sort à un niveau supérieur
+
+En combat, quand un sort est sélectionné et que le héros a des emplacements plus hauts, des pastilles « Emplacement : niv. 1 / niv. 2… » permettent de choisir (`Ui.choixNiveauSort`, `Combat.jouer(…, niveau)`). Le bonus vient de l'action : `parNiveau` (dés de dégâts ou de soin par niveau en plus, ex. `'1d6'`, `'1d4+1'`), `parNiveauRayons` (Rayon ardent), `parNiveauReserve` (Sommeil) ; `Combat.surcharger(act, k)` fabrique l'action renforcée. Un sort lancé faute d'emplacement plus bas en profite aussi, et un sort de concentration garde son niveau (Appel de la foudre relancé au même niveau).
+
 ## Équilibrage
 
 `node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions avec l'équipe de base ;

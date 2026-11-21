@@ -112,6 +112,13 @@ function tirerCrise(pj) {
   return pj.crise;
 }
 
+// '1d4+1' × 2 → '2d4+2'
+function multiplierDes(expr, k) {
+  return expr.replace(/(\d*)d(\d+)|(\d+)/g, (m, n, f, c) => f ? `${(parseInt(n || '1', 10)) * k}d${f}` : String(parseInt(c, 10) * k));
+}
+const ACTIONS_PAR_NOM = {};
+if (typeof ACTIONS !== 'undefined') for (const a of Object.values(ACTIONS)) ACTIONS_PAR_NOM[a.nom] = a;
+
 class Combat {
   // rencontre : { avant: [ids], arriere: [ids] }
   constructor(equipe, rencontre, jeu, force) {
@@ -454,10 +461,13 @@ class Combat {
   }
 
   // ----------------------------------------------------- exécution
-  jouer(acteur, action, cible) {
+  // niveau : emplacement choisi pour un sort (lancer à un niveau supérieur)
+  jouer(acteur, action, cible, niveau = null) {
     if (this.fini || this.actif !== acteur || !this.attenteJoueur) return;
     this.attenteJoueur = false;
+    this.niveauChoisi = niveau;
     this.executer(acteur, action, cible);
+    this.niveauChoisi = null;
     const bonus = this.estActionBonus(acteur, action);
     if (!bonus) this.attaqueCompagnon(acteur);
     const d = this.maj();
@@ -501,11 +511,18 @@ class Combat {
     // Coûts
     let coutTxt = '';
     const gratuit = this.relanceGratuite(a, act);
-    if (gratuit) { coutTxt = ' <span class="cout">(🧠 concentration, sans emplacement)</span>'; this.niveauSort = a.concentration.niveau; }
+    if (gratuit) {
+      coutTxt = ' <span class="cout">(🧠 concentration, sans emplacement)</span>';
+      this.niveauSort = a.concentration.niveau;
+      act = this.surcharger(act, this.niveauSort - act.niveau);
+    }
     else if (act.niveau) {
-      const n = this.emplacementDispo(a, act.niveau);
+      const voulu = this.niveauChoisi;
+      const n = voulu && voulu >= act.niveau && a.emplacements[voulu] && a.emplacements[voulu].restant > 0 ? voulu : this.emplacementDispo(a, act.niveau);
       a.emplacements[n].restant--;
-      coutTxt = ` <span class="cout">(emplacement niv. ${n})</span>`;
+      const surplus = n - act.niveau;
+      act = this.surcharger(act, surplus);
+      coutTxt = ` <span class="cout">(emplacement niv. ${n}${surplus > 0 ? ` · ⬆️ ${this.texteSurcharge(ACTIONS_PAR_NOM[act.nom] || act, surplus)}` : ''})</span>`;
       this.niveauSort = n;
       if (a.traits && a.traits.egide) {
         const max = 2 * (a.niveau || 3) + a.traits.egide, avant = a.egide || 0;
@@ -601,6 +618,29 @@ class Combat {
     this.concEnCours = null;
     this.niveauSort = 0;
     this.intensifier = false;
+  }
+
+  // ------------------------------------------- lancer à un niveau supérieur
+  // Copie de l'action renforcée de k niveaux (dés de dégâts ou de soin, rayons, réserve)
+  surcharger(act, k) {
+    if (!k || k <= 0) return act;
+    const r = { ...act };
+    if (act.parNiveau) {
+      const plus = multiplierDes(act.parNiveau, k);
+      if (act.degats) r.degats = act.degats + '+' + plus;
+      else if (act.soin) r.soin = act.soin + '+' + plus;
+      if (act.degatsTick) r.degatsTick = act.degatsTick + '+' + plus;
+    }
+    if (act.parNiveauRayons) r.nbAttaques = (act.nbAttaques || 1) + act.parNiveauRayons * k;
+    if (act.parNiveauReserve) r.reserve = act.reserve + '+' + multiplierDes(act.parNiveauReserve, k);
+    return r;
+  }
+
+  texteSurcharge(act, k) {
+    if (act.parNiveau) return `+${multiplierDes(act.parNiveau, k)} ${act.degats ? 'dégâts' : 'soins'}`;
+    if (act.parNiveauRayons) return `+${act.parNiveauRayons * k} rayon${act.parNiveauRayons * k > 1 ? 's' : ''}`;
+    if (act.parNiveauReserve) return `+${multiplierDes(act.parNiveauReserve, k)} de réserve`;
+    return 'sans effet supplémentaire';
   }
 
   // ------------------------------------------------- concentration
@@ -1515,7 +1555,7 @@ const SPECIAUX = {
   },
 
   sommeil(cb, a, act, cibles) {
-    const d = Des.lancer('5d8');
+    const d = Des.lancer(act.reserve || '5d8');
     let budget = d.total;
     cb.log(`→ 🎲 Réserve de sommeil : ${d.texte}`, 'jet');
     const candidats = cb.ennemis.filter(e => e.pv > 0 && !e.etats.endormi).sort((x, y) => x.pv - y.pv);
