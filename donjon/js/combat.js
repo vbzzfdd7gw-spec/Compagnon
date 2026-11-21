@@ -31,6 +31,9 @@ const ETATS = {
   armeSacree: { nom: 'Arme sacrée', icone: '🌟', desc: '+2 au toucher avec les armes.' },
   inimitie: { nom: 'Vœu d\'inimitié', icone: '🔥', desc: 'Le paladin qui l\'a juré a l\'avantage contre lui.' },
   concentre: { nom: 'Concentration', icone: '🧠', desc: 'Maintient un sort de concentration. Chaque fois qu\'il subit des dégâts : sauvegarde de CON (DD 10 ou moitié des dégâts) ou le sort prend fin. Un seul à la fois.', permanent: true },
+  illumine: { nom: 'Illuminé', icone: '🎆', desc: 'Entouré de lueurs féeriques : les attaques contre lui ont l\'avantage.' },
+  ralenti: { nom: 'Ralenti', icone: '🐌', desc: '−2 CA et désavantage à ses attaques.' },
+  foi: { nom: 'Bouclier de la foi', icone: '✝️', desc: '+2 CA.' },
   banni: { nom: 'Banni', icone: '🌀', desc: 'Envoyé dans un autre plan : perd ses tours et ne peut pas être ciblé.' },
   ours: { nom: 'Forme d\'ours', icone: '🐻', desc: 'Druide changé en ours tant qu\'il lui reste des PV temporaires.', permanent: true },
   vengeance: { nom: 'Vengeance', icone: '⚔️', desc: '+2 au toucher et aux dégâts jusqu\'à la fin du combat.', permanent: true },
@@ -81,6 +84,24 @@ const POUVOIRS_BOSS = {
   carapace: { nom: 'Carapace', icone: '🐚', desc: 'Moitié des dégâts tant qu\'un autre ennemi est debout.' },
   furie: { nom: 'Furie', icone: '😡', desc: 'Sous la moitié de ses PV, agit une fois de plus par tour.' }
 };
+// Seconde phase des boss finaux (à la moitié de leurs PV) : réglage et texte propre à chaque boss
+const PHASE2 = { degats: 1, renforts: 1 };
+const PHASES_BOSS = {
+  morvagne: 'Morvagne arrache son masque d\'os : « Levez-vous, tous ! » Les morts répondent à son appel.',
+  grukk_tyran: 'Grukk brise sa propre hache contre le sol et rugit : la horde accourt à son secours !',
+  velkor: 'Velkor ouvre les bras vers le soleil noir : l\'éclipse se referme et le culte se rassemble.',
+  guenaude: 'Mère Fangeuse plonge les mains dans son chaudron et en tire de nouvelles abominations.',
+  hydre: 'L\'Hydre plonge sous l\'écume et ressurgit, enragée, entourée de sa progéniture.',
+  meduse: 'Sthéna arrache son voile : ses serpents sifflent et ses gardiens pétrifiés s\'animent.',
+  ignaroth: 'Ignaroth s\'élève dans un torrent de flammes : « Vous ne repartirez pas vivants de mon antre ! »',
+  reine_araignee: 'Vel\'Thira déchire son cocon de soie : des dizaines d\'yeux s\'allument dans les toiles.',
+  reine_hiver: 'Isolde brise sa couronne : le blizzard se lève et ses chevaliers de glace accourent.',
+  seigneur_guerre: 'Kargath sonne le cor de guerre : « Légion ! À moi ! »',
+  pharaon: 'Ankh-Sethi arrache ses bandelettes : le tombeau tremble et ses gardiens se réveillent.',
+  vampire: 'Le Comte se dissout en une nuée de chauves-souris… puis se reforme, les yeux injectés de sang.',
+  dracoliche: 'Morthaxx déploie ses ailes décharnées : l\'Abîme hurle et vomit ses serviteurs.'
+};
+
 // Renforts des boss invocateurs : tous les monstres ordinaires (ni élite ni boss) des
 // rencontres de toutes les campagnes. Calculé à la demande : une nouvelle campagne
 // ou un nouveau monstre est pris en compte sans rien modifier ici.
@@ -760,7 +781,7 @@ class Combat {
 
   // CA effective (états et capacités compris)
   caTotale(c) {
-    return c.ca + (c.etats.ecorce ? 3 : 0) + (c.etats.agathys ? 2 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0)
+    return c.ca + (c.etats.foi ? 2 : 0) - (c.etats.ralenti ? 2 : 0) + (c.etats.ecorce ? 3 : 0) + (c.etats.agathys ? 2 : 0) + (c.etats.defi ? 2 : 0) + (c.etats.bouclier ? 5 : 0)
       + (c.traits && c.traits.aspectOurs && c.etats.rage ? 2 : 0) - (c.caMalus || 0);
   }
 
@@ -779,6 +800,8 @@ class Combat {
     if (a.etats.entrave) dv.push('gelé');
     if (c.etats.esquive) dv.push('cible en esquive');
     if (c.etats.temeraire) av.push('cible téméraire');
+    if (c.etats.illumine) av.push('cible illuminée');
+    if (a.etats.ralenti) dv.push('ralenti');
     if (a.traits && a.traits.assassin && !c.aJoue) av.push('assassinat');
     if (c.etats.inimitie && c.inimitiePar === a.id) av.push('inimitié');
     if (a.camp === 'pj' && act.vise && act.vise.length === 1 && act.vise[0] === 'avant' && c.ligne === 'avant'
@@ -1301,6 +1324,7 @@ class Combat {
     const pvAvant = Math.max(0, c.pv);
     c.pv -= n;
     if (c.pv <= 0 && c.concentration) this.finConcentration(c, 'tombe à terre');
+    if (c.boss && this.bossFinal && !c.phase2 && c.pv > 0 && c.pv <= c.pvMax / 2) this.secondePhase(c);
     if (c.camp === 'pj' && c.pv > 0 && n >= c.pvMax * 0.3) {
       this.log(`→ 😨 Le coup ébranle ${this.nomHtml(c)} !`, 'peur');
       this.modifierPeur(c, PEUR.grosCoup, true);
@@ -1457,11 +1481,31 @@ class Combat {
   }
 
 
+  // Boss final à la moitié de ses PV : il se libère de ses entraves, s'enrage et appelle des renforts
+  secondePhase(c) {
+    c.phase2 = true;
+    this.log(`🔥 <b>${c.nom} entre en seconde phase !</b> ${PHASES_BOSS[c.modele] || 'Sa fureur redouble et ses serviteurs accourent !'}`, 'titre mauvais');
+    this.evt({ t: 'texte', cible: c.id, texte: '🔥 Seconde phase !', classe: 'crit' });
+    this.evt({ t: 'phase2', cible: c.id });
+    for (const e of ['etourdi', 'charme', 'paralyse', 'endormi', 'entrave', 'ralenti', 'illumine', 'petrification', 'affaibli', 'empoisonne', 'renverse', 'marque']) delete c.etats[e];
+    c.actions = c.actions.map(a => ({ ...a, degats: a.degats ? a.degats + '+' + PHASE2.degats : a.degats }));
+    const renforts = (this.renfortsPhase || []).filter(id => MONSTRES[id] && !MONSTRES[id].boss);
+    for (let i = 0; i < PHASE2.renforts && renforts.length && this.ennemis.filter(e => e.pv > 0).length < 5; i++) {
+      const r = this.creerMonstre(Des.hasard(renforts), ' (renfort)');
+      r.initiative = 0;
+      r.ligne = this.ennemis.filter(e => e.pv > 0 && e.ligne === 'avant').length < 3 ? 'avant' : 'arriere';
+      this.ennemis.push(r);
+      this.ordre.push(r);
+      this.log(`→ ${this.nomHtml(r)} rejoint le combat en ligne ${r.ligne === 'avant' ? 'Avant' : 'Arrière'} !`, 'mauvais');
+    }
+    for (const p of this.pjs) if (p.pv > 0) this.modifierPeur(p, 10, true);
+  }
+
   // ------------------------------------------------------ IA monstre
   tourMonstre(m) {
     if (this.fini || m.pv <= 0) return;
     const ch = m.chaos || {};
-    const nb = (m.tetes ? Math.min(6, m.tetes) : (MONSTRES[m.modele].actionsParTour || 1)) + (ch.mutations && ch.mutations.includes('rapide') ? 1 : 0)
+    const nb = (m.tetes ? Math.min(6, m.tetes) : (MONSTRES[m.modele].actionsParTour || 1)) + (m.actionsBonus || 0) + (ch.mutations && ch.mutations.includes('rapide') ? 1 : 0)
       + (ch.pouvoirs && ch.pouvoirs.includes('furie') && m.pv < m.pvMax / 2 ? 1 : 0);
     let i = 0;
     const agir = () => {

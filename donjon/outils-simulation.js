@@ -2,7 +2,7 @@
 const fs = require('fs'), vm = require('vm');
 const D = require('path').join(__dirname, 'js') + '/';
 const file = [];
-const ctx = { DIFF_SIM: process.env.DIFF || '', SANS_ELITE: !!process.env.SANS_ELITE, localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
+const ctx = { DIFF_SIM: process.env.DIFF || '', SANS_ELITE: !!process.env.SANS_ELITE, SANS_PHASE: !!process.env.SANS_PHASE, localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
 vm.createContext(ctx);
 for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'donnees/campagnes.js', 'donnees/sousclasses.js', 'combat.js', 'carte.js'])
   vm.runInContext(fs.readFileSync(D + f, 'utf8').replace(/^const (\w+) =/gm, 'var $1 =').replace(/^class (\w+)/gm, 'var $1 = class $1'), ctx);
@@ -77,6 +77,7 @@ function combattre(equipe, rencontre, jeu, force) {
   if (jeu.chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final);
   else if (DIFF_SIM && difficulte(DIFF_SIM).chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final, difficulte(DIFF_SIM).chaos);
   else if (jeu.typeCombat === 'elite' && !SANS_ELITE) cb.appliquerChaos(jeu.typeCombat, jeu.final, ELITE_MUTEE);
+  if (jeu.final && jeu.typeCombat === 'boss' && !SANS_PHASE) { cb.bossFinal = true; cb.renfortsPhase = jeu.renfortsPhase || []; }
   let fin = null; cb.surFin = r => { fin = r; };
   cb.demarrer();
   let garde = 0;
@@ -91,9 +92,9 @@ function expedition(idC, classes, scs) {
   const camp = CAMPAGNES.find(c => c.id === idC);
   const ETAGES = camp.aleatoire ? genererEtagesAleatoires() : camp.etages;
   const equipe = (classes || ORDRE_CLASSES).map((k, i) => creerPJ(k, scs ? scs[i] : null));
-  if (camp.aleatoire) equipe.forEach(p => { monterNiveau(p); p.ressources = ressourcesPJ(p); p.pv = p.pvMax; });
+  if (camp.aleatoire) equipe.forEach(p => { monterNiveau(p); resoudreChoixSorts(p, true); p.ressources = ressourcesPJ(p); p.pv = p.pvMax; });
   let xp = camp.aleatoire ? SEUILS_XP[4] : 0;
-  const gagnerXP = n => { xp += n; const c = niveauPourXP(xp); for (const p of equipe) while (p.niveau < c && monterNiveau(p).length); };
+  const gagnerXP = n => { xp += n; const c = niveauPourXP(xp); for (const p of equipe) { while (p.niveau < c && monterNiveau(p).length); resoudreChoixSorts(p, true); } };
   if (!equipe.some(p => p.ligne === 'avant')) equipe[0].ligne = 'avant';
   if (!equipe.some(p => p.ligne === 'arriere')) equipe[3].ligne = 'arriere';
   const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult + (DIFF_SIM ? difficulte(DIFF_SIM).peur : 0), or: camp.regles.or || 30, equipe, sac: {},
@@ -114,6 +115,7 @@ function expedition(idC, classes, scs) {
         let renc = liste[Math.floor(Math.random() * liste.length)];
         if (n.type === 'elite' && !camp.aleatoire && !SANS_ELITE) renc = renforcerElite(renc, etage);
         jeu.chaos = camp.aleatoire; jeu.typeCombat = n.type; jeu.final = etage === ETAGES.length - 1;
+        jeu.renfortsPhase = [...new Set([...(R.facile || []), ...(R.moyen || [])].flatMap(r => [...r.avant, ...r.arriere]))];
         const r = combattre(equipe, renc, jeu, camp.aleatoire ? renc.force || ETAGES[etage].force : forceEtage(renc.force || ETAGES[etage].force, etage));
         const pvApres = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
         PERTES[etage + n.type] = PERTES[etage + n.type] || [];
@@ -128,7 +130,7 @@ function expedition(idC, classes, scs) {
         const pjDe = o => equipe.find(p => p.id === o.pj);
         const o = offres.find(x => x.categorie !== 'action') || offres[0];
         const pj = equipe.find(p => p.id === o.pj);
-        if (o.categorie === 'action') { if (pj.actions.length >= MAX_ACTIONS) pj.actions.shift(); pj.actions.push(o.cle); } else Recompenses.appliquer(o, pj, jeu);
+        if (o.categorie === 'action') { apprendre(pj, o.cle); } else Recompenses.appliquer(o, pj, jeu);
       } else if (n.type === 'repos') {
         const moy = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
         if (!long && (moy < 0.55 || n.rangee >= 6)) {

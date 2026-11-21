@@ -354,9 +354,8 @@ function niveauSousClasse(pj, niv) {
   if (g.pv) { pj.pvMax += g.pv; if (pj.pv > 0) pj.pv += g.pv; }
   if (g.ca) pj.ca += g.ca;
   for (const id of [g.action, g.sort].filter(Boolean)) {
-    if (pj.actions.includes(id)) continue;
-    if (pj.actions.length < MAX_ACTIONS) pj.actions.push(id);
-    else gains.push(`${ACTIONS[id].nom} peut maintenant être appris en récompense`);
+    const t = apprendre(pj, id);
+    if (t && t.includes('grimoire')) gains.push(t);
   }
   gains.unshift(`${sc.icone} ${g.texte}`);
   return gains;

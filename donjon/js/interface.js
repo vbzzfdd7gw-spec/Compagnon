@@ -316,7 +316,23 @@ const Ui = {
           </span>
         </div>
         ${this.ficheDetails(p, true)}
+        ${this.grimoireHtml(p)}
       </div>`).join('')}`);
+  },
+
+  // Actions préparées et grimoire (préparation hors combat)
+  grimoireHtml(p) {
+    const g = p.grimoire || [];
+    if (!g.length && !CLASSES[p.classe].emplacements) return '';
+    const max = maxActions(p), libre = !Jeu.combat;
+    const ligne = (id, bouton) => `<div class="ligne-grim">${this.ligneAction(ACTIONS[id])}${libre ? bouton : ''}</div>`;
+    return `<details class="grimoire" ${g.length ? 'open' : ''}><summary>📖 <b>Préparation</b> <span class="discret">— ${p.actions.length}/${max} actions préparées · ${g.length} dans le grimoire</span></summary>
+      ${libre ? '' : '<p class="petit">On ne change pas ses sorts en plein combat.</p>'}
+      <div class="petit">Préparées :</div>
+      ${p.actions.map(id => ligne(id, p.actions.length > 1 ? `<button class="btn mini" data-clic="ranger" data-pj="${p.id}" data-act="${id}">Ranger ↓</button>` : '')).join('')}
+      <div class="petit">Grimoire :</div>
+      ${g.length ? g.map(id => ligne(id, `<button class="btn mini ${p.actions.length < max ? 'principal' : ''}" data-clic="preparer" data-pj="${p.id}" data-act="${id}" ${p.actions.length < max ? '' : 'disabled'}>Préparer ↑</button>`)).join('') : '<div class="petit discret">Vide : les sorts appris en trop viennent ici.</div>'}
+    </details>`;
   },
 
   ligneObjet(p, cle, avecDon) {
@@ -567,6 +583,12 @@ const Ui = {
         if (e.distance && src && !Modeles3D.actif) for (const id of e.cibles) this.projectile(src, this.elem(id), e.icone);
         break;
       }
+      case 'phase2': {
+        Modeles3D.secousse(0.8);
+        const sc = $('#scene'); if (sc) { sc.classList.remove('tremble'); void sc.offsetWidth; sc.classList.add('tremble'); }
+        Son.jouer('panique');
+        break;
+      }
       case 'jet': this.afficherDe(e); Son.jouer('de'); break;
       case 'degats':
         if (!el) break;
@@ -811,8 +833,8 @@ const Ui = {
         c.pacte ? 'Magie de pacte : tous ses emplacements montent de niveau (sorts plus puissants), récupérés au repos court.' : `Sorts de niveau ${n} lançables en plus avant un repos long (un sort lancé à un niveau supérieur est plus fort).`);
       for (const r of new Set([...Object.keys(a.ressources), ...Object.keys(b.ressources)]))
         ligne('🔋', NOMS_RES[r] || r, a.ressources[r] || 0, b.ressources[r] || 0, 'Utilisations de plus de cette capacité.');
-      const nouvelles = b.actions.filter(id => !a.actions.includes(id)).map(id => ACTIONS[id]);
-      const autres = f.gains.filter(g => !/^\+\d+ PV$|maîtrise|au toucher|sorts et DD|emplacement|nouveau sort/.test(g));
+      const nouvelles = [...pj.actions, ...(pj.grimoire || [])].filter(id => !a.actions.includes(id) && !(f.avantGrimoire || []).includes(id)).map(id => ACTIONS[id]);
+      const autres = f.gains.filter(g => !/^\+\d+ PV$|maîtrise|au toucher|sorts et DD|emplacement|nouveau sort|sort à choisir/.test(g));
       const blocsSC = [];
       for (let n = f.depuis + 1; n <= f.niveau; n++) {
         const detail = sc && (sc.details || []).find(d => d.startsWith(`Niv. ${n} `));
@@ -828,13 +850,16 @@ const Ui = {
         ${autres.map(g => `<div class="gain-niv">✨ <b>${g}</b>${/Attaque supplémentaire/.test(g) ? '<small>Ses attaques d\'arme frappent deux fois par action.</small>' : /sournoise/.test(g) ? '<small>Dégâts en plus quand il a l\'avantage ou qu\'un allié est au contact de la cible.</small>' : ''}</div>`).join('')}
         ${blocsSC.join('')}
         ${nouvelles.map(x => `<div class="gain-niv nouveau">${x.icone} <b>Nouveau : ${x.nom}</b><small>${x.desc}</small></div>`).join('')}
+        ${pj.choixSorts && pj.choixSorts.length ? `<div class="choix-sort"><b>📜 Choisissez un nouveau sort${pj.choixSorts.length > 1 ? ` (${pj.choixSorts.length} à choisir)` : ''} :</b>
+          ${pj.choixSorts[0].map(id => `<button class="btn bloc" data-clic="choix-sort" data-pj="${pj.id}" data-act="${id}">${this.ligneAction(ACTIONS[id])}</button>`).join('')}
+          <small>${pj.actions.length >= maxActions(pj) ? 'Ses actions sont pleines : le sort ira dans le grimoire (à préparer depuis 👥 Équipe).' : 'Il sera préparé tout de suite.'}</small></div>` : ''}
       </div>`;
     };
     return `<div class="ecran-centre ecran-niveau">
       <h2>⬆️ Niveau ${niveauMax} !</h2>
       <p>L'équipe a gagné assez d'expérience : chaque héros devient plus fort. Les PV, emplacements et charges gagnés sont disponibles tout de suite.</p>
       <div class="fiches-niv">${fiches.map(fiche).join('')}</div>
-      <button class="btn principal" data-clic="suite-niveau">Continuer ▶</button>
+      ${Jeu.equipe.some(p => p.choixSorts && p.choixSorts.length) ? '<button class="btn" disabled>Choisissez d\'abord les nouveaux sorts</button>' : '<button class="btn principal" data-clic="suite-niveau">Continuer ▶</button>'}
     </div>`;
   },
 
@@ -860,9 +885,10 @@ const Ui = {
   },
 
   choisirActionAOublier(index, pj, offre, source = 'recompense') {
-    this.modal(`<h2>${pj.icone} ${pj.nom} connaît déjà ${MAX_ACTIONS} actions</h2>
-      <p>Pour apprendre <b>${offre.titre}</b>, choisissez l'action à oublier :</p>
+    this.modal(`<h2>${pj.icone} ${pj.nom} a déjà ${maxActions(pj)} actions préparées</h2>
+      <p>Pour préparer <b>${offre.titre}</b>, choisissez l'action à <b>ranger dans le grimoire</b> (rien n'est perdu : vous pourrez la reprendre hors combat, depuis 👥 Équipe) :</p>
       <div class="liste-oubli">${pj.actions.map(id => `<button class="btn bloc" data-oublier="${id}" data-offre-index="${index}" data-source="${source}">${this.ligneAction(ACTIONS[id])}</button>`).join('')}</div>
+      <button class="btn" data-oublier="__grimoire__" data-offre-index="${index}" data-source="${source}">📖 Ranger ${offre.titre} directement dans le grimoire</button>
       <button class="btn" data-clic="fermer">Annuler</button>`);
   },
 
@@ -1033,6 +1059,9 @@ const Ui = {
         return;
       case 'test-off': Progression.basculerTest(false); return this.rendu();
       case 'defi': return Jeu.lancerDefi();
+      case 'ranger': Jeu.rangerAction(t.dataset.pj, t.dataset.act); return this.fenetreEquipe();
+      case 'preparer': Jeu.preparerAction(t.dataset.pj, t.dataset.act); return this.fenetreEquipe();
+      case 'choix-sort': Jeu.choisirSort(t.dataset.pj, t.dataset.act); Son.jouer('objet'); return this.rendu();
       case 'suite-niveau': return Jeu.apresNiveau();
       case 'aleatoire': return Jeu.equipeAleatoire();
       case 'partir': return Jeu.partir();
