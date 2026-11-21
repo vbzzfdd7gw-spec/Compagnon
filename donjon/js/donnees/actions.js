@@ -607,6 +607,33 @@ const ACTIONS = {
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 'sort', degats: '2d10+3', typeDeg: 'radiant', moitie: true,
     desc: 'Conduit divin, une fois par combat. Tous les ennemis : sauvegarde de CON, 2d10+3 radiant (moitié si réussite).'
   },
+  bouclier_arcane: {
+    nom: 'Bouclier arcanique', icone: '🔰', type: 'soutien', actionBonus: true, parCombat: 2,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'bouclier', duree: 1 },
+    desc: 'Action bonus, deux fois par combat. Sort de bouclier : +5 CA jusqu\'à son prochain tour.'
+  },
+  presence_conquerante: {
+    nom: 'Présence conquérante', icone: '👑', type: 'sauvegarde', parCombat: 1, zone: true, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'etourdi', duree: 1 }, effroi: 30,
+    desc: 'Conduit divin, une fois par combat. Tous les ennemis : sauvegarde de SAG ou étourdis 1 tour ; +30 Peur aux monstres (moitié si réussite).'
+  },
+  main_guerison: {
+    nom: 'Main de guérison', icone: '🤲', type: 'soin', actionBonus: true, parCombat: 3,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], soin: '1d6+3',
+    desc: 'Action bonus, trois fois par combat. Un allié (même à terre) récupère 1d6+3 PV.'
+  },
+  regard_hypnotique: {
+    nom: 'Regard hypnotique', icone: '👁️', type: 'sauvegarde', parCombat: 2, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'charme', duree: 2 },
+    desc: 'Deux fois par combat. Une cible : sauvegarde de SAG ou charmée 2 tours (perd ses tours, libérée si elle est blessée).'
+  },
+  lame_pacte: {
+    nom: 'Lame du pacte', icone: '🗡️', type: 'attaque', arme: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'sort', degats: '1d10+3', typeDeg: 'tranchant',
+    desc: 'Corps à corps. Attaque avec son Charisme : 1d10+3 tranchant.'
+  },
   // ------------------------------ ARTIFICIER ----------------------------
   arbalete_artificier: {
     nom: 'Arbalète à répétition', icone: '🏹', type: 'attaque', arme: true,
