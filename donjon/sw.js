@@ -1,7 +1,7 @@
 // Cryptes & Dés : hors connexion.
 //  - pages, scripts et styles : réseau d'abord (dernière version), cache en secours ;
 //  - bibliothèques et modèles 3D (lourds) : cache d'abord, mise à jour en arrière-plan.
-const V = 'cd-30';
+const V = 'cd-31';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('cd-') && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim()));
