@@ -18,47 +18,67 @@ const Reglages = {
 };
 Reglages.charger();
 
+// Piste muette (0,25 s) jouée en boucle pour débloquer l'audio d'iOS
+const SILENCE_WAV = 'data:audio/wav;base64,UklGRvQHAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdAHAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+
 const Son = {
   ctx: null, maitre: null, busSons: null, busMusique: null, reverb: null,
   humeur: null, minuterie: null, prochainTemps: 0, pas: 0,
 
   debloquer() {
+    // iOS 17+ : jouer même quand l'iPhone est en mode silencieux
+    try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch (e) { /* rien */ }
+    // Toutes versions d'iOS : une piste muette en boucle fait passer la page en « lecture »,
+    // ce qui rend l'audio audible même avec le bouton silencieux
     try {
-      // iOS 17+ : jouer même quand l'iPhone est en mode silencieux
-      if (navigator.audioSession && navigator.audioSession.type !== 'playback') { try { navigator.audioSession.type = 'playback'; } catch (e) { /* rien */ } }
+      if (!this.ancre) {
+        this.ancre = new Audio(SILENCE_WAV);
+        this.ancre.loop = true;
+        this.ancre.setAttribute('playsinline', '');
+        this.ancre.volume = 0.01;
+      }
+      if (this.ancre.paused) { const p = this.ancre.play(); if (p && p.catch) p.catch(() => {}); }
+    } catch (e) { /* rien */ }
+    try {
       // Contexte fermé par le système : on en recrée un
       if (this.ctx && this.ctx.state === 'closed') { clearInterval(this.minuterie); this.ctx = null; this.humeur = null; }
-      if (!this.ctx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-        this.ctx = new AC();
-        const c = this.ctx;
-        this.maitre = c.createGain(); this.maitre.gain.value = 0.9; this.maitre.connect(c.destination);
-        // Réverbération de crypte (réponse impulsionnelle générée)
-        this.reverb = c.createConvolver();
-        const n = c.sampleRate * 2.6, ir = c.createBuffer(2, n, c.sampleRate);
-        for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.6); }
-        this.reverb.buffer = ir;
-        const retour = c.createGain(); retour.gain.value = 0.35;
-        this.reverb.connect(retour); retour.connect(this.maitre);
-        this.busSons = c.createGain(); this.busSons.connect(this.maitre); this.busSons.connect(this.reverb);
-        this.busMusique = c.createGain(); this.busMusique.gain.value = 0.32; this.busMusique.connect(this.maitre); this.busMusique.connect(this.reverb);
-        this.bruit = c.createBuffer(1, c.sampleRate, c.sampleRate);
-        const d = this.bruit.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-        this.majVolumes();
-      }
+      if (!this.ctx) this.creerContexte();
+      if (!this.ctx) return;
       // iOS met l'audio en « interrupted » quand on quitte l'app ou verrouille l'écran : on relance dans tous les cas
       if (this.ctx.state !== 'running') {
         const p = this.ctx.resume();
         if (p && p.catch) p.catch(() => {});
-        // Débloque iOS : un son vide joué pendant le geste de l'utilisateur
-        const src = this.ctx.createBufferSource();
+        const src = this.ctx.createBufferSource();   // son vide joué pendant le geste (débloque iOS)
         src.buffer = this.ctx.createBuffer(1, 1, 22050);
         src.connect(this.ctx.destination);
         src.start(0);
       }
       if (this.humeurVoulue !== undefined && this.humeur !== this.humeurVoulue) this.ambiance(this.humeurVoulue);
     } catch (e) { /* audio indisponible */ }
+  },
+
+  // Graphe audio : construit entièrement avant d'être utilisé (une erreur ne laisse pas un contexte à moitié prêt)
+  creerContexte() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const c = new AC();
+    const maitre = c.createGain(); maitre.gain.value = 0.9; maitre.connect(c.destination);
+    const busSons = c.createGain(); busSons.connect(maitre);
+    const busMusique = c.createGain(); busMusique.gain.value = 0.32; busMusique.connect(maitre);
+    let reverb = null;
+    try {   // réverbération de crypte (facultative)
+      reverb = c.createConvolver();
+      const n = Math.floor(c.sampleRate * 2.6), ir = c.createBuffer(2, n, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.6); }
+      reverb.buffer = ir;
+      const retour = c.createGain(); retour.gain.value = 0.35;
+      reverb.connect(retour); retour.connect(maitre);
+      busSons.connect(reverb); busMusique.connect(reverb);
+    } catch (e) { reverb = null; }
+    const bruit = c.createBuffer(1, c.sampleRate, c.sampleRate);
+    const d = bruit.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    Object.assign(this, { ctx: c, maitre, busSons, busMusique, reverb, bruit });
+    this.majVolumes();
   },
 
   majVolumes() {
@@ -73,6 +93,7 @@ const Son = {
     Reglages.sauver();
     this.debloquer();
     this.majVolumes();
+    if (quoi === 'sons' && Reglages.sons) setTimeout(() => this.jouer('objet'), 60);   // confirmation audible
   },
 
   // ------------------------------------------------------- briques
@@ -169,7 +190,7 @@ const Son = {
     if (!humeur) return;
     this.pas = 0;
     this.prochainTemps = this.ctx.currentTime + 0.1;
-    this.minuterie = setInterval(() => this.programmer(), 100);
+    this.minuterie = setInterval(() => { try { this.programmer(); } catch (e) { /* une note ratée ne coupe pas la musique */ } }, 100);
   },
 
   // Thème musical (campagne / étage) : change la gamme, le tempo et les timbres sans couper la musique
