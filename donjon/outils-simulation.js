@@ -27,7 +27,7 @@ function iaPJ(cb, a) {
   // 1) Soins si un allié est à terre ou bas
   const blesses = cb.pjs.filter(p => p.pv <= 0 || p.pv < p.pvMax * 0.35).sort((x, y) => x.pv / x.pvMax - y.pv / y.pvMax);
   if (blesses.length) {
-    for (const id of ['priere_soins', 'imposition', 'mot_guerison', 'elixir', 'soins', 'second_souffle', 'plenitude', 'cri_ralliement', 'potion_sup', 'potion']) {
+    for (const id of ['baume_ete', 'priere_soins', 'imposition', 'mot_guerison', 'elixir', 'soins', 'second_souffle', 'plenitude', 'cri_ralliement', 'potion_sup', 'potion']) {
       if (!ids.includes(id)) continue;
       const act = ACTIONS[id];
       if ((id === 'second_souffle' || id === 'plenitude') && a.pv > a.pvMax * 0.5) continue;
@@ -39,11 +39,12 @@ function iaPJ(cb, a) {
   }
   // 1 bis) Capacités de soutien utiles
   if (ids.includes('rage') && !a.etats.rage) return [ACTIONS.rage, null];
-  for (const b of ['forme_ours', 'arme_sacree', 'pas_ombre', 'canon_occulte']) if (ids.includes(b) && !(b === 'pas_ombre' && a.etats.cache)) return [ACTIONS[b], null];
+  for (const b of ['forme_ours', 'arme_sacree', 'pas_ombre', 'canon_occulte', 'esprit_combatif']) if (ids.includes(b) && !(b === 'pas_ombre' && a.etats.cache)) return [ACTIONS[b], null];
   if (ids.includes('sort_intensifie') && cb.emplacementDispo(a, 1)) return [ACTIONS.sort_intensifie, null];
   if (ids.includes('sort_jumele') && cb.ennemis.filter(e => e.pv > 0).length > 1) return [ACTIONS.sort_jumele, null];
   if (ids.includes('source_magie') && a.emplacements[1] && a.emplacements[1].restant < a.emplacements[1].max) return [ACTIONS.source_magie, null];
   if (ids.includes('infusion_arme')) { const cs = cb.ciblesValides(a, ACTIONS.infusion_arme).filter(p => !p.etats.infuse && p.bonusArme >= 5 && p.ligne === 'avant'); if (cs.length) return [ACTIONS.infusion_arme, cs[0]]; }
+  if (ids.includes('manteau_inspiration') && cb.pjs.filter(p => p.pv > 0 && p.pv < p.pvMax * 0.7).length >= 2) return [ACTIONS.manteau_inspiration, null];
   if (ids.includes('aide') && cb.pjs.filter(p => p.pv > 0 && p.pv < p.pvMax * 0.6).length >= 2) return [ACTIONS.aide, null];
   if (ids.includes('voeu_inimitie')) { const cs = cb.ciblesValides(a, ACTIONS.voeu_inimitie).sort((x, y) => y.pv - x.pv); if (cs.length) return [ACTIONS.voeu_inimitie, cs[0]]; }
   for (const mq of ['marque_chasseur', 'malefice']) if (ids.includes(mq) && !cb.ennemis.some(e => e.marquePar === a.id && e.pv > 0)) {

@@ -38,6 +38,8 @@
 //   tenebreux         : tue → PV temporaires (3 + niveau)
 //   espritEveille     : ses dégâts psychiques ajoutent 15 Peur aux monstres
 //   penseesEnvahissantes : un monstre terrifié subit 3d6 psychique
+//   audace            : sournoise en duel (ligne Avant contre ligne Avant)
+//   presage (n)       : n fois par combat, un allié relance une sauvegarde ratée
 // =====================================================================
 
 const SOUS_CLASSES = {
@@ -48,7 +50,11 @@ const SOUS_CLASSES = {
     { id: 'maitre_guerre', nom: 'Maître de guerre', icone: '♟️', desc: 'Manœuvres tactiques avec des dés de supériorité.', deblocage: 'crypte',
       details: ['Croc-en-jambe remplace Coup de bouclier : +1d8 dégâts et renverse (4 dés de supériorité, récupérés au repos court).', 'Niv. 5 — Riposte : quand un ennemi le rate au corps à corps, il contre-attaque (une fois par round).'],
       remplace: { coup_bouclier: 'croc_en_jambe' }, ressources: { superiorite: 4 }, reposCourt: ['superiorite'],
-      niv5: { traits: { riposte: true }, texte: 'Riposte (contre-attaque quand on le rate)' } }
+      niv5: { traits: { riposte: true }, texte: 'Riposte (contre-attaque quand on le rate)' } },
+    { id: 'samourai', nom: 'Samouraï', icone: '🎌', desc: 'Esprit combatif : frappe avec avantage et encaisse.', deblocage: 'givre',
+      details: ['Esprit combatif (action bonus, 3 fois par repos long) : avantage à sa prochaine attaque et 5 PV temporaires (+ niveau).', 'Niv. 5 — Esprit indomptable : 4 utilisations et +3 initiative.'],
+      ajoute: ['esprit_combatif'], ressources: { combatif: 3 },
+      niv5: { ressources: { combatif: 4 }, traits: { init: 3 }, texte: 'Esprit indomptable (4 utilisations, +3 initiative)' } }
   ],
   clerc: [
     { id: 'vie', nom: 'Domaine de la Vie', icone: '💗', desc: 'Le meilleur soigneur du jeu.',
@@ -61,7 +67,10 @@ const SOUS_CLASSES = {
     { id: 'guerre', nom: 'Domaine de la Guerre', icone: '⚔️', desc: 'Prêtre combattant de première ligne.', deblocage: 'dragon',
       details: ['Prêtre de guerre remplace la Masse d\'armes : deux coups de masse d\'un coup, une fois par combat (sinon, Flamme sacrée).', 'Niv. 5 — Frappe divine : ses attaques d\'arme infligent +1d6 radiant.'],
       remplace: { masse: 'pretre_guerre' },
-      niv5: { traits: { armeElem: { des: '1d6', type: 'radiant' } }, texte: 'Frappe divine (+1d6 radiant aux armes)' } }
+      niv5: { traits: { armeElem: { des: '1d6', type: 'radiant' } }, texte: 'Frappe divine (+1d6 radiant aux armes)' } },
+    { id: 'lumiere', nom: 'Domaine de la Lumière', icone: '☀️', desc: 'Brûle les ténèbres dans un éclat radiant.', deblocage: 'chateau',
+      details: ['Radiance de l\'aube (une fois par combat) : tous les ennemis, sauvegarde de CON, 2d10+3 radiant (moitié si réussite).', 'Niv. 5 — Incantation puissante : +3 aux dégâts de ses sorts radiants.'],
+      ajoute: ['radiance_aube'], niv5: { traits: { affinite: { type: 'radiant', bonus: 3 } }, texte: 'Incantation puissante (radiant +3)' } }
   ],
   roublard: [
     { id: 'voleur', nom: 'Voleur', icone: '💰', desc: 'Utilise le sac sans perdre son tour.',
@@ -69,7 +78,10 @@ const SOUS_CLASSES = {
       traits: { mainsLestes: true }, niv5: { traits: { orMult: 0.25, init: 3 }, texte: 'Pillard (+25 % d\'or, +3 initiative)' } },
     { id: 'assassin', nom: 'Assassin', icone: '🗡️', desc: 'Frappe mortelle avant que l\'ennemi ne bouge.', deblocage: 'crypte',
       details: ['Assassinat : avantage contre les ennemis qui n\'ont pas encore joué ; au 1er round, ses attaques qui les touchent sont des critiques.', 'Niv. 5 — Empoisonneur : l\'attaque sournoise empoisonne la cible (sauvegarde de CON).'],
-      traits: { assassin: true, init: 2 }, niv5: { traits: { empoisonneur: true }, texte: 'Empoisonneur (la sournoise empoisonne)' } }
+      traits: { assassin: true, init: 2 }, niv5: { traits: { empoisonneur: true }, texte: 'Empoisonneur (la sournoise empoisonne)' } },
+    { id: 'bretteur', nom: 'Bretteur', icone: '🤺', desc: 'Duelliste audacieux, sournois même sans allié.', deblocage: 'cote',
+      details: ['Audace : en ligne Avant, son attaque sournoise marche contre la ligne Avant ennemie même sans allié au contact ; +3 initiative et +1 CA (jeu de jambes).', 'Niv. 5 — Panache : contre-attaque quand un ennemi le rate au corps à corps.'],
+      ca: 1, traits: { audace: true, init: 3 }, niv5: { traits: { riposte: true }, texte: 'Panache (riposte)' } }
   ],
   magicien: [
     { id: 'evocation', nom: 'École d\'Évocation', icone: '💥', desc: 'Des sorts de dégâts plus puissants.',
@@ -81,7 +93,10 @@ const SOUS_CLASSES = {
       niv5: { traits: { moisson: 3 }, texte: 'Moisson macabre ×3' } },
     { id: 'abjuration', nom: 'École d\'Abjuration', icone: '💠', desc: 'Un bouclier magique qui se recharge.', deblocage: 'toiles',
       details: ['Égide arcanique : commence chaque combat avec un bouclier de 2 × niveau + 3 PV (absorbe les dégâts). Chaque sort à emplacement la recharge de 2 × niveau du sort.', 'Niv. 5 — l\'égide passe à 2 × niveau + 6.'],
-      traits: { egide: 3 }, niv5: { traits: { egide: 6 }, texte: 'Égide renforcée' } }
+      traits: { egide: 3 }, niv5: { traits: { egide: 6 }, texte: 'Égide renforcée' } },
+    { id: 'divination', nom: 'École de Divination', icone: '🔮', desc: 'Ses présages sauvent l\'équipe des sorts et poisons.', deblocage: 'tombeau',
+      details: ['Présage : deux fois par combat, un allié qui rate une sauvegarde la relance aussitôt.', 'Niv. 5 — Présage majeur : trois fois par combat.'],
+      traits: { presage: 2 }, niv5: { traits: { presage: 3 }, texte: 'Présage majeur (3 par combat)' } }
   ],
   barbare: [
     { id: 'berserker', nom: 'Voie du Berserker', icone: '🩸', desc: 'Frénésie : frappe plus souvent en rage.',
@@ -100,7 +115,10 @@ const SOUS_CLASSES = {
       ajoute: ['arme_sacree'], niv5: { traits: { auraCourage: true }, texte: 'Aura de courage (Peur de l\'équipe ÷2)' } },
     { id: 'vengeance', nom: 'Serment de Vengeance', icone: '🔥', desc: 'Traque un ennemi et venge ses alliés.', deblocage: 'horde',
       details: ['Vœu d\'inimitié (en plus de Bénédiction) : action bonus, avantage à ses attaques contre un ennemi pendant 3 tours (une fois par combat).', 'Niv. 5 — Vengeur : quand un allié tombe, il gagne +2 au toucher et aux dégâts jusqu\'à la fin du combat.'],
-      ajoute: ['voeu_inimitie'], niv5: { traits: { vengeur: true }, texte: 'Vengeur (+2 toucher et dégâts quand un allié tombe)' } }
+      ajoute: ['voeu_inimitie'], niv5: { traits: { vengeur: true }, texte: 'Vengeur (+2 toucher et dégâts quand un allié tombe)' } },
+    { id: 'anciens', nom: 'Serment des Anciens', icone: '🌿', desc: 'Gardien de la lumière et de la nature.', deblocage: 'marais',
+      details: ['Colère de la nature : apprend Enchevêtrement.', 'Niv. 5 — Aura de garde : résistance aux dégâts nécrotiques, psychiques et radiants.'],
+      ajoute: ['enchevetrement'], niv5: { traits: { resist: ['nécrotique', 'psychique', 'radiant'] }, texte: 'Aura de garde (résistance nécrotique, psychique, radiant)' } }
   ],
   rodeur: [
     { id: 'chasseur', nom: 'Chasseur', icone: '🎯', desc: 'Achève les cibles blessées.',
@@ -119,7 +137,10 @@ const SOUS_CLASSES = {
       traits: { motsCinglants: true }, niv5: { sort: 'boule_feu', texte: 'Secrets magiques : Boule de feu' } },
     { id: 'vaillance', nom: 'Collège de la Vaillance', icone: '🛡️', desc: 'Barde guerrier qui galvanise l\'équipe.', deblocage: 'horde',
       details: ['+2 CA (armure intermédiaire et bouclier).', 'Inspiration de combat : un allié inspiré ajoute aussi 1d6 aux dégâts de son attaque.', 'Niv. 5 — Attaque supplémentaire.'],
-      ca: 2, traits: { inspirationCombat: true }, niv5: { traits: { attaqueSupp: true }, texte: 'Attaque supplémentaire' } }
+      ca: 2, traits: { inspirationCombat: true }, niv5: { traits: { attaqueSupp: true }, texte: 'Attaque supplémentaire' } },
+    { id: 'glamour', nom: 'Collège du Glamour', icone: '💫', desc: 'Une aura féerique protège et rassure l\'équipe.', deblocage: 'toiles',
+      details: ['Manteau d\'inspiration (une fois par combat) : chaque allié gagne 5 PV temporaires (+ niveau) et perd 10 Peur.', 'Niv. 5 — Manteau de majesté : apprend Effroi.'],
+      ajoute: ['manteau_inspiration'], niv5: { action: 'effroi', texte: 'Manteau de majesté (Effroi)' } }
   ],
   druide: [
     { id: 'terre', nom: 'Cercle de la Terre', icone: '⛰️', desc: 'Récupère ses sorts au repos court.',
@@ -130,7 +151,11 @@ const SOUS_CLASSES = {
       remplace: { enchevetrement: 'forme_ours' }, ajoute: ['griffes_ours'], ressources: { forme: 2 }, reposCourtUn: ['forme'],
       traits: { formeOurs: 12 },
       niv4: { ressources: { forme: 3 }, traits: { formeOurs: 16 }, texte: 'Forme d\'ours : 3 charges, 16 PV temporaires' },
-      niv5: { ressources: { forme: 4 }, traits: { formeOurs: 20, griffes2: true }, texte: 'Ours redoutable : 4 charges, 20 PV temporaires, 2 coups de griffes' } }
+      niv5: { ressources: { forme: 4 }, traits: { formeOurs: 20, griffes2: true }, texte: 'Ours redoutable : 4 charges, 20 PV temporaires, 2 coups de griffes' } },
+    { id: 'reves', nom: 'Cercle des Rêves', icone: '🌸', desc: 'Soigne en action bonus grâce à la cour d\'été.', deblocage: 'abime',
+      details: ['Baume de la cour d\'été (action bonus, 2 charges par repos long) : un allié récupère 1d6+3 PV.', 'Niv. 5 — 3 charges et +2 à tous ses soins.'],
+      ajoute: ['baume_ete'], ressources: { baume: 2 },
+      niv5: { ressources: { baume: 3 }, bonusSoin: 2, texte: 'Baume renforcé (3 charges, +2 aux soins)' } }
   ],
   moine: [
     { id: 'main_ouverte', nom: 'Voie de la Main ouverte', icone: '✋', desc: 'Ses rafales renversent l\'ennemi.',
@@ -139,7 +164,10 @@ const SOUS_CLASSES = {
       niv5: { action: 'plenitude', texte: 'Plénitude physique' } },
     { id: 'ombre', nom: 'Voie de l\'Ombre', icone: '🌑', desc: 'Se cache et frappe depuis les ténèbres.', deblocage: 'eclipse',
       details: ['Pas de l\'ombre remplace Défense patiente : action bonus, devient caché (avantage à sa prochaine attaque), une fois par combat.', 'Niv. 5 — Voile d\'ombre : la première attaque qui le toucherait à chaque combat rate.'],
-      remplace: { defense_patiente: 'pas_ombre' }, niv5: { traits: { voile: true }, texte: 'Voile d\'ombre' } }
+      remplace: { defense_patiente: 'pas_ombre' }, niv5: { traits: { voile: true }, texte: 'Voile d\'ombre' } },
+    { id: 'elements', nom: 'Voie des Quatre Éléments', icone: '🌊', desc: 'Plie les éléments pour frapper toute une ligne.', deblocage: 'givre',
+      details: ['Poing des quatre tonnerres (deux fois par combat) : 2d6 tonnerre sur toute la ligne Avant ennemie, qui recule.', 'Niv. 5 — Poings de l\'hiver : +1d6 froid à ses attaques d\'arme.'],
+      ajoute: ['frappe_elements'], niv5: { traits: { armeElem: { des: '1d6', type: 'froid' } }, texte: 'Poings de l\'hiver (+1d6 froid)' } }
   ],
   ensorceleur: [
     { id: 'draconique', nom: 'Lignée draconique', icone: '🐲', desc: 'Écailles protectrices, sorts de feu dévastateurs.',
@@ -147,7 +175,11 @@ const SOUS_CLASSES = {
       pv: 3, ca: 2, niv5: { traits: { affinite: { type: 'feu', bonus: 3 }, resist: ['feu'] }, texte: 'Affinité élémentaire (feu +3, résistance)' } },
     { id: 'sauvage', nom: 'Magie sauvage', icone: '🎲', desc: 'Un sort sur trois déclenche un effet imprévisible.', deblocage: 'cote',
       details: ['Montée de magie sauvage : après un sort à emplacement, 1 chance sur 3 d\'un effet au hasard (soin, explosion sur les ennemis, emplacement récupéré, bouclier… ou une boule de feu qui touche aussi l\'équipe !).', 'Source de magie remplace Sort intensifié.', 'Niv. 5 — Contrôle du chaos : 1 chance sur 2, et les effets néfastes sont relancés une fois.'],
-      remplace: { sort_intensifie: 'source_magie' }, traits: { magieSauvage: 0.34 }, niv5: { traits: { magieSauvage: 0.5, controleChaos: true }, texte: 'Contrôle du chaos' } }
+      remplace: { sort_intensifie: 'source_magie' }, traits: { magieSauvage: 0.34 }, niv5: { traits: { magieSauvage: 0.5, controleChaos: true }, texte: 'Contrôle du chaos' } },
+    { id: 'tempete', nom: 'Sorcellerie des tempêtes', icone: '⛈️', desc: 'La foudre punit qui l\'approche.', deblocage: 'givre',
+      details: ['Fureur de la tempête : foudroie deux fois par combat qui le frappe au corps à corps ; résistance à la foudre ; +2 aux dégâts de ses sorts de foudre.', 'Niv. 5 — Cœur de la tempête : +4 aux dégâts de ses sorts de foudre, résistance au tonnerre.'],
+      ajoute: ['poigne_electrique'], traits: { colereTempete: 2, resist: ['foudre'], affinite: { type: 'foudre', bonus: 2 } },
+      niv5: { traits: { affinite: { type: 'foudre', bonus: 4 }, resist: ['tonnerre'] }, texte: 'Cœur de la tempête (foudre +4)' } }
   ],
   artificier: [
     { id: 'artilleur', nom: 'Artilleur', icone: '💣', desc: 'Un canon occulte combat à ses côtés.',
@@ -167,13 +199,26 @@ const SOUS_CLASSES = {
     { id: 'grand_ancien', nom: 'Pacte du Grand Ancien', icone: '🐙', desc: 'Fait monter la Peur des monstres.', deblocage: 'eclipse',
       details: ['Les monstres ont une jauge de Peur face à lui : 😟 Ébranlé à 50 (−2 au toucher et aux sauvegardes), 😱 Terrifié à 100 (un monstre ordinaire s\'enfuit ; un élite ou un boss perd son tour et retombe à 50). Morts-vivants et boss n\'en subissent que la moitié ; chaque monstre reprend 5 de courage par tour.', 'Esprit éveillé : ses dégâts psychiques ajoutent 15 Peur à la cible.', 'Chuchotements remplace Maléfice (tour de magie psychique) ; Murmures déments remplace Bras d\'Hadar (triangle de 3 ennemis, +20 Peur).', 'Niv. 5 — Pensées envahissantes : un monstre terrifié subit 3d6 psychique.'],
       remplace: { malefice: 'chuchotements', bras_hadar: 'murmures_dements' }, traits: { espritEveille: 15 },
-      niv5: { traits: { penseesEnvahissantes: true }, texte: 'Pensées envahissantes (3d6 aux monstres terrifiés)' } }
+      niv5: { traits: { penseesEnvahissantes: true }, texte: 'Pensées envahissantes (3d6 aux monstres terrifiés)' } },
+    { id: 'archifee', nom: 'Pacte de l\'Archifée', icone: '🧚', desc: 'Charme les ennemis et s\'évapore dans la brume.', deblocage: 'marais',
+      details: ['Présence féerique (une fois par combat) : tous les ennemis, sauvegarde de SAG ou charmés 1 tour.', 'Niv. 5 — Échappée brumeuse : la première attaque qui le toucherait à chaque combat rate.'],
+      ajoute: ['presence_feerique'], niv5: { traits: { voile: true }, texte: 'Échappée brumeuse (voile)' } }
   ]
 };
 
 // Niveau 6 : seconde capacité de chaque sous-classe (mêmes champs que niv5,
 // plus pv, ca et ressources)
 const NIV6_SOUS_CLASSES = {
+  'guerrier/samourai': { traits: { critAmeliore: 1 }, texte: 'Frappe rapide (critique sur 19-20)' },
+  'roublard/bretteur': { traits: { reduction: 2 }, texte: 'Élégance (−2 à chaque coup subi)' },
+  'paladin/anciens': { traits: { survivant: 5 }, texte: 'Sentinelle immortelle (5 PV par tour sous la moitié des PV)' },
+  'barde/glamour': { traits: { reduction: 2 }, texte: 'Beauté inébranlable (−2 à chaque coup subi)' },
+  'druide/reves': { ressources: { baume: 4 }, texte: 'Havre des rêves (4 charges de baume)' },
+  'moine/elements': { traits: { resist: ['feu', 'froid'] }, texte: 'Corps élémentaire (résistance au feu et au froid)' },
+  'ensorceleur/tempete': { traits: { colereTempete: 4, affinite: { type: 'foudre', bonus: 6 } }, texte: 'Œil du cyclone (4 colères, foudre +6)' },
+  'occultiste/archifee': { traits: { reduction: 3 }, texte: 'Défenses séduisantes (−3 à chaque coup subi)' },
+  'clerc/lumiere': { traits: { affinite: { type: 'radiant', bonus: 5 } }, texte: 'Embrasement (radiant +5)' },
+  'magicien/divination': { traits: { presage: 4, init: 3 }, texte: 'Troisième œil (4 présages, +3 initiative)' },
   'guerrier/champion': { traits: { critAmeliore: 2 }, texte: 'Critique supérieur (critique sur 18-20)' },
   'guerrier/maitre_guerre': { ressources: { superiorite: 6 }, texte: 'Supériorité accrue (6 dés de supériorité)' },
   'clerc/vie': { bonusSoin: 2, texte: 'Soins bénis (+2 à tous ses soins)' },

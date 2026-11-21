@@ -12,7 +12,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/des.js` | Lancers de dés (`Des.lancer('2d6+3')`, `Des.d20(avantage)`) et hasard réglable (`Hasard.graine(n)` / `alea()` : toute la logique du jeu tire ses nombres là, ce qui rend le défi quotidien identique pour tous) |
 | `js/donnees/actions.js` | Toutes les actions des PJ (format documenté en tête de fichier) |
 | `js/donnees/classes.js` | Les 13 classes (dont Ensorceleur à métamagie et Artificier) (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`, niveaux 4 à 7), l'expérience (`GAINS_XP`, `SEUILS_XP`) |
-| `js/donnees/sousclasses.js` | Les 2 ou 3 sous-classes de chaque classe (`SOUS_CLASSES`) : capacités, actions remplacées, gains au niveau 5, campagne qui les débloque |
+| `js/donnees/sousclasses.js` | Les 3 ou 4 sous-classes de chaque classe (41 en tout) (`SOUS_CLASSES`) : capacités, actions remplacées, gains au niveau 5, campagne qui les débloque |
 | `js/donnees/monstres.js` | Monstres, boss et listes de rencontres |
 | `js/donnees/objets.js` | Objets magiques, améliorations, génération des récompenses |
 | `js/donnees/evenements.js` | Événements à choix (cases ❓) ; ceux qui ont un champ `campagne` n'apparaissent que dans cette campagne (et sortent en priorité) |
@@ -81,7 +81,7 @@ En combat, quand un sort est sélectionné et que le héros a des emplacements p
 les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire, le niveau moyen de l'équipe à chaque boss et les PV perdus par combat (`XP=1` affiche aussi l'XP au boss ; `SANS_ELITE=1` retire le renfort des élites).
 `node outils-simulation.js 2000 crypte sousclasses` fait de même avec des sous-classes au hasard et affiche le taux de chaque sous-classe ;
 `SC_SEUL=clerc:vie node outils-simulation.js 800 crypte classes` donne la sous-classe à une seule classe (comparaison avec `SANS_SC=1`).
-Réglage actuel (sous-classes au hasard) : Crypte 50 %, Éclipse 37 %, Marais 37 %, Côtes 32 %, Souterrains 29 %, Givre 28 %, Dragon 28 %, Abîme 19 %, Légion 18 %, Château 17 %, Tombeau 17 %, Toiles 16 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
+Réglage actuel (sous-classes au hasard) : Crypte 50 %, Marais 36 %, Souterrains 36 %, Éclipse 35 %, Côtes 29 %, Dragon 26 %, Givre 24 %, Toiles 19 %, Château 17 %, Abîme 16 %, Légion 13 %, Tombeau 11 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
 
 ## Mode test
 

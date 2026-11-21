@@ -575,6 +575,38 @@ const ACTIONS = {
     effetSiEchec: { etat: 'etourdi', duree: 2 },
     desc: '🧠 Concentration. Niv. 4. La cible et ses 2 voisins : sauvegarde de SAG ou étourdis 2 tours (l\'effet cesse si la concentration se rompt).'
   },
+  // ------------------------- SOUS-CLASSES SUPPLÉMENTAIRES ------------------
+  esprit_combatif: {
+    nom: 'Esprit combatif', icone: '🎌', type: 'special', special: 'esprit_combatif', ressource: 'combatif', actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    desc: 'Action bonus. Avantage à sa prochaine attaque et 5 PV temporaires (+ niveau). 3 utilisations par repos long.'
+  },
+  manteau_inspiration: {
+    nom: 'Manteau d\'inspiration', icone: '💫', type: 'special', special: 'manteau_inspiration', parCombat: 1, zone: true,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
+    desc: 'Une fois par combat. Une aura féerique enveloppe l\'équipe : chaque allié debout gagne 5 PV temporaires (+ niveau) et perd 10 Peur.'
+  },
+  baume_ete: {
+    nom: 'Baume de la cour d\'été', icone: '🌸', type: 'soin', sort: true, ressource: 'baume', actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], soin: '1d6+3',
+    desc: 'Action bonus. Un allié (même à terre) récupère 1d6+3 PV. 2 charges par repos long (plus aux niveaux 5 et 6).'
+  },
+  frappe_elements: {
+    nom: 'Poing des quatre tonnerres', icone: '🌊', type: 'attaque', arme: true, zone: true, parCombat: 2,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'arme', degats: '2d6', typeDeg: 'tonnerre', recul: 1,
+    desc: 'Deux fois par combat. Une onde élémentaire frappe toute la ligne Avant ennemie : 2d6 tonnerre et repousse.'
+  },
+  presence_feerique: {
+    nom: 'Présence féerique', icone: '🧚', type: 'sauvegarde', parCombat: 1, zone: true, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'charme', duree: 1 },
+    desc: 'Une fois par combat. Tous les ennemis : sauvegarde de SAG ou charmés 1 tour (perdent leur tour, libérés s\'ils sont blessés).'
+  },
+  radiance_aube: {
+    nom: 'Radiance de l\'aube', icone: '☀️', type: 'sauvegarde', parCombat: 1, zone: true, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 'sort', degats: '2d10+3', typeDeg: 'radiant', moitie: true,
+    desc: 'Conduit divin, une fois par combat. Tous les ennemis : sauvegarde de CON, 2d10+3 radiant (moitié si réussite).'
+  },
   // ------------------------------ ARTIFICIER ----------------------------
   arbalete_artificier: {
     nom: 'Arbalète à répétition', icone: '🏹', type: 'attaque', arme: true,

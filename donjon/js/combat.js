@@ -234,6 +234,7 @@ class Combat {
       const t = pj.traits;
       if (t.cacheDebut) pj.etats.cache = 99;
       pj.indomptableUtilise = false;
+      pj.presagesUtilises = 0;
       if (t.voile) pj.etats.voile = 99;
       if (t.phenix) pj.usages.phenixDispo = true;
       pj.egide = t.egide ? 2 * (pj.niveau || 3) + t.egide : 0;
@@ -955,6 +956,7 @@ class Combat {
     if (mode > 0) return true;
     if (mode < 0) return false;
     if (c.ligne !== 'avant') return false;
+    if (a.traits && a.traits.audace && a.ligne === 'avant') return true;   // Bretteur : duel
     return this.pjs.some(p => p !== a && p.pv > 0 && p.ligne === 'avant');
   }
 
@@ -995,6 +997,17 @@ class Combat {
       txt += ` → 💪 indomptable, relance ${r2.texte}`;
       if (t2 > total) total = t2;
       reussite = total >= dd;
+    }
+    // Divination : un présage remplace le jet raté d'un allié
+    if (!reussite && c.camp === 'pj' && this.pjs) {
+      const devin = this.pjs.find(p => p.pv > 0 && p.traits && p.traits.presage && (p.presagesUtilises || 0) < p.traits.presage);
+      if (devin) {
+        devin.presagesUtilises = (devin.presagesUtilises || 0) + 1;
+        const r3 = Des.d20(mode), t3 = r3.nat + bonus + (mal || 0);
+        txt += ` → 🔮 présage de ${devin.nom}, relance ${r3.texte}`;
+        if (t3 > total) total = t3;
+        reussite = total >= dd;
+      }
     }
     this.evt({ t: 'jet', source: c.id, cible: c.id, nat: r.nat, total, libelle: `${c.nom} · sauvegarde ${carac}`,
       contre: `DD ${dd}`, res: reussite ? 'reussite' : 'echec', mode, sauvegarde: true });
@@ -1504,6 +1517,24 @@ const SPECIAUX = {
     const e = a.emplacements[1];
     if (e && e.restant < e.max) { e.restant++; cb.log(`→ 🌟 ${cb.nomHtml(a)} façonne un emplacement de sort de niveau 1.`, 'bon'); }
     else cb.log('→ Tous ses emplacements de niveau 1 sont déjà pleins.', 'jet rate');
+  },
+
+  esprit_combatif(cb, a) {
+    const pv = 5 + (a.niveau || 3);
+    a.etats.cache = 99;
+    a.egide = Math.max(a.egide || 0, pv);
+    cb.log(`→ 🎌 ${cb.nomHtml(a)} rassemble son esprit combatif : avantage à sa prochaine attaque, ${pv} PV temporaires.`, 'bon');
+    cb.evt({ t: 'texte', cible: a.id, texte: '🎌 Esprit combatif', classe: 'etat' });
+  },
+
+  manteau_inspiration(cb, a, act, cible, cibles) {
+    const pv = 5 + (a.niveau || 3);
+    for (const p of cibles.filter(x => x.pv > 0)) {
+      p.egide = Math.max(p.egide || 0, pv);
+      cb.modifierPeur(p, -10);
+      cb.evt({ t: 'texte', cible: p.id, texte: `💫 +${pv}`, classe: 'etat' });
+    }
+    cb.log(`→ 💫 Une aura féerique enveloppe l'équipe : ${pv} PV temporaires et −10 Peur.`, 'bon');
   },
 
   aide(cb, a, act, cible, cibles) {
