@@ -7,7 +7,7 @@
 //   details                : liste des capacités (texte)
 //   deblocage              : identifiant de la campagne à terminer (absent = libre)
 //   traits                 : capacités passives lues par combat.js (voir plus bas)
-//   pv, ca                 : bonus de PV max et de CA
+//   pv, ca, bonusDegats    : bonus de PV max, de CA et de dégâts d'arme
 //   remplace               : { actionDeBase: nouvelleAction }
 //   ajoute                 : actions ajoutées au départ
 //   ressources             : ressources propres (récupérées au repos long)
@@ -166,7 +166,11 @@ const SOUS_CLASSES = {
       ajoute: ['manteau_inspiration'], niv5: { action: 'effroi', texte: 'Manteau de majesté (Effroi)' } },
     { id: 'murmures', nom: 'Collège des Murmures', icone: '🗣️', desc: 'Ses lames chuchotent des terreurs psychiques.', deblocage: 'abime',
       details: ['Lames psychiques : +1d6 psychique à ses attaques d\'arme.', 'Niv. 5 — Lames affûtées : +2d6 psychique.'],
-      traits: { armeElem: { des: '1d6', type: 'psychique' } }, niv5: { traits: { armeElem: { des: '2d6', type: 'psychique' } }, texte: 'Lames affûtées (+2d6 psychique)' } }
+      traits: { armeElem: { des: '1d6', type: 'psychique' } }, niv5: { traits: { armeElem: { des: '2d6', type: 'psychique' } }, texte: 'Lames affûtées (+2d6 psychique)' } },
+    { id: 'epees', nom: 'Collège des Épées', icone: '⚔️', desc: 'Bretteur de spectacle : ses fioritures tranchent et parent.', deblocage: 'legion',
+      details: ['Style de combat (Duel) : +2 aux dégâts avec les armes.', 'Fioritures de lame (3 dés d\'inspiration, récupérés au repos court) : Fioriture tranchante (la cible et un voisin, +1d6) et Fioriture défensive (+1d6, puis +4 CA jusqu\'à son prochain tour).', 'Niv. 5 — Inspiration intarissable : 4 dés de fioriture.'],
+      ajoute: ['fioriture_tranchante', 'fioriture_defensive'], ressources: { fioritures: 3 }, reposCourt: ['fioritures'], bonusDegats: 2,
+      niv5: { ressources: { fioritures: 4 }, texte: 'Inspiration intarissable (4 dés de fioriture)' } }
   ],
   druide: [
     { id: 'terre', nom: 'Cercle de la Terre', icone: '⛰️', desc: 'Récupère ses sorts au repos court.',
@@ -251,6 +255,7 @@ const SOUS_CLASSES = {
 // Niveau 6 : seconde capacité de chaque sous-classe (mêmes champs que niv5,
 // plus pv, ca et ressources)
 const NIV6_SOUS_CLASSES = {
+  'barde/epees': { traits: { attaqueSupp: true }, texte: 'Attaque supplémentaire (2 coups avec les armes)' },
   'guerrier/chevalier_occulte': { traits: { egide: 5 }, texte: 'Égide de guerre (PV temporaires au début du combat)' },
   'barbare/zelote': { traits: { phenix: true }, texte: 'Rage au-delà de la mort (la première fois qu\'il tombe à chaque combat, il se relève avec 10 PV)' },
   'paladin/conquete': { traits: { reduction: 2 }, texte: 'Esprit implacable (−2 à chaque coup subi)' },
@@ -334,6 +339,7 @@ function appliquerSousClasse(pj, id) {
   pj.sousClasse = sc.id;
   if (sc.pv) { pj.pvMax += sc.pv; pj.pv += sc.pv; }
   if (sc.ca) pj.ca += sc.ca;
+  if (sc.bonusDegats) pj.bonusDegats += sc.bonusDegats;
   for (const [ancien, nouveau] of Object.entries(sc.remplace || {})) {
     const i = pj.actions.indexOf(ancien);
     if (i >= 0) pj.actions[i] = nouveau; else pj.actions.push(nouveau);

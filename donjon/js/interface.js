@@ -409,7 +409,7 @@ const Ui = {
         <span>❤️ ${p.pv}/${p.pvMax} PV</span><span>🛡 CA ${p.ca}</span><span>⚔️ Att ${signe(p.bonusArme)}${p.bonusDegats ? ` (dég. +${p.bonusDegats})` : ''}</span>
         ${p.ddSort ? `<span>✨ Sort ${signe(p.bonusSort)} · DD ${p.ddSort}</span>` : ''}
         <span>🎲 Dés de vie ${p.desVie.restant}/${p.desVie.max} (d${p.desVie.face})</span><span>😨 Peur ${p.peur}/100</span>
-        ${Object.entries(p.ressources || {}).map(([r, n]) => `<span>${({ rage: '😡 Rages', superiorite: '♟️ Supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude', sorcellerie: '✨ Sorcellerie', combatif: '🎌 Esprit combatif', baume: '🌸 Baume' })[r] || r} ${n}</span>`).join('')}
+        ${Object.entries(p.ressources || {}).map(([r, n]) => `<span>${({ rage: '😡 Rages', superiorite: '♟️ Supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude', sorcellerie: '✨ Sorcellerie', combatif: '🎌 Esprit combatif', baume: '🌸 Baume', fioritures: '⚔️ Fioritures' })[r] || r} ${n}</span>`).join('')}
       </div>
       ${this.emplacementsHtml(p)}
       <div class="petit">${car}</div>
@@ -866,7 +866,7 @@ const Ui = {
   // ------------------------------------------------- montée de niveau
   ecranNiveau() {
     const fiches = Jeu.niveauxEnAttente || [], niveauMax = Math.max(...fiches.map(f => f.niveau));
-    const NOMS_RES = { rage: '😡 Rages', superiorite: '♟️ Dés de supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude', sorcellerie: '✨ Points de sorcellerie', combatif: '🎌 Esprit combatif', baume: '🌸 Charges de baume' };
+    const NOMS_RES = { rage: '😡 Rages', superiorite: '♟️ Dés de supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude', sorcellerie: '✨ Points de sorcellerie', combatif: '🎌 Esprit combatif', baume: '🌸 Charges de baume', fioritures: '⚔️ Dés de fioriture' };
     const signe = n => (n >= 0 ? '+' : '') + n;
     const fiche = f => {
       const pj = Jeu.equipe.find(p => p.id === f.pj), a = f.avant, b = f.apres, c = CLASSES[pj.classe];

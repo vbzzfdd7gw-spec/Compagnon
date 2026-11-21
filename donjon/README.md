@@ -12,7 +12,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/des.js` | Lancers de dés (`Des.lancer('2d6+3')`, `Des.d20(avantage)`) et hasard réglable (`Hasard.graine(n)` / `alea()` : toute la logique du jeu tire ses nombres là, ce qui rend le défi quotidien identique pour tous) |
 | `js/donnees/actions.js` | Toutes les actions des PJ (format documenté en tête de fichier) |
 | `js/donnees/classes.js` | Les 13 classes (dont Ensorceleur à métamagie et Artificier) (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`, niveaux 4 à 7), l'expérience (`GAINS_XP`, `SEUILS_XP`) |
-| `js/donnees/sousclasses.js` | Les 4 ou 5 sous-classes de chaque classe (54 en tout) (`SOUS_CLASSES`) : capacités, actions remplacées, gains au niveau 5, campagne qui les débloque |
+| `js/donnees/sousclasses.js` | Les 4 ou 5 sous-classes de chaque classe (55 en tout) (`SOUS_CLASSES`) : capacités, actions remplacées, gains au niveau 5, campagne qui les débloque |
 | `js/donnees/monstres.js` | Monstres, boss et listes de rencontres |
 | `js/donnees/objets.js` | Objets magiques, améliorations, génération des récompenses |
 | `js/donnees/evenements.js` | Événements à choix (cases ❓) ; ceux qui ont un champ `campagne` n'apparaissent que dans cette campagne (et sortent en priorité) |
