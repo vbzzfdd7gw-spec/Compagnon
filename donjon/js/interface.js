@@ -698,7 +698,7 @@ const Ui = {
     const boutons = ids.map(id => {
       const act = ACTIONS[id];
       const d = cb.disponibilite(a, act);
-      const cout = act.niveau ? `niv${act.niveau}` : act.parCombat ? '1×' : act.consommable ? `×${Jeu.stock(act.consommable)}` : act.ressource ? `×${(a.ressources || {})[act.ressource] || 0}` : '';
+      const cout = cb.relanceGratuite(a, act) ? '🧠 gratuit' : act.niveau ? `niv${act.niveau}${act.concentration ? '🧠' : ''}` : act.parCombat ? '1×' : act.consommable ? `×${Jeu.stock(act.consommable)}` : act.ressource ? `×${(a.ressources || {})[act.ressource] || 0}` : '';
       return `<button class="btn-action ${act.commune ? 'commune' : ''} ${this.selection === id ? 'sel' : ''} ${d.ok ? '' : 'indispo'}" data-action="${id}">
         ${cout ? `<span class="cout-coin">${cout}</span>` : ''}
         <span class="ic">${act.icone}</span>
@@ -707,7 +707,7 @@ const Ui = {
       </button>`;
     }).join('');
 
-    let aide = `<b>${a.icone} ${a.nom}</b> · ligne ${cb.nomLigne(a.ligne)}${a.crise ? ` · <span class="mauvais">${CRISES[a.crise].icone} ${CRISES[a.crise].nom}</span>` : a.peur >= PEUR.seuilAnxieux ? ' · <span class="peur-txt">😟 anxieux</span>' : ''} ${Object.keys(a.emplacements).length ? this.emplacementsHtml(a, true) : ''}<br><span class="discret">Choisissez une action.</span>`;
+    let aide = `<b>${a.icone} ${a.nom}</b> · ligne ${cb.nomLigne(a.ligne)}${a.crise ? ` · <span class="mauvais">${CRISES[a.crise].icone} ${CRISES[a.crise].nom}</span>` : a.peur >= PEUR.seuilAnxieux ? ' · <span class="peur-txt">😟 anxieux</span>' : ''} ${Object.keys(a.emplacements).length ? this.emplacementsHtml(a, true) : ''}${a.concentration ? ` · <span class="etat-txt">🧠 ${a.concentration.icone} ${a.concentration.nom}</span>` : ''}<br><span class="discret">Choisissez une action.</span>`;
     if (this.raison) { aide = `<span class="mauvais">⛔ ${this.raison.nom} : ${this.raison.texte}</span><br><span class="discret">${this.raison.desc}</span>`; this.raison = null; }
     if (this.selection) {
       const act = ACTIONS[this.selection];

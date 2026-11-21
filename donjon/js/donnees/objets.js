@@ -5,7 +5,7 @@
 // de le retirer (pour le donner à un autre héros) :
 //   nombres     : ca, pvMax, bonusArme, bonusDegats, bonusSort, ddSort,
 //                 bonusSauv, bonusSoin, emp1, emp2 (emplacements de sorts)
-//   traits      : capacités spéciales lues par le moteur de combat
+//   traits      : capacités spéciales lues par le moteur de combat (mageGuerre : avantage aux sauvegardes de concentration)
 //                 (nombres additionnés, autres valeurs posées / retirées)
 //   rarete      : 'commun', 'rare', 'legendaire' ou 'maudit'
 //   classes     : classes pouvant le porter (null = toutes)
@@ -46,6 +46,7 @@ const OBJETS = {
   dague_venin: { nom: 'Dague venimeuse', icone: '🐍', rarete: 'rare', classes: ['roublard', 'rodeur', 'moine'], desc: '+1 au toucher et +2 aux dégâts avec les armes.', mods: { bonusArme: 1, bonusDegats: 2 } },
   bottes_elfiques: { nom: 'Bottes elfiques', icone: '👢', rarete: 'rare', classes: ['roublard', 'rodeur', 'moine'], desc: 'Commence chaque combat caché (avantage à la première attaque).', mods: { traits: { cacheDebut: true } } },
   pierre_chance: { nom: 'Pierre porte-bonheur', icone: '🍀', rarete: 'rare', classes: null, desc: '+1 aux jets de sauvegarde et aux tests.', mods: { bonusSauv: 1, traits: { bonusTest: 1 } } },
+  anneau_mage_guerre: { nom: 'Anneau du mage de guerre', icone: '💍', rarete: 'rare', classes: ['clerc', 'druide', 'magicien', 'barde', 'occultiste', 'ensorceleur', 'paladin', 'rodeur', 'artificier'], desc: 'Avantage aux sauvegardes de concentration et +1 CA.', mods: { ca: 1, traits: { mageGuerre: true } } },
   cape_protection: { nom: 'Cape de protection', icone: '🧥', rarete: 'rare', classes: null, desc: '+1 CA et +1 aux jets de sauvegarde.', mods: { ca: 1, bonusSauv: 1 } },
   talisman_bravoure: { nom: 'Talisman de bravoure', icone: '🦁', rarete: 'rare', classes: null, desc: 'La Peur gagnée est réduite de moitié.', mods: { traits: { peurReduite: true } } },
   baguette_mage: { nom: 'Baguette du mage de guerre +1', icone: '🪄', rarete: 'rare', classes: ['magicien', 'barde', 'druide', 'occultiste', 'ensorceleur', 'artificier'], desc: '+1 aux attaques de sort et au DD des sorts.', mods: { bonusSort: 1, ddSort: 1 } },
