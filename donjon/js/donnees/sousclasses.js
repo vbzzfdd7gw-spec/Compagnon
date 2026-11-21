@@ -14,7 +14,8 @@
 //   reposCourt             : ressources aussi récupérées au repos court
 //   niv5                   : { traits, action, sort, texte } gagnés au niveau 5
 //   reposCourtUn           : ressources dont le repos court ne rend qu'une charge
-//   niv4                   : idem au niveau 4 (facultatif) ; niv4/niv5.ressources remplacent les ressources
+//   niv4, niv6             : idem aux niveaux 4 et 6 (niv6 : NIV6_SOUS_CLASSES) ; leurs ressources remplacent celles de base
+//   reduction (n)     : −n à chaque coup subi (trait)
 //
 // Traits ajoutés par les sous-classes (combat.js) :
 //   critAmeliore (n)  : zone de critique élargie de n     survivant (n) : PV par tour sous la moitié
@@ -170,6 +171,47 @@ const SOUS_CLASSES = {
   ]
 };
 
+// Niveau 6 : seconde capacité de chaque sous-classe (mêmes champs que niv5,
+// plus pv, ca et ressources)
+const NIV6_SOUS_CLASSES = {
+  'guerrier/champion': { traits: { critAmeliore: 2 }, texte: 'Critique supérieur (critique sur 18-20)' },
+  'guerrier/maitre_guerre': { ressources: { superiorite: 6 }, texte: 'Supériorité accrue (6 dés de supériorité)' },
+  'clerc/vie': { bonusSoin: 2, texte: 'Soins bénis (+2 à tous ses soins)' },
+  'clerc/tempete': { traits: { colereTempete: 5, resist: ['foudre', 'tonnerre'] }, texte: 'Enfant de la tempête (5 colères, résistance foudre et tonnerre)' },
+  'clerc/guerre': { traits: { attaqueSupp: true }, texte: 'Prêtre de guerre (2 coups avec les armes)' },
+  'roublard/voleur': { traits: { reduction: 3 }, texte: 'Esquive instinctive (−3 à chaque coup subi)' },
+  'roublard/assassin': { traits: { critAmeliore: 1 }, texte: 'Frappe mortelle (critique sur 19-20)' },
+  'magicien/evocation': { traits: { evocation: 4 }, texte: 'Sorts surpuissants (+4 aux sorts à emplacement)' },
+  'magicien/necromancie': { traits: { moisson: 4, resist: ['nécrotique'] }, texte: 'Maître des morts (moisson ×4, résistance nécrotique)' },
+  'magicien/abjuration': { traits: { egide: 10 }, texte: 'Égide supérieure (10 PV temporaires)' },
+  'barbare/berserker': { traits: { riposte: true }, texte: 'Représailles (contre-attaque quand on le rate)' },
+  'barbare/ours': { pv: 8, traits: { reduction: 2 }, texte: 'Puissance de l\'ours (+8 PV max, −2 à chaque coup subi)' },
+  'barbare/loup': { traits: { traqueur: true, init: 3 }, texte: 'Chasseur de meute (attaque en plus au 1er round, +3 initiative)' },
+  'paladin/devotion': { traits: { reduction: 2, resist: ['psychique'] }, texte: 'Aura de dévotion (−2 à chaque coup subi, résistance psychique)' },
+  'paladin/vengeance': { traits: { riposte: true }, texte: 'Ange vengeur (contre-attaque quand on le rate)' },
+  'rodeur/chasseur': { traits: { reduction: 3 }, texte: 'Tactique défensive (−3 à chaque coup subi)' },
+  'rodeur/traqueur': { traits: { colosse: '1d8' }, texte: 'Rafale du traqueur (+1d8 contre les cibles blessées)' },
+  'rodeur/betes': { traits: { compagnon: '2d6' }, texte: 'Loup alpha (morsure 2d6)' },
+  'barde/savoir': { sort: 'eclair', texte: 'Secrets magiques : Éclair' },
+  'barde/vaillance': { ca: 1, traits: { reduction: 2 }, texte: 'Vaillance (+1 CA, −2 à chaque coup subi)' },
+  'druide/terre': { traits: { recuperation: 4, resist: ['poison'] }, texte: 'Récupération naturelle (4 niveaux) et résistance au poison' },
+  'druide/lune': { traits: { formeOurs: 26 }, texte: 'Ours primordial (26 PV temporaires)' },
+  'moine/main_ouverte': { ressources: { plenitude: 2 }, texte: 'Intégrité du corps (2 Plénitudes)' },
+  'moine/ombre': { traits: { cacheDebut: true }, texte: 'Foulée d\'ombre (commence chaque combat caché)' },
+  'ensorceleur/draconique': { traits: { affinite: { type: 'feu', bonus: 5 } }, texte: 'Souffle du dragon (feu +5)' },
+  'ensorceleur/sauvage': { traits: { magieSauvage: 0.65 }, texte: 'Déferlante (2 sorts sur 3 déclenchent la magie sauvage)' },
+  'artificier/artilleur': { traits: { canon: '2d8' }, texte: 'Canon explosif (2d8)' },
+  'artificier/armurier': { ca: 1, pv: 4, texte: 'Armure perfectionnée (+1 CA, +4 PV max)' },
+  'artificier/alchimiste': { bonusSoin: 2, texte: 'Réactifs restaurateurs (+2 aux soins)' },
+  'occultiste/fielon': { traits: { reduction: 3 }, texte: 'Résilience fiélonne (−3 à chaque coup subi)' },
+  'occultiste/grand_ancien': { traits: { espritEveille: 25 }, texte: 'Bouclier entropique (ses dégâts psychiques ajoutent 25 Peur)' }
+};
+for (const [k, g] of Object.entries(NIV6_SOUS_CLASSES)) {
+  const [c, id] = k.split('/'), sc = SOUS_CLASSES[c].find(x => x.id === id);
+  sc.niv6 = g;
+  sc.details.push(`Niv. 6 — ${g.texte}.`);
+}
+
 // Sous-classe d'un héros (ou d'une classe) : par défaut la première
 function sousClasse(classe, id) {
   const liste = SOUS_CLASSES[classe] || [];
@@ -209,6 +251,8 @@ function niveauSousClasse(pj, niv) {
   if (!g) return [];
   ajouterTraits(pj, g.traits);
   if (g.bonusSoin) pj.bonusSoin += g.bonusSoin;
+  if (g.pv) { pj.pvMax += g.pv; if (pj.pv > 0) pj.pv += g.pv; }
+  if (g.ca) pj.ca += g.ca;
   for (const id of [g.action, g.sort].filter(Boolean)) {
     if (pj.actions.includes(id)) continue;
     if (pj.actions.length < MAX_ACTIONS) pj.actions.push(id);
@@ -223,7 +267,7 @@ function ressourcesPJ(pj) {
   const sc = pj.sousClasse && sousClasse(pj.classe, pj.sousClasse), c = CLASSES[pj.classe];
   const niv = pj.niveau || 3;
   return { ...(c.ressources || {}), ...(niv >= 5 ? c.ressourcesNiv5 || {} : {}), ...((sc && sc.ressources) || {}),
-    ...(sc && niv >= 4 && sc.niv4 && sc.niv4.ressources || {}), ...(sc && niv >= 5 && sc.niv5 && sc.niv5.ressources || {}) };
+    ...[4, 5, 6, 7].reduce((r, n) => ({ ...r, ...(sc && niv >= n && sc['niv' + n] && sc['niv' + n].ressources || {}) }), {}) };
 }
 
 // Effets du repos court propres à la classe et à la sous-classe ; renvoie des lignes de texte

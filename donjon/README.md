@@ -11,7 +11,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 |---|---|
 | `js/des.js` | Lancers de dés (`Des.lancer('2d6+3')`, `Des.d20(avantage)`) et hasard réglable (`Hasard.graine(n)` / `alea()` : toute la logique du jeu tire ses nombres là, ce qui rend le défi quotidien identique pour tous) |
 | `js/donnees/actions.js` | Toutes les actions des PJ (format documenté en tête de fichier) |
-| `js/donnees/classes.js` | Les 13 classes (dont Ensorceleur à métamagie et Artificier) (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`) |
+| `js/donnees/classes.js` | Les 13 classes (dont Ensorceleur à métamagie et Artificier) (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`, niveaux 4 à 7), l'expérience (`GAINS_XP`, `SEUILS_XP`) |
 | `js/donnees/sousclasses.js` | Les 2 ou 3 sous-classes de chaque classe (`SOUS_CLASSES`) : capacités, actions remplacées, gains au niveau 5, campagne qui les débloque |
 | `js/donnees/monstres.js` | Monstres, boss et listes de rencontres |
 | `js/donnees/objets.js` | Objets magiques, améliorations, génération des récompenses |
@@ -50,6 +50,13 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 Les valeurs de Peur (paliers, crises, vertu) sont regroupées dans `PEUR` et `CRISES` (`combat.js`). La chance d'objet après un combat ordinaire est `CHANCE_OBJET_COMBAT` (`objets.js`).
 La montée de niveau est dans `PROGRESSION` (`classes.js`).
 
+## Expérience et niveaux
+
+- Les héros commencent au niveau 3 et montent jusqu'au niveau 7 (`NIVEAU_MAX`). L'équipe partage son XP : combat 10, élite 30, boss d'étage 50 (`GAINS_XP`), plus certains événements (`jeu.gagnerXP(n)`). Seuils : `SEUILS_XP` (70 / 200 / 320 / 420). Une barre d'XP s'affiche sur la carte, et l'écran de niveau apparaît dès qu'un seuil est franchi.
+- Niveau 6 : seconde capacité de chaque sous-classe (`NIV6_SOUS_CLASSES`, `sousclasses.js`) et un emplacement de niveau 3. Niveau 7 : sorts de niveau 4 (Tempête de grêle, Flétrissement, Bannissement, Confusion) et capacités martiales (Indomptable, Critique brutal, Évasion, sournoise 4d6).
+- Le repos complet a toujours lieu entre deux étages ; une montée de niveau en cours d'étage n'ajoute que les PV, emplacements et charges gagnés.
+- Les élites reçoivent toujours une mutation du Chaos et, dès l'étage 2, un monstre en plus (`renforcerElite`, `campagnes.js`). Les monstres de l'étage 3 sont renforcés (`RENFORT_ETAGE`). Ni l'un ni l'autre ne s'applique au Chaos, réglé par `PV_CHAOS`.
+
 ## Difficultés et défi quotidien
 
 - **Difficultés** (`DIFFICULTES` dans `campagnes.js`) : Normal, Héroïque (débloquée en gagnant en Normal), Cauchemar (débloquée en gagnant en Héroïque). Elles réutilisent les mutations du Chaos (`appliquerChaos(type, final, reglage)`) avec une chance réglable, plus de Peur et plus d'or. `DIFF=heroique node outils-simulation.js 400 crypte` les simule.
@@ -59,10 +66,10 @@ La montée de niveau est dans `PROGRESSION` (`classes.js`).
 
 `node outils-simulation.js 400 crypte` (ou `horde`, `eclipse`) joue 400 expéditions avec l'équipe de base ;
 `node outils-simulation.js 1500 crypte classes` joue avec des équipes aléatoires (au moins un héros de front et un soigneur) et affiche le taux de victoire de chaque classe. Il joue 400 expéditions complètes sans affichage (stratégie simple : soigner
-les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire et les PV perdus par combat.
+les blessés, frapper l'ennemi le plus fragile) et affiche le taux de victoire, le niveau moyen de l'équipe à chaque boss et les PV perdus par combat (`XP=1` affiche aussi l'XP au boss ; `SANS_ELITE=1` retire le renfort des élites).
 `node outils-simulation.js 2000 crypte sousclasses` fait de même avec des sous-classes au hasard et affiche le taux de chaque sous-classe ;
 `SC_SEUL=clerc:vie node outils-simulation.js 800 crypte classes` donne la sous-classe à une seule classe (comparaison avec `SANS_SC=1`).
-Réglage actuel (sous-classes au hasard) : Crypte 56 %, Éclipse 41 %, Marais 38 %, Côtes 36 %, Dragon 33 %, Souterrains 30 %, Givre 19 %, Toiles 17 %, Tombeau 17 %, Château 14 %, Légion 12 %, Abîme 18 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
+Réglage actuel (sous-classes au hasard) : Crypte 50 %, Éclipse 33 %, Marais 33 %, Côtes 32 %, Souterrains 29 %, Givre 28 %, Dragon 26 %, Abîme 19 %, Château 17 %, Toiles 16 %, Tombeau 14 %, Légion 12 %, Dédale du Chaos 8 à 10 % (`PV_CHAOS` dans `campagnes.js`).
 
 ## Mode test
 

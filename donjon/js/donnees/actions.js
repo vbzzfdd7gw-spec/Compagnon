@@ -525,11 +525,34 @@ const ACTIONS = {
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', degats: '8d6', typeDeg: 'foudre', moitie: true,
     desc: 'Niv. 3. Un trait de foudre traverse la cible et ses 2 voisins : sauvegarde de DEX, 8d6 foudre (moitié si réussite).'
   },
+  // ----------------------------- SORTS DE NIVEAU 4 (niveau 7) ---------------
+  tempete_grele: {
+    nom: 'Tempête de grêle', icone: '🌨️', type: 'sauvegarde', niveau: 4, zone: true, sort: true, niveauMin: 7,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', degats: '2d8+4d6', typeDeg: 'froid', moitie: true,
+    effetSiEchec: { etat: 'entrave', duree: 1 },
+    desc: 'Niv. 4. Tous les ennemis : sauvegarde de DEX, 2d8+4d6 (grêle et froid), moitié si réussite ; entravés si échec.'
+  },
+  fletrissement: {
+    nom: 'Flétrissement', icone: '🥀', type: 'sauvegarde', niveau: 4, sort: true, niveauMin: 7,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 'sort', degats: '8d8', typeDeg: 'nécrotique', moitie: true,
+    desc: 'Niv. 4. Une cible : sauvegarde de CON, 8d8 nécrotique (moitié si réussite).'
+  },
+  bannissement: {
+    nom: 'Bannissement', icone: '🌀', type: 'special', special: 'bannissement', niveau: 4, sort: true, niveauMin: 7,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'],
+    desc: 'Niv. 4. Une cible : sauvegarde de CHA ou bannie 2 tours (perd ses tours, ne peut pas être ciblée). Un boss fait deux jets.'
+  },
+  confusion: {
+    nom: 'Confusion', icone: '😵‍💫', type: 'sauvegarde', niveau: 4, sort: true, triangle: 3, niveauMin: 7,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'SAG', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'etourdi', duree: 2 },
+    desc: 'Niv. 4. La cible et ses 2 voisins : sauvegarde de SAG ou étourdis 2 tours.'
+  },
   // ------------------------------ ARTIFICIER ----------------------------
   arbalete_artificier: {
     nom: 'Arbalète à répétition', icone: '🏹', type: 'attaque', arme: true,
-    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 'arme', degats: '1d8+2', typeDeg: 'perforant',
-    desc: 'À distance. 1d8+2 perforant.'
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 'arme', degats: '1d8+3', typeDeg: 'perforant',
+    desc: 'À distance. 1d8+3 perforant (Forgeron : il vise avec son Intelligence).'
   },
   infusion_arme: {
     nom: 'Infusion : arme améliorée', icone: '🔧', type: 'soutien', parCombat: 1,

@@ -602,3 +602,7 @@ body { overscroll-behavior: none; }
 .stat-niv small, .gain-niv small { grid-column: 1 / -1; display: block; color: var(--discret); font-size: .74rem; line-height: 1.3; }
 .gain-niv.nouveau b { color: #9fd0ff; }
 .gain-niv.sc small { color: #e8d2a8; }
+.barre-xp { position: relative; height: 18px; margin: 4px 10px 0; border-radius: 999px; background: #241a12; border: 1px solid var(--ligne); overflow: hidden; }
+.barre-xp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #a07a2c, #e7c062); }
+.barre-xp span { position: relative; display: block; text-align: center; font-size: .72rem; line-height: 16px; color: #fff4dc; text-shadow: 0 1px 2px #000; }
+.barre-xp.max { background: #3b2d14; }
