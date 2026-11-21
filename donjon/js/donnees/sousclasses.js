@@ -57,9 +57,9 @@ const SOUS_CLASSES = {
       details: ['Esprit combatif (action bonus, 3 fois par repos long) : avantage à sa prochaine attaque et 5 PV temporaires (+ niveau).', 'Niv. 5 — Esprit indomptable : 4 utilisations et +3 initiative.'],
       ajoute: ['esprit_combatif'], ressources: { combatif: 3 },
       niv5: { ressources: { combatif: 4 }, traits: { init: 3 }, texte: 'Esprit indomptable (4 utilisations, +3 initiative)' } },
-    { id: 'chevalier_occulte', nom: 'Chevalier occulte', icone: '🔰', desc: 'Guerrier mage protégé par un bouclier arcanique.', deblocage: 'toiles',
-      details: ['Bouclier arcanique (action bonus, deux fois par combat) : +5 CA jusqu\'à son prochain tour.', 'Niv. 5 — Frappe occulte : +1d6 force à ses attaques d\'arme.'],
-      ajoute: ['bouclier_arcane'], niv5: { traits: { armeElem: { des: '1d6', type: 'force' } }, texte: 'Frappe occulte (+1d6 force)' } }
+    { id: 'chevalier_occulte', nom: 'Chevalier occulte', icone: '🔥', desc: 'Guerrier mage : sa lame enflammée frappe deux ennemis.', deblocage: 'toiles',
+      details: ['Magie de guerre : Lame aux flammes vertes (trois fois par combat), frappe la cible puis un ennemi voisin, 1d8+3 + 1d8 feu chacun.', 'Niv. 5 — Frappe occulte : +1d6 force à ses attaques d\'arme.'],
+      ajoute: ['lame_flammes'], niv5: { traits: { armeElem: { des: '1d6', type: 'force' } }, texte: 'Frappe occulte (+1d6 force)' } }
   ],
   clerc: [
     { id: 'vie', nom: 'Domaine de la Vie', icone: '💗', desc: 'Le meilleur soigneur du jeu.',

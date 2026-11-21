@@ -607,10 +607,10 @@ const ACTIONS = {
     depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'CON', dd: 'sort', degats: '2d10+3', typeDeg: 'radiant', moitie: true,
     desc: 'Conduit divin, une fois par combat. Tous les ennemis : sauvegarde de CON, 2d10+3 radiant (moitié si réussite).'
   },
-  bouclier_arcane: {
-    nom: 'Bouclier arcanique', icone: '🔰', type: 'soutien', actionBonus: true, parCombat: 2,
-    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'bouclier', duree: 1 },
-    desc: 'Action bonus, deux fois par combat. Sort de bouclier : +5 CA jusqu\'à son prochain tour.'
+  lame_flammes: {
+    nom: 'Lame aux flammes vertes', icone: '🗡️', type: 'attaque', arme: true, sort: true, triangle: 2, nbAttaques: 1, parCombat: 3,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'arme', degats: '1d8+3+1d8', typeDeg: 'feu',
+    desc: 'Magie de guerre, trois fois par combat. Une lame enflammée frappe la cible puis bondit sur un ennemi voisin : 1d8+3 + 1d8 feu chacun.'
   },
   presence_conquerante: {
     nom: 'Présence conquérante', icone: '👑', type: 'sauvegarde', parCombat: 1, zone: true, sort: true,
@@ -635,11 +635,6 @@ const ACTIONS = {
     desc: 'Corps à corps. Attaque avec son Charisme : 1d10+3 tranchant.'
   },
   // ----------------------------- SORTS SUPPLÉMENTAIRES (D&D) ---------------
-  bouclier_mage: {
-    nom: 'Bouclier', icone: '🛡️', type: 'soutien', niveau: 1, sort: true, actionBonus: true,
-    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'bouclier', duree: 1 },
-    desc: 'Niv. 1, action bonus. Une barrière invisible : +5 CA jusqu\'à son prochain tour.'
-  },
   rayon_empoisonne: {
     parNiveau: '1d8',
     nom: 'Rayon empoisonné', icone: '🤢', type: 'attaque', niveau: 1, sort: true,
@@ -665,16 +660,16 @@ const ACTIONS = {
     desc: '🧠 Concentration. Niv. 1, action bonus. Un allié gagne +2 CA tant que dure la concentration.'
   },
   chatiment_tonnerre: {
-    nom: 'Châtiment tonitruant', icone: '🔊', type: 'attaque', niveau: 1, sort: true, arme: true,
-    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'arme', degats: '1d8+3+2d6', typeDeg: 'tonnerre', recul: 1,
-    effetSiTouche: { etat: 'renverse', duree: 1, sauvegarde: { carac: 'FOR', dd: 'sort' } },
-    desc: 'Niv. 1. Coup d\'arme : 1d8+3 + 2d6 tonnerre, repousse ; sauvegarde de FOR ou renversé.'
+    nom: 'Châtiment tonitruant', icone: '🔊', type: 'special', special: 'charge_arme', niveau: 1, sort: true, actionBonus: true, parNiveau: '1d6',
+    charge: { des: '3d6', type: 'tonnerre', effet: 'tonnerre', icone: '🔊', nom: 'Châtiment tonitruant' },
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    desc: 'Niv. 1, action bonus (vous jouez aussitôt). Votre prochain coup d\'arme qui touche inflige +3d6 tonnerre, repousse la cible et la renverse (sauvegarde de FOR).'
   },
   grele_epines: {
-    parNiveau: '1d10',
-    nom: 'Grêle d\'épines', icone: '🌵', type: 'attaque', niveau: 1, sort: true, arme: true,
-    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 'arme', degats: '1d8+3+1d10', typeDeg: 'perforant',
-    desc: 'Niv. 1. Tir : 1d8+3 + 1d10 perforant (une pluie d\'épines jaillit de la flèche).'
+    nom: 'Grêle d\'épines', icone: '🌵', type: 'special', special: 'charge_arme', niveau: 1, sort: true, actionBonus: true, parNiveau: '1d10',
+    charge: { des: '2d10', type: 'perforant', effet: 'grele', icone: '🌵', nom: 'Grêle d\'épines' },
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    desc: 'Niv. 1, action bonus (vous jouez aussitôt). Votre prochain coup d\'arme qui touche fait exploser une pluie d\'épines : +2d10 perforant à la cible et à ses 2 voisins (sauvegarde de DEX, moitié).'
   },
   soins_groupe: {
     parNiveau: '1d4',
@@ -705,9 +700,10 @@ const ACTIONS = {
     desc: 'Niv. 2. Des doubles illusoires : la prochaine attaque qui le toucherait rate.'
   },
   croissance_epines: {
-    nom: 'Croissance d\'épines', icone: '🌿', concentration: true, persistant: true, type: 'sauvegarde', niveau: 2, sort: true, zone: true,
-    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 'sort', degats: '2d4+2', typeDeg: 'perforant', moitie: true,
-    desc: '🧠 Concentration. Niv. 2. Le sol de la ligne Avant ennemie se hérisse d\'épines : sauvegarde de DEX, 2d4+2 perforant (moitié), au lancer puis à chacun de vos tours.'
+    nom: 'Croissance d\'épines', icone: '🌿', concentration: true, persistant: true, type: 'sauvegarde', niveau: 2, sort: true, zone: true, parNiveau: '1d4',
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', degats: '3d4+3', typeDeg: 'perforant', moitie: true,
+    effetSiEchec: { etat: 'ralenti', duree: 1 },
+    desc: '🧠 Concentration. Niv. 2. Le sol se couvre de ronces sous tous les ennemis : sauvegarde de DEX, 3d4+3 perforant (moitié) et ralentis 1 tour si échec, au lancer puis à chacun de vos tours.'
   },
   lenteur: {
     nom: 'Lenteur', icone: '🐌', concentration: true, concPermanent: true, type: 'sauvegarde', niveau: 3, sort: true, triangle: 3, niveauMin: 5,

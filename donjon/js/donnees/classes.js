@@ -72,7 +72,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 6, emplacements: { 1: 4, 2: 2 },
     actions: ['trait_feu', 'projectile_magique', 'mains_brulantes', 'rayon_ardent'],
-    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'orbe_chromatique', 'boule_feu', 'tempete_grele', 'bannissement', 'bouclier_mage', 'rayon_empoisonne', 'fracassement', 'immobilisation', 'invisibilite', 'image_miroir', 'lenteur', 'terreur'],
+    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'orbe_chromatique', 'boule_feu', 'tempete_grele', 'bannissement', 'rayon_empoisonne', 'fracassement', 'immobilisation', 'invisibilite', 'image_miroir', 'lenteur', 'terreur'],
     desc: 'Fragile mais dévastateur depuis l\'arrière. Emplacements de sorts limités.'
   },
   barbare: {
@@ -142,7 +142,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['CON', 'CHA'], deVie: 6, emplacements: { 1: 4, 2: 3 },
     actions: ['trait_feu', 'orbe_chromatique', 'rayon_ardent', 'sort_jumele', 'sort_intensifie'],
-    poolActions: ['poigne_electrique', 'mains_brulantes', 'source_magie', 'eclair', 'tempete_grele', 'fletrissement', 'bouclier_mage', 'rayon_empoisonne', 'fracassement', 'immobilisation', 'image_miroir', 'lenteur', 'tempete_neige', 'terreur'],
+    poolActions: ['poigne_electrique', 'mains_brulantes', 'source_magie', 'eclair', 'tempete_grele', 'fletrissement', 'rayon_empoisonne', 'fracassement', 'immobilisation', 'image_miroir', 'lenteur', 'tempete_neige', 'terreur'],
     desc: 'Magie innée : 4 points de sorcellerie (6 au niveau 5) pour la métamagie, en action bonus : sort jumelé (deux cibles) ou intensifié (×1,5 dégâts).'
   },
   artificier: {
@@ -152,7 +152,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 5, bonusSort: 5, ddSort: 13,
     sauvegardes: ['CON', 'INT'], deVie: 8, emplacements: { 1: 3 },
     actions: ['arbalete_artificier', 'trait_feu', 'soins', 'infusion_arme'],
-    poolActions: ['graisse', 'fiole_acide', 'vague_tonnante', 'aide', 'bouclier_mage', 'lueurs_feeriques', 'invisibilite'],
+    poolActions: ['graisse', 'fiole_acide', 'vague_tonnante', 'aide', 'lueurs_feeriques', 'invisibilite'],
     desc: 'Inventeur polyvalent : arbalète et tours de magie, soins, et infusions qui enchantent les armes des alliés.'
   },
   occultiste: {

@@ -39,7 +39,7 @@ function iaPJ(cb, a) {
   }
   // 1 bis) Capacités de soutien utiles
   if (ids.includes('rage') && !a.etats.rage) return [ACTIONS.rage, null];
-  for (const b of ['forme_ours', 'arme_sacree', 'pas_ombre', 'canon_occulte', 'esprit_combatif', 'bouclier_arcane']) if (ids.includes(b) && !(b === 'pas_ombre' && a.etats.cache)) return [ACTIONS[b], null];
+  for (const b of ['forme_ours', 'arme_sacree', 'pas_ombre', 'canon_occulte', 'esprit_combatif', 'chatiment_tonnerre', 'grele_epines']) if (ids.includes(b) && !(b === 'pas_ombre' && a.etats.cache)) return [ACTIONS[b], null];
   if (ids.includes('sort_intensifie') && cb.emplacementDispo(a, 1)) return [ACTIONS.sort_intensifie, null];
   if (ids.includes('sort_jumele') && cb.ennemis.filter(e => e.pv > 0).length > 1) return [ACTIONS.sort_jumele, null];
   if (ids.includes('source_magie') && a.emplacements[1] && a.emplacements[1].restant < a.emplacements[1].max) return [ACTIONS.source_magie, null];
