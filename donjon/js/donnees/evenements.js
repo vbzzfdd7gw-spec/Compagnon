@@ -16,7 +16,8 @@
 // Objets : jeu.donnerObjet(rareté(s), pj?), jeu.retirerObjetAleatoire(filtre),
 //   jeu.ameliorerObjet(), jeu.transformerObjet(pj?), jeu.objetsPortes(filtre),
 //   jeu.nomObjet(cle) ; autres : jeu.gagnerOrFixe(n), jeu.pvMax(pj, n),
-//   jeu.blesserPct(p), jeu.ajouterStock(cle, n), jeu.rencontreElite()
+//   jeu.blesserPct(p), jeu.ajouterStock(cle, n), jeu.rencontreElite(),
+//   jeu.gagnerXP(n) (renvoie une ligne ; l'écran de niveau s'affiche ensuite)
 // =====================================================================
 
 // ---------------------------------------------------------------------
@@ -237,7 +238,27 @@ const EVENEMENTS = [
           return { lignes: [t.texte, 'Des glyphes interdits brûlent ses yeux : +20 Peur.'] };
         }
       },
+      {
+        texte: 'Étudier ensemble les traités de stratégie (⭐ +25 XP, +10 Peur à chacun)',
+        resoudre(j) { j.debout().forEach(p => j.peur(p, 10)); return { lignes: ['Des heures à déchiffrer de vieilles campagnes militaires, à la lueur d\'une torche qui faiblit…', j.gagnerXP(25)] }; }
+      },
       { texte: 'Repartir', resoudre: () => ({ lignes: ['Les livres retournent à leur silence.'] }) }
+    ]
+  },
+  {
+    id: 'maitre_armes', icone: '🎖️',
+    titre: 'Le vieux maître d\'armes',
+    texte: 'Un vétéran borgne aiguise sa lame près d\'un feu. « Vous tenez vos armes comme des fourches. Je peux arranger ça… mais ça va faire mal. »',
+    choix: [
+      {
+        texte: 'Entraînement intensif (⭐ +35 XP, chaque héros perd 25 % de ses PV)', risque: true,
+        resoudre(j) { j.debout().forEach(p => j.blesser(p, Math.ceil(p.pvMax / 4))); return { lignes: ['Coups, chutes et sueur jusqu\'à l\'aube. « Pas mal, pour des débutants. »', j.gagnerXP(35)] }; }
+      },
+      {
+        texte: 'Écouter ses histoires de guerre (⭐ +15 XP)',
+        resoudre(j) { return { lignes: ['Il raconte ses batailles jusque tard dans la nuit. Vous retenez quelques astuces.', j.gagnerXP(15)] }; }
+      },
+      { texte: 'Passer votre chemin', resoudre: () => ({ lignes: ['« Revenez quand vous serez prêts à souffrir. »'] }) }
     ]
   },
   // ===================================================================
@@ -508,7 +529,7 @@ const EVENEMENTS = [
         condition: j => !!j.meilleur('FOR'),
         resoudre(j) {
           const h = j.meilleur('FOR'), t = j.test(h, 'FOR', 15, true);
-          if (t.reussite) return { lignes: [t.texte, '« Bien combattu… » Il vous tend son arme en s\'inclinant.', j.donnerObjet(['rare', 'legendaire'], h)] };
+          if (t.reussite) return { lignes: [t.texte, '« Bien combattu… » Il vous tend son arme en s\'inclinant.', j.donnerObjet(['rare', 'legendaire'], h), j.gagnerXP(20)] };
           const d = Des.lancer('2d8'); j.blesser(h, d.total);
           return { lignes: [t.texte, `${h.nom} est terrassé : ${d.texte} dégâts. Le chevalier s'éloigne sans un mot.`] };
         }

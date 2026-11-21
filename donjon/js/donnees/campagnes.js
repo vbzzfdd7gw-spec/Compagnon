@@ -992,3 +992,26 @@ try {
   const q = new URLSearchParams(location.search);
   if (q.has('test')) Progression.basculerTest(q.get('test') !== '0');
 } catch (e) { /* hors navigateur */ }
+
+// Élites plus coriaces (hors Chaos) : à partir de l'étage 2, un monstre de la
+// rencontre est dédoublé (3 par ligne au plus) ; elles reçoivent aussi
+// toujours une mutation du Chaos (voir Jeu.lancerCombat)
+const ELITE_MUTEE = { chance: 0, pouvoirs: false };
+function renforcerElite(rencontre, etage) {
+  if (etage < 1) return rencontre;
+  const r = { ...rencontre, avant: [...(rencontre.avant || [])], arriere: [...(rencontre.arriere || [])] };
+  const candidats = [...r.avant.map(id => ['avant', id]), ...r.arriere.map(id => ['arriere', id])].filter(([, id]) => MONSTRES[id] && !MONSTRES[id].boss);
+  if (!candidats.length) return r;
+  const [ligne, id] = candidats[Math.floor(alea() * candidats.length)];
+  const autre = ligne === 'avant' ? 'arriere' : 'avant';
+  if (r[ligne].length < 3) r[ligne].push(id); else if (r[autre].length < 3) r[autre].push(id);
+  return r;
+}
+
+// Renfort selon l'étage (hors Chaos) : l'équipe y arrive plus forte grâce à l'XP
+const RENFORT_ETAGE = [{}, {}, { pv: 0.15, degats: 1 }];
+function forceEtage(force, etage) {
+  const f = { ...(force || {}) }, r = RENFORT_ETAGE[Math.min(etage, RENFORT_ETAGE.length - 1)] || {};
+  for (const k in r) f[k] = (f[k] || (k === 'pv' ? 1 : 0)) + r[k];
+  return f;
+}

@@ -2,7 +2,7 @@
 const fs = require('fs'), vm = require('vm');
 const D = require('path').join(__dirname, 'js') + '/';
 const file = [];
-const ctx = { DIFF_SIM: process.env.DIFF || '', localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
+const ctx = { DIFF_SIM: process.env.DIFF || '', SANS_ELITE: !!process.env.SANS_ELITE, localStorage: { getItem: () => null, setItem() {} }, console, Math, JSON, Object, Array, Set, Map, file, setTimeout: (f) => file.push(f), Reglages: { vitesse: 1 } };
 vm.createContext(ctx);
 for (const f of ['des.js', 'donnees/actions.js', 'donnees/classes.js', 'donnees/monstres.js', 'donnees/objets.js', 'donnees/etages.js', 'donnees/campagnes.js', 'donnees/sousclasses.js', 'combat.js', 'carte.js'])
   vm.runInContext(fs.readFileSync(D + f, 'utf8').replace(/^const (\w+) =/gm, 'var $1 =').replace(/^class (\w+)/gm, 'var $1 = class $1'), ctx);
@@ -48,6 +48,7 @@ function iaPJ(cb, a) {
   }
   if (ids.includes('inspiration') && Math.random() < 0.3) { const cs = cb.ciblesValides(a, ACTIONS.inspiration).filter(p => !p.etats.inspire && p !== a); if (cs.length) return [ACTIONS.inspiration, cs[0]]; }
   if (ids.includes('chant_courage') && cb.pjs.some(p => p.peur >= 60)) return [ACTIONS.chant_courage, null];
+  if (ids.includes('bannissement') && Math.random() < 0.6) { const cs = cb.ciblesValides(a, ACTIONS.bannissement).sort((x, y) => y.pv - x.pv); if (cs.length && cs[0].pv > 30) return [ACTIONS.bannissement, cs[0]]; }
   // 2) Attaque : meilleure espérance de dégâts sur la cible la plus fragile
   let meilleur = null, score = -1;
   for (const id of ids) {
@@ -71,6 +72,7 @@ function combattre(equipe, rencontre, jeu, force) {
   cb.surMaj = () => 0; cb.delaiMonstre = 0;
   if (jeu.chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final);
   else if (DIFF_SIM && difficulte(DIFF_SIM).chaos) cb.appliquerChaos(jeu.typeCombat, jeu.final, difficulte(DIFF_SIM).chaos);
+  else if (jeu.typeCombat === 'elite' && !SANS_ELITE) cb.appliquerChaos(jeu.typeCombat, jeu.final, ELITE_MUTEE);
   let fin = null; cb.surFin = r => { fin = r; };
   cb.demarrer();
   let garde = 0;
@@ -85,7 +87,9 @@ function expedition(idC, classes, scs) {
   const camp = CAMPAGNES.find(c => c.id === idC);
   const ETAGES = camp.aleatoire ? genererEtagesAleatoires() : camp.etages;
   const equipe = (classes || ORDRE_CLASSES).map((k, i) => creerPJ(k, scs ? scs[i] : null));
-  if (camp.aleatoire) equipe.forEach(p => { monterNiveau(p); p.ressources = ressourcesPJ(p); });
+  if (camp.aleatoire) equipe.forEach(p => { monterNiveau(p); p.ressources = ressourcesPJ(p); p.pv = p.pvMax; });
+  let xp = camp.aleatoire ? SEUILS_XP[4] : 0;
+  const gagnerXP = n => { xp += n; const c = niveauPourXP(xp); for (const p of equipe) while (p.niveau < c && monterNiveau(p).length); };
   if (!equipe.some(p => p.ligne === 'avant')) equipe[0].ligne = 'avant';
   if (!equipe.some(p => p.ligne === 'arriere')) equipe[3].ligne = 'arriere';
   const jeu = { potions: camp.regles.potions, peurMult: camp.regles.peurMult + (DIFF_SIM ? difficulte(DIFF_SIM).peur : 0), or: camp.regles.or || 30, equipe, sac: {},
@@ -103,14 +107,17 @@ function expedition(idC, classes, scs) {
       if (['combat', 'elite', 'boss'].includes(n.type)) {
         const liste = n.type === 'combat' ? R[Carte.niveau(n)] : R[n.type];
         const pvAvant = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
-        const renc = liste[Math.floor(Math.random() * liste.length)];
+        let renc = liste[Math.floor(Math.random() * liste.length)];
+        if (n.type === 'elite' && !camp.aleatoire && !SANS_ELITE) renc = renforcerElite(renc, etage);
         jeu.chaos = camp.aleatoire; jeu.typeCombat = n.type; jeu.final = etage === ETAGES.length - 1;
-        const r = combattre(equipe, renc, jeu, renc.force || ETAGES[etage].force);
+        const r = combattre(equipe, renc, jeu, camp.aleatoire ? renc.force || ETAGES[etage].force : forceEtage(renc.force || ETAGES[etage].force, etage));
         const pvApres = equipe.reduce((s, p) => s + Math.max(0, p.pv) / p.pvMax, 0) / 4;
         PERTES[etage + n.type] = PERTES[etage + n.type] || [];
         PERTES[etage + n.type].push(pvAvant - pvApres);
         if (r.fin !== 'victoire') return { ok: false, mort: (etage + 1) + ':' + n.type, log };
         const [omin, omax] = GAINS_OR[n.type]; jeu.or += omin + Math.floor(Math.random() * (omax - omin + 1));
+        NIVEAUX_BOSS[etage] = NIVEAUX_BOSS[etage] || []; if (n.type === 'boss') { NIVEAUX_BOSS[etage].push(equipe[0].niveau); XP_BOSS[etage] = (XP_BOSS[etage] || []).concat(xp); }
+        if (!(n.type === 'boss' && etage === ETAGES.length - 1)) gagnerXP(GAINS_XP[n.type]);
         if (n.type === 'boss') break;
         if (n.type === 'elite') jeu.potions++; else if (Math.random() < 0.3) jeu.potions++;
         const offres = Recompenses.generer(equipe, { elite: n.type === 'elite' });
@@ -145,8 +152,9 @@ function expedition(idC, classes, scs) {
         }
       } else if (n.type === 'tresor' && camp.regles.mimiques && Math.random() < camp.regles.mimiques) {
         jeu.chaos = camp.aleatoire; jeu.typeCombat = 'elite'; jeu.final = etage === ETAGES.length - 1;
-        const r = combattre(equipe, { avant: ['mimique'], arriere: [] }, jeu, ETAGES[etage].force);
+        const r = combattre(equipe, { avant: ['mimique'], arriere: [] }, jeu, forceEtage(ETAGES[etage].force, etage));
         if (r.fin !== 'victoire') return { ok: false, mort: (etage + 1) + ':mimique', log };
+        gagnerXP(GAINS_XP.elite);
         jeu.potions++;
         const o = Recompenses.offreObjet(equipe, [], 'elite'); if (o) Recompenses.appliquer(o, equipe.find(p => p.id === o.pj), jeu);
       } else if (n.type === 'tresor') {
@@ -156,11 +164,11 @@ function expedition(idC, classes, scs) {
         const x = Recompenses.offreConsommable(); jeu.ajouterStock(x.cle, x.quantite);
       }
     }
-    if (etage < ETAGES.length - 1) { equipe.forEach(p => { monterNiveau(p); p.peur = 0; p.crise = null; p.ressources = ressourcesPJ(p); }); long = false; jeu.potions++; jeu.or += 90; }
+    if (etage < ETAGES.length - 1) { equipe.forEach(p => { p.pv = p.pvMax; p.desVie.restant = p.desVie.max; for (const k in p.emplacements) p.emplacements[k].restant = p.emplacements[k].max; p.peur = 0; p.crise = null; p.ressources = ressourcesPJ(p); }); long = false; jeu.potions++; jeu.or += 90; }
   }
   return { ok: true, log };
 }
-var PERTES = {};
+var PERTES = {}; var NIVEAUX_BOSS = {}; var XP_BOSS = {};
 `, ctx);
 const N = parseInt(process.argv[2] || '200');
 const CAMP = process.argv[3] || 'crypte';
@@ -191,4 +199,6 @@ for (let i = 0; i < N; i++) {
 }
 console.log(`Victoires : ${gagne}/${N} (${Math.round(gagne / N * 100)} %) ; défaites (étage:type) :`, JSON.stringify(morts));
 const P = vm.runInContext('PERTES', ctx);
+const NB = vm.runInContext('NIVEAUX_BOSS', ctx); console.log('Niveau moyen au boss de chaque étage :', Object.entries(NB).map(([k, v]) => (+k + 1) + '=' + (v.reduce((a, b) => a + b, 0) / v.length).toFixed(2)).join(' '));
 console.log('PV perdus en moyenne par combat (% de l\'équipe) :', Object.entries(P).map(([k, v]) => k + '=' + Math.round(v.reduce((a, b) => a + b, 0) / v.length * 100)).join(' '));
+if (process.env.XP) { const X = vm.runInContext('XP_BOSS', ctx); console.log('XP au boss :', Object.entries(X).map(([k, v]) => { v.sort((a, b) => a - b); return (+k + 1) + '= méd ' + v[v.length >> 1] + ' (10 % ' + v[Math.floor(v.length * 0.1)] + ', 90 % ' + v[Math.floor(v.length * 0.9)] + ')'; }).join(' | ')); }

@@ -28,7 +28,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['SAG', 'CHA'], deVie: 8, emplacements: { 1: 4, 2: 2 },
     actions: ['masse', 'flamme_sacree', 'soins', 'benediction'],
-    poolActions: ['mot_guerison', 'paroles_espoir', 'priere_soins', 'renvoi', 'esprits_gardiens'],
+    poolActions: ['mot_guerison', 'paroles_espoir', 'priere_soins', 'renvoi', 'esprits_gardiens', 'bannissement'],
     desc: 'Soigne, bénit et calme la Peur. Emplacements de sorts limités.'
   },
   roublard: {
@@ -49,7 +49,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 6, emplacements: { 1: 4, 2: 2 },
     actions: ['trait_feu', 'projectile_magique', 'mains_brulantes', 'rayon_ardent'],
-    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'orbe_chromatique', 'boule_feu'],
+    poolActions: ['sommeil', 'rayon_givre', 'vague_tonnante', 'orbe_chromatique', 'boule_feu', 'tempete_grele', 'bannissement'],
     desc: 'Fragile mais dévastateur depuis l\'arrière. Emplacements de sorts limités.'
   },
   barbare: {
@@ -89,7 +89,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['DEX', 'CHA'], deVie: 8, emplacements: { 1: 4, 2: 2 },
     actions: ['rapiere', 'moquerie', 'inspiration', 'mot_guerison'],
-    poolActions: ['murmure', 'chant_courage', 'sommeil', 'hypnose'],
+    poolActions: ['murmure', 'chant_courage', 'sommeil', 'hypnose', 'confusion'],
     desc: 'Inspire ses alliés (+1d6), affaiblit les ennemis, soigne et calme la Peur.'
   },
   druide: {
@@ -99,7 +99,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 3, bonusSort: 5, ddSort: 13,
     sauvegardes: ['INT', 'SAG'], deVie: 8, emplacements: { 1: 4, 2: 2 },
     actions: ['flammeche', 'soins', 'enchevetrement', 'rayon_lune'],
-    poolActions: ['gourdin', 'peau_ecorce', 'vague_tonnante', 'appel_foudre'],
+    poolActions: ['gourdin', 'peau_ecorce', 'vague_tonnante', 'appel_foudre', 'fletrissement', 'tempete_grele'],
     desc: 'Soigne, entrave les ennemis et frappe avec la magie de la nature.'
   },
   moine: {
@@ -119,12 +119,12 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['CON', 'CHA'], deVie: 6, emplacements: { 1: 4, 2: 3 },
     actions: ['trait_feu', 'orbe_chromatique', 'rayon_ardent', 'sort_jumele', 'sort_intensifie'],
-    poolActions: ['poigne_electrique', 'mains_brulantes', 'source_magie', 'eclair'],
+    poolActions: ['poigne_electrique', 'mains_brulantes', 'source_magie', 'eclair', 'tempete_grele', 'fletrissement'],
     desc: 'Magie innée : 4 points de sorcellerie (6 au niveau 5) pour la métamagie, en action bonus : sort jumelé (deux cibles) ou intensifié (×1,5 dégâts).'
   },
   artificier: {
     nom: 'Artificier', icone: '⚙️', couleur: '#b8863a', ligne: 'avant', role: 'Soutien · inventions',
-    pv: 26, ca: 17,
+    pv: 28, ca: 17,
     caracs: { FOR: 10, DEX: 14, CON: 14, INT: 16, SAG: 12, CHA: 8 },
     maitrise: 2, bonusArme: 5, bonusSort: 5, ddSort: 13,
     sauvegardes: ['CON', 'INT'], deVie: 8, emplacements: { 1: 3 },
@@ -139,7 +139,7 @@ const CLASSES = {
     maitrise: 2, bonusArme: 4, bonusSort: 5, ddSort: 13,
     sauvegardes: ['SAG', 'CHA'], deVie: 8, emplacements: { 2: 2 },
     actions: ['decharge_occulte', 'malefice', 'bras_hadar', 'effroi'],
-    poolActions: ['armure_agathys', 'decharge_repoussante', 'faim_hadar'],
+    poolActions: ['armure_agathys', 'decharge_repoussante', 'faim_hadar', 'fletrissement', 'bannissement'],
     desc: 'Magie de pacte : seulement 2 emplacements, toujours lancés au niveau maximum et récupérés à chaque repos court. Décharge occulte à volonté, Maléfice en action bonus.'
   }
 };
@@ -177,7 +177,7 @@ function creerPJ(idClasse, idSousClasse) {
 }
 
 // ---------------------------------------------------------------------
-// Montée de niveau (après chaque boss d'étage)
+// Montée de niveau (quand l'XP atteint SEUILS_XP)
 //   pv          : PV gagnés par classe
 //   emplacements: emplacements de sorts gagnés { niveau: nombre }
 //   maitrise    : +1 au bonus de maîtrise (attaques, DD, sauvegardes maîtrisées)
@@ -199,8 +199,35 @@ const PROGRESSION = {
     // Magie de pacte : les emplacements montent tous d'un niveau (et non s'ajoutent)
     pacte: { occultiste: { 3: 2 } },
     sort: { magicien: 'boule_feu', clerc: 'esprits_gardiens', barde: 'hypnose', druide: 'appel_foudre', occultiste: 'faim_hadar', ensorceleur: 'eclair', artificier: 'aide' }
+  },
+  // Niveau 6 : capacité de sous-classe (niv6 dans sousclasses.js), un emplacement de niveau 3
+  6: {
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6, occultiste: 6, ensorceleur: 5, artificier: 6 },
+    emplacements: { clerc: { 3: 1 }, magicien: { 3: 1 }, barde: { 3: 1 }, druide: { 3: 1 }, ensorceleur: { 3: 1 } },
+    bonus: { guerrier: 'arme', roublard: 'arme', barbare: 'arme', paladin: 'arme', rodeur: 'arme', moine: 'arme', occultiste: 'sort', artificier: 'sort' },
+    traits: { artificier: { attaqueSupp: true } }
+  },
+  // Niveau 7 : sorts de niveau 4 pour les lanceurs, capacités martiales
+  7: {
+    pv: { guerrier: 8, clerc: 7, roublard: 7, magicien: 5, barbare: 9, paladin: 8, rodeur: 7, barde: 6, druide: 6, moine: 6, occultiste: 6, ensorceleur: 5, artificier: 6 },
+    emplacements: { clerc: { 4: 1 }, magicien: { 4: 1 }, barde: { 4: 1 }, druide: { 4: 1 }, ensorceleur: { 4: 1 }, paladin: { 2: 1 }, rodeur: { 2: 1 }, artificier: { 2: 1 } },
+    pacte: { occultiste: { 4: 2 } },
+    bonus: { paladin: 'arme', rodeur: 'arme', artificier: 'sort' },
+    traits: { guerrier: { indomptable: true }, barbare: { brutal: true, init: 4 }, moine: { evasion: true }, roublard: { evasion: true, sournoise: '4d6' } },
+    sort: { magicien: 'tempete_grele', clerc: 'bannissement', barde: 'confusion', druide: 'fletrissement', occultiste: 'fletrissement', ensorceleur: 'tempete_grele' }
   }
 };
+const NIVEAU_MAX = 7;
+
+// Expérience : gagnée à chaque victoire (et dans certains événements) ;
+// seuils d'XP cumulée pour atteindre chaque niveau
+const GAINS_XP = { combat: 10, elite: 30, boss: 50 };
+const SEUILS_XP = { 4: 70, 5: 200, 6: 320, 7: 420 };
+function niveauPourXP(xp) {
+  let n = 3;
+  while (SEUILS_XP[n + 1] !== undefined && xp >= SEUILS_XP[n + 1]) n++;
+  return n;
+}
 
 // Applique le niveau suivant ; renvoie la liste des gains (texte)
 function monterNiveau(pj) {
@@ -210,8 +237,9 @@ function monterNiveau(pj) {
   pj.niveau = niv;
   const gains = [];
   const pv = p.pv[pj.classe] || 0;
-  pj.pvMax += pv; pj.pv = pj.pvMax;
-  pj.desVie.max += 1; pj.desVie.restant = pj.desVie.max;
+  const resAvant = ressourcesPJ(pj);
+  pj.pvMax += pv; if (pj.pv > 0) pj.pv += pv;
+  pj.desVie.max += 1; pj.desVie.restant += 1;
   gains.push(`+${pv} PV`);
   if (p.maitrise) {
     pj.maitrise += 1; pj.bonusArme += 1;
@@ -223,20 +251,23 @@ function monterNiveau(pj) {
   if (b === 'sort') { pj.bonusSort += 1; pj.ddSort += 1; gains.push('+1 sorts et DD'); }
   for (const [n, k] of Object.entries((p.emplacements && p.emplacements[pj.classe]) || {})) {
     if (!pj.emplacements[n]) pj.emplacements[n] = { max: 0, restant: 0 };
-    pj.emplacements[n].max += k;
+    pj.emplacements[n].max += k; pj.emplacements[n].restant += k;
     gains.push(`+${k} emplacement${k > 1 ? 's' : ''} niv. ${n}`);
   }
   const pacte = p.pacte && p.pacte[pj.classe];
   if (pacte) {
+    const restants = Object.values(pj.emplacements).reduce((t, e) => t + e.restant, 0);
     pj.emplacements = {};
-    for (const [n, k] of Object.entries(pacte)) { pj.emplacements[n] = { max: k, restant: k }; gains.push(`emplacements de pacte niv. ${n}`); }
+    for (const [n, k] of Object.entries(pacte)) { pj.emplacements[n] = { max: k, restant: Math.min(k, restants) }; gains.push(`emplacements de pacte niv. ${n}`); }
   }
-  for (const n in pj.emplacements) pj.emplacements[n].restant = pj.emplacements[n].max;
   const t = p.traits && p.traits[pj.classe];
   if (t) {
-    Object.assign(pj.traits, t);
+    for (const [k, v] of Object.entries(t)) pj.traits[k] = k === 'init' ? (pj.traits[k] || 0) + v : v;
     if (t.attaqueSupp) gains.push('Attaque supplémentaire (2 coups avec les armes)');
     if (t.sournoise) gains.push(`attaque sournoise ${t.sournoise}`);
+    if (t.indomptable) gains.push('Indomptable (relance une sauvegarde ratée par combat)');
+    if (t.brutal) gains.push('Critique brutal (+1 dé aux critiques) et Instinct sauvage (+4 initiative)');
+    if (t.evasion) gains.push('Évasion (sauvegarde de DEX réussie : aucun dégât ; ratée : moitié)');
   }
   const sort = p.sort && p.sort[pj.classe];
   if (sort && !pj.actions.includes(sort)) {
@@ -244,5 +275,9 @@ function monterNiveau(pj) {
     else gains.push(`${ACTIONS[sort].nom} peut maintenant être appris en récompense`);
   }
   if (typeof niveauSousClasse === 'function') gains.push(...niveauSousClasse(pj, niv));
+  // Ressources gagnées (rages, charges…) : la différence est ajoutée tout de suite
+  const resApres = ressourcesPJ(pj);
+  pj.ressources = pj.ressources || {};
+  for (const r in resApres) if (resApres[r] > (resAvant[r] || 0)) pj.ressources[r] = (pj.ressources[r] || 0) + resApres[r] - (resAvant[r] || 0);
   return gains;
 }

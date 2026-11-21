@@ -232,6 +232,13 @@ const Ui = {
   },
 
   // ----------------------------------------------------------- carte
+  barreXP() {
+    const x = Jeu.progresXP();
+    if (x.fin === null) return `<div class="barre-xp max" title="Niveau maximal"><span>⭐ Niveau ${x.niveau} (max)</span></div>`;
+    const pc = Math.round((x.xp - x.debut) / (x.fin - x.debut) * 100);
+    return `<div class="barre-xp" title="Combat ${GAINS_XP.combat} XP · élite ${GAINS_XP.elite} XP · boss ${GAINS_XP.boss} XP"><i style="width:${pc}%"></i><span>⭐ ${x.xp} / ${x.fin} XP → niveau ${x.niveau + 1}</span></div>`;
+  },
+
   ecranCarte() {
     return `<div class="ecran-carte">
       <header class="barre">
@@ -243,6 +250,7 @@ const Ui = {
           <button class="btn petit discret" data-clic="abandonner" title="Abandonner">✕</button>
         </div>
       </header>
+      ${this.barreXP()}
       <div class="carte-conteneur">${Carte.svg(Jeu.carte)}</div>
       <div class="legende">${Object.values(TYPES_NOEUDS).map(t => `<span>${t.icone} ${t.nom}</span>`).join('')}</div>
       ${this.resumeEquipe()}
@@ -769,7 +777,7 @@ const Ui = {
   // ------------------------------------------------------ récompense
   // ------------------------------------------------- montée de niveau
   ecranNiveau() {
-    const info = Jeu.niveauInfo;
+    const fiches = Jeu.niveauxEnAttente || [], niveauMax = Math.max(...fiches.map(f => f.niveau));
     const NOMS_RES = { rage: '😡 Rages', superiorite: '♟️ Dés de supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude', sorcellerie: '✨ Points de sorcellerie' };
     const signe = n => (n >= 0 ? '+' : '') + n;
     const fiche = f => {
@@ -792,22 +800,28 @@ const Ui = {
         ligne('🔋', NOMS_RES[r] || r, a.ressources[r] || 0, b.ressources[r] || 0, 'Utilisations de plus de cette capacité.');
       const nouvelles = b.actions.filter(id => !a.actions.includes(id)).map(id => ACTIONS[id]);
       const autres = f.gains.filter(g => !/^\+\d+ PV$|maîtrise|au toucher|sorts et DD|emplacement|nouveau sort/.test(g));
-      const detailSC = sc && (sc.details || []).find(d => d.startsWith(`Niv. ${f.niveau}`));
-      const titreSC = detailSC && autres.find(g => g.startsWith(sc.icone + ' '));
-      if (titreSC) autres.splice(autres.indexOf(titreSC), 1);
+      const blocsSC = [];
+      for (let n = f.depuis + 1; n <= f.niveau; n++) {
+        const detail = sc && (sc.details || []).find(d => d.startsWith(`Niv. ${n} `));
+        if (!detail) continue;
+        const titre = autres.find(g => g.startsWith(sc.icone + ' '));
+        if (titre) autres.splice(autres.indexOf(titre), 1);
+        const texte = detail.replace(/^Niv\. \d+ — /, ''), doublon = titre && texte.replace(/\.$/, '') === titre.slice(sc.icone.length + 1);
+        blocsSC.push(`<div class="gain-niv sc">${titre ? `<b>${titre}</b>` : sc.icone}${doublon ? '' : `<small>${texte}</small>`}</div>`);
+      }
       return `<div class="fiche-niv">
-        <div class="tete-niv"><span class="ic">${pj.icone}</span><div><b>${pj.nom}</b><small>${c.nom}${sc ? ' · ' + sc.icone + ' ' + sc.nom : ''}</small></div><span class="badge-niv">Niv. ${f.niveau - 1} → ${f.niveau}</span></div>
+        <div class="tete-niv"><span class="ic">${pj.icone}</span><div><b>${pj.nom}</b><small>${c.nom}${sc ? ' · ' + sc.icone + ' ' + sc.nom : ''}</small></div><span class="badge-niv">Niv. ${f.depuis} → ${f.niveau}</span></div>
         ${stats.join('')}
         ${autres.map(g => `<div class="gain-niv">✨ <b>${g}</b>${/Attaque supplémentaire/.test(g) ? '<small>Ses attaques d\'arme frappent deux fois par action.</small>' : /sournoise/.test(g) ? '<small>Dégâts en plus quand il a l\'avantage ou qu\'un allié est au contact de la cible.</small>' : ''}</div>`).join('')}
-        ${detailSC ? `<div class="gain-niv sc">${titreSC ? `<b>${titreSC}</b>` : sc.icone}<small>${detailSC.replace(/^Niv\. \d+ — /, '')}</small></div>` : ''}
+        ${blocsSC.join('')}
         ${nouvelles.map(x => `<div class="gain-niv nouveau">${x.icone} <b>Nouveau : ${x.nom}</b><small>${x.desc}</small></div>`).join('')}
       </div>`;
     };
     return `<div class="ecran-centre ecran-niveau">
-      <h2>⬆️ Niveau ${info.niveau} !</h2>
-      <p>Le boss est vaincu : chaque héros devient plus fort. PV, sorts et capacités sont entièrement rechargés.</p>
-      <div class="fiches-niv">${info.fiches.map(fiche).join('')}</div>
-      <button class="btn principal" data-clic="suite-niveau">Voir le butin du boss ▶</button>
+      <h2>⬆️ Niveau ${niveauMax} !</h2>
+      <p>L'équipe a gagné assez d'expérience : chaque héros devient plus fort. Les PV, emplacements et charges gagnés sont disponibles tout de suite.</p>
+      <div class="fiches-niv">${fiches.map(fiche).join('')}</div>
+      <button class="btn principal" data-clic="suite-niveau">Continuer ▶</button>
     </div>`;
   },
 

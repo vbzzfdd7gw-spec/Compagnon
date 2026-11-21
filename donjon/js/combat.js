@@ -30,6 +30,7 @@ const ETATS = {
   affaibli: { nom: 'Affaibli', icone: '🦴', desc: 'Inflige moitié dégâts avec ses armes.' },
   armeSacree: { nom: 'Arme sacrée', icone: '🌟', desc: '+2 au toucher avec les armes.' },
   inimitie: { nom: 'Vœu d\'inimitié', icone: '🔥', desc: 'Le paladin qui l\'a juré a l\'avantage contre lui.' },
+  banni: { nom: 'Banni', icone: '🌀', desc: 'Envoyé dans un autre plan : perd ses tours et ne peut pas être ciblé.' },
   ours: { nom: 'Forme d\'ours', icone: '🐻', desc: 'Druide changé en ours tant qu\'il lui reste des PV temporaires.', permanent: true },
   vengeance: { nom: 'Vengeance', icone: '⚔️', desc: '+2 au toucher et aux dégâts jusqu\'à la fin du combat.', permanent: true },
   paralyse: { nom: 'Paralysé', icone: '🥶', desc: 'Perd ses tours ; les attaques contre lui ont avantage et celles au corps à corps qui touchent sont des critiques.' },
@@ -223,6 +224,7 @@ class Combat {
       if (pj.crise) this.log(`${CRISES[pj.crise].icone} ${this.nomHtml(pj)} est toujours en proie à : <b>${CRISES[pj.crise].nom}</b>.`, 'mauvais');
       const t = pj.traits;
       if (t.cacheDebut) pj.etats.cache = 99;
+      pj.indomptableUtilise = false;
       if (t.voile) pj.etats.voile = 99;
       if (t.phenix) pj.usages.phenixDispo = true;
       pj.egide = t.egide ? 2 * (pj.niveau || 3) + t.egide : 0;
@@ -331,9 +333,9 @@ class Combat {
       const d = this.maj();
       return setTimeout(() => this.finTour(c), d + this.attente(500));
     }
-    const perte = ['etourdi', 'endormi', 'paralyse', 'charme', 'petrifie'].find(e => c.etats[e]);
+    const perte = ['banni', 'etourdi', 'endormi', 'paralyse', 'charme', 'petrifie'].find(e => c.etats[e]);
     if (perte) {
-      const verbe = { etourdi: 'est étourdi', endormi: 'dort', paralyse: 'est paralysé', charme: 'est sous le charme', petrifie: 'est changé en pierre' }[perte];
+      const verbe = { banni: 'erre dans un autre plan', etourdi: 'est étourdi', endormi: 'dort', paralyse: 'est paralysé', charme: 'est sous le charme', petrifie: 'est changé en pierre' }[perte];
       this.log(`${ETATS[perte].icone} ${this.nomHtml(c)} ${verbe} et perd son tour.`);
       this.evt({ t: 'texte', cible: c.id, texte: ETATS[perte].icone, classe: 'etat' });
       const d = this.maj();
@@ -437,7 +439,7 @@ class Combat {
     const lignes = action.cible === 'ennemi' ? this.lignesAtteignables(groupe, action.vise) : action.vise;
     return groupe.filter(c => {
       if (!lignes.includes(c.ligne)) return false;
-      if (action.cible === 'ennemi') return c.pv > 0;
+      if (action.cible === 'ennemi') return c.pv > 0 && !c.etats.banni;
       // alliés
       if (action.vivantsSeulement && c.pv <= 0) return false;
       if (c.pv <= 0 && !(action.type === 'soin' || action.inclureATerre)) return false;
@@ -756,6 +758,7 @@ class Combat {
       const k = Des.lancer(a.traits.colosse, critique); degats += k.total; dTxt += ` + colosse ${k.texte}`; a.colosseUtilise = true;
     }
     if (c.etats.marque && c.marquePar === a.id && bonusHeros) { const m = Des.lancer('1d6', critique); degats += m.total; dTxt += ` + marque ${m.texte}`; }
+    if (critique && act.arme && a.traits && a.traits.brutal && act.degats) { const de = act.degats.match(/\d*d\d+/); if (de) { const b = Des.lancer('1' + de[0].slice(de[0].indexOf('d'))); degats += b.total; dTxt += ` + brutal ${b.texte}`; } }
     if (critique && act.arme && a.traits && a.traits.vorpale) { const v = Des.lancer(a.traits.vorpale); degats += v.total; dTxt += ` + vorpale ${v.texte}`; }
     if (act.arme && a.traits && a.traits.armeElem) {
       const e = Des.lancer(a.traits.armeElem.des, critique);
@@ -866,7 +869,14 @@ class Combat {
     if (c.etats.inspire) { const b = Des.d(6); total += b; txt += ` +insp.1d6[${b}]`; delete c.etats.inspire; }
     const mal = this.malusPeur(c);
     if (mal) { total += mal; txt += ` ${mal} (${c.camp === 'pj' ? 'anxieux' : 'ébranlé'})`; }
-    const reussite = total >= dd;
+    let reussite = total >= dd;
+    if (!reussite && c.traits && c.traits.indomptable && !c.indomptableUtilise) {
+      c.indomptableUtilise = true;
+      const r2 = Des.d20(mode), t2 = r2.nat + bonus + (mal || 0);
+      txt += ` → 💪 indomptable, relance ${r2.texte}`;
+      if (t2 > total) total = t2;
+      reussite = total >= dd;
+    }
     this.evt({ t: 'jet', source: c.id, cible: c.id, nat: r.nat, total, libelle: `${c.nom} · sauvegarde ${carac}`,
       contre: `DD ${dd}`, res: reussite ? 'reussite' : 'echec', mode, sauvegarde: true });
     return { reussite, texte: `${this.nomHtml(c)} sauvegarde de ${carac} : 🎲 ${txt} = <b>${total}</b> contre DD ${dd}${mode < 0 ? ' <span class="cout">(−paniqué)</span>' : ''} → ${reussite ? 'réussite' : '<b>échec</b>'}` };
@@ -884,9 +894,10 @@ class Combat {
         const d = Des.lancer(act.degats);
         const evo = this.bonusEvocation(a, act, c);
         const aj = this.ajusterSort(a, act, d.total + evo);
-        const total = s.reussite ? Math.floor(aj.n / 2) : aj.n;
-        this.log(`${ligne}. Dégâts : ${d.texte}${evo ? ` +${evo} (évocation)` : ''}${aj.txt}${s.reussite ? ' ÷2' : ''} → <b>${total}</b> ${act.typeDeg}`, 'jet');
-        this.infliger(c, total, act.typeDeg, a, false);
+        const evasion = c.traits && c.traits.evasion && act.carac === 'DEX' && act.moitie;
+        const total = evasion ? (s.reussite ? 0 : Math.floor(aj.n / 2)) : s.reussite ? Math.floor(aj.n / 2) : aj.n;
+        this.log(`${ligne}. Dégâts : ${d.texte}${evo ? ` +${evo} (évocation)` : ''}${aj.txt}${evasion ? (s.reussite ? ' → 🤸 évasion : esquive tout' : ' ÷2 (évasion)') : s.reussite ? ' ÷2' : ''} → <b>${total}</b> ${act.typeDeg}`, 'jet');
+        if (total > 0) this.infliger(c, total, act.typeDeg, a, false);
       }
     } else {
       this.log(ligne, 'jet');
@@ -1120,6 +1131,10 @@ class Combat {
     } else if (c.traits && c.traits.resist && c.traits.resist.includes(type)) {
       n = Math.floor(n / 2);
       this.log(`→ ${this.nomHtml(c)} résiste (${type}, ÷2) : ${n} dégâts.`, 'jet');
+    }
+    if (c.camp === 'pj' && c.traits && c.traits.reduction && n > 0) {
+      n = Math.max(0, n - c.traits.reduction);
+      this.log(`→ 🛡️ ${this.nomHtml(c)} amortit le coup (−${c.traits.reduction}) : ${n} dégâts.`, 'jet');
     }
     if (n <= 0) { this.evt({ t: 'texte', cible: c.id, texte: 'Immunisé', classe: 'rate' }); return; }
     // Chaos : carapace du boss tant qu'il a des alliés debout
@@ -1397,6 +1412,20 @@ const SPECIAUX = {
     if (a.ligne !== 'avant') cb.deplacer(a, 'avant');
     cb.log(`→ 🐻 ${cb.nomHtml(a)} se change en ours (${pv} PV temporaires) et charge en ligne Avant !`, 'bon');
     cb.evt({ t: 'texte', cible: a.id, texte: '🐻 Forme d\'ours', classe: 'etat' });
+  },
+
+  bannissement(cb, a, act, cibles) {
+    const cible = cibles[0];
+    if (!cible || cible.pv <= 0) return;
+    let s = cb.jetSauvegarde(cible, 'CHA', a.ddSort);
+    cb.log('→ ' + s.texte, 'jet');
+    if (!s.reussite && cible.boss) {
+      s = cb.jetSauvegarde(cible, 'CHA', a.ddSort);
+      cb.log(`→ 👑 Résistance de boss, second jet : ${s.texte}`, 'jet');
+    }
+    if (s.reussite) return cb.evt({ t: 'texte', cible: cible.id, texte: 'Résiste', classe: 'rate' });
+    cb.appliquerEtat(cible, 'banni', 2);
+    cb.log(`→ 🌀 ${cb.nomHtml(cible)} disparaît dans un autre plan pour 2 tours !`, 'bon');
   },
 
   sommeil(cb, a, act, cibles) {
