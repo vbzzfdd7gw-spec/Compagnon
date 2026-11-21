@@ -37,6 +37,8 @@ const Ui = {
       composition: () => this.ecranComposition()
     };
     app.innerHTML = ecrans[Jeu.ecran]();
+    if (Jeu.ecran !== 'combat' && Jeu.equipe && Jeu.ecran !== 'titre' && Jeu.ecran !== 'campagnes' && Jeu.ecran !== 'composition') { try { Son.choisirTheme(Jeu.etageCourant().theme); } catch (e) { /* pas de partie */ } }
+    else if (Jeu.ecran === 'titre') Son.choisirTheme('crypte');
     Son.ambiance(Jeu.ecran === 'combat' ? (Jeu.combat && Jeu.combat.type === 'boss' ? 'boss' : 'combat') : Jeu.ecran === 'fin' ? null : 'carte');
     app.dataset.ecran = Jeu.ecran;
     if (Jeu.ecran === 'carte') this.defilerCarte();
@@ -119,6 +121,7 @@ const Ui = {
   ecranCampagnes() {
     return `<div class="ecran-centre">
       <h2>Choisissez une campagne</h2>
+      ${this.carteDefi()}
       <p class="discret">Terminez une campagne pour débloquer la suivante.</p>
       <div class="campagnes">${CAMPAGNES.map(c => {
         const ok = Progression.debloquee(c);
@@ -130,11 +133,34 @@ const Ui = {
             <b>${c.nom}</b> <span class="etoiles">${'★'.repeat(c.difficulte)}</span>
             <span class="camp-resume">${ok ? c.resume : c.apresTout ? 'Terminez <b>toutes les campagnes</b> pour débloquer ce mode.' : `Terminez <b>${avant.nom}</b> pour débloquer cette campagne.`}</span>
             ${ok ? `<span class="camp-infos">${c.aleatoire ? 'Carte unique' : c.etages.length + ' étages'}${c.regleTexte ? ' · ' + c.regleTexte : ''}${v ? ` · ✅ terminée ${v}×` : rec ? ` · record : étage ${rec}/${c.etages.length}` : ''}</span>` : ''}
+            ${ok && !c.aleatoire ? this.pastillesDifficulte(c) : ''}
           </span>
         </button>`;
       }).join('')}</div>
       <button class="btn" data-clic="titre">Retour</button>
     </div>`;
+  },
+
+  // Encadré du défi du jour (même partie pour tout le monde aujourd'hui)
+  carteDefi() {
+    const c = DefiDuJour.config(), camp = Progression.campagne(c.campagne), m = DefiDuJour.modif(c.modif), rec = DefiDuJour.record(c.date);
+    return `<button class="campagne defi" data-clic="defi">
+      <span class="camp-icone">📅</span>
+      <span class="camp-corps">
+        <b>Défi du jour</b> <span class="discret">${c.date.split('-').reverse().join('/')}</span>
+        <span class="camp-resume">${camp.icone} ${camp.nom} · ${c.classes.map(k => `${CLASSES[k].icone}`).join(' ')} · ${m.icone} <b>${m.nom}</b> : ${m.desc}</span>
+        <span class="camp-infos">La même partie pour tout le monde aujourd'hui (équipe imposée).${rec ? ` · 🏆 Record : ${rec}` : ''}</span>
+      </span>
+    </button>`;
+  },
+
+  // Pastilles de difficulté d'une campagne (choix, verrous, difficultés réussies)
+  pastillesDifficulte(c) {
+    const choisie = (Jeu.diffParCampagne || {})[c.id] || 'normal', reussies = Progression.reussies(c);
+    return `<span class="diffs">${DIFFICULTES.map(d => {
+      const ouverte = Progression.difficulteOuverte(c, d.id);
+      return `<span class="diff ${d.id === choisie ? 'choisie' : ''} ${ouverte ? '' : 'verrou'}" ${ouverte ? `data-diff="${c.id}:${d.id}"` : ''} title="${d.desc}">${ouverte ? d.icone : '🔒'} ${d.nom}${reussies.includes(d.id) ? ' ✅' : ''}</span>`;
+    }).join('')}</span>${choisie !== 'normal' ? `<span class="diff-desc">${difficulte(choisie).desc}</span>` : ''}`;
   },
 
   // ------------------------------------------- composition d'équipe
@@ -149,7 +175,7 @@ const Ui = {
     } else conseils.push(`Choisissez encore ${4 - choix.length} héros.`);
     return `<div class="ecran-centre">
       <h2>Composez votre équipe</h2>
-      <p class="discret">${c.icone} ${c.nom} — touchez 4 héros, puis choisissez leur sous-classe (▾).${Progression.toutDebloque() ? ' <b class="badge-test">🧪 Mode test</b>' : ''}</p>
+      <p class="discret">${c.icone} ${c.nom}${Jeu.difficulteChoisie && Jeu.difficulteChoisie !== 'normal' ? ` · <b>${difficulte(Jeu.difficulteChoisie).icone} ${difficulte(Jeu.difficulteChoisie).nom}</b>` : ''} — touchez 4 héros, puis choisissez leur sous-classe (▾).${Progression.toutDebloque() ? ' <b class="badge-test">🧪 Mode test</b>' : ''}</p>
       <div class="emplacements-equipe">${[0, 1, 2, 3].map(i => {
         const k = choix[i];
         const sc = k && sousClasse(k, Jeu.sousClasseChoisie(k));
@@ -287,7 +313,8 @@ const Ui = {
   ligneObjet(p, cle, avecDon) {
     const o = OBJETS[cle];
     const receveurs = avecDon ? Jeu.equipe.filter(x => x !== p && !x.objets.includes(cle) && (!o.classes || o.classes.includes(x.classe))) : [];
-    return `<div class="ligne-objet" style="border-left-color:${RARETES[o.rarete].couleur}">${o.icone} <b style="color:${RARETES[o.rarete].couleur}">${o.nom}</b> — ${o.desc}
+    const camp = o.campagne ? Progression.campagne(o.campagne) : null;
+    return `<div class="ligne-objet" style="border-left-color:${RARETES[o.rarete].couleur}">${o.icone} <b style="color:${RARETES[o.rarete].couleur}">${o.nom}</b>${camp ? ` <span class="petit">(${camp.icone} trésor de campagne)</span>` : ''} — ${o.desc}
       ${receveurs.length ? `<div class="donner">Donner à : ${receveurs.map(x => `<button class="btn mini" data-clic="donner" data-de="${p.id}" data-a="${x.id}" data-objet="${cle}">${x.icone}</button>`).join(' ')}</div>` : ''}</div>`;
   },
 
@@ -304,7 +331,7 @@ const Ui = {
         <span>❤️ ${p.pv}/${p.pvMax} PV</span><span>🛡 CA ${p.ca}</span><span>⚔️ Att ${signe(p.bonusArme)}${p.bonusDegats ? ` (dég. +${p.bonusDegats})` : ''}</span>
         ${p.ddSort ? `<span>✨ Sort ${signe(p.bonusSort)} · DD ${p.ddSort}</span>` : ''}
         <span>🎲 Dés de vie ${p.desVie.restant}/${p.desVie.max} (d${p.desVie.face})</span><span>😨 Peur ${p.peur}/100</span>
-        ${Object.entries(p.ressources || {}).map(([r, n]) => `<span>${({ rage: '😡 Rages', superiorite: '♟️ Supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude' })[r] || r} ${n}</span>`).join('')}
+        ${Object.entries(p.ressources || {}).map(([r, n]) => `<span>${({ rage: '😡 Rages', superiorite: '♟️ Supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude', sorcellerie: '✨ Sorcellerie' })[r] || r} ${n}</span>`).join('')}
       </div>
       ${this.emplacementsHtml(p)}
       <div class="petit">${car}</div>
@@ -391,6 +418,7 @@ const Ui = {
   apresRenduCombat() {
     this.majCombat();
     Modeles3D.theme((Jeu.combat && Jeu.combat.theme) || Jeu.etageCourant().theme);
+    Son.choisirTheme((Jeu.combat && Jeu.combat.theme) || Jeu.etageCourant().theme);
     Modeles3D.attacher($('#scene'));
   },
 
@@ -506,6 +534,7 @@ const Ui = {
         ann.className = 'annonce ' + e.camp;
         ann.innerHTML = `<span>${e.icone}</span> ${echapper(e.nom)}`;
         $('#milieu').replaceChildren(ann);
+        if (e.camp === 'ennemi' && Jeu.combat) { const m = Jeu.combat.ennemis.find(x => x.id === e.source); if (m) setTimeout(() => Son.monstre(m.modele, 'attaque'), 60); }
         Son.jouer(e.special === 'potion' ? 'potion' : (e.typeAct === 'soin' || e.typeAct === 'soutien') ? 'benediction'
           : e.melee ? 'epee' : e.sort ? 'sort' : 'arc', e.typeDeg);
         if (Modeles3D.actif) {
@@ -576,7 +605,7 @@ const Ui = {
       }
       case 'mort':
         Son.jouer(e.pj ? 'chute' : 'mort');
-        if (!e.pj) Modeles3D.poussiere(e.cible);
+        if (!e.pj) { Modeles3D.poussiere(e.cible); const m = Jeu.combat && Jeu.combat.ennemis.find(x => x.id === e.cible); if (m) Son.monstre(m.modele, 'mort'); }
         if (!el) break;
         el.classList.add(e.pj ? 'a-terre' : 'mort');
         if (e.pj) el.querySelector('.sprite').textContent = '🪦';
@@ -832,9 +861,10 @@ const Ui = {
       <div class="logo">${v ? '👑' : '🪦'}</div>
       <h1>${v ? 'Victoire !' : 'L\'expédition a échoué'}</h1>
       <p>${v ? Jeu.campagneCourante().fin : 'Les ténèbres ont englouti votre équipe.'}</p>
+      ${Jeu.scoreDefi ? `<div class="deblocage">📅 Défi du jour : <b>${Jeu.scoreDefi.score} points</b>${Jeu.scoreDefi.record ? ' — 🏆 nouveau record !' : ` (record du jour : ${Jeu.scoreDefi.meilleur})`}</div>` : ''}
       ${v && Jeu.debloquee ? `<div class="deblocage">🔓 Nouvelle campagne débloquée : <b>${Jeu.debloquee.icone} ${Jeu.debloquee.nom}</b></div>` : ''}
       ${v && Jeu.scDebloquees && Jeu.scDebloquees.length ? `<div class="deblocage">🔓 Nouvelles sous-classes : ${Jeu.scDebloquees.map(x => { const [k, id] = x.split(':'), sc = sousClasse(k, id); return `<b>${CLASSES[k].icone} ${sc.icone} ${sc.nom}</b>`; }).join(' · ')}</div>` : ''}
-      <p>${Jeu.campagneCourante().icone} ${Jeu.campagneCourante().nom} — étage atteint : ${Jeu.etage + 1}/${Jeu.etages().length} (${Jeu.etageCourant().nom}) · Salles explorées : ${Jeu.stats.salles} · Combats gagnés : ${Jeu.stats.combats}</p>
+      <p>${Jeu.campagneCourante().icone} ${Jeu.campagneCourante().nom}${Jeu.difficulte && Jeu.difficulte !== 'normal' ? ` (${difficulte(Jeu.difficulte).icone} ${difficulte(Jeu.difficulte).nom})` : ''} — étage atteint : ${Jeu.etage + 1}/${Jeu.etages().length} (${Jeu.etageCourant().nom}) · Salles explorées : ${Jeu.stats.salles} · Combats gagnés : ${Jeu.stats.combats}</p>
       <button class="btn principal" data-clic="nouvelle">Nouvelle expédition</button>
       <button class="btn" data-clic="titre">Écran titre</button>
     </div>`;
@@ -860,7 +890,7 @@ const Ui = {
     document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
     document.addEventListener('click', e => {
       Son.debloquer();
-      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat],[data-classe],[data-info-classe],[data-sc],[data-sc-classe]');
+      const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat],[data-classe],[data-info-classe],[data-sc],[data-sc-classe],[data-diff]');
       if (!t || t.disabled) return;
       const d = t.dataset;
       if (d.clic) return this.clic(d.clic, t);
@@ -876,6 +906,7 @@ const Ui = {
       if (d.deVie) return Jeu.depenserDeVie(d.deVie);
       if (d.choix !== undefined) return Jeu.choisirEvenement(parseInt(d.choix, 10));
       if (d.info) return this.infoCombattant(d.info);
+      if (d.diff) { const [cid, did] = d.diff.split(':'); Jeu.diffParCampagne = { ...(Jeu.diffParCampagne || {}), [cid]: did }; return this.rendu(); }
       if (d.campagne) return Jeu.choisirCampagne(d.campagne);
       if (d.classe) return Jeu.basculerClasse(d.classe);
       if (d.infoClasse) return this.ficheClasse(d.infoClasse);
@@ -926,6 +957,7 @@ const Ui = {
         if (this.tapsLogo >= 5) { this.tapsLogo = 0; Progression.basculerTest(!Progression.toutDebloque()); this.rendu(); }
         return;
       case 'test-off': Progression.basculerTest(false); return this.rendu();
+      case 'defi': return Jeu.lancerDefi();
       case 'aleatoire': return Jeu.equipeAleatoire();
       case 'partir': return Jeu.partir();
       case 'campagnes': Jeu.ecran = 'campagnes'; return this.rendu();

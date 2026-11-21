@@ -9,16 +9,16 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 
 | Fichier | Rôle |
 |---|---|
-| `js/des.js` | Lancers de dés (`Des.lancer('2d6+3')`, `Des.d20(avantage)`) |
+| `js/des.js` | Lancers de dés (`Des.lancer('2d6+3')`, `Des.d20(avantage)`) et hasard réglable (`Hasard.graine(n)` / `alea()` : toute la logique du jeu tire ses nombres là, ce qui rend le défi quotidien identique pour tous) |
 | `js/donnees/actions.js` | Toutes les actions des PJ (format documenté en tête de fichier) |
-| `js/donnees/classes.js` | Les 11 classes (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`) |
+| `js/donnees/classes.js` | Les 13 classes (dont Ensorceleur à métamagie et Artificier) (stats, rôle, actions de départ et à débloquer) et la montée de niveau (`PROGRESSION`) |
 | `js/donnees/sousclasses.js` | Les 2 ou 3 sous-classes de chaque classe (`SOUS_CLASSES`) : capacités, actions remplacées, gains au niveau 5, campagne qui les débloque |
 | `js/donnees/monstres.js` | Monstres, boss et listes de rencontres |
 | `js/donnees/objets.js` | Objets magiques, améliorations, génération des récompenses |
-| `js/donnees/evenements.js` | Événements à choix (cases ❓) |
+| `js/donnees/evenements.js` | Événements à choix (cases ❓) ; ceux qui ont un champ `campagne` n'apparaissent que dans cette campagne (et sortent en priorité) |
 | `js/donnees/etages.js` | Les 3 étages de la première campagne : rencontres, boss, ambiance, puissance des monstres (`force`) |
 | `js/donnees/campagnes.js` | Les campagnes (étages, règles, déblocage) et la progression mémorisée entre les parties |
-| `js/son.js` | Sons et musique synthétisés, réglages (son, musique, vitesse) |
+| `js/son.js` | Sons et musique synthétisés, réglages ; une musique par décor (`STYLES_MUSIQUE` : mode, tempo, timbres, percussions) et des cris par famille de monstres (`FAMILLES_SONORES`) |
 | `js/combat.js` | Moteur de combat : initiative, attaques, sauvegardes, états, Peur, IA |
 | `js/carte.js` | Génération de la carte (`CONFIG_CARTE` : rangées, chemins, fréquence des salles, minimums) et dessin |
 | `js/jeu.js` | État de la partie, enchaînement des écrans, repos, sauvegarde |
@@ -38,6 +38,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 - **Une classe** : une entrée dans `CLASSES` (avec `role`), son identifiant dans `TOUTES_CLASSES`, ses gains dans `PROGRESSION`, son apparence dans `PERSOS3D` (`ressources3d.js`).
 - **Une sous-classe** : une entrée dans `SOUS_CLASSES` (`sousclasses.js`), avec `deblocage` (campagne à terminer), ses `traits` (liste en tête du fichier, lus par `combat.js`), `remplace` et `niv5`.
 - **Une action** : une entrée dans `ACTIONS`, puis son identifiant dans `actions` ou `poolActions` d'une classe.
+- **Un objet de campagne** : ajouter `campagne: 'id'` ; il n'est proposé (25 % des récompenses d'élite, de boss et de trésor) que dans cette campagne.
 - **Un objet** : une entrée dans `OBJETS` avec sa `rarete` et ses effets dans `mods` (bonus chiffrés et `traits` lus par le moteur de combat ; liste en tête de `objets.js`). Les objets peuvent ainsi être donnés d'un héros à l'autre.
 - **Un consommable** : une entrée dans `CONSOMMABLES` (`objets.js`) et l'action correspondante dans `ACTIONS_SAC` (`actions.js`).
 - **Le marchand et l'or** : `Marchand` et `GAINS_OR` dans `objets.js`.
@@ -48,6 +49,11 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 
 Les valeurs de Peur (paliers, crises, vertu) sont regroupées dans `PEUR` et `CRISES` (`combat.js`). La chance d'objet après un combat ordinaire est `CHANCE_OBJET_COMBAT` (`objets.js`).
 La montée de niveau est dans `PROGRESSION` (`classes.js`).
+
+## Difficultés et défi quotidien
+
+- **Difficultés** (`DIFFICULTES` dans `campagnes.js`) : Normal, Héroïque (débloquée en gagnant en Normal), Cauchemar (débloquée en gagnant en Héroïque). Elles réutilisent les mutations du Chaos (`appliquerChaos(type, final, reglage)`) avec une chance réglable, plus de Peur et plus d'or. `DIFF=heroique node outils-simulation.js 400 crypte` les simule.
+- **Défi quotidien** (`DefiDuJour` dans `jeu.js`) : la date donne une graine qui choisit campagne, équipe, sous-classes et un modificateur, puis fixe le hasard de toute la partie. Le score (étage, salles, combats, or, victoire) et le record sont gardés dans le navigateur.
 
 ## Équilibrage
 

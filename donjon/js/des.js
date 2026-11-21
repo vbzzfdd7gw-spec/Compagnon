@@ -2,9 +2,26 @@
 // Dés : lancers et mise en forme lisible pour le journal.
 // Formats acceptés : "1d8+3", "2d6", "1d8+1d6+2", "5", "3d4+3".
 // =====================================================================
+// Hasard du jeu : Math.random d'ordinaire ; suit une graine pendant le défi
+// quotidien (même carte, mêmes rencontres pour tout le monde). Les effets
+// visuels gardent Math.random pour ne pas dérégler la suite de nombres.
+const Hasard = {
+  etat: null,                      // null = Math.random ; sinon entier (mulberry32)
+  graine(n) { this.etat = n >>> 0; },
+  libre() { this.etat = null; },
+  suivant() {
+    if (this.etat === null) return Math.random();
+    let t = (this.etat = (this.etat + 0x6D2B79F5) >>> 0);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+};
+function alea() { return Hasard.suivant(); }
+
 const Des = {
   d(faces) {
-    return 1 + Math.floor(Math.random() * faces);
+    return 1 + Math.floor(alea() * faces);
   },
 
   // Découpe une expression en termes {n, faces, signe} ou {fixe, signe}
@@ -63,13 +80,13 @@ const Des = {
   },
 
   hasard(liste) {
-    return liste[Math.floor(Math.random() * liste.length)];
+    return liste[Math.floor(alea() * liste.length)];
   },
 
   melanger(liste) {
     const l = liste.slice();
     for (let i = l.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(alea() * (i + 1));
       [l[i], l[j]] = [l[j], l[i]];
     }
     return l;
@@ -78,7 +95,7 @@ const Des = {
   // Tirage pondéré : [{poids, ...}] ou objet {cle: poids}
   pondere(entrees) {
     const total = entrees.reduce((s, e) => s + e.poids, 0);
-    let r = Math.random() * total;
+    let r = alea() * total;
     for (const e of entrees) {
       r -= e.poids;
       if (r <= 0) return e;

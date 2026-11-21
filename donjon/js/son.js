@@ -159,39 +159,156 @@ const Son = {
     this.minuterie = setInterval(() => this.programmer(), 100);
   },
 
+  // Thème musical (campagne / étage) : change la gamme, le tempo et les timbres sans couper la musique
+  choisirTheme(nom) { this.theme = STYLES_MUSIQUE[nom] ? nom : 'crypte'; },
+
   programmer() {
     const c = this.ctx;
     if (!c || !this.humeur) return;
+    const st = STYLES_MUSIQUE[this.theme] || STYLES_MUSIQUE.crypte;
     const boss = this.humeur === 'boss', combat = this.humeur !== 'carte';
-    const tempo = boss ? 104 : combat ? 92 : 64;
+    const tempo = (boss ? 104 : combat ? 92 : 64) * st.tempo;
     const croche = 60 / tempo / 2;
-    const ACCORDS = boss
-      ? [[38, 45, 50, 53], [36, 43, 48, 51], [34, 41, 46, 49], [37, 44, 49, 52]]
-      : [[38, 45, 50, 53], [34, 41, 46, 50], [36, 43, 48, 52], [33, 40, 45, 49]];
-    const GAMME = [62, 64, 65, 67, 69, 70, 72, 74, 77];
+    const racine = st.racine + (boss ? -2 : 0);
+    // Gamme sur deux octaves, accords construits sur les degrés de la progression
+    const note = d => racine + st.mode[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7);
+    const GAMME = [7, 8, 9, 10, 11, 12, 13, 14, 15].map(note);
+    const accordDe = d => [note(d) - 12, note(d), note(d + 2), note(d + 4)];
     const hz = m => 440 * Math.pow(2, (m - 69) / 12);
     const dest = this.busMusique;
     while (this.prochainTemps < c.currentTime + 0.3) {
       const t = this.prochainTemps, p = this.pas;
-      const accord = ACCORDS[Math.floor(p / 16) % ACCORDS.length];
+      const accord = accordDe(st.degres[Math.floor(p / 16) % st.degres.length]);
       if (p % 16 === 0) {
         // Nappe : accord tenu
-        accord.forEach((m, i) => this.osc(i === 0 ? 'sawtooth' : 'triangle', hz(m + (i === 0 ? 0 : 12)), hz(m + (i === 0 ? 0 : 12)), t, croche * 16, i === 0 ? 0.11 : 0.05, dest, { type: 'lowpass', f: boss ? 500 : 700 }));
+        accord.forEach((m, i) => this.osc(i === 0 ? st.basse : st.nappe, hz(m + (i === 0 ? 0 : 12)), hz(m + (i === 0 ? 0 : 12)), t, croche * 16, i === 0 ? 0.1 : 0.045, dest, { type: 'lowpass', f: (boss ? 0.75 : 1) * st.filtre }));
       }
-      // Mélodie de cloches, rare
-      if (p % (combat ? 4 : 6) === 2 && Math.random() < (combat ? 0.45 : 0.5)) {
+      // Arpège (château, toiles…) ou mélodie de cloches
+      if (st.arpege && p % 2 === 0) {
+        const m = accord[1 + (p / 2) % 3] + 12;
+        this.osc(st.melodie, hz(m), hz(m), t, croche * 1.6, 0.045, dest, { type: 'lowpass', f: 2600 });
+      } else if (p % (combat ? 4 : 6) === 2 && Math.random() < (combat ? 0.45 : 0.5)) {
         const n = GAMME[Math.floor(Math.random() * GAMME.length)] + (boss ? -12 : 0);
-        this.osc('sine', hz(n), hz(n), t, croche * 5, 0.07, dest);
+        this.osc(st.melodie, hz(n), hz(n), t, croche * 5, 0.065, dest, st.melodie === 'sine' ? null : { type: 'lowpass', f: 2200 });
         this.osc('sine', hz(n) * 2.01, hz(n) * 2.01, t, croche * 2, 0.02, dest);
       }
-      if (combat) {
-        // Tambour grave et caisse feutrée
-        if (p % 4 === 0) this.osc('sine', boss ? 70 : 85, 40, t, 0.35, boss ? 0.55 : 0.4, dest);
-        if (p % 8 === 6 || (boss && p % 16 === 14)) this.souffle(t, 0.12, 0.12, 'bandpass', 1200, 800, 1, dest);
-        if (p % 2 === 1 && Math.random() < 0.5) this.souffle(t, 0.04, 0.03, 'highpass', 7000, 6000, 1, dest);
-      }
+      if (combat) this.percussions(st.percu, p, t, boss, dest);
+      if (st.ambiance) st.ambiance(this, p, t, croche, dest);
       this.prochainTemps += croche;
       this.pas++;
     }
+  },
+
+  // Motifs de percussion selon le thème
+  percussions(type, p, t, boss, dest) {
+    if (type === 'darbouka') {
+      if ([0, 3, 6, 10, 12].includes(p % 16)) this.osc('sine', p % 16 === 0 ? 90 : 180, 70, t, 0.18, 0.4, dest);
+      if ([2, 7, 9, 14].includes(p % 16)) this.souffle(t, 0.06, 0.14, 'bandpass', 2200, 1600, 3, dest);
+    } else if (type === 'lourd') {
+      if (p % 2 === 0) this.osc('sine', boss ? 55 : 65, 35, t, 0.4, p % 4 === 0 ? 0.65 : 0.35, dest);
+      if (p % 8 === 4) this.souffle(t, 0.25, 0.2, 'lowpass', 900, 200, 1, dest);
+    } else if (type === 'cloches') {
+      if (p % 4 === 0) this.osc('sine', boss ? 70 : 85, 40, t, 0.3, 0.35, dest);
+      if (p % 8 === 6) [1, 2.76].forEach(k => this.osc('sine', 1400 * k, 1400 * k, t, 0.6, 0.025, dest));
+    } else if (type === 'valse') {
+      if (p % 6 === 0) this.osc('sine', 75, 40, t, 0.35, 0.45, dest);
+      if (p % 6 === 2 || p % 6 === 4) this.souffle(t, 0.07, 0.07, 'bandpass', 1800, 1400, 2, dest);
+    } else {
+      if (p % 4 === 0) this.osc('sine', boss ? 70 : 85, 40, t, 0.35, boss ? 0.55 : 0.4, dest);
+      if (p % 8 === 6 || (boss && p % 16 === 14)) this.souffle(t, 0.12, 0.12, 'bandpass', 1200, 800, 1, dest);
+      if (p % 2 === 1 && Math.random() < 0.5) this.souffle(t, 0.04, 0.03, 'highpass', 7000, 6000, 1, dest);
+    }
+  },
+
+  // ------------------------------------------------------- cris des monstres
+  // quoi : 'attaque' ou 'mort'
+  monstre(modele, quoi = 'attaque') {
+    if (!this.ctx || !Reglages.sons) return;
+    const famille = Object.keys(FAMILLES_SONORES).find(f => FAMILLES_SONORES[f].includes(modele)) || 'humanoide';
+    const t = this.ctx.currentTime + 0.02, r = Math.random, mort = quoi === 'mort', k = mort ? 0.7 : 1;
+    switch (famille) {
+      case 'grognement':
+        this.osc('sawtooth', 120 * k, 70 * k, t, mort ? 0.9 : 0.45, 0.16, null, { type: 'lowpass', f: 600 });
+        this.souffle(t, mort ? 0.8 : 0.4, 0.3, 'lowpass', 700, 200, 2);
+        break;
+      case 'rugissement':
+        this.souffle(t, mort ? 1.6 : 1.0, 0.6, 'lowpass', 1400, 120, 1);
+        this.osc('sawtooth', 160 * k, 60, t, mort ? 1.5 : 0.9, 0.18, null, { type: 'lowpass', f: 900 });
+        this.osc('sawtooth', 168 * k, 62, t, mort ? 1.5 : 0.9, 0.12, null, { type: 'lowpass', f: 900 });
+        break;
+      case 'sifflement':
+        this.souffle(t, mort ? 1.0 : 0.55, 0.32, 'highpass', 5000, 3000, 1);
+        break;
+      case 'aigu':
+        [0, 0.08, 0.16].forEach(d => this.osc('sawtooth', 1800 * k + r() * 300, 1300 * k, t + d, 0.12, 0.05, null, { type: 'bandpass', f: 2200, q: 3 }));
+        break;
+      case 'croassement':
+        [0, 0.16].forEach(d => this.osc('square', 220, 120, t + d, 0.12, 0.08, null, { type: 'lowpass', f: 900 }));
+        break;
+      case 'gargouillis':
+        for (let i = 0; i < (mort ? 8 : 5); i++) this.osc('sine', 120 + r() * 160, 260 + r() * 200, t + i * 0.07, 0.08, 0.14);
+        break;
+      case 'gemissement':
+        this.osc('triangle', 260 * k, 180 * k, t, mort ? 1.4 : 0.8, 0.1);
+        this.osc('triangle', 266 * k, 176 * k, t, mort ? 1.4 : 0.8, 0.08);
+        break;
+      case 'os':
+        for (let i = 0; i < (mort ? 7 : 4); i++) this.osc('square', 900 + r() * 500, 700, t + i * 0.05, 0.03, 0.06, null, { type: 'highpass', f: 600 });
+        break;
+      case 'rire':
+        [0, 0.13, 0.26, 0.39].forEach((d, i) => this.osc('triangle', (mort ? 300 : 440) - i * 30, (mort ? 260 : 400) - i * 30, t + d, 0.1, 0.09, null, { type: 'lowpass', f: 1600 }));
+        break;
+      case 'insecte':
+        for (let i = 0; i < 10; i++) this.osc('square', 2600 + r() * 800, 2400, t + i * 0.025, 0.015, 0.03, null, { type: 'highpass', f: 1800 });
+        break;
+      case 'cristal':
+        [1, 1.5, 2.25].forEach((m, i) => this.osc('sine', 1200 * m * k, 1200 * m * k, t + i * 0.05, 0.5, 0.05));
+        break;
+      default:
+        this.souffle(t, mort ? 0.35 : 0.18, 0.25, 'bandpass', mort ? 500 : 700, mort ? 250 : 450, 3);
+    }
   }
+};
+
+// Familles de cris (le reste : grognement humanoïde bref)
+const FAMILLES_SONORES = {
+  grognement: ['loup', 'loup_alpha', 'loup_givre', 'loup_sanguinaire', 'ogre', 'troll', 'yeti', 'gnoll', 'grukk', 'grukk_tyran', 'geant_givre', 'merrow', 'crabe_geant'],
+  rugissement: ['dragonnet', 'ignaroth', 'dracoliche', 'hydre', 'baron_sahuagin'],
+  sifflement: ['araignee', 'reine_araignee', 'meduse', 'homme_lezard', 'chef_lezard', 'sahuagin', 'pretresse_sahuagin'],
+  aigu: ['harpie', 'chauves_souris', 'gargouille'],
+  croassement: ['crapaud'],
+  gargouillis: ['gelee_ocre', 'pouding_noir', 'cube_gelatineux', 'noye', 'mimique'],
+  gemissement: ['spectre', 'ombre', 'zombie', 'goule', 'bleme', 'momie', 'necrophage', 'rejeton_vampire', 'pharaon'],
+  os: ['squelette', 'mage_squelette', 'chevalier_squelette', 'morvagne', 'pretre_momie'],
+  rire: ['cultiste', 'pretre_eclipse', 'velkor', 'guenaude', 'vampire', 'reine_hiver', 'chef_kobold'],
+  insecte: ['oxydeur', 'scarabees'],
+  cristal: ['esprit_glace', 'feu_follet']
+};
+
+// Styles musicaux par thème. mode : intervalles de la gamme ; degres : progression d'accords ;
+// racine : note MIDI de base ; tempo : multiplicateur ; basse / nappe / melodie : timbres ;
+// percu : motif de percussions ; arpege : arpèges plutôt que cloches ; ambiance : bruitages de fond
+const MODES = {
+  mineur: [0, 2, 3, 5, 7, 8, 10], dorien: [0, 2, 3, 5, 7, 9, 10], phrygien: [0, 1, 3, 5, 7, 8, 10], harmonique: [0, 2, 3, 5, 7, 8, 11],
+  hijaz: [0, 1, 4, 5, 7, 8, 10], lydien: [0, 2, 4, 6, 7, 9, 11], mixolydien: [0, 2, 4, 5, 7, 9, 10], tons: [0, 2, 4, 6, 8, 10, 11]
+};
+const STYLES_MUSIQUE = {
+  crypte: { mode: MODES.mineur, degres: [0, 5, 6, 3], racine: 50, tempo: 1, basse: 'sawtooth', nappe: 'triangle', melodie: 'sine', filtre: 700, percu: 'tambour' },
+  grotte: { mode: MODES.dorien, degres: [0, 3, 0, 6], racine: 48, tempo: 0.9, basse: 'sawtooth', nappe: 'triangle', melodie: 'sine', filtre: 600, percu: 'tambour',
+    ambiance(s, p, t) { if (Math.random() < 0.05) s.osc('sine', 1500 + Math.random() * 900, 900, t, 0.12, 0.05, s.busMusique); } },
+  sanctuaire: { mode: MODES.harmonique, degres: [0, 5, 3, 4], racine: 50, tempo: 0.85, basse: 'square', nappe: 'square', melodie: 'triangle', filtre: 500, percu: 'cloches' },
+  volcan: { mode: MODES.phrygien, degres: [0, 1, 0, 6], racine: 45, tempo: 1.1, basse: 'sawtooth', nappe: 'sawtooth', melodie: 'triangle', filtre: 450, percu: 'lourd',
+    ambiance(s, p, t) { if (p % 32 === 0) s.souffle(t, 3, 0.08, 'lowpass', 200, 80, 1, s.busMusique); } },
+  toiles: { mode: MODES.harmonique, degres: [0, 1, 0, 4], racine: 47, tempo: 0.95, basse: 'sawtooth', nappe: 'triangle', melodie: 'triangle', filtre: 600, percu: 'tambour', arpege: true },
+  abime: { mode: MODES.tons, degres: [0, 2, 4, 1], racine: 46, tempo: 0.75, basse: 'sawtooth', nappe: 'sine', melodie: 'sine', filtre: 500, percu: 'lourd' },
+  marais: { mode: MODES.dorien, degres: [0, 6, 3, 0], racine: 45, tempo: 0.85, basse: 'sawtooth', nappe: 'triangle', melodie: 'triangle', filtre: 550, percu: 'tambour',
+    ambiance(s, p, t) { if (Math.random() < 0.025) [0, 0.15].forEach(d => s.osc('square', 210, 120, t + d, 0.1, 0.03, s.busMusique, { type: 'lowpass', f: 800 })); } },
+  givre: { mode: MODES.lydien, degres: [0, 1, 5, 4], racine: 55, tempo: 0.8, basse: 'triangle', nappe: 'sine', melodie: 'sine', filtre: 1400, percu: 'cloches',
+    ambiance(s, p, t) { if (p % 24 === 0) s.souffle(t, 4, 0.05, 'bandpass', 600, 1400, 2, s.busMusique); } },
+  desert: { mode: MODES.hijaz, degres: [0, 1, 0, 6], racine: 50, tempo: 1.05, basse: 'sawtooth', nappe: 'triangle', melodie: 'triangle', filtre: 900, percu: 'darbouka' },
+  chateau: { mode: MODES.harmonique, degres: [0, 3, 4, 0], racine: 50, tempo: 0.9, basse: 'square', nappe: 'square', melodie: 'square', filtre: 650, percu: 'valse', arpege: true },
+  suintant: { mode: MODES.mineur, degres: [0, 5, 0, 4], racine: 47, tempo: 0.95, basse: 'sawtooth', nappe: 'triangle', melodie: 'sine', filtre: 600, percu: 'tambour',
+    ambiance(s, p, t) { if (Math.random() < 0.06) s.osc('sine', 200 + Math.random() * 200, 500 + Math.random() * 300, t, 0.07, 0.04, s.busMusique); } },
+  cote: { mode: MODES.mixolydien, degres: [0, 6, 3, 4], racine: 52, tempo: 0.9, basse: 'triangle', nappe: 'triangle', melodie: 'triangle', filtre: 1100, percu: 'tambour',
+    ambiance(s, p, t) { if (p % 16 === 0) s.souffle(t, 2.4, 0.09, 'lowpass', 300, 1200, 1, s.busMusique); } }
 };

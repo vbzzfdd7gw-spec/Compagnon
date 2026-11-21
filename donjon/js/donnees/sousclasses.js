@@ -136,6 +136,25 @@ const SOUS_CLASSES = {
       details: ['Pas de l\'ombre remplace Défense patiente : action bonus, devient caché (avantage à sa prochaine attaque), une fois par combat.', 'Niv. 5 — Voile d\'ombre : la première attaque qui le toucherait à chaque combat rate.'],
       remplace: { defense_patiente: 'pas_ombre' }, niv5: { traits: { voile: true }, texte: 'Voile d\'ombre' } }
   ],
+  ensorceleur: [
+    { id: 'draconique', nom: 'Lignée draconique', icone: '🐲', desc: 'Écailles protectrices, sorts de feu dévastateurs.',
+      details: ['Résilience draconique : +3 PV maximum et +2 CA (écailles).', 'Niv. 5 — Affinité élémentaire : +3 aux dégâts de ses sorts de feu, et résistance au feu.'],
+      pv: 3, ca: 2, niv5: { traits: { affinite: { type: 'feu', bonus: 3 }, resist: ['feu'] }, texte: 'Affinité élémentaire (feu +3, résistance)' } },
+    { id: 'sauvage', nom: 'Magie sauvage', icone: '🎲', desc: 'Un sort sur trois déclenche un effet imprévisible.', deblocage: 'cote',
+      details: ['Montée de magie sauvage : après un sort à emplacement, 1 chance sur 3 d\'un effet au hasard (soin, explosion sur les ennemis, emplacement récupéré, bouclier… ou une boule de feu qui touche aussi l\'équipe !).', 'Source de magie remplace Sort intensifié.', 'Niv. 5 — Contrôle du chaos : 1 chance sur 2, et les effets néfastes sont relancés une fois.'],
+      remplace: { sort_intensifie: 'source_magie' }, traits: { magieSauvage: 0.34 }, niv5: { traits: { magieSauvage: 0.5, controleChaos: true }, texte: 'Contrôle du chaos' } }
+  ],
+  artificier: [
+    { id: 'artilleur', nom: 'Artilleur', icone: '💣', desc: 'Un canon occulte combat à ses côtés.',
+      details: ['Canon occulte (action bonus, une fois par combat) : un canon tire tout seul après chacune de ses actions (1d6 force).', 'Niv. 5 — Canon renforcé : 1d10 force.'],
+      ajoute: ['canon_occulte'], traits: { canon: '1d6' }, niv5: { traits: { canon: '1d10' }, texte: 'Canon renforcé (1d10)' } },
+    { id: 'armurier', nom: 'Armurier', icone: '🦾', desc: 'Armure arcanique et gantelets tonnerre.', deblocage: 'souterrains',
+      details: ['Armure arcanique : +1 CA et +4 PV maximum.', 'Gantelet tonnerre remplace l\'Arbalète : 1d8+3 tonnerre, la cible a désavantage à sa prochaine attaque.', 'Niv. 5 — Attaque supplémentaire.'],
+      remplace: { arbalete_artificier: 'gantelet_tonnerre' }, ca: 1, pv: 4, niv5: { traits: { attaqueSupp: true }, texte: 'Attaque supplémentaire' } },
+    { id: 'alchimiste', nom: 'Alchimiste', icone: '⚗️', desc: 'Élixirs qui soignent et renforcent.', deblocage: 'marais',
+      details: ['Élixir expérimental remplace Infusion : 2d4+4 PV et un effet au hasard (béni, esquive, −20 Peur ou PV temporaires), une fois par combat.', 'Niv. 5 — Savant alchimiste : ses soins rendent 3 PV de plus.'],
+      remplace: { infusion_arme: 'elixir' }, niv5: { traits: {}, bonusSoin: 3, texte: 'Savant alchimiste (+3 aux soins)' } }
+  ],
   occultiste: [
     { id: 'fielon', nom: 'Pacte du Fiélon', icone: '😈', desc: 'Se protège en tuant.',
       details: ['Bénédiction du ténébreux : chaque ennemi qu\'il tue lui donne 3 + niveau PV temporaires.', 'Niv. 5 — Résistance infernale : résistance au feu.'],
@@ -185,6 +204,7 @@ function niveauSousClasse(pj, niv) {
   if (!sc || niv !== 5 || !sc.niv5) return [];
   const g = sc.niv5, gains = [];
   ajouterTraits(pj, g.traits);
+  if (g.bonusSoin) pj.bonusSoin += g.bonusSoin;
   for (const id of [g.action, g.sort].filter(Boolean)) {
     if (pj.actions.includes(id)) continue;
     if (pj.actions.length < MAX_ACTIONS) pj.actions.push(id);
@@ -196,8 +216,8 @@ function niveauSousClasse(pj, niv) {
 
 // Ressources du héros (classe + sous-classe), restaurées au repos long
 function ressourcesPJ(pj) {
-  const sc = pj.sousClasse && sousClasse(pj.classe, pj.sousClasse);
-  return { ...(CLASSES[pj.classe].ressources || {}), ...((sc && sc.ressources) || {}) };
+  const sc = pj.sousClasse && sousClasse(pj.classe, pj.sousClasse), c = CLASSES[pj.classe];
+  return { ...(c.ressources || {}), ...((pj.niveau || 3) >= 5 ? c.ressourcesNiv5 || {} : {}), ...((sc && sc.ressources) || {}) };
 }
 
 // Effets du repos court propres à la classe et à la sous-classe ; renvoie des lignes de texte

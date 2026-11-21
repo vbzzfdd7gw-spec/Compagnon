@@ -499,6 +499,75 @@ const ACTIONS = {
     desc: 'Pacte. Un néant glacial engloutit tous les ennemis : sauvegarde de DEX, 4d6 froid (moitié), entravés si échec.'
   },
 
+  // ------------------------------ ENSORCELEUR --------------------------
+  sort_jumele: {
+    nom: 'Sort jumelé', icone: '♊', type: 'soutien', ressource: 'sorcellerie', actionBonus: true, pasSiActif: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'jumele', duree: 99 },
+    desc: 'Métamagie (1 point de sorcellerie), action bonus. Votre prochain sort à cible unique touche aussi une deuxième cible.'
+  },
+  sort_intensifie: {
+    nom: 'Sort intensifié', icone: '💢', type: 'soutien', ressource: 'sorcellerie', actionBonus: true, pasSiActif: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'intensifie', duree: 99 },
+    desc: 'Métamagie (1 point de sorcellerie), action bonus. Votre prochain sort de dégâts inflige ×1,5 dégâts.'
+  },
+  source_magie: {
+    nom: 'Source de magie', icone: '🌟', type: 'special', special: 'sourceMagie', ressource: 'sorcellerie', actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
+    desc: 'Action bonus. Convertit 1 point de sorcellerie en un emplacement de sort de niveau 1.'
+  },
+  poigne_electrique: {
+    nom: 'Poigne électrique', icone: '⚡', type: 'attaque', sort: true, avantage: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'sort', degats: '1d8+1', typeDeg: 'foudre', effetSiTouche: { etat: 'entrave', duree: 1 },
+    desc: 'Tour de magie, corps à corps avec avantage. 1d8+1 foudre ; la cible a désavantage à sa prochaine attaque.'
+  },
+  eclair: {
+    nom: 'Éclair', icone: '🌩️', type: 'sauvegarde', niveau: 3, sort: true, triangle: 3, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', degats: '8d6', typeDeg: 'foudre', moitie: true,
+    desc: 'Niv. 3. Un trait de foudre traverse la cible et ses 2 voisins : sauvegarde de DEX, 8d6 foudre (moitié si réussite).'
+  },
+  // ------------------------------ ARTIFICIER ----------------------------
+  arbalete_artificier: {
+    nom: 'Arbalète à répétition', icone: '🏹', type: 'attaque', arme: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], jet: 'arme', degats: '1d8+2', typeDeg: 'perforant',
+    desc: 'À distance. 1d8+2 perforant.'
+  },
+  infusion_arme: {
+    nom: 'Infusion : arme améliorée', icone: '🔧', type: 'soutien', parCombat: 1,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true, etat: { nom: 'infuse', duree: 99 },
+    desc: 'Un allié : +1 au toucher et +1d4 force avec ses armes jusqu\'à la fin du combat. Une fois par combat.'
+  },
+  graisse: {
+    nom: 'Graisse', icone: '🛢️', type: 'sauvegarde', niveau: 1, zone: true, sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant'], carac: 'DEX', dd: 'sort', moitie: false,
+    effetSiEchec: { etat: 'renverse', duree: 1 },
+    desc: 'Niv. 1. Ligne Avant ennemie : sauvegarde de DEX ou renversés (les attaques contre eux ont avantage).'
+  },
+  fiole_acide: {
+    nom: 'Fiole d\'acide', icone: '🧪', type: 'sauvegarde', sort: true,
+    depuis: ['avant', 'arriere'], cible: 'ennemi', vise: ['avant', 'arriere'], carac: 'DEX', dd: 'sort', degats: '1d6+2', typeDeg: 'acide', moitie: false,
+    desc: 'Tour de magie. Sauvegarde de DEX ou 1d6+2 acide.'
+  },
+  aide: {
+    nom: 'Aide', icone: '💪', type: 'special', special: 'aide', niveau: 2, zone: true, niveauMin: 5,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'], vivantsSeulement: true,
+    desc: 'Niv. 2. Tous les alliés debout gagnent 6 PV temporaires et récupèrent 6 PV.'
+  },
+  canon_occulte: {
+    nom: 'Canon occulte', icone: '💣', type: 'soutien', parCombat: 1, actionBonus: true,
+    depuis: ['avant', 'arriere'], cible: 'soi', vise: [], etat: { nom: 'canon', duree: 99 },
+    desc: 'Action bonus. Installe un canon qui tire tout seul (1d6 force sur l\'ennemi le plus faible) après chacune de vos actions.'
+  },
+  gantelet_tonnerre: {
+    nom: 'Gantelet tonnerre', icone: '🥊', type: 'attaque', sort: true,
+    depuis: ['avant'], cible: 'ennemi', vise: ['avant'], jet: 'sort', degats: '1d8+3', typeDeg: 'tonnerre', effetSiTouche: { etat: 'entrave', duree: 1 },
+    desc: 'Armure arcanique. 1d8+3 tonnerre ; la cible a désavantage à sa prochaine attaque.'
+  },
+  elixir: {
+    nom: 'Élixir expérimental', icone: '⚗️', type: 'special', special: 'elixir', parCombat: 1,
+    depuis: ['avant', 'arriere'], cible: 'allie', vise: ['avant', 'arriere'],
+    desc: 'Un allié (même à terre) boit un élixir : 2d4+4 PV et un effet au hasard (béni, esquive, −20 Peur ou PV temporaires). Une fois par combat.'
+  },
+
   // ----------------------------- SOUS-CLASSES --------------------------
   croc_en_jambe: {
     nom: 'Croc-en-jambe', icone: '♟️', type: 'attaque', arme: true, ressource: 'superiorite',

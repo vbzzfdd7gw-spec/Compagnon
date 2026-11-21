@@ -12,7 +12,9 @@
 // Traits reconnus par combat.js : armeElem {des, type}, voile, phenix,
 //   arcEclair (dés), vol, epines (dés), critMin, init, benitDebut,
 //   manaDebut, resist [types], cacheDebut, regen, peurReduite,
-//   peurDebut, sangSort, peurMin, saigne, orMult, bonusTest
+//   peurDebut, sangSort, peurMin, saigne, orMult, bonusTest,
+//   vorpale (dés ajoutés aux critiques), antiCrit, antiRouille, sacSansFond
+//   campagne    : objet qu'on ne trouve que dans cette campagne (et dans le Chaos)
 // =====================================================================
 
 const RARETES = {
@@ -22,9 +24,9 @@ const RARETES = {
   maudit: { nom: 'Maudit', couleur: '#c060ff', prix: [45, 60] }
 };
 
-const ARMES = ['guerrier', 'roublard', 'barbare', 'paladin', 'rodeur', 'moine'];
-const LANCEURS = ['clerc', 'magicien', 'barde', 'druide', 'paladin', 'rodeur', 'occultiste'];
-const ARMURES = ['guerrier', 'clerc', 'paladin', 'barbare'];
+const ARMES = ['guerrier', 'roublard', 'barbare', 'paladin', 'rodeur', 'moine', 'artificier'];
+const LANCEURS = ['clerc', 'magicien', 'barde', 'druide', 'paladin', 'rodeur', 'occultiste', 'ensorceleur', 'artificier'];
+const ARMURES = ['guerrier', 'clerc', 'paladin', 'barbare', 'artificier'];
 
 const OBJETS = {
   // ------------------------------------------------------- communs
@@ -34,7 +36,7 @@ const OBJETS = {
   heaume_fer: { nom: 'Heaume de fer', icone: '⛑️', rarete: 'commun', classes: ARMURES, desc: '+1 CA et +3 PV maximum.', mods: { ca: 1, pvMax: 3 } },
   bottes_vivacite: { nom: 'Bottes de vivacité', icone: '🥾', rarete: 'commun', classes: null, desc: '+5 à l\'initiative.', mods: { traits: { init: 5 } } },
   gants_archer: { nom: 'Gants d\'archer', icone: '🧤', rarete: 'commun', classes: ARMES, desc: '+1 au toucher avec les armes.', mods: { bonusArme: 1 } },
-  robe_etoilee: { nom: 'Robe étoilée', icone: '🥻', rarete: 'commun', classes: ['magicien', 'barde', 'druide', 'occultiste'], desc: '+1 CA et +4 PV maximum.', mods: { ca: 1, pvMax: 4 } },
+  robe_etoilee: { nom: 'Robe étoilée', icone: '🥻', rarete: 'commun', classes: ['magicien', 'barde', 'druide', 'occultiste', 'ensorceleur'], desc: '+1 CA et +4 PV maximum.', mods: { ca: 1, pvMax: 4 } },
   cristal_lumiere: { nom: 'Cristal de lumière', icone: '💎', rarete: 'commun', classes: ['clerc', 'druide', 'paladin', 'barde'], desc: '+3 PV à chaque soin.', mods: { bonusSoin: 3 } },
   ceinture_force: { nom: 'Ceinture de force', icone: '🎗️', rarete: 'commun', classes: ARMES, desc: '+1 aux dégâts et +3 PV maximum.', mods: { bonusDegats: 1, pvMax: 3 } },
   anneau_protection: { nom: 'Anneau de protection', icone: '💍', rarete: 'commun', classes: null, desc: '+1 aux jets de sauvegarde et +2 PV maximum.', mods: { bonusSauv: 1, pvMax: 2 } },
@@ -46,9 +48,9 @@ const OBJETS = {
   pierre_chance: { nom: 'Pierre porte-bonheur', icone: '🍀', rarete: 'rare', classes: null, desc: '+1 aux jets de sauvegarde et aux tests.', mods: { bonusSauv: 1, traits: { bonusTest: 1 } } },
   cape_protection: { nom: 'Cape de protection', icone: '🧥', rarete: 'rare', classes: null, desc: '+1 CA et +1 aux jets de sauvegarde.', mods: { ca: 1, bonusSauv: 1 } },
   talisman_bravoure: { nom: 'Talisman de bravoure', icone: '🦁', rarete: 'rare', classes: null, desc: 'La Peur gagnée est réduite de moitié.', mods: { traits: { peurReduite: true } } },
-  baguette_mage: { nom: 'Baguette du mage de guerre +1', icone: '🪄', rarete: 'rare', classes: ['magicien', 'barde', 'druide', 'occultiste'], desc: '+1 aux attaques de sort et au DD des sorts.', mods: { bonusSort: 1, ddSort: 1 } },
+  baguette_mage: { nom: 'Baguette du mage de guerre +1', icone: '🪄', rarete: 'rare', classes: ['magicien', 'barde', 'druide', 'occultiste', 'ensorceleur', 'artificier'], desc: '+1 aux attaques de sort et au DD des sorts.', mods: { bonusSort: 1, ddSort: 1 } },
   symbole_sacre: { nom: 'Symbole sacré béni', icone: '📯', rarete: 'rare', classes: ['clerc', 'druide', 'paladin'], desc: '+1 au DD des sorts et +2 PV à chaque soin.', mods: { ddSort: 1, bonusSoin: 2 } },
-  perle_pouvoir: { nom: 'Perle de pouvoir', icone: '🔵', rarete: 'rare', classes: ['clerc', 'magicien', 'barde', 'druide', 'paladin', 'rodeur'], desc: '+1 emplacement de sort de niveau 1.', mods: { emp1: 1 } },
+  perle_pouvoir: { nom: 'Perle de pouvoir', icone: '🔵', rarete: 'rare', classes: ['clerc', 'magicien', 'barde', 'druide', 'paladin', 'rodeur', 'ensorceleur', 'artificier'], desc: '+1 emplacement de sort de niveau 1.', mods: { emp1: 1 } },
   anneau_vitalite: { nom: 'Anneau de vitalité', icone: '❤️‍🩹', rarete: 'rare', classes: null, desc: 'Récupère 2 PV au début de chacun de ses tours.', mods: { traits: { regen: 2 } } },
   lame_flammes: { nom: 'Lame de flammes', icone: '🔥', rarete: 'rare', classes: ARMES, desc: 'Les coups d\'arme infligent +1d6 dégâts de feu.', mods: { traits: { armeElem: { des: '1d6', type: 'feu' } } } },
   lame_givre: { nom: 'Lame de givre', icone: '🧊', rarete: 'rare', classes: ARMES, desc: 'Les coups d\'arme infligent +1d6 dégâts de froid.', mods: { traits: { armeElem: { des: '1d6', type: 'froid' } } } },
@@ -65,10 +67,31 @@ const OBJETS = {
   // --------------------------------------------------- légendaires
   amulette_phenix: { nom: 'Amulette du phénix', icone: '🐦‍🔥', rarete: 'legendaire', classes: null, desc: 'Une fois par combat, se relève avec 10 PV au lieu de tomber à terre.', mods: { traits: { phenix: true } } },
   epee_solaire: { nom: 'Épée solaire', icone: '☀️', rarete: 'legendaire', classes: ARMES, desc: '+1 au toucher ; les coups d\'arme infligent +1d8 radiant.', mods: { bonusArme: 1, traits: { armeElem: { des: '1d8', type: 'radiant' } } } },
-  couronne_archimage: { nom: 'Couronne de l\'archimage', icone: '🎓', rarete: 'legendaire', classes: ['magicien', 'barde', 'druide'], desc: '+2 aux sorts et au DD, +1 emplacement de niveau 2.', mods: { bonusSort: 2, ddSort: 2, emp2: 1 } },
+  couronne_archimage: { nom: 'Couronne de l\'archimage', icone: '🎓', rarete: 'legendaire', classes: ['magicien', 'barde', 'druide', 'ensorceleur'], desc: '+2 aux sorts et au DD, +1 emplacement de niveau 2.', mods: { bonusSort: 2, ddSort: 2, emp2: 1 } },
   relique_sainte: { nom: 'Relique du saint', icone: '✴️', rarete: 'legendaire', classes: ['clerc', 'paladin', 'druide'], desc: '+2 au DD des sorts, +4 PV à chaque soin, équipe bénie en début de combat.', mods: { ddSort: 2, bonusSoin: 4, traits: { benitDebut: true } } },
   manteau_invisible: { nom: 'Manteau d\'invisibilité', icone: '👻', rarete: 'legendaire', classes: ['roublard', 'rodeur', 'moine'], desc: '+1 CA, commence caché, la première attaque contre lui rate.', mods: { ca: 1, traits: { cacheDebut: true, voile: true } } },
   coeur_dragon: { nom: 'Cœur de dragon', icone: '🐉', rarete: 'legendaire', classes: null, desc: '+12 PV max, résistance au feu, récupère 1 PV par tour.', mods: { pvMax: 12, traits: { resist: ['feu'], regen: 1 } } },
+
+  epee_vorpale: { nom: 'Épée vorpale', icone: '🗡️', rarete: 'legendaire', classes: ARMES, desc: '+2 au toucher et aux dégâts. Ses coups critiques tranchent net : +3d8 dégâts.', mods: { bonusArme: 2, bonusDegats: 2, traits: { vorpale: '3d8' } } },
+  baton_puissance: { nom: 'Bâton de puissance', icone: '🪄', rarete: 'legendaire', classes: LANCEURS, desc: '+2 aux sorts et au DD, +2 CA, +1 aux jets de sauvegarde.', mods: { bonusSort: 2, ddSort: 2, ca: 2, bonusSauv: 1 } },
+  sac_sans_fond: { nom: 'Sac sans fond', icone: '👝', rarete: 'legendaire', classes: null, desc: 'Une victoire sur deux, l\'équipe y trouve un consommable de plus.', mods: { traits: { sacSansFond: true } } },
+  armure_adamantine: { nom: 'Armure d\'adamantine', icone: '🛡️', rarete: 'legendaire', classes: ARMURES, desc: '+2 CA ; les coups critiques contre le porteur deviennent des coups normaux.', mods: { ca: 2, traits: { antiCrit: true } } },
+  anneau_regeneration: { nom: 'Anneau de régénération', icone: '💚', rarete: 'legendaire', classes: null, desc: 'Récupère 4 PV au début de chacun de ses tours.', mods: { traits: { regen: 4 } } },
+
+  // ------------------------------------- objets propres aux campagnes
+  phylactere_brise: { nom: 'Phylactère brisé', icone: '⚱️', rarete: 'rare', campagne: 'crypte', classes: null, desc: 'Les restes de la magie de Morvagne : +1 aux sauvegardes, résistance aux dégâts nécrotiques.', mods: { bonusSauv: 1, traits: { resist: ['nécrotique'] } } },
+  hache_grukk: { nom: 'Hache de Grukk', icone: '🪓', rarete: 'rare', campagne: 'horde', classes: ARMES, desc: '+2 aux dégâts avec les armes et +4 PV maximum.', mods: { bonusDegats: 2, pvMax: 4 } },
+  medaillon_aube: { nom: 'Médaillon de l\'aube', icone: '🌅', rarete: 'rare', campagne: 'eclipse', classes: null, desc: 'Arraché au culte : la Peur gagnée est réduite de moitié, +1 aux sauvegardes.', mods: { bonusSauv: 1, traits: { peurReduite: true } } },
+  oeil_guenaude: { nom: 'Œil de la guenaude', icone: '👁️', rarete: 'rare', campagne: 'marais', classes: LANCEURS, desc: '+1 aux attaques de sort, +2 au DD des sorts.', mods: { bonusSort: 1, ddSort: 2 } },
+  trident_sekolah: { nom: 'Trident de Sekolah', icone: '🔱', rarete: 'legendaire', campagne: 'cote', classes: ARMES, desc: '+2 au toucher, +3 à l\'initiative ; les coups d\'arme infligent +1d6 froid.', mods: { bonusArme: 2, traits: { init: 3, armeElem: { des: '1d6', type: 'froid' } } } },
+  bouclier_inoxydable: { nom: 'Bouclier inoxydable', icone: '🛡️', rarete: 'rare', campagne: 'souterrains', classes: ARMURES, desc: '+2 CA ; immunisé à la rouille des oxydeurs et des poudings.', mods: { ca: 2, traits: { antiRouille: true } } },
+  ecaille_ignaroth: { nom: 'Écaille d\'Ignaroth', icone: '🐲', rarete: 'legendaire', campagne: 'dragon', classes: null, desc: '+2 CA et résistance au feu.', mods: { ca: 2, traits: { resist: ['feu'] } } },
+  cape_velthira: { nom: 'Cape de Vel\'Thira', icone: '🕸️', rarete: 'rare', campagne: 'toiles', classes: null, desc: 'Résistance au poison ; commence chaque combat caché.', mods: { traits: { resist: ['poison'], cacheDebut: true } } },
+  couronne_givre: { nom: 'Couronne de givre', icone: '❄️', rarete: 'legendaire', campagne: 'givre', classes: LANCEURS, desc: '+2 aux sorts et au DD, résistance au froid.', mods: { bonusSort: 2, ddSort: 2, traits: { resist: ['froid'] } } },
+  etendard_legion: { nom: 'Étendard de la Légion', icone: '🚩', rarete: 'rare', campagne: 'legion', classes: null, desc: '+1 CA ; au début de chaque combat, toute l\'équipe est bénie.', mods: { ca: 1, traits: { benitDebut: true } } },
+  ankh_resurrection: { nom: 'Ankh de résurrection', icone: '☥', rarete: 'legendaire', campagne: 'tombeau', classes: null, desc: 'Une fois par combat, se relève avec 10 PV au lieu de tomber ; récupère 1 PV par tour.', mods: { traits: { phenix: true, regen: 1 } } },
+  pieu_argent: { nom: 'Pieu d\'argent béni', icone: '🪵', rarete: 'rare', campagne: 'chateau', classes: ARMES, desc: 'Les coups d\'arme infligent +1d8 radiant (empêche les vampires de se régénérer).', mods: { traits: { armeElem: { des: '1d8', type: 'radiant' } } } },
+  fragment_abime: { nom: 'Fragment de l\'Abîme', icone: '🌀', rarete: 'legendaire', campagne: 'abime', classes: null, desc: '+2 aux dégâts d\'arme, +2 aux sorts et au DD. Il murmure : +10 Peur au début de chaque combat.', mods: { bonusDegats: 2, bonusSort: 2, ddSort: 2, traits: { peurDebut: 10 } } },
 
   // -------------------------------------------------------- maudits
   hache_sanglante: { nom: 'Hache sanglante', icone: '🪓', rarete: 'maudit', classes: ARMES, desc: '+3 aux dégâts avec les armes. Malédiction : +15 Peur au début de chaque combat.', mods: { bonusDegats: 3, traits: { peurDebut: 15 } } },
@@ -117,7 +140,7 @@ const AMELIORATIONS = {
   entrainement: {
     nom: 'Entraînement martial', icone: '🎯',
     desc: '+1 au toucher avec les armes.',
-    condition: pj => !['magicien', 'druide', 'barde', 'occultiste'].includes(pj.classe),
+    condition: pj => !['magicien', 'druide', 'barde', 'occultiste', 'ensorceleur'].includes(pj.classe),
     appliquer(pj) { pj.bonusArme += 1; }
   },
   endurance: {
@@ -180,12 +203,27 @@ const Recompenses = {
     return Des.pondere(Object.entries(c).map(([r, poids]) => ({ r, poids }))).r;
   },
 
+  // Campagne en cours (les objets de campagne n'apparaissent que là, ou dans le Chaos)
+  campagneEnCours() { return typeof Jeu !== 'undefined' && Jeu.campagne ? Jeu.campagne : null; },
+  objetPermis(o) {
+    if (!o.campagne) return true;
+    const c = this.campagneEnCours();
+    return c === o.campagne || c === 'chaos';
+  },
+
   offreObjet(equipe, exclure = [], source = 'combat') {
-    const voulu = this.tirerRarete(source);
+    let voulu = this.tirerRarete(source);
+    // Élites, boss et trésors : 1 chance sur 4 de proposer l'objet de la campagne
+    const camp = this.campagneEnCours();
+    if (['elite', 'boss', 'tresor'].includes(source) && alea() < 0.25) {
+      const propres = Object.entries(OBJETS).filter(([cle, o]) => o.campagne && o.campagne === camp && !exclure.includes(cle))
+        .map(([cle, o]) => ({ cle, o, cibles: equipe.filter(pj => (!o.classes || o.classes.includes(pj.classe)) && !pj.objets.includes(cle)) })).filter(x => x.cibles.length);
+      if (propres.length) { const { cle, o, cibles } = Des.hasard(propres); const pj = Des.hasard(cibles); return { categorie: 'objet', pj: pj.id, cle, titre: o.nom, icone: o.icone, desc: o.desc, rarete: o.rarete }; }
+    }
     const liste = rarete => {
       const possibles = [];
       for (const [cle, o] of Object.entries(OBJETS)) {
-        if (exclure.includes(cle) || (rarete && o.rarete !== rarete)) continue;
+        if (exclure.includes(cle) || (rarete && o.rarete !== rarete) || !this.objetPermis(o)) continue;
         const cibles = equipe.filter(pj => (!o.classes || o.classes.includes(pj.classe)) && !pj.objets.includes(cle));
         if (cibles.length) possibles.push({ cle, o, cibles });
       }
@@ -233,7 +271,7 @@ const Recompenses = {
   generer(equipe, { elite = false, boss = false, objetsSeulement = false } = {}) {
     const source = boss ? 'boss' : elite ? 'elite' : objetsSeulement ? 'tresor' : 'combat';
     const offres = [];
-    const nbObjets = objetsSeulement ? 3 : (elite || boss ? 2 : (Math.random() < CHANCE_OBJET_COMBAT ? 1 : 0));
+    const nbObjets = objetsSeulement ? 3 : (elite || boss ? 2 : (alea() < CHANCE_OBJET_COMBAT ? 1 : 0));
     for (let i = 0; i < nbObjets; i++) {
       const o = this.offreObjet(equipe, offres.map(x => x.cle), source);
       if (o) offres.push(o);
@@ -243,7 +281,7 @@ const Recompenses = {
       if (a) offres.push(a);
     }
     while (offres.length < 3) {
-      const x = Math.random() < 0.4 ? this.offreConsommable() : this.offreAmelioration(equipe);
+      const x = alea() < 0.4 ? this.offreConsommable() : this.offreAmelioration(equipe);
       if (!offres.some(y => y.cle === x.cle && y.pj === x.pj)) offres.push(x);
     }
     return Des.melanger(offres.slice(0, 3));
@@ -267,7 +305,7 @@ const Recompenses = {
 const GAINS_OR = { combat: [12, 22], elite: [35, 55], boss: [80, 100], tresor: [45, 70] };
 
 const Marchand = {
-  prixObjet(o) { const [a, b] = RARETES[o.rarete].prix; return a + Math.floor(Math.random() * (b - a + 1)); },
+  prixObjet(o) { const [a, b] = RARETES[o.rarete].prix; return a + Math.floor(alea() * (b - a + 1)); },
 
   // Stock : potions, 2 consommables, 3 objets, 1 action, 1 amélioration, 2 services
   generer(equipe) {
@@ -283,9 +321,9 @@ const Marchand = {
     for (let i = 0; i < 3; i++) { const o = Recompenses.offreObjet(equipe, objets.map(x => x.cle), 'marchand'); if (o) objets.push(o); }
     for (const o of objets) stock.push({ ...o, prix: this.prixObjet(o) });
     const a = Recompenses.offreAction(equipe);
-    if (a) stock.push({ ...a, prix: 60 + Math.floor(Math.random() * 15) });
+    if (a) stock.push({ ...a, prix: 60 + Math.floor(alea() * 15) });
     const am = Recompenses.offreAmelioration(equipe);
-    stock.push({ ...am, prix: 50 + Math.floor(Math.random() * 15) });
+    stock.push({ ...am, prix: 50 + Math.floor(alea() * 15) });
     stock.push({ categorie: 'soin', icone: '⛑️', titre: 'Soins du guérisseur', desc: 'Toute l\'équipe récupère la moitié de ses PV max (relève les héros à terre).', prix: 35 });
     stock.push({ categorie: 'encens', icone: '🕯️', titre: 'Encens apaisant', desc: 'Toute l\'équipe perd 30 points de Peur.', prix: 25 });
     return stock;

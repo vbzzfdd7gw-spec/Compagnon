@@ -931,12 +931,22 @@ function genererEtagesAleatoires() {
   return [moitie(1, 'Le Dédale : première moitié', milieu), moitie(2, 'Le Dédale : cœur du chaos', final)];
 }
 
+// Niveaux de difficulté (campagnes ordinaires) : mutations et pouvoirs du Chaos
+//   chaos : réglage passé à Combat.appliquerChaos (null = aucun)
+//   peur  : ajouté au multiplicateur de Peur ; or : multiplicateur d'or
+const DIFFICULTES = [
+  { id: 'normal', nom: 'Normal', icone: '⚔️', desc: 'La campagne telle qu\'elle a été conçue.', chaos: null, peur: 0, or: 1 },
+  { id: 'heroique', nom: 'Héroïque', icone: '🔥', desc: '30 % des monstres mutent (toujours en élite). +25 % d\'or.', chaos: { chance: 0.3, pouvoirs: false }, peur: 0, or: 1.25 },
+  { id: 'cauchemar', nom: 'Cauchemar', icone: '💀', desc: '35 % de mutations, chaque boss reçoit un pouvoir du chaos, Peur +10 %. +50 % d\'or.', chaos: { chance: 0.35, pouvoirs: true, pouvoirsMax: 1 }, peur: 0.1, or: 1.5 }
+];
+function difficulte(id) { return DIFFICULTES.find(d => d.id === id) || DIFFICULTES[0]; }
+
 // ---------------------------------------------------------------------
 // Progression entre les parties (mémorisée dans le navigateur)
 // ---------------------------------------------------------------------
 const Progression = {
   cle: 'donjon-progression',
-  donnees: { terminees: {}, records: {}, test: false },
+  donnees: { terminees: {}, records: {}, test: false, difficultes: {} },
   charger() {
     try { Object.assign(this.donnees, JSON.parse(localStorage.getItem(this.cle) || '{}')); } catch (e) { /* rien */ }
   },
@@ -953,15 +963,25 @@ const Progression = {
   toutDebloque() { return !!this.donnees.test; },
   basculerTest(actif) { this.donnees.test = actif; this.sauver(); },
   victoires(c) { return this.donnees.terminees[c.id] || 0; },
+  // Difficultés réussies pour une campagne ; Héroïque après Normal, Cauchemar après Héroïque
+  reussies(c) { const l = (this.donnees.difficultes || {})[c.id] || []; return this.victoires(c) && !l.includes('normal') ? ['normal', ...l] : l; },
+  difficulteOuverte(c, id) {
+    if (id === 'normal' || this.toutDebloque()) return true;
+    const r = this.reussies(c);
+    return id === 'heroique' ? r.includes('normal') : r.includes('heroique');
+  },
   record(c) { return this.donnees.records[c.id] || 0; },
   // Note l'étage atteint ; renvoie la campagne nouvellement débloquée s'il y en a une
   noterRecord(id, etage) {
     this.donnees.records[id] = Math.max(this.donnees.records[id] || 0, etage);
     this.sauver();
   },
-  noterVictoire(id) {
+  noterVictoire(id, diff = 'normal') {
     const avant = CAMPAGNES.filter(c => this.debloquee(c)).map(c => c.id);
     this.donnees.terminees[id] = (this.donnees.terminees[id] || 0) + 1;
+    this.donnees.difficultes = this.donnees.difficultes || {};
+    const l = this.donnees.difficultes[id] = this.donnees.difficultes[id] || [];
+    if (!l.includes(diff)) l.push(diff);
     this.sauver();
     return CAMPAGNES.find(c => this.debloquee(c) && !avant.includes(c.id)) || null;
   }
