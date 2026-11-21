@@ -266,7 +266,7 @@ const ACTIONS = {
     nom: 'Rage', icone: '😡', type: 'soutien', ressource: 'rage', pasSiActif: true, actionBonus: true,
     depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
     etat: { nom: 'rage', duree: 10 }, peur: -10,
-    desc: 'Action bonus (vous rejouez aussitôt). Jusqu\'à la fin du combat : +2 aux dégâts d\'arme et moitié de TOUS les dégâts reçus. −10 Peur. 3 rages jusqu\'au prochain repos long.'
+    desc: 'Action bonus (vous rejouez aussitôt). Jusqu\'à la fin du combat : +2 aux dégâts d\'arme et résistance aux dégâts contondants, perforants et tranchants (moitié des dégâts ; tous sauf psychiques avec le Totem de l\'Ours). −10 Peur. 3 rages jusqu\'au prochain repos long.'
   },
   frappe_temeraire: {
     nom: 'Frappe téméraire', icone: '💥', type: 'attaque', arme: true, avantage: true,
