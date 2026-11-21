@@ -960,6 +960,8 @@ const Ui = {
     const polices = () => document.body.classList.add('polices');
     if (document.fonts && document.fonts.ready) { document.fonts.ready.then(polices); setTimeout(polices, 1200); } else polices();
     document.addEventListener('pointerdown', () => Son.debloquer(), { passive: true });
+    document.addEventListener('touchend', () => Son.debloquer(), { passive: true });   // geste reconnu par iOS pour l'audio
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) Son.debloquer(); });
     document.addEventListener('click', e => {
       Son.debloquer();
       const t = e.target.closest('[data-clic],[data-action],[data-id],[data-noeud],[data-offre],[data-oublier],[data-de-vie],[data-choix],[data-info],[data-campagne],[data-achat],[data-classe],[data-info-classe],[data-sc],[data-sc-classe],[data-diff],[data-niv-sort]');

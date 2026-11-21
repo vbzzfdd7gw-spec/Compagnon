@@ -24,6 +24,10 @@ const Son = {
 
   debloquer() {
     try {
+      // iOS 17+ : jouer même quand l'iPhone est en mode silencieux
+      if (navigator.audioSession && navigator.audioSession.type !== 'playback') { try { navigator.audioSession.type = 'playback'; } catch (e) { /* rien */ } }
+      // Contexte fermé par le système : on en recrée un
+      if (this.ctx && this.ctx.state === 'closed') { clearInterval(this.minuterie); this.ctx = null; this.humeur = null; }
       if (!this.ctx) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
@@ -43,7 +47,16 @@ const Son = {
         const d = this.bruit.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
         this.majVolumes();
       }
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      // iOS met l'audio en « interrupted » quand on quitte l'app ou verrouille l'écran : on relance dans tous les cas
+      if (this.ctx.state !== 'running') {
+        const p = this.ctx.resume();
+        if (p && p.catch) p.catch(() => {});
+        // Débloque iOS : un son vide joué pendant le geste de l'utilisateur
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.ctx.createBuffer(1, 1, 22050);
+        src.connect(this.ctx.destination);
+        src.start(0);
+      }
       if (this.humeurVoulue !== undefined && this.humeur !== this.humeurVoulue) this.ambiance(this.humeurVoulue);
     } catch (e) { /* audio indisponible */ }
   },
