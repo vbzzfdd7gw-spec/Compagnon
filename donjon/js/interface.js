@@ -29,6 +29,7 @@ const Ui = {
       carte: () => this.ecranCarte(),
       combat: () => this.ecranCombat(),
       recompense: () => this.ecranRecompense(),
+      niveau: () => this.ecranNiveau(),
       repos: () => this.ecranRepos(),
       evenement: () => this.ecranEvenement(),
       fin: () => this.ecranFin(),
@@ -766,6 +767,50 @@ const Ui = {
   },
 
   // ------------------------------------------------------ récompense
+  // ------------------------------------------------- montée de niveau
+  ecranNiveau() {
+    const info = Jeu.niveauInfo;
+    const NOMS_RES = { rage: '😡 Rages', superiorite: '♟️ Dés de supériorité', forme: '🐻 Formes d\'ours', plenitude: '☯️ Plénitude', sorcellerie: '✨ Points de sorcellerie' };
+    const signe = n => (n >= 0 ? '+' : '') + n;
+    const fiche = f => {
+      const pj = Jeu.equipe.find(p => p.id === f.pj), a = f.avant, b = f.apres, c = CLASSES[pj.classe];
+      const sc = pj.sousClasse && sousClasse(pj.classe, pj.sousClasse);
+      const stats = [];
+      const ligne = (ic, nom, v1, v2, expl) => { if (v1 !== v2) stats.push(`<div class="stat-niv"><span>${ic} ${nom}</span><b>${v1} → <em>${v2}</em></b><small>${expl}</small></div>`); };
+      ligne('❤️', 'PV maximum', a.pvMax, b.pvMax, 'Encaisse plus de coups avant de tomber.');
+      ligne('🎲', 'Dés de vie', a.desVie, b.desVie, 'Un dé de plus pour se soigner pendant un repos court.');
+      ligne('⭐', 'Bonus de maîtrise', '+' + a.maitrise, '+' + b.maitrise, 'S\'ajoute aux attaques, aux DD de ses sorts et à ses sauvegardes maîtrisées.');
+      ligne('⚔️', 'Toucher avec les armes', signe(a.bonusArme), signe(b.bonusArme), 'Ajouté au d20 : touche plus souvent.');
+      if (b.ddSort) {
+        ligne('🔮', 'Toucher des sorts', signe(a.bonusSort), signe(b.bonusSort), 'Ajouté au d20 de ses attaques de sort.');
+        ligne('🛡️', 'DD des sorts', a.ddSort, b.ddSort, 'Les ennemis doivent faire au moins ce score pour résister à ses sorts.');
+      }
+      const niveaux = [...new Set([...Object.keys(a.emplacements), ...Object.keys(b.emplacements)])].sort();
+      for (const n of niveaux) ligne('📘', `Emplacements niv. ${n}`, a.emplacements[n] || 0, b.emplacements[n] || 0,
+        c.pacte ? 'Magie de pacte : tous ses emplacements montent de niveau (sorts plus puissants), récupérés au repos court.' : `Sorts de niveau ${n} lançables en plus avant un repos long (un sort lancé à un niveau supérieur est plus fort).`);
+      for (const r of new Set([...Object.keys(a.ressources), ...Object.keys(b.ressources)]))
+        ligne('🔋', NOMS_RES[r] || r, a.ressources[r] || 0, b.ressources[r] || 0, 'Utilisations de plus de cette capacité.');
+      const nouvelles = b.actions.filter(id => !a.actions.includes(id)).map(id => ACTIONS[id]);
+      const autres = f.gains.filter(g => !/^\+\d+ PV$|maîtrise|au toucher|sorts et DD|emplacement|nouveau sort/.test(g));
+      const detailSC = sc && (sc.details || []).find(d => d.startsWith(`Niv. ${f.niveau}`));
+      const titreSC = detailSC && autres.find(g => g.startsWith(sc.icone + ' '));
+      if (titreSC) autres.splice(autres.indexOf(titreSC), 1);
+      return `<div class="fiche-niv">
+        <div class="tete-niv"><span class="ic">${pj.icone}</span><div><b>${pj.nom}</b><small>${c.nom}${sc ? ' · ' + sc.icone + ' ' + sc.nom : ''}</small></div><span class="badge-niv">Niv. ${f.niveau - 1} → ${f.niveau}</span></div>
+        ${stats.join('')}
+        ${autres.map(g => `<div class="gain-niv">✨ <b>${g}</b>${/Attaque supplémentaire/.test(g) ? '<small>Ses attaques d\'arme frappent deux fois par action.</small>' : /sournoise/.test(g) ? '<small>Dégâts en plus quand il a l\'avantage ou qu\'un allié est au contact de la cible.</small>' : ''}</div>`).join('')}
+        ${detailSC ? `<div class="gain-niv sc">${titreSC ? `<b>${titreSC}</b>` : sc.icone}<small>${detailSC.replace(/^Niv\. \d+ — /, '')}</small></div>` : ''}
+        ${nouvelles.map(x => `<div class="gain-niv nouveau">${x.icone} <b>Nouveau : ${x.nom}</b><small>${x.desc}</small></div>`).join('')}
+      </div>`;
+    };
+    return `<div class="ecran-centre ecran-niveau">
+      <h2>⬆️ Niveau ${info.niveau} !</h2>
+      <p>Le boss est vaincu : chaque héros devient plus fort. PV, sorts et capacités sont entièrement rechargés.</p>
+      <div class="fiches-niv">${info.fiches.map(fiche).join('')}</div>
+      <button class="btn principal" data-clic="suite-niveau">Voir le butin du boss ▶</button>
+    </div>`;
+  },
+
   ecranRecompense() {
     const libelles = { objet: 'Objet magique', action: 'Nouvelle action', amelioration: 'Amélioration', consommable: 'Consommable' };
     return `<div class="ecran-centre">
@@ -958,6 +1003,7 @@ const Ui = {
         return;
       case 'test-off': Progression.basculerTest(false); return this.rendu();
       case 'defi': return Jeu.lancerDefi();
+      case 'suite-niveau': return Jeu.apresNiveau();
       case 'aleatoire': return Jeu.equipeAleatoire();
       case 'partir': return Jeu.partir();
       case 'campagnes': Jeu.ecran = 'campagnes'; return this.rendu();
