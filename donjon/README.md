@@ -21,7 +21,7 @@ Ouvrez `index.html` dans un navigateur : aucun serveur ni dépendance.
 | `js/son.js` | Sons et musique synthétisés, réglages ; une musique par décor (`STYLES_MUSIQUE` : mode, tempo, timbres, percussions) et des cris par famille de monstres (`FAMILLES_SONORES`) |
 | `js/combat.js` | Moteur de combat : initiative, attaques, sauvegardes, états, Peur, IA |
 | `js/carte.js` | Génération de la carte (`CONFIG_CARTE` : rangées, chemins, fréquence des salles, minimums) et dessin |
-| `js/jeu.js` | État de la partie, enchaînement des écrans, repos, sauvegarde |
+| `js/jeu.js` | État de la partie, enchaînement des écrans, repos, sauvegarde ; écran de montée de niveau (`photoHeros` compare le héros avant / après) |
 | `js/modeles3d.js` | Scène 3D cartoon : diorama, figurines chibi (`FIGURINES`), particules |
 | `js/decor3d.js` | Décor propre à chaque thème (`DECORS_THEMES`, `ELEMENTS_DECOR`, revêtement du sol `SOLS_THEMES`), particules d'ambiance (`AMBIANCES` : neige, braises, lucioles…) et effets de combat (`Effets3D` : cercle magique, entaille, onde de choc, poussière) |
 | `js/ressources3d.js` | Chargement des modèles animés, équipement et couleurs de chaque personnage (`PERSOS3D`), décor KayKit |

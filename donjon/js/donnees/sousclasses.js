@@ -13,6 +13,8 @@
 //   ressources             : ressources propres (récupérées au repos long)
 //   reposCourt             : ressources aussi récupérées au repos court
 //   niv5                   : { traits, action, sort, texte } gagnés au niveau 5
+//   reposCourtUn           : ressources dont le repos court ne rend qu'une charge
+//   niv4                   : idem au niveau 4 (facultatif) ; niv4/niv5.ressources remplacent les ressources
 //
 // Traits ajoutés par les sous-classes (combat.js) :
 //   critAmeliore (n)  : zone de critique élargie de n     survivant (n) : PV par tour sous la moitié
@@ -123,9 +125,11 @@ const SOUS_CLASSES = {
       details: ['Récupération naturelle : au repos court, récupère des emplacements de sorts pour un total de 2 niveaux.', 'Niv. 5 — 3 niveaux d\'emplacements.'],
       traits: { recuperation: 2 }, niv5: { traits: { recuperation: 3 }, texte: 'Récupération naturelle (3 niveaux)' } },
     { id: 'lune', nom: 'Cercle de la Lune', icone: '🐻', desc: 'Se change en ours pour tenir le front.', deblocage: 'eclipse',
-      details: ['Forme d\'ours remplace Enchevêtrement : action bonus, passe en ligne Avant avec 12 PV temporaires (une fois, récupérée au repos court).', 'Griffes d\'ours (en forme d\'ours) : 1d10+2 au corps à corps.', 'Niv. 5 — 20 PV temporaires et deux coups de griffes.'],
-      remplace: { enchevetrement: 'forme_ours' }, ajoute: ['griffes_ours'], ressources: { forme: 1 }, reposCourt: ['forme'],
-      traits: { formeOurs: 12 }, niv5: { traits: { formeOurs: 20, griffes2: true }, texte: 'Ours redoutable (20 PV temp., 2 coups de griffes)' } }
+      details: ['Forme d\'ours remplace Enchevêtrement : action bonus, passe en ligne Avant avec 12 PV temporaires. 2 charges : le repos court en rend une, le repos long toutes.', 'Griffes d\'ours (en forme d\'ours) : 1d10+2 au corps à corps.', 'Niv. 4 — 3 charges, ours de 16 PV temporaires.', 'Niv. 5 — 4 charges, ours de 20 PV temporaires et deux coups de griffes.'],
+      remplace: { enchevetrement: 'forme_ours' }, ajoute: ['griffes_ours'], ressources: { forme: 2 }, reposCourtUn: ['forme'],
+      traits: { formeOurs: 12 },
+      niv4: { ressources: { forme: 3 }, traits: { formeOurs: 16 }, texte: 'Forme d\'ours : 3 charges, 16 PV temporaires' },
+      niv5: { ressources: { forme: 4 }, traits: { formeOurs: 20, griffes2: true }, texte: 'Ours redoutable : 4 charges, 20 PV temporaires, 2 coups de griffes' } }
   ],
   moine: [
     { id: 'main_ouverte', nom: 'Voie de la Main ouverte', icone: '✋', desc: 'Ses rafales renversent l\'ennemi.',
@@ -201,8 +205,8 @@ function appliquerSousClasse(pj, id) {
 // Gains de sous-classe au niveau 5 ; renvoie la liste des textes
 function niveauSousClasse(pj, niv) {
   const sc = pj.sousClasse && sousClasse(pj.classe, pj.sousClasse);
-  if (!sc || niv !== 5 || !sc.niv5) return [];
-  const g = sc.niv5, gains = [];
+  const g = sc && sc['niv' + niv], gains = [];
+  if (!g) return [];
   ajouterTraits(pj, g.traits);
   if (g.bonusSoin) pj.bonusSoin += g.bonusSoin;
   for (const id of [g.action, g.sort].filter(Boolean)) {
@@ -217,7 +221,9 @@ function niveauSousClasse(pj, niv) {
 // Ressources du héros (classe + sous-classe), restaurées au repos long
 function ressourcesPJ(pj) {
   const sc = pj.sousClasse && sousClasse(pj.classe, pj.sousClasse), c = CLASSES[pj.classe];
-  return { ...(c.ressources || {}), ...((pj.niveau || 3) >= 5 ? c.ressourcesNiv5 || {} : {}), ...((sc && sc.ressources) || {}) };
+  const niv = pj.niveau || 3;
+  return { ...(c.ressources || {}), ...(niv >= 5 ? c.ressourcesNiv5 || {} : {}), ...((sc && sc.ressources) || {}),
+    ...(sc && niv >= 4 && sc.niv4 && sc.niv4.ressources || {}), ...(sc && niv >= 5 && sc.niv5 && sc.niv5.ressources || {}) };
 }
 
 // Effets du repos court propres à la classe et à la sous-classe ; renvoie des lignes de texte
@@ -232,6 +238,10 @@ function reposCourtPJ(pj) {
     const base = ressourcesPJ(pj);
     for (const r of sc.reposCourt) pj.ressources[r] = base[r];
     lignes.push(`${pj.icone} ${pj.nom} récupère ses capacités de ${sc.nom}.`);
+  }
+  if (sc && sc.reposCourtUn) {
+    const base = ressourcesPJ(pj);
+    for (const r of sc.reposCourtUn) if ((pj.ressources[r] || 0) < base[r]) { pj.ressources[r]++; lignes.push(`${pj.icone} ${pj.nom} récupère une charge (${pj.ressources[r]}/${base[r]}).`); }
   }
   // Cercle de la Terre : emplacements pour un total de N niveaux, les plus hauts d'abord
   let budget = pj.traits.recuperation || 0, gagne = 0;

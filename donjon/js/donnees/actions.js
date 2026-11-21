@@ -604,7 +604,7 @@ const ACTIONS = {
     nom: 'Forme d\'ours', icone: '🐻', type: 'special', special: 'forme_ours', ressource: 'forme', actionBonus: true, pasSiActif: true,
     etat: { nom: 'ours' },
     depuis: ['avant', 'arriere'], cible: 'soi', vise: [],
-    desc: 'Action bonus. Devient un ours : passe en ligne Avant avec des PV temporaires (12, 20 au niv. 5). Redevient druide quand ils sont épuisés. Une fois, récupérée au repos court.'
+    desc: 'Action bonus. Devient un ours : passe en ligne Avant avec des PV temporaires (12, 16 au niv. 4, 20 au niv. 5). Redevient druide quand ils sont épuisés. 2 charges (3 au niv. 4, 4 au niv. 5) : le repos court en rend une, le repos long toutes.'
   },
   griffes_ours: {
     nom: 'Griffes d\'ours', icone: '🐾', type: 'attaque', arme: true, requiertEtat: 'ours', rayons: 'griffes2',

@@ -302,19 +302,38 @@ const Jeu = {
   etageSuivant(gain = 0) {
     this.etage++;
     Progression.noterRecord(this.campagne, this.etage + 1);
-    const lignes = [];
+    const fiches = [];
     for (const pj of this.equipe) {
+      const avant = this.photoHeros(pj);
       const gains = monterNiveau(pj);
       this.restaurerRessources(pj);
       pj.peur = 0;
       pj.crise = null;
-      lignes.push(`${pj.icone} <b>${pj.nom}</b> niveau ${pj.niveau} : ${gains.join(', ')}`);
+      fiches.push({ pj: pj.id, niveau: pj.niveau, gains, avant, apres: this.photoHeros(pj) });
     }
     this.reposLongUtilise = false;
     if (!this.carte.double) this.carte = Carte.generer();   // carte double : on continue sur la même
     const e = this.etageCourant();
+    this.niveauInfo = { niveau: this.equipe[0].niveau, or: gain, fiches };
+    if (!fiches.some(f => f.gains.length)) return this.apresNiveau();   // niveau maximal : pas d'écran
+    this.ecran = 'niveau';
+    Ui.rendu();
+  },
+
+  // Ce qui change à la montée de niveau (comparé avant / après)
+  photoHeros(pj) {
+    const empl = {};
+    for (const n in pj.emplacements) empl[n] = pj.emplacements[n].max;
+    return { pvMax: pj.pvMax, maitrise: pj.maitrise, bonusArme: pj.bonusArme, bonusSort: pj.bonusSort, ddSort: pj.ddSort,
+      emplacements: empl, actions: [...pj.actions], ressources: { ...ressourcesPJ(pj) }, desVie: pj.desVie.max };
+  },
+
+  // Écran de niveau validé : butin du boss
+  apresNiveau() {
+    const e = this.etageCourant(), info = this.niveauInfo || { niveau: this.equipe[0].niveau, or: 0 };
+    this.niveauInfo = null;
     this.proposerRecompenses(Recompenses.generer(this.equipe, { boss: true }), `⬇️ ${e.nom}`,
-      `<i>${e.intro}</i><br><b>L'équipe monte au niveau ${this.equipe[0].niveau}</b> et récupère toutes ses forces. 💰 +${gain} or.<div class="gains">${lignes.map(l => `<div>${l}</div>`).join('')}</div>Choisissez le butin du boss :`);
+      `<i>${e.intro}</i><br>L'équipe est au <b>niveau ${info.niveau}</b> et a récupéré toutes ses forces. 💰 +${info.or} or.<br>Choisissez le butin du boss :`);
   },
 
   // ------------------------------------------------------- combat
