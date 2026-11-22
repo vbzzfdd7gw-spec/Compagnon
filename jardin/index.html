@@ -71,6 +71,10 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .primary:disabled{opacity:.5;cursor:default;transform:none}
 .chk{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--muted);font-weight:800}
 .chk input{accent-color:var(--sun);width:15px;height:15px;margin:0}
+.zoom{position:absolute;left:max(10px,var(--sl));bottom:calc(14px + var(--sb));display:flex;flex-direction:column;gap:7px}
+.zoom .round{font-size:24px;line-height:1}
+.zoom .round:disabled{opacity:.4}
+@media (max-width:1060px) and (min-height:521px){.zoom{bottom:auto;top:50%;transform:translateY(-50%)}}
 #hint{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + var(--st));max-width:min(560px,calc(100% - 24px));padding:8px 14px;border-radius:12px;background:rgba(15,30,20,.92);border:1px solid var(--glass-line);font-size:13px;font-weight:700;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:none}
 
 /* Fiche du défenseur */
@@ -193,6 +197,11 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
     </div>
   </div>
 
+  <div id="zoom" class="zoom" hidden>
+    <button id="bZin" class="round" aria-label="Zoomer">+</button>
+    <button id="bZout" class="round" aria-label="Dézoomer">−</button>
+    <button id="bZ0" class="round" aria-label="Voir tout le jardin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/></svg></button>
+  </div>
   <div id="tray" hidden>
     <button id="bFold" class="fold" aria-label="Replier les défenseurs">‹</button>
     <div id="shop" class="shop"></div>
@@ -924,9 +933,11 @@ function dTree(c,T){
 /* ---------- Décor ---------- */
 const BG=document.createElement('canvas');
 function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function buildBG(){
-  BG.width=Math.round(W*RS);BG.height=Math.round(H*RS);
-  const c=BG.getContext('2d');c.setTransform(RS,0,0,RS,0,0);const R=rng(7);
+const CAM={x:0,y:0,z:1};let bgK=0,bgT=0;
+function buildBG(k){
+  k=k||RS;bgK=k;
+  BG.width=Math.round(W*k);BG.height=Math.round(H*k);
+  const c=BG.getContext('2d');c.setTransform(k,0,0,k,0,0);const R=rng(7);
   const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,'#93d160');g.addColorStop(1,'#78ba4b');c.fillStyle=g;c.fillRect(0,0,W,H);
   for(let i=0;i<160;i++){Ell(c,R()*W,R()*H,20+R()*60,10+R()*30,R()<0.5?'rgba(255,255,200,.07)':'rgba(40,90,20,.08)',0,0,R()*3);}
   const nearPath=(x,y,m)=>SEG.some(s=>distSeg(x,y,s)<PW/2+m);
@@ -947,7 +958,8 @@ function buildBG(){
 
 /* ---------- Rendu ---------- */
 function render(){
-  const c=ctx;c.setTransform(RS,0,0,RS,0,0);
+  const c=ctx,Z=RS*CAM.z;c.setTransform(Z,0,0,Z,-CAM.x*Z,-CAM.y*Z);
+  const wantK=RS*Math.min(2.5,Math.ceil(CAM.z*2)/2);if(wantK!==bgK){clearTimeout(bgT);bgT=setTimeout(()=>buildBG(wantK),160);bgK=wantK;}
   c.drawImage(BG,0,0,W,H);
   const show=S.place?null:(S.sel||S.hover);
   if(show){const st=stats(show);if(st.range)rangeCircle(c,show.x,show.y,st.range,true);}
@@ -974,6 +986,7 @@ function render(){
     c.globalAlpha=ok?0.85:0.45;drawTower(c,{type:S.place,stage:0,branch:null,angle:-Math.PI/2,lean:0,anim:0,pop:0},S.ptr.x,S.ptr.y,1.15,AT);c.globalAlpha=1;}
   // Entrée du chemin
   c.font='800 13px "Baloo 2",Nunito,sans-serif';c.textAlign='left';c.fillStyle='rgba(60,40,10,.6)';c.fillText('Entrée des nuisibles',14,80);
+  c.setTransform(RS,0,0,RS,0,0);
   if(S.banner){const k=S.banner.t,a=k<0.3?k/0.3:k>1.9?Math.max(0,(2.4-k)/0.5):1;c.globalAlpha=a;c.textAlign='center';
     c.font='800 54px "Baloo 2",Nunito,sans-serif';c.lineWidth=7;c.strokeStyle='rgba(25,45,20,.75)';c.strokeText(S.banner.txt,W/2,H/2-6);c.fillStyle='#fff7d6';c.fillText(S.banner.txt,W/2,H/2-6);
     if(S.banner.sub){c.font='800 24px "Baloo 2",Nunito,sans-serif';c.lineWidth=5;c.strokeText(S.banner.sub,W/2,H/2+28);c.fillStyle='#ffd54f';c.fillText(S.banner.sub,W/2,H/2+28);}
@@ -999,21 +1012,50 @@ function fit(){
   cv.style.width=w+'px';cv.style.height=h+'px';cv.style.left=((gw-w)/2)+'px';cv.style.top=(gh>gw*1.2?Math.min((gh-h)/2,128):(gh-h)/2)+'px';
   DPR=Math.min(2,window.devicePixelRatio||1);
   const nw=Math.round(w*DPR),nh=Math.round(h*DPR);
-  if(cv.width!==nw||cv.height!==nh){cv.width=nw;cv.height=nh;RS=nw/W;buildBG();}
+  if(cv.width!==nw||cv.height!==nh){cv.width=nw;cv.height=nh;RS=nw/W;buildBG(RS*Math.min(2.5,Math.ceil(CAM.z*2)/2));}
   $('rot').hidden=!(gh>gw&&gw<700);
 }
 window.addEventListener('resize',fit);
 document.addEventListener('fullscreenchange',()=>setTimeout(fit,60));
 
 /* ---------- Entrées ---------- */
-function toLogical(ev){const r=cv.getBoundingClientRect();return{x:(ev.clientX-r.left)/r.width*W,y:(ev.clientY-r.top)/r.height*H};}
+function scr(ev){const r=cv.getBoundingClientRect();return{x:(ev.clientX-r.left)/r.width*W,y:(ev.clientY-r.top)/r.height*H};}
+function toLogical(ev){const p=scr(ev);return{x:CAM.x+p.x/CAM.z,y:CAM.y+p.y/CAM.z};}
+function clampCam(){CAM.z=Math.max(1,Math.min(3,CAM.z));CAM.x=Math.max(0,Math.min(W-W/CAM.z,CAM.x));CAM.y=Math.max(0,Math.min(H-H/CAM.z,CAM.y));}
+function zoomAt(sx,sy,nz){const wx=CAM.x+sx/CAM.z,wy=CAM.y+sy/CAM.z;CAM.z=Math.max(1,Math.min(3,nz));CAM.x=wx-sx/CAM.z;CAM.y=wy-sy/CAM.z;clampCam();}
+function resetCam(){CAM.x=0;CAM.y=0;CAM.z=1;}
 function towerAt(x,y){let b=null,bd=28;for(const t of S.towers){const d=Math.hypot(x-t.x,y-(t.y-12));if(d<bd){bd=d;b=t;}}return b;}
 const playing=()=>started&&!S.over&&!S.paused;
-cv.addEventListener('pointermove',ev=>{if(!started)return;const p=toLogical(ev);S.ptr=p;S.hover=S.place?null:towerAt(p.x,p.y);cv.style.cursor=S.place?(canPlace(p.x,p.y)?'copy':'not-allowed'):(S.hover?'pointer':'default');});
-cv.addEventListener('pointerleave',()=>{if(S){S.hover=null;if(!S.place)S.ptr=null;}});
-cv.addEventListener('pointerdown',ev=>{if(started&&ev.pointerType!=='mouse')S.ptr=toLogical(ev);});
+const ptrs=new Map();let pinch=null,drag=null,suppress=false;
+const dist2=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function updHover(ev){const p=toLogical(ev);S.ptr=p;S.hover=S.place?null:towerAt(p.x,p.y);cv.style.cursor=drag&&drag.moved?'grabbing':S.place?(canPlace(p.x,p.y)?'copy':'not-allowed'):(S.hover?'pointer':CAM.z>1?'grab':'default');}
+cv.addEventListener('pointerdown',ev=>{
+  if(!started)return;
+  try{cv.setPointerCapture(ev.pointerId);}catch(e){}
+  const p=scr(ev);ptrs.set(ev.pointerId,p);
+  if(ptrs.size>=2){const[a,b]=[...ptrs.values()],m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+    pinch={d0:Math.max(10,dist2(a,b)),z0:CAM.z,wx:CAM.x+m.x/CAM.z,wy:CAM.y+m.y/CAM.z};drag=null;suppress=true;return;}
+  drag={x:p.x,y:p.y,cx:CAM.x,cy:CAM.y,moved:false,touch:ev.pointerType!=='mouse'};
+  if(ev.pointerType!=='mouse')S.ptr=toLogical(ev);
+});
+cv.addEventListener('pointermove',ev=>{
+  if(!started)return;
+  if(ptrs.has(ev.pointerId))ptrs.set(ev.pointerId,scr(ev));
+  if(pinch&&ptrs.size>=2){const[a,b]=[...ptrs.values()],m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+    CAM.z=Math.max(1,Math.min(3,pinch.z0*dist2(a,b)/pinch.d0));CAM.x=pinch.wx-m.x/CAM.z;CAM.y=pinch.wy-m.y/CAM.z;clampCam();return;}
+  if(drag&&ptrs.size===1){
+    const p=scr(ev),dx=p.x-drag.x,dy=p.y-drag.y,thr=(drag.touch?12:6)*W/cv.getBoundingClientRect().width;
+    if(!drag.moved&&CAM.z>1&&Math.hypot(dx,dy)>thr)drag.moved=true;
+    if(drag.moved){CAM.x=drag.cx-dx/CAM.z;CAM.y=drag.cy-dy/CAM.z;clampCam();}
+  }
+  updHover(ev);
+});
+function endPtr(ev){ptrs.delete(ev.pointerId);if(ptrs.size<2)pinch=null;if(ptrs.size===0){const s=suppress;suppress=false;return s;}return true;}
+cv.addEventListener('pointercancel',ev=>{endPtr(ev);drag=null;});
+cv.addEventListener('pointerleave',()=>{if(S&&!ptrs.size){S.hover=null;if(!S.place)S.ptr=null;}});
 cv.addEventListener('pointerup',ev=>{
-  if(!playing())return;
+  const skip=endPtr(ev),d=drag;drag=null;
+  if(!playing()||skip||(d&&d.moved)){if(started)updHover(ev);return;}
   const p=toLogical(ev);S.ptr=p;
   if(ev.button===2){cancelPlace();return;}
   if(S.place){
@@ -1024,6 +1066,8 @@ cv.addEventListener('pointerup',ev=>{
   }
   S.sel=towerAt(p.x,p.y);
 });
+cv.addEventListener('wheel',ev=>{if(!started)return;ev.preventDefault();const p=scr(ev);zoomAt(p.x,p.y,CAM.z*Math.exp(-ev.deltaY*0.0018));},{passive:false});
+function zoomBtn(f){zoomAt(W/2,H/2,f?CAM.z*f:1);if(!f)resetCam();}
 cv.addEventListener('contextmenu',ev=>{ev.preventDefault();if(started)cancelPlace();});
 window.addEventListener('keydown',ev=>{
   if(ev.target&&(ev.target.tagName==='SELECT'||ev.target.tagName==='INPUT'))return;
@@ -1037,6 +1081,9 @@ window.addEventListener('keydown',ev=>{
   else if(!playing())return;
   else if(ev.key===' '){ev.preventDefault();startWave();}
   else if(/^[1-6]$/.test(ev.key))choose(ORDER[+ev.key-1]);
+  else if(ev.key==='+'||ev.key==='=')zoomBtn(1.35);
+  else if(ev.key==='-')zoomBtn(1/1.35);
+  else if(ev.key==='0')zoomBtn(0);
 });
 
 /* ---------- Interface ---------- */
@@ -1066,6 +1113,7 @@ $('bWave').addEventListener('click',()=>{if(playing())startWave();});
 $('bSpeed').addEventListener('click',()=>{S.speed=S.speed%3+1;});
 $('bPause').addEventListener('click',openPause);
 $('bFull').addEventListener('click',toggleFS);
+$('bZin').addEventListener('click',()=>zoomBtn(1.35));$('bZout').addEventListener('click',()=>zoomBtn(1/1.35));$('bZ0').addEventListener('click',()=>zoomBtn(0));
 $('bFold').addEventListener('click',()=>{const f=trayEl.classList.toggle('folded');$('bFold').textContent=f?'›':'‹';$('bFold').setAttribute('aria-label',f?'Déplier les défenseurs':'Replier les défenseurs');});
 $('cAuto').addEventListener('change',e=>{S.auto=e.target.checked;S.autoT=1.5;});
 if(!document.fullscreenEnabled||!gameEl.requestFullscreen)$('bFull').hidden=true;
@@ -1147,6 +1195,7 @@ function ui(){
   setText('bWave',S.running?`Vague ${S.wave}…`:S.auto&&S.wave>0?`Vague ${S.wave+1} dans ${Math.max(0,Math.ceil(S.autoT))} s`:`Lancer la vague ${S.wave+1}`);
   $('bWave').disabled=S.running||S.over;
   setText('bSpeed','×'+S.speed);
+  $('bZin').disabled=CAM.z>=3;$('bZout').disabled=CAM.z<=1;$('bZ0').disabled=CAM.z<=1;
   for(const b of shopEl.children){const k=b.dataset.k;b.classList.toggle('poor',S.pollen<DEFS[k].cost);b.classList.toggle('on',S.place===k);}
   if(S.sel&&!S.towers.includes(S.sel))S.sel=null;
   buildSel();
@@ -1179,6 +1228,7 @@ const HELP=`<h2>Comment jouer</h2>
   <li>Jauge pleine : touche-le et fais-le <b>évoluer</b> contre du pollen. Il change de forme à chaque stade, six en tout.</li>
   <li>Au stade 3, choisis sa <b>voie</b> : deux formes adultes très différentes.</li>
   <li>Les <b>tournesols</b> rapportent du pollen à chaque vague. Les <b>corbeaux</b> volent : le champignon ne les touche pas.</li>
+  <li><b>Zoom</b> : pince avec deux doigts ou utilise la molette, puis fais glisser pour te déplacer. Les boutons + et − marchent aussi.</li>
   <li>Clavier : <b>1–6</b> pour planter, <b>Espace</b> pour lancer la vague, <b>Échap</b> pour la pause.</li></ul>`;
 function showHelp(back){overlay(HELP,[['Compris',back||closeOv]]);}
 function showGallery(back){
@@ -1205,16 +1255,16 @@ function showVictory(){
   overlay(`<h2>Le jardin est sauvé</h2><p>Les ${LAST_WAVE} vagues sont repoussées et l'Arbre-Mère tient debout avec <b>${Math.ceil(S.hp)}</b> points de vie.</p><p>Tu peux continuer en mode infini : les vagues deviennent de plus en plus dures.</p>`,
     [['Continuer',()=>{closeOv();S.paused=false;}],['Nouvelle partie',restart],['Menu principal',toHome]]);
 }
-function setPlayUI(on){hudEl.hidden=!on;trayEl.hidden=!on;homeEl.hidden=on;if(!on){selEl.hidden=true;hint('');}}
+function setPlayUI(on){hudEl.hidden=!on;trayEl.hidden=!on;$('zoom').hidden=!on;homeEl.hidden=on;if(!on){selEl.hidden=true;hint('');}}
 function play(){
   enterFS();
-  newGame();started=true;lastUI={};selKey='';closeOv();setPlayUI(true);refreshNext();
-  hint('Choisis un défenseur en bas, puis touche le jardin à côté du chemin.',5000);
+  newGame();resetCam();started=true;lastUI={};selKey='';closeOv();setPlayUI(true);refreshNext();
+  hint('Choisis un défenseur en bas, puis touche le jardin. Pince ou utilise + et − pour zoomer.',5500);
 }
 function restart(){play();}
 function toHome(){started=false;closeOv();setPlayUI(false);startDemo();showBest();}
 function startDemo(){
-  newGame();S.demo=true;S.pollen=1e9;S.auto=true;S.wave=5;S.autoT=0.6;
+  newGame();resetCam();S.demo=true;S.pollen=1e9;S.auto=true;S.wave=5;S.autoT=0.6;
   const L=[['chardon',150,170,4,'A'],['coccinelle',300,300,5,'B'],['champignon',280,450,4,'A'],['araignee',400,250,5,'A'],['ruche',560,320,5,'A'],['tournesol',600,100,5,'B'],
     ['chardon',160,320,5,'B'],['coccinelle',800,320,5,'A'],['araignee',640,520,5,'B'],['ruche',380,580,4,'B'],['tournesol',560,450,4,'A'],['champignon',800,560,5,'B']];
   for(const[k,x,y,s,b]of L){const t=place(k,x,y);if(t){t.stage=s;t.branch=b;t.pop=0;}}
