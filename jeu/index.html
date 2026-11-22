@@ -27,7 +27,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
 .coin-ico{width:16px;height:16px;border-radius:50%;background:var(--coin);box-shadow:inset 0 -3px 0 #d99a00}
 .skull{width:14px;height:14px;border-radius:3px 3px 6px 6px;background:#fff;position:relative}
 .skull::after{content:"";position:absolute;left:3px;top:5px;width:2px;height:3px;background:#1d2340;box-shadow:6px 0 0 #1d2340}
-.chip.stage{background:var(--accent);}
+.chip.stage{background:var(--accent);max-width:100%;overflow:hidden;text-overflow:ellipsis;display:block}
 .icon-btn{background:rgba(29,35,64,.78);color:#fff;border:0;border-radius:12px;padding:8px 12px;font-size:15px;font-weight:600}
 .icon-btn:hover{background:rgba(29,35,64,.95)}
 
@@ -38,8 +38,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
 
 #touch{position:absolute;inset:0;pointer-events:none;z-index:4}
 #stick{position:absolute;left:calc(24px + env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));
-  width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.25);border:3px solid rgba(255,255,255,.6);pointer-events:auto;touch-action:none}
-#knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(255,255,255,.85)}
+  width:130px;height:130px;border-radius:50%;background:rgba(29,35,64,.28);border:3px solid rgba(29,35,64,.55);pointer-events:auto;touch-action:none}
+#knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:#fff;box-shadow:0 3px 0 rgba(29,35,64,.35)}
 #jumpBtn{position:absolute;right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(36px + env(safe-area-inset-bottom,0px));
   width:96px;height:96px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:18px;font-weight:700;
   box-shadow:0 6px 0 var(--accent-dark);pointer-events:auto;touch-action:none}
@@ -75,9 +75,16 @@ kbd{font-family:var(--display);font-weight:600;background:#eef1f8;border:1px sol
 
 @media (max-width:640px){
   #menu{align-items:flex-end;background:linear-gradient(0deg,rgba(29,35,64,.4),rgba(29,35,64,0) 70%)}
-  #menu .card{max-height:62%;padding:18px;gap:12px}
-  .card h1{font-size:30px}
+  #menu .card{padding:16px;gap:10px}
+  .card h1{font-size:28px}
+  #menu .card>p,#keysHelp{display:none}
+  .sw{width:30px;height:30px;border-radius:8px}
+  .swatches{gap:6px}
+  #nameInput{padding:7px 10px;font-size:16px}
+  .big-btn{padding:11px;font-size:21px}
   .chip{font-size:15px;padding:5px 10px}
+  .hud.tl{max-width:calc(100% - 170px)}
+  .icon-btn{font-size:13px;padding:7px 9px}
 }
 </style>
 
@@ -245,7 +252,7 @@ function label(text,bg,fg){
 // Étape 1
 block(0,0,0,12,2,12,C.grey);
 checkpoint(0,0,0,0,'Premiers sauts');
-tree(-4.4,0,-4.4);tree(4.4,0,4.2);tree(-4.4,0,4.2);
+tree(-4.6,0,4.6);tree(4.6,0,4.6);tree(-4.6,0,0.6);
 block(0,0,-9,3,1,3,C.green);coin(0,0,-9);
 block(2,0.6,-14,3,1,3,C.blue);coin(2,0.6,-14);
 block(-1,1.2,-19,3,1,3,C.yellow);coin(-1,1.2,-19);
@@ -518,11 +525,11 @@ function startAudio(){
 }
 $('#playBtn').addEventListener('click',()=>{
   startAudio();$('#menu').hidden=true;
-  if(game.state==='menu'&&game.started)game.state='play';
+  if(game.state==='menu'&&game.started){game.state='play';cam.yaw=game.savedYaw;}
   else{game.started=true;game.state='play';resetRun();}
   renderer.domElement.focus();
 });
-$('#avatarBtn').addEventListener('click',()=>{if(game.state==='win')return;game.state='menu';$('#playBtn').textContent='Continuer';$('#menu').hidden=false;});
+$('#avatarBtn').addEventListener('click',()=>{if(game.state==='win')return;game.savedYaw=cam.yaw;game.state='menu';$('#playBtn').textContent='Continuer';$('#menu').hidden=false;});
 $('#againBtn').addEventListener('click',()=>{$('#win').hidden=true;game.state='play';resetRun();renderer.domElement.focus();});
 
 /* ---------- Contrôles ---------- */
@@ -547,8 +554,8 @@ cv.addEventListener('pointerup',endCam);cv.addEventListener('pointercancel',endC
 cv.addEventListener('wheel',e=>{e.preventDefault();cam.dist=Math.min(20,Math.max(5,cam.dist+e.deltaY*0.01));},{passive:false});
 
 const coarse=window.matchMedia&&matchMedia('(pointer: coarse)').matches;
+const touchEl=$('#touch');
 if(coarse){
-  $('#touch').hidden=false;
   $('#keysHelp').innerHTML='Joystick à gauche pour bouger · bouton orange pour sauter<br>Glisse ailleurs sur l’écran pour tourner la caméra';
 }
 const stick=$('#stick'),knob=$('#knob');let stickPtr=null;
@@ -599,7 +606,7 @@ function animateAvatar(dt){
   let d=player.facing-avatar.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));
   avatar.rotation.y+=d*Math.min(1,dt*14);
   const sp=Math.hypot(player.vel.x,player.vel.z);
-  if(player.onGround){
+  if(player.onGround||game.state!=='play'){
     player.walk+=dt*sp*1.6;const sw=Math.sin(player.walk)*Math.min(1,sp/4)*0.8;
     legL.rotation.x=sw;legR.rotation.x=-sw;armL.rotation.x=-sw;armR.rotation.x=sw;armL.rotation.z=armR.rotation.z=0;
   }else{
@@ -616,7 +623,7 @@ function frame(now){
     else{const n=2;for(let i=0;i<n&&player.dead===0;i++)stepPlayer(dt/n);}
     $('#timeTxt').textContent=fmt(game.time);
   }else if(game.state==='menu'){
-    cam.yaw+=dt*0.35;
+    cam.yaw=Math.PI+Math.sin(T*0.5)*0.6;
   }
   animateAvatar(dt);
   if(toastT>0){toastT-=dt;if(toastT<=0)$('#toast').classList.remove('show');}
@@ -626,7 +633,12 @@ function frame(now){
   const cd=game.state==='menu'?7:cam.dist;
   camera.position.set(camTarget.x+Math.sin(cam.yaw)*Math.cos(cam.pitch)*cd,
     camTarget.y+Math.sin(cam.pitch)*cd,camTarget.z+Math.cos(cam.yaw)*Math.cos(cam.pitch)*cd);
+  const vw=wrap.clientWidth,vh=wrap.clientHeight;
+  if(game.state==='menu'&&vw>640)camera.setViewOffset(vw,vh,-Math.min(220,vw*0.2),0,vw,vh);
+  else if(game.state==='menu'&&camera.aspect<0.9)camera.setViewOffset(vw,vh,0,vh*0.3,vw,vh);
+  else if(camera.view&&camera.view.enabled)camera.clearViewOffset();
   camera.lookAt(camTarget);
+  touchEl.hidden=!(coarse&&game.state==='play');
   sun.position.set(p.x+20,p.y+40,p.z+15);sun.target.position.set(p.x,p.y,p.z);
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
