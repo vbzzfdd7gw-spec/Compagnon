@@ -737,6 +737,22 @@ const ASSETS = {
   touffe:{nom:'Touffe d\'herbe',cat:'Nature',calque:'objets',decal:true,dessin(c,l,h){ const r=hasard(5); for(let i=0;i<30;i++){ const a=-Math.PI/2+(r()-.5)*2.4, L=6+r()*12, x=l/2+(r()-.5)*14, y=h/2+6+(r()-.5)*8;
     c.strokeStyle=['#3f7a2f','#5ea347','#86c669'][(r()*3)|0]; c.lineWidth=1.5; c.beginPath(); c.moveTo(x,y); c.quadraticCurveTo(x+Math.cos(a)*L*.5+2,y+Math.sin(a)*L*.5,x+Math.cos(a)*L,y+Math.sin(a)*L); c.stroke(); } }},
 
+  palmier:{nom:'Palmier',cat:'Nature',calque:'objets',taille:[2,2],dessin(c,l,h){ const cx=l/2, cy=h/2;
+    for(let i=0;i<9;i++){ const a=i/9*Math.PI*2+.2; c.save(); c.translate(cx,cy); c.rotate(a);
+      const g=c.createLinearGradient(0,0,54,0); g.addColorStop(0,'#2f6a28'); g.addColorStop(1,'#6aa84f'); c.fillStyle=g;
+      c.beginPath(); c.moveTo(0,-3); c.quadraticCurveTo(28,-13,56,-2); c.quadraticCurveTo(28,10,0,3); c.fill();
+      c.strokeStyle='rgba(20,50,15,.6)'; c.lineWidth=1.2; c.beginPath(); c.moveTo(2,0); c.quadraticCurveTo(28,-3,54,-1); c.stroke();
+      c.strokeStyle='rgba(30,70,20,.5)'; c.lineWidth=1; for(let k=8;k<52;k+=5){ c.beginPath(); c.moveTo(k,-1); c.lineTo(k+4,-8+k*.08); c.moveTo(k,1); c.lineTo(k+4,7-k*.06); c.stroke(); } c.restore(); }
+    cercle(c,cx,cy,7,'#7a5a30','#3e2814'); [[-4,-3],[3,-4],[0,4]].forEach(([x,y])=>cercle(c,cx+x,cy+y,3,'#5a3a18')); }},
+  barque:{nom:'Barque',cat:'Nature',calque:'objets',taille:[1,2],dessin(c,l,h){ c.fillStyle='#5a3418'; c.beginPath(); c.moveTo(l/2,4); c.quadraticCurveTo(l-4,22,l-6,h-14); c.quadraticCurveTo(l/2,h,6,h-14); c.quadraticCurveTo(4,22,l/2,4); c.fill();
+    c.fillStyle='#8a5a32'; c.beginPath(); c.moveTo(l/2,10); c.quadraticCurveTo(l-9,26,l-10,h-18); c.quadraticCurveTo(l/2,h-6,10,h-18); c.quadraticCurveTo(9,26,l/2,10); c.fill();
+    c.fillStyle='rgba(0,0,0,.25)'; for(let i=1;i<5;i++) c.fillRect(11,18+i*20,l-22,1.2); bois(c,10,46,l-20,8,'#6b4426'); bois(c,10,82,l-20,8,'#6b4426');
+    c.strokeStyle='#7a5a3a'; c.lineWidth=3; c.lineCap='round'; c.beginPath(); c.moveTo(4,56); c.lineTo(l-6,74); c.stroke(); }},
+  enclume:{nom:'Enclume',cat:'Mobilier',calque:'objets',dessin(c,l,h){ bois(c,l/2-14,h/2-12,28,26,'#5a3a1e');
+    const g=c.createLinearGradient(0,h/2-10,0,h/2+10); g.addColorStop(0,'#9aa1ab'); g.addColorStop(1,'#3a3d42'); c.fillStyle=g;
+    c.beginPath(); c.moveTo(l/2-18,h/2-8); c.lineTo(l/2+10,h/2-8); c.quadraticCurveTo(l/2+24,h/2-6,l/2+26,h/2); c.quadraticCurveTo(l/2+20,h/2+2,l/2+10,h/2+8); c.lineTo(l/2-18,h/2+8); c.closePath(); c.fill();
+    c.fillStyle='rgba(255,255,255,.35)'; c.fillRect(l/2-16,h/2-7,24,2.5); c.strokeStyle='#5a3a1e'; c.lineWidth=3; c.beginPath(); c.moveTo(l/2-10,h/2+14); c.lineTo(l/2+6,h/2+22); c.stroke(); c.fillStyle='#4a4e54'; c.fillRect(l/2+4,h/2+18,8,7); }},
+
   /* ===== Taverne ===== */
   comptoir:{nom:'Comptoir',cat:'Taverne',calque:'objets',taille:[3,1],dessin(c,l,h){ bois(c,3,10,l-6,h-20,'#6b4022'); c.fillStyle='#8a5a32'; c.fillRect(6,13,l-12,7);
     chope(c,30,h/2+4,6); chope(c,70,h/2+2,6); chope(c,150,h/2+5,6); c.fillStyle='rgba(230,220,200,.85)'; c.fillRect(100,h/2,18,9); cercle(c,128,h/2+4,4,'#3a6a8a','#1a2a3a'); }},
@@ -1788,6 +1804,21 @@ const EXEMPLES=[
   {id:'grotte',nom:'Grotte des Murmures',desc:'Cavernes, lac souterrain, gouffre et pont, cristaux, nid d\'araignées, brigands, mine.'},
   {id:'sanctuaire',nom:'Sanctuaire du Culte',desc:'Cercle d\'invocation, ossuaire, cellules, laboratoire et porte secrète. Ambiance crypte.'},
   {id:'clairiere',nom:'Clairière de la Rivière',desc:'Hameau, rivière et pont, marché, campement et forêt. En plein jour.'},
+  {id:'forge',nom:'Forge du Village',desc:'Atelier du forgeron, logis, cour à bois et puits. Au crépuscule.'},
+  {id:'marche',nom:'Place du Marché',desc:'Fontaine, étals, échoppes et maisons autour de la place. En plein jour.'},
+  {id:'port',nom:'Quais du Port',desc:'Entrepôts, quais en bois, barques et marchandises. Au crépuscule.'},
+  {id:'hameau_neige',nom:'Hameau Enneigé',desc:'Cabanes, grange, lac gelé et forêt de sapins. De nuit.'},
+  {id:'cimetiere',nom:'Cimetière de Minuit',desc:'Tombes, mausolée, tombe ouverte et fontaine. De nuit.'},
+  {id:'bandits',nom:'Repaire des Brigands',desc:'Palissade, tentes, feu, prisonnier en cage et butin. De nuit, en forêt.'},
+  {id:'ruines',nom:'Temple en Ruine',desc:'Murs effondrés, colonnes brisées, autel et nature qui reprend ses droits.'},
+  {id:'oasis',nom:'Oasis du Désert',desc:'Point d\'eau, palmiers, campement de caravane et étals.'},
+  {id:'tour_mage',nom:'Tour du Mage',desc:'Tour ronde : bibliothèque, chambre, laboratoire, cercle et orbe au centre.'},
+  {id:'salle_trone',nom:'Salle du Trône',desc:'Trône sur estrade, colonnades, bannières, garde et trésorerie.'},
+  {id:'prison',nom:'Prison du Château',desc:'Couloir de cellules à herses, salle des gardes et salle de torture.'},
+  {id:'crypte_royale',nom:'Crypte Royale',desc:'Sarcophages, colonnes, ossuaire et trésor derrière une porte secrète.'},
+  {id:'egouts',nom:'Égouts de la Cité',desc:'Canaux, passerelles, repaire d\'un culte et planque de contrebandiers.'},
+  {id:'mine',nom:'Mine Abandonnée',desc:'Galeries étayées, rails, chariots, filons et puits inondé.'},
+  {id:'antre_dragon',nom:'Antre du Dragon',desc:'Caverne de lave, trône sur le trésor, ossements et cristaux.'},
 ];
 const dlgExemples=document.getElementById('dlg-exemples');
 function dialogueExemples(){ const l=document.getElementById('liste-exemples'); l.innerHTML='';
