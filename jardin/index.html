@@ -159,6 +159,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .primary.big{padding:14px 18px;font-size:24px;border-radius:16px;box-shadow:0 4px 0 var(--sun-edge)}
 .ghost{padding:11px 16px;border-radius:14px;border:1.5px solid var(--glass-line);background:rgba(20,40,28,.75);font-weight:800;font-size:15px;text-align:left}
 .ghost:hover{border-color:var(--sun)}
+.cont small{display:block;font-family:var(--body);font-size:13px;font-weight:800;opacity:.75;margin-top:2px}
+.ghost.center{text-align:center}
+#ov p.saved{font-size:12.5px;color:var(--muted)}
 .best{font-size:12.5px;color:var(--muted);font-weight:700;margin:0}
 .best b{color:var(--sun)}
 .rot{font-size:12.5px;color:#ffe08a;margin:0;font-weight:700}
@@ -218,6 +221,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <div class="next"><span class="lbl" id="nextTtl"></span><span id="nextWave" class="next"></span></div>
     </div>
     <div class="hud-r">
+      <button id="bSound" class="round" aria-label="Couper le son"></button>
       <button id="bSpeed" class="round" aria-label="Changer la vitesse">×1</button>
       <button id="bFull" class="round" aria-label="Plein écran"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <button id="bPause" class="round" aria-label="Menu pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg></button>
@@ -252,6 +256,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
         <button role="radio" data-d="difficile">Difficile</button>
       </div>
       <div class="menu">
+        <button id="bCont" class="primary big cont" hidden>Continuer</button>
         <button id="bPlay" class="primary big">Jouer</button>
         <button id="bGal" class="ghost">Les défenseurs et leurs évolutions</button>
         <button id="bHelp" class="ghost">Comment jouer</button>
@@ -350,6 +355,27 @@ const $=id=>document.getElementById(id);
 function load(k,d){try{const v=localStorage.getItem('gj_'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
 function save(k,v){try{localStorage.setItem('gj_'+k,JSON.stringify(v));}catch(e){}}
 const DIFF={facile:{n:'Facile',hp:0.75,pollen:450,tree:150},normal:{n:'Normal',hp:1,pollen:350,tree:100},difficile:{n:'Difficile',hp:1.3,pollen:300,tree:80}};
+let HQ=load('hq',true);
+/* Sons (synthétisés, aucun fichier) */
+let AC=null,MASTER=null,sfxOn=load('sfx',true);const sfxT={};
+function initAudio(){if(AC){if(AC.state==='suspended')AC.resume().catch(()=>{});return;}try{AC=new(window.AudioContext||window.webkitAudioContext)();MASTER=AC.createGain();MASTER.gain.value=0.5;MASTER.connect(AC.destination);}catch(e){AC=null;}}
+function tone(f0,f1,d,type,vol,t0){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0,t0);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t0+d);g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(vol,t0+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t0+d);o.connect(g);g.connect(MASTER);o.start(t0);o.stop(t0+d+0.03);}
+const SFX={
+  shoot:t=>tone(880,520,0.06,'triangle',0.035,t),
+  puff:t=>tone(220,90,0.18,'sine',0.06,t),
+  pop:t=>tone(520,1250,0.08,'sine',0.06,t),
+  boss:t=>{tone(160,60,0.5,'sawtooth',0.09,t);tone(660,1320,0.3,'sine',0.07,t+0.05);},
+  place:t=>{tone(320,170,0.12,'triangle',0.1,t);tone(500,700,0.06,'sine',0.04,t+0.05);},
+  evolve:t=>{[523,659,784,1047].forEach((f,i)=>tone(f,f*1.01,0.16,'sine',0.08,t+i*0.07));},
+  wave:t=>{tone(392,392,0.14,'square',0.035,t);tone(523,523,0.22,'square',0.035,t+0.14);},
+  coins:t=>{tone(988,988,0.09,'triangle',0.06,t);tone(1319,1319,0.18,'triangle',0.06,t+0.08);},
+  hit:t=>tone(190,70,0.28,'sawtooth',0.08,t),
+  sell:t=>tone(700,300,0.14,'triangle',0.06,t),
+  lose:t=>{[392,330,262,196].forEach((f,i)=>tone(f,f*0.97,0.3,'triangle',0.08,t+i*0.18));},
+  win:t=>{[523,659,784,659,784,1047].forEach((f,i)=>tone(f,f,0.18,'triangle',0.08,t+i*0.12));}
+};
+const SFXGAP={shoot:0.07,pop:0.04,puff:0.12,hit:0.1};
+function sfx(n){if(!sfxOn||!AC||!started||(S&&S.demo))return;const now=AC.currentTime;if(sfxT[n]&&now-sfxT[n]<(SFXGAP[n]||0.03))return;sfxT[n]=now;try{SFX[n](now+0.005);}catch(e){}}
 let diff=load('diff','normal');if(!DIFF[diff])diff='normal';
 let S,started=false,AT=0;
 function newGame(){
@@ -379,7 +405,7 @@ function spawn(type){
 }
 function startWave(){
   if(S.running||S.over)return;
-  S.wave++;if(S.demo&&S.wave>12)S.wave=6;S.queue=makeWave(S.wave);S.wt=0;S.running=true;
+  S.wave++;if(S.demo&&S.wave>12)S.wave=6;sfx('wave');S.queue=makeWave(S.wave);S.wt=0;S.running=true;
   const boss=S.queue.some(q=>EN[q.type].boss);
   if(!S.demo)S.banner={txt:'Vague '+S.wave,sub:boss?'Un monstre approche !':'',t:0};
   refreshNext();
@@ -387,15 +413,15 @@ function startWave(){
 function endWave(){
   if(S.demo){S.running=false;S.autoT=1;return;}
   S.running=false;
-  const bonus=60+S.wave*10;S.pollen+=bonus;
+  const bonus=60+S.wave*10;S.pollen+=bonus;sfx('coins');
   for(const t of S.towers){const st=stats(t);if(st.income){S.pollen+=st.income;txt(t.x,t.y,'+'+st.income,'#ffe066',16,70);for(let i=0;i<8;i++)part(t.x,t.y,'#ffd23f',2.5,90,undefined,50);}}
   const best=load('best',{});if(S.wave>(best[diff]||0)){best[diff]=S.wave;save('best',best);}
   S.banner={txt:'Vague repoussée',sub:'+'+bonus+' pollen',t:0};
-  if(S.wave>=LAST_WAVE&&!S.won){S.won=true;S.paused=true;showVictory();}
-  S.autoT=2;refreshNext();
+  if(S.wave>=LAST_WAVE&&!S.won){S.won=true;S.paused=true;sfx('win');showVictory();}
+  S.autoT=2;refreshNext();saveGame();
 }
 function kill(e){
-  S.pollen+=e.rew;
+  S.pollen+=e.rew;sfx(e.boss?'boss':'pop');
   if(e.lastSrc)e.lastSrc.kills++;
   txt(e.x,e.y,'+'+e.rew,'#ffe066',e.boss?18:12,eh(e)+e.r+10);
   const col={puceron:'#8bd450',limace:'#c47a3a',sauterelle:'#6db33f',scarabee:'#3d57a0',corbeau:'#333',limaceGeante:'#8e5bb8',doryphore:'#f2c94c'}[e.type];
@@ -420,7 +446,7 @@ function canPlace(x,y,ign){
 function place(type,x,y){
   const D=DEFS[type];
   if(S.pollen<D.cost||!canPlace(x,y))return null;
-  S.pollen-=D.cost;
+  S.pollen-=D.cost;sfx('place');
   const t={id:S.nid++,type,x,y,stage:0,branch:null,xp:0,cd:0,angle:Math.PI/2,lean:0,anim:0,pop:0.8,invested:D.cost,dealt:0,kills:0,mode:'premier'};
   S.towers.push(t);
   for(let i=0;i<10;i++)part(x,y,'#9e7343',2.5,80,undefined,3);
@@ -432,7 +458,7 @@ function evolve(t,br){
   const need=XPN[t.stage],cost=DEFS[t.type].evo[t.stage];
   if(t.xp<need||S.pollen<cost)return;
   if(t.stage===2){if(br!=='A'&&br!=='B')return;t.branch=br;}
-  S.pollen-=cost;t.invested+=cost;t.xp-=need;t.stage++;t.pop=1;
+  S.pollen-=cost;sfx('evolve');t.invested+=cost;t.xp-=need;t.stage++;t.pop=1;
   const h=muzzle(t);
   ring(t.x,t.y,6,60,'#ffe066',0.5,4);
   for(let i=0;i<14;i++)leafP(t.x,t.y,h*S3*0.7);
@@ -440,7 +466,7 @@ function evolve(t,br){
   txt(t.x,t.y,stats(t).n,'#fff7c2',15,h*S3+30);
 }
 function sell(t){
-  const r=Math.floor(t.invested*0.7);S.pollen+=r;
+  const r=Math.floor(t.invested*0.7);S.pollen+=r;sfx('sell');
   S.towers=S.towers.filter(o=>o!==t);
   for(let i=0;i<12;i++)leafP(t.x,t.y,15);
   txt(t.x,t.y,'+'+r,'#ffe066',14,40);
@@ -478,7 +504,7 @@ function updEnemy(e,dt){
   let da=p.a-e.a;while(da>Math.PI)da-=TAU;while(da<-Math.PI)da+=TAU;e.a+=da*Math.min(1,dt*10);
   if(e.d>=PLEN&&e.hp>0){
     if(S.demo){e.done=true;return;}
-    e.done=true;S.hp-=e.dmg;S.treeHit=0.4;
+    e.done=true;S.hp-=e.dmg;S.treeHit=0.4;sfx('hit');
     for(let i=0;i<6;i++)leafP(TREE.x+(Math.random()-0.5)*80,TREE.y+(Math.random()-0.5)*40,120);
     txt(TREE.x,TREE.y,'−'+e.dmg,'#ff8a80',18,190);
     if(S.hp<=0){S.hp=0;gameOver();}
@@ -520,6 +546,7 @@ function updTower(t,dt){
   }
 }
 function fire(t,st,tg,list){
+  sfx('shoot');
   const h=muzzle(t)*S3,ox=t.x,oy=t.y;
   if(t.type==='chardon'){
     const n=st.multi||1,base=Math.atan2(ey(tg)-oy,tg.x-ox),sp=600;
@@ -534,6 +561,7 @@ function fire(t,st,tg,list){
   }
 }
 function pulse(t,st,list){
+  sfx('puff');
   for(const e of list){
     hurt(e,st.dmg,t);
     if(st.poison)poisonE(e,st.poison,t);
@@ -1118,7 +1146,7 @@ function thumb(type,stage,branch){
 const gameEl=document.getElementById('game');
 function fit(){
   const gw=gameEl.clientWidth,gh=gameEl.clientHeight;
-  DPR=Math.min(1.75,window.devicePixelRatio||1);renderer.setPixelRatio(DPR);renderer.setSize(gw,gh,false);
+  DPR=HQ?Math.min(1.75,window.devicePixelRatio||1):1;renderer.setPixelRatio(DPR);sun.castShadow=HQ;renderer.setSize(gw,gh,false);
   cv.style.width=gw+'px';cv.style.height=gh+'px';cv.style.left='0px';cv.style.top='0px';
   camera.aspect=gw/gh;const vf=camera.fov*Math.PI/180,hf=2*Math.atan(Math.tan(vf/2)*camera.aspect);
   baseD=Math.max(585/Math.tan(hf/2),455/Math.tan(vf/2));camera.updateProjectionMatrix();updCam();
@@ -1442,12 +1470,15 @@ function openPause(){
   if(!started||S.over||S.won&&S.paused)return;
   S.paused=true;cancelPlace();
   overlay(`<h2>Pause</h2><p>Vague <b>${S.wave}</b> sur ${LAST_WAVE} · ${DIFF[diff].n} · Arbre-Mère : <b>${Math.ceil(S.hp)}</b> PV</p>`,
-    [['Reprendre',resume],['Les défenseurs',()=>showGallery(openPauseAgain)],['Comment jouer',()=>showHelp(openPauseAgain)],['Recommencer',restart],['Menu principal',toHome]]);
+    [['Reprendre',resume],['Les défenseurs',()=>showGallery(openPauseAgain)],['Comment jouer',()=>showHelp(openPauseAgain)],
+     [`Son : ${sfxOn?'activé':'coupé'}`,()=>{toggleSound();openPauseAgain();}],[`Graphismes : ${HQ?'détaillés':'économes'}`,()=>{HQ=!HQ;save('hq',HQ);fit();openPauseAgain();}],
+     ['Recommencer',()=>confirmNew(restart,openPauseAgain)],['Menu principal',toHome]]);
+  const p=ov.querySelector('p');if(p)p.insertAdjacentHTML('afterend','<p class="saved">Ta partie est sauvegardée automatiquement : tu peux quitter et la reprendre plus tard.</p>');
 }
 function openPauseAgain(){S.paused=false;openPause();}
 function resume(){closeOv();S.paused=false;}
 function gameOver(){
-  S.over=true;S.running=false;
+  S.over=true;S.running=false;clearSave();sfx('lose');
   setTimeout(()=>overlay(`<h2>L'Arbre-Mère est tombé</h2><p>Ton jardin a tenu <b>${S.wave-1}</b> vague${S.wave-1>1?'s':''} sur ${LAST_WAVE} en mode ${DIFF[diff].n.toLowerCase()}.</p>`,[['Rejouer',restart],['Menu principal',toHome]]),700);
 }
 function showVictory(){
@@ -1455,13 +1486,37 @@ function showVictory(){
     [['Continuer',()=>{closeOv();S.paused=false;}],['Nouvelle partie',restart],['Menu principal',toHome]]);
 }
 function setPlayUI(on){$('confirm').hidden=true;hudEl.hidden=!on;trayEl.hidden=!on;$('zoom').hidden=!on;homeEl.hidden=on;if(!on){selEl.hidden=true;hint('');}}
+function hasSave(){const s=load('save',null);return s&&s.v===1?s:null;}
+function confirmNew(go,back){const sv=hasSave();if(!sv||(started&&S.over)){go();return;}
+  overlay(`<h2>Nouvelle partie ?</h2><p>Ta partie en cours (vague <b>${sv.wave}</b>, mode ${(DIFF[sv.diff]||DIFF.normal).n.toLowerCase()}) sera effacée.</p>`,[['Effacer et recommencer',()=>{clearSave();go();}],['Annuler',back||closeOv]]);}
+function snapshot(){
+  if(!started||!S||S.demo||S.over)return null;
+  return{v:1,diff,pollen:S.pollen,hp:S.hp,maxHp:S.maxHp,hpK:S.hpK,wave:S.wave,running:S.running,queue:S.queue,wt:S.wt,speed:S.speed,auto:S.auto,won:S.won,nid:S.nid,t:Date.now(),
+    towers:S.towers.map(t=>({id:t.id,type:t.type,x:t.x,y:t.y,stage:t.stage,branch:t.branch,xp:t.xp,invested:t.invested,dealt:t.dealt,kills:t.kills,mode:t.mode})),
+    enemies:S.enemies.filter(e=>e.hp>0&&!e.done).map(e=>({type:e.type,hp:e.hp,maxHp:e.maxHp,armor:e.armor,sp:e.sp,d:e.d,slowT:e.slowT,slowF:e.slowF,poisonT:e.poisonT,poison:e.poison,stunT:e.stunT}))};
+}
+function saveGame(){const s=snapshot();if(s)save('save',s);}
+function clearSave(){try{localStorage.removeItem('gj_save');}catch(e){}}
+function continueGame(){
+  const sv=hasSave();if(!sv){showBest();return;}
+  initAudio();enterFS();
+  if(DIFF[sv.diff])setDiff(sv.diff);
+  newGame();resetCam();
+  Object.assign(S,{pollen:sv.pollen,hp:sv.hp,maxHp:sv.maxHp,hpK:sv.hpK,wave:sv.wave,running:!!sv.running,queue:sv.queue||[],wt:sv.wt||0,speed:sv.speed||1,auto:!!sv.auto,won:!!sv.won,nid:sv.nid||1,autoT:3});
+  S.towers=(sv.towers||[]).filter(o=>DEFS[o.type]).map(o=>({...o,cd:0,angle:Math.PI/2,lean:0,anim:0,pop:0.6}));
+  S.enemies=(sv.enemies||[]).filter(o=>EN[o.type]).map(o=>{const b=EN[o.type],p=posAt(o.d);return{type:o.type,...b,...o,x:p.x,y:p.y,a:p.a,anim:Math.random()*10,fly:!!b.fly,flash:0};});
+  $('cAuto').checked=S.auto;
+  started=true;lastUI={};selKey='';closeOv();setPlayUI(true);refreshNext();
+  openPause();
+  const h=ov.querySelector('h2');if(h)h.textContent='Partie retrouvée';
+}
 function play(){
-  enterFS();
+  initAudio();enterFS();
   newGame();resetCam();started=true;lastUI={};selKey='';closeOv();setPlayUI(true);refreshNext();
   hint('Fais glisser un défenseur depuis la barre jusqu’au jardin. Pince ou utilise + et − pour zoomer.',5500);
 }
-function restart(){play();}
-function toHome(){started=false;closeOv();setPlayUI(false);startDemo();showBest();}
+function restart(){clearSave();play();}
+function toHome(){saveGame();started=false;closeOv();setPlayUI(false);startDemo();showBest();}
 function startDemo(){
   newGame();resetCam();S.demo=true;S.pollen=1e9;S.auto=true;S.wave=5;S.autoT=0.6;
   const L=[['chardon',150,170,4,'A'],['coccinelle',300,300,5,'B'],['champignon',280,450,4,'A'],['araignee',400,250,5,'A'],['ruche',560,320,5,'A'],['tournesol',600,100,5,'B'],
@@ -1469,10 +1524,22 @@ function startDemo(){
   for(const[k,x,y,s,b]of L){const t=place(k,x,y);if(t){t.stage=s;t.branch=b;t.pop=0;}}
   S.fx=[];
 }
-function showBest(){const b=load('best',{}),v=b[diff]||0;$('best').innerHTML=v?`Record en mode ${DIFF[diff].n.toLowerCase()} : <b>vague ${v}</b>${v>=LAST_WAVE?' (jardin sauvé)':''}`:`Pas encore de record en mode ${DIFF[diff].n.toLowerCase()}.`;}
+function showBest(){
+  const sv=hasSave(),bc=$('bCont'),bp=$('bPlay');
+  bc.hidden=!sv;if(sv){bc.innerHTML=`Continuer<small>Vague ${sv.wave} · ${(DIFF[sv.diff]||DIFF.normal).n} · ${Math.ceil(sv.hp)} PV</small>`;}
+  bp.className=sv?'ghost center':'primary big';bp.textContent=sv?'Nouvelle partie':'Jouer';
+  const b=load('best',{}),v=b[diff]||0;$('best').innerHTML=v?`Record en mode ${DIFF[diff].n.toLowerCase()} : <b>vague ${v}</b>${v>=LAST_WAVE?' (jardin sauvé)':''}`:`Pas encore de record en mode ${DIFF[diff].n.toLowerCase()}.`;}
 function setDiff(d){diff=d;save('diff',d);document.querySelectorAll('#seg button').forEach(b=>b.setAttribute('aria-checked',b.dataset.d===d?'true':'false'));showBest();}
 document.querySelectorAll('#seg button').forEach(b=>b.addEventListener('click',()=>setDiff(b.dataset.d)));
-$('bPlay').addEventListener('click',play);
+$('bPlay').addEventListener('click',()=>confirmNew(play));
+$('bCont').addEventListener('click',continueGame);
+function toggleSound(){sfxOn=!sfxOn;save('sfx',sfxOn);initAudio();updSoundBtn();}
+function updSoundBtn(){const b=$('bSound');b.innerHTML=sfxOn?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';b.setAttribute('aria-label',sfxOn?'Couper le son':'Activer le son');}
+$('bSound').addEventListener('click',toggleSound);updSoundBtn();
+setInterval(()=>{if(started&&!S.over&&!S.paused)saveGame();},4000);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){saveGame();if(started&&!S.over&&!S.paused&&!S.won)openPause();}});
+window.addEventListener('pagehide',saveGame);
+window.addEventListener('beforeunload',saveGame);
 $('bGal').addEventListener('click',()=>showGallery());
 $('bHelp').addEventListener('click',()=>showHelp());
 function enterFS(){try{if(!document.fullscreenElement&&gameEl.requestFullscreen){const p=gameEl.requestFullscreen({navigationUI:'hide'});if(p&&p.then)p.then(()=>{try{const o=screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape');if(o&&o.catch)o.catch(()=>{});}catch(e){}}).catch(()=>{});}}catch(e){}}
