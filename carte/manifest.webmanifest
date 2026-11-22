@@ -1,0 +1,18 @@
+{
+ "name": "Atelier de Cartes",
+ "short_name": "Cartes",
+ "lang": "fr",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "any",
+ "background_color": "#14161d",
+ "theme_color": "#1b1e27",
+ "description": "Éditeur de cartes en cases : sols, murs, objets, images perso, export PNG.",
+ "icons": [
+  {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+  {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+  {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+  {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"}
+ ]
+}
