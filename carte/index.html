@@ -294,6 +294,33 @@ function roc(c,x,y,r,graine){ const rr=hasard(graine), pts=[]; for(let k=0;k<8;k
   const g=c.createLinearGradient(x-r,y-r,x+r,y+r); g.addColorStop(0,'#b2ada4'); g.addColorStop(1,'#625e58'); c.fillStyle=g; c.beginPath(); pts.forEach(([a,b],i)=>i?c.lineTo(a,b):c.moveTo(a,b)); c.closePath(); c.fill();
   c.fillStyle='rgba(255,255,255,.18)'; c.beginPath(); c.moveTo(pts[4][0]*.5+x*.5,pts[4][1]*.5+y*.5); [5,6,7].forEach(k=>c.lineTo(pts[k][0],pts[k][1])); c.lineTo(x,y); c.fill();
   c.strokeStyle='rgba(0,0,0,.3)'; c.lineWidth=1.2; c.beginPath(); c.moveTo(x-r*.2,y-r*.1); c.lineTo(x+r*.25,y+r*.35); c.stroke(); }
+function chope(c,x,y,r){ cercle(c,x+r*.9,y,r*.35,null,'#5a3a1e'); c.lineWidth=r*.3; c.beginPath(); c.arc(x+r*1.05,y,r*.45,-1.2,1.2); c.strokeStyle='#5a3a1e'; c.stroke();
+  cercle(c,x,y,r,'#7a5230','#3a2616'); const g=c.createRadialGradient(x-r*.3,y-r*.3,0,x,y,r*.8); g.addColorStop(0,'#fffaf0'); g.addColorStop(1,'#e8d8b0'); cercle(c,x,y,r*.75,g); }
+function assiette(c,x,y,r,type){ cercle(c,x,y,r,'#e9e4d8','#9a958c'); cercle(c,x,y,r*.7,null,'rgba(0,0,0,.12)');
+  if(type==='viande'){ c.fillStyle='#8a4a22'; c.beginPath(); c.ellipse(x,y,r*.55,r*.38,.5,0,7); c.fill(); c.fillStyle='#efe8d6'; c.fillRect(x+r*.3,y-r*.5,r*.15,r*.5); }
+  else if(type==='pain'){ c.fillStyle='#c9903a'; c.beginPath(); c.ellipse(x,y,r*.6,r*.4,-.3,0,7); c.fill(); c.strokeStyle='#8a5a1a'; c.lineWidth=1; for(let i=-1;i<=1;i++){ c.beginPath(); c.moveTo(x+i*r*.25-2,y-r*.25); c.lineTo(x+i*r*.25+2,y+r*.25); c.stroke(); } }
+  else { [['#c0303a',-.3,-.2],['#6aa84f',.3,-.1],['#e8b43a',0,.3]].forEach(([coul,a,b])=>cercle(c,x+a*r,y+b*r,r*.28,coul)); } }
+function tabouretS(c,x,y){ const g=c.createRadialGradient(x-3,y-3,1,x,y,8); g.addColorStop(0,'#a8754a'); g.addColorStop(1,'#6b4527'); cercle(c,x,y,8,g,'#3e2814'); }
+function luth(c,x,y,s){ c.save(); c.translate(x,y); c.rotate(-.6); c.scale(s,s); c.fillStyle='#a8743f'; c.beginPath(); c.ellipse(0,8,12,15,0,0,7); c.fill(); c.strokeStyle='#5a3818'; c.lineWidth=1.5; c.stroke();
+  cercle(c,0,6,4,'#2a1a0a'); c.fillStyle='#6b4426'; c.fillRect(-2.5,-24,5,20); c.fillStyle='#4a2d17'; c.fillRect(-4,-30,8,7); c.strokeStyle='rgba(240,230,200,.7)'; c.lineWidth=.6;
+  for(let i=-1;i<=1;i++){ c.beginPath(); c.moveTo(i*1.4,-26); c.lineTo(i*1.4,16); c.stroke(); } c.restore(); }
+function caisse(c,x,y,t){ c.fillStyle='#a87a45'; c.fillRect(x-t,y-t,2*t,2*t); c.strokeStyle='#6b4a24'; c.lineWidth=t*.18; c.strokeRect(x-t*.9,y-t*.9,t*1.8,t*1.8);
+  c.beginPath(); c.moveTo(x-t*.9,y-t*.9); c.lineTo(x+t*.9,y+t*.9); c.stroke(); c.fillStyle='rgba(255,230,190,.12)'; c.fillRect(x-t,y-t,2*t,t*.25); }
+function stalag(c,x,y,r,graine){ const rr=hasard(graine); for(let k=0;k<5;k++){ const f=1-k*.19, pts=[];
+    for(let i=0;i<9;i++){ const a=i/9*Math.PI*2+rr()*.3; pts.push([x-k*r*.06+Math.cos(a)*r*f*(.82+rr()*.25),y-k*r*.06+Math.sin(a)*r*f*(.82+rr()*.25)]); }
+    c.fillStyle=nuance('#6a625a',-.25+k*.13); c.beginPath(); pts.forEach(([a,b],i)=>i?c.lineTo(a,b):c.moveTo(a,b)); c.closePath(); c.fill(); }
+  cercle(c,x-r*.3,y-r*.3,Math.max(1.2,r*.12),'#c9c1b6'); }
+function cristalForme(c,x,y,w,hh,a,c1,c2,c3){ c.save(); c.translate(x,y); c.rotate(a); const g=c.createLinearGradient(-w,0,w,0); g.addColorStop(0,c1); g.addColorStop(.5,c2); g.addColorStop(1,c3);
+  c.fillStyle=g; c.beginPath(); c.moveTo(0,-hh); c.lineTo(w,-hh*.4); c.lineTo(w*.7,hh*.5); c.lineTo(-w*.7,hh*.5); c.lineTo(-w,-hh*.4); c.closePath(); c.fill();
+  c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=1; c.beginPath(); c.moveTo(0,-hh); c.lineTo(0,hh*.5); c.stroke(); c.restore(); }
+function bougie(c,x,y,r,support){ if(support) cercle(c,x,y,r*1.6,support); const g=c.createRadialGradient(x,y,0,x,y,r*4); g.addColorStop(0,'rgba(255,210,120,.45)'); g.addColorStop(1,'rgba(255,170,60,0)'); cercle(c,x,y,r*4,g);
+  cercle(c,x,y,r,'#efe6cf','#a89a7a'); cercle(c,x,y,r*.45,'#ffb43a'); cercle(c,x,y,r*.22,'#fff6d0'); }
+function runes(c,cx,cy,R,n,coul){ const t='ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟ'; c.fillStyle=coul; c.font=`bold ${Math.max(7,R*.28)}px serif`; c.textAlign='center'; c.textBaseline='middle';
+  for(let i=0;i<n;i++){ const a=i/n*Math.PI*2; c.save(); c.translate(cx+Math.cos(a)*R,cy+Math.sin(a)*R); c.rotate(a+Math.PI/2); c.fillText(t[i%t.length],0,0); c.restore(); } }
+function crane(c,x,y,r){ const g=c.createRadialGradient(x-r*.3,y-r*.4,1,x,y,r); g.addColorStop(0,'#fbf6e8'); g.addColorStop(1,'#c9bfa4'); c.fillStyle=g; c.beginPath(); c.ellipse(x,y,r,r*1.1,0,0,7); c.fill();
+  c.strokeStyle='rgba(90,80,60,.6)'; c.lineWidth=1; c.stroke(); cercle(c,x-r*.38,y-r*.05,r*.26,'#2a2520'); cercle(c,x+r*.38,y-r*.05,r*.26,'#2a2520'); c.fillStyle='#2a2520'; c.fillRect(x-r*.12,y+r*.35,r*.24,r*.2); }
+function fiole(c,x,y,r,coul){ const g=c.createRadialGradient(x-r*.3,y-r*.3,0,x,y,r); g.addColorStop(0,'#ffffff'); g.addColorStop(.35,coul); g.addColorStop(1,nuance(coul,-.5)); cercle(c,x,y,r,g,'rgba(0,0,0,.5)');
+  cercle(c,x,y,r*.35,'#8a6a4a'); }
 function montants(c,l,h){ // pierres de part et d'autre d'une ouverture (porte, fenêtre…)
   c.fillStyle='#3a3836'; c.fillRect(0,h/2-10,10,20); c.fillRect(l-10,h/2-10,10,20);
   c.fillStyle='rgba(255,255,255,.12)'; c.fillRect(0,h/2-10,10,2); c.fillRect(l-10,h/2-10,10,2); }
@@ -358,6 +385,17 @@ const ASSETS = {
   lave:{nom:'Lave',cat:'Sols',calque:'sol',prio:3,liquide:true,rive:[255,150,50],px(x,y,C){
     const r=ridge(x*1.1,y*1.1,4), m=fbm(x*2,y*2,2), t=sm(.86,.98,r);
     mel(C,[44,22,18],[84,38,26],m); const k=sm(.7,.9,r); C2[0]=lerp(196,255,t); C2[1]=lerp(46,214,t); C2[2]=lerp(18,96,t); vers(C,C2,k); }},
+  marbre:{nom:'Marbre',cat:'Sols',calque:'sol',dur:true,px(x,y,C){ const tx=Math.floor(x), ty=Math.floor(y), fx=x-tx, fy=y-ty, alt=(tx+ty)%2, e=Math.min(fx,fy,1-fx,1-fy);
+    const v=ridge(x*.9+alt*7,y*.9,4); mel(C,alt?[214,210,204]:[58,54,60],alt?[240,238,234]:[86,80,88],fbm(x*.6,y*.6,3)); vers(C,alt?[150,146,150]:[160,150,140],Math.pow(v,9)*.7);
+    if(e<.04) mul(C,1-.35*(1-e/.04)); }},
+  mosaique:{nom:'Mosaïque',cat:'Sols',calque:'sol',dur:true,px(x,y,C){ const n=6, tx=Math.floor(x*n), ty=Math.floor(y*n), fx=x*n-tx, fy=y*n-ty, e=Math.min(fx,fy,1-fx,1-fy);
+    const cx=Math.abs(((x%2)+2)%2-1), cy=Math.abs(((y%2)+2)%2-1), d=Math.max(cx,cy), h=h2(tx,ty)/255;
+    const pal=d<.35?[[150,40,40],[170,60,50]]:d<.5?[[200,160,80],[220,180,100]]:Math.abs(cx-cy)<.08?[[40,70,110],[60,90,130]]:[[200,190,170],[220,210,190]];
+    mel(C,pal[0],pal[1],h); mul(C,.9+.15*vn(x*20,y*20)); vers(C,[60,55,50],sm(.1,.03,e)); }},
+  paille:{nom:'Paille',cat:'Sols',calque:'sol',prio:6.5,px(x,y,C){ const m=fbm(x*.5,y*.5,3), s=vn(x*30+vn(x*3,y*3)*5,y*6), s2=vn(x*7,y*28+vn(x*2,y*4)*6);
+    mel(C,[176,140,70],[220,186,110],m); mul(C,.75+.3*Math.max(s,s2)+.1*vn(x*50,y*50)); }},
+  cendres:{nom:'Cendres',cat:'Sols',calque:'sol',prio:4.8,px(x,y,C){ const m=fbm(x*.45,y*.45,3), g=vn(x*30,y*30);
+    mel(C,[54,50,48],[100,96,92],m); mul(C,.85+.2*g); if(vn(x*9,y*9)>.88) vers(C,[220,90,30],.6*sm(.88,.97,vn(x*9,y*9))); }},
   gouffre:{nom:'Gouffre',cat:'Sols',calque:'sol',dur:true,px(x,y,C){ mel(C,[3,4,8],[16,18,28],fbm(x*.8,y*.8,3)*.8); }},
 
   /* ===== Murs ===== (le dessus du mur ; contour, relief et ombres sont ajoutés au rendu) */
@@ -371,6 +409,9 @@ const ASSETS = {
   mur_grotte:{nom:'Roche',cat:'Murs',calque:'murs',bord:'#141210',px(x,y,C){
     const r=ridge(x*1.3,y*1.3,4), m=fbm(x*.6,y*.6,3);
     mel(C,[52,47,42],[112,102,92],r*.8+m*.2); mul(C,.85+.2*vn(x*20,y*20)); }},
+  mur_colombage:{nom:'Colombage',cat:'Murs',calque:'murs',bord:'#2a1a0e',px(x,y,C){ const fx=((x%1)+1)%1, fy=((y%1)+1)%1, poutre=Math.min(fx,1-fx)<.08||Math.min(fy,1-fy)<.08||Math.abs(fx-fy)<.06;
+    if(poutre){ mel(C,[70,44,24],[96,62,34],vn(x*3,y*20)); mul(C,.9+.15*vn(x*30,y*4)); } else { mel(C,[206,196,176],[232,224,206],fbm(x*2,y*2,3)); mul(C,.94+.08*vn(x*40,y*40)); } }},
+  mur_marbre:{nom:'Marbre',cat:'Murs',calque:'murs',bord:'#26242a',px(x,y,C){ appareil(x,y,C,.5,1,[200,196,190],[234,230,224],[90,86,84],.5); vers(C,[140,136,140],Math.pow(ridge(x*1.2,y*1.2,4),10)*.6); }},
   haie:{nom:'Haie',cat:'Murs',calque:'murs',bord:'#10230b',px(x,y,C){
     worley(x*6,y*6); const h=WID/255; mel(C,[30,62,26],[78,132,52],(1-W1)*.8+h*.2); mul(C,.8+.3*vn(x*30,y*30)); if(W1<.12) vers(C,[120,170,80],.4); }},
 
@@ -380,6 +421,8 @@ const ASSETS = {
   fin_brique:{nom:'Brique',cat:'Murs fins',calque:'bords',matiere:'mur_brique',pilier:['#b07a5e','#5e3426']},
   fin_bois:{nom:'Cloison bois',cat:'Murs fins',calque:'bords',matiere:'mur_bois',pilier:['#8a5f3a','#3e2814']},
   fin_roche:{nom:'Roche',cat:'Murs fins',calque:'bords',matiere:'mur_grotte',pilier:['#7a726a','#37322d']},
+  fin_colombage:{nom:'Colombage',cat:'Murs fins',calque:'bords',matiere:'mur_colombage',pilier:['#8a5f3a','#3e2814']},
+  fin_marbre:{nom:'Marbre',cat:'Murs fins',calque:'bords',matiere:'mur_marbre',pilier:['#f2f0ec','#9a968f']},
   porte_fine:{nom:'Porte',cat:'Murs fins',calque:'bords',ouverture:'porte'},
   herse_fine:{nom:'Herse',cat:'Murs fins',calque:'bords',ouverture:'herse'},
   porte_fine_secrete:{nom:'Porte secrète',cat:'Murs fins',calque:'bords',ouverture:'secrete',matiere:'mur_taille',pilier:['#b9b6b0','#66625c']},
@@ -636,8 +679,174 @@ const ASSETS = {
   touffe:{nom:'Touffe d\'herbe',cat:'Nature',calque:'objets',decal:true,dessin(c,l,h){ const r=hasard(5); for(let i=0;i<30;i++){ const a=-Math.PI/2+(r()-.5)*2.4, L=6+r()*12, x=l/2+(r()-.5)*14, y=h/2+6+(r()-.5)*8;
     c.strokeStyle=['#3f7a2f','#5ea347','#86c669'][(r()*3)|0]; c.lineWidth=1.5; c.beginPath(); c.moveTo(x,y); c.quadraticCurveTo(x+Math.cos(a)*L*.5+2,y+Math.sin(a)*L*.5,x+Math.cos(a)*L,y+Math.sin(a)*L); c.stroke(); } }},
 
+  /* ===== Taverne ===== */
+  comptoir:{nom:'Comptoir',cat:'Taverne',calque:'objets',taille:[3,1],dessin(c,l,h){ bois(c,3,10,l-6,h-20,'#6b4022'); c.fillStyle='#8a5a32'; c.fillRect(6,13,l-12,7);
+    chope(c,30,h/2+4,6); chope(c,70,h/2+2,6); chope(c,150,h/2+5,6); c.fillStyle='rgba(230,220,200,.85)'; c.fillRect(100,h/2,18,9); cercle(c,128,h/2+4,4,'#3a6a8a','#1a2a3a'); }},
+  tonneau_robinet:{nom:'Fût en perce',cat:'Taverne',calque:'objets',dessin(c,l,h){ bois(c,10,30,l-20,26,'#5a3a1e'); tonneau(c,l/2,h/2-4,20);
+    c.fillStyle='#b88a3a'; c.fillRect(l/2-2,h/2+14,4,9); cercle(c,l/2,h/2+24,3,'#d9a93a','#6b4a10'); }},
+  tonneau_couche:{nom:'Tonneau couché',cat:'Taverne',calque:'objets',taille:[2,1],dessin(c,l,h){ const g=c.createLinearGradient(0,h/2-20,0,h/2+20); g.addColorStop(0,'#a8743f'); g.addColorStop(.5,'#8a5a2b'); g.addColorStop(1,'#5a3818');
+    c.fillStyle=g; c.beginPath(); c.ellipse(l/2,h/2,l/2-8,20,0,0,7); c.fill(); c.strokeStyle='#333'; c.lineWidth=3.5; for(const x of [26,48,80,102]){ c.beginPath(); c.moveTo(x,h/2-19); c.quadraticCurveTo(x+3,h/2,x,h/2+19); c.stroke(); }
+    c.strokeStyle='rgba(40,20,5,.35)'; c.lineWidth=1; for(let i=-2;i<=2;i++){ c.beginPath(); c.moveTo(14,h/2+i*7); c.lineTo(l-14,h/2+i*7); c.stroke(); } }},
+  table_taverne:{nom:'Table de taverne',cat:'Taverne',calque:'objets',taille:[2,2],dessin(c,l,h){ const g=c.createRadialGradient(l/2-12,h/2-12,6,l/2,h/2,46); g.addColorStop(0,'#a06c3e'); g.addColorStop(1,'#6b4426');
+    cercle(c,l/2,h/2,44,g,'#3e2814'); c.strokeStyle='rgba(0,0,0,.18)'; c.lineWidth=1; for(let i=-3;i<=3;i++){ c.beginPath(); c.moveTo(l/2-40,h/2+i*11); c.lineTo(l/2+40,h/2+i*11); c.stroke(); }
+    assiette(c,l/2-16,h/2-14,10,'viande'); assiette(c,l/2+18,h/2+12,10,'pain'); chope(c,l/2+16,h/2-18,6); chope(c,l/2-20,h/2+16,6); chope(c,l/2+2,h/2+2,5);
+    for(let i=0;i<5;i++){ const a=i/5*Math.PI*2+.3; tabouretS(c,l/2+Math.cos(a)*56,h/2+Math.sin(a)*56); } }},
+  table_longue:{nom:'Table de banquet',cat:'Taverne',calque:'objets',taille:[3,1],dessin(c,l,h){ bois(c,4,10,l-8,h-20,'#7a4d28');
+    for(let i=0;i<5;i++){ const x=22+i*37; assiette(c,x,h/2,8,['viande','pain','fruits','viande','pain'][i]); if(i<4) chope(c,x+18,h/2-8,5); }
+    c.fillStyle='#e9e2d0'; c.fillRect(l/2-3,h/2-14,6,10); cercle(c,l/2,h/2-15,2.5,'#ffc23d'); }},
+  chopes:{nom:'Chopes',cat:'Taverne',calque:'objets',decal:true,dessin(c,l,h){ chope(c,22,26,7); chope(c,40,22,7); chope(c,32,42,7); }},
+  repas:{nom:'Repas',cat:'Taverne',calque:'objets',decal:true,dessin(c,l,h){ assiette(c,26,30,12,'viande'); assiette(c,44,42,8,'fruits'); chope(c,46,20,6); }},
+  table_jeu:{nom:'Table de jeu',cat:'Taverne',calque:'objets',dessin(c,l,h){ bois(c,6,6,l-12,h-12,'#5a3a1e'); c.fillStyle='#2a5a3a'; c.fillRect(10,10,l-20,h-20);
+    const r=hasard(17); for(let i=0;i<5;i++){ c.save(); c.translate(18+r()*28,18+r()*24); c.rotate(r()*2-1); c.fillStyle='#f4ecd6'; c.fillRect(-4,-6,8,12); c.fillStyle=i%2?'#c0303a':'#222'; c.fillRect(-1.5,-1.5,3,3); c.restore(); }
+    for(const [x,y] of [[44,42],[50,38]]){ c.fillStyle='#efe8d6'; c.fillRect(x-3,y-3,6,6); cercle(c,x,y,.9,'#222'); }
+    for(let i=0;i<6;i++) cercle(c,20+i*2,46,2.3,'#e8b42a','#9a6e10'); }},
+  etagere_bouteilles:{nom:'Étagère à bouteilles',cat:'Taverne',calque:'objets',taille:[2,1],dessin(c,l,h){ bois(c,3,4,l-6,22,'#4a2d17');
+    const r=hasard(23); for(let i=0;i<11;i++){ const x=10+i*10.5, coul=['#2a6a3a','#6a2a2a','#8a6a2a','#2a4a6a','#4a2a5a'][(r()*5)|0];
+      cercle(c,x,15,4.2,coul,'rgba(0,0,0,.5)'); cercle(c,x-1.2,13.8,1.4,'rgba(255,255,255,.55)'); } }},
+  caisses_empilees:{nom:'Caisses empilées',cat:'Taverne',calque:'objets',taille:[2,1],dessin(c,l,h){ caisse(c,24,h/2,20); caisse(c,64,h/2-2,22); caisse(c,98,h/2+4,16); }},
+  foyer:{nom:'Foyer à broche',cat:'Taverne',calque:'objets',taille:[2,2],lumiere:{clair:4,faible:8,couleur:'#ff8a3a',anim:'flame'},dessin(c,l,h){ const cx=l/2, cy=h/2;
+    for(let i=0;i<14;i++){ const a=i/14*Math.PI*2; roc(c,cx+Math.cos(a)*40,cy+Math.sin(a)*40,9,i+3); }
+    cercle(c,cx,cy,32,'#1e1712'); const g=c.createRadialGradient(cx,cy,2,cx,cy,30); g.addColorStop(0,'#fff3b0'); g.addColorStop(.3,'#ffae3a'); g.addColorStop(.65,'#d9461a'); g.addColorStop(1,'rgba(90,20,0,0)'); cercle(c,cx,cy,30,g);
+    c.strokeStyle='#3a2616'; c.lineWidth=5; c.lineCap='round'; for(let i=0;i<4;i++){ const a=i/4*Math.PI+.4; c.beginPath(); c.moveTo(cx-Math.cos(a)*20,cy-Math.sin(a)*20); c.lineTo(cx+Math.cos(a)*20,cy+Math.sin(a)*20); c.stroke(); }
+    c.strokeStyle='#5a5f66'; c.lineWidth=3; c.beginPath(); c.moveTo(cx-48,cy); c.lineTo(cx+48,cy); c.stroke(); cercle(c,cx-48,cy,4,'#3a3d42'); cercle(c,cx+48,cy,4,'#3a3d42');
+    const v=c.createLinearGradient(0,cy-11,0,cy+11); v.addColorStop(0,'#d98a4a'); v.addColorStop(1,'#7a3a1a'); c.fillStyle=v; c.beginPath(); c.ellipse(cx,cy,20,11,0,0,7); c.fill(); }},
+  estrade:{nom:'Estrade du barde',cat:'Taverne',calque:'objets',taille:[2,2],dessin(c,l,h){ bois(c,4,4,l-8,h-8,'#7d5130'); c.strokeStyle='#4a2d17'; c.lineWidth=3; c.strokeRect(4,4,l-8,h-8);
+    luth(c,l/2+6,h/2,1); tabouretS(c,l/2-22,h/2+14); c.fillStyle='#f4ecd6'; c.save(); c.translate(l/2-24,h/2-24); c.rotate(-.3); c.fillRect(-8,-10,16,20); c.fillStyle='rgba(40,30,20,.6)'; for(let i=0;i<5;i++) c.fillRect(-6,-7+i*3.5,12,.8); c.restore(); }},
+  luth:{nom:'Luth',cat:'Taverne',calque:'objets',dessin(c,l,h){ luth(c,l/2,h/2,.8); }},
+  lanterne:{nom:'Lanterne',cat:'Taverne',calque:'objets',lumiere:{clair:2,faible:5,couleur:'#ffc46b',anim:'torch'},dessin(c,l,h){ const g=c.createRadialGradient(l/2,h/2,1,l/2,h/2,22); g.addColorStop(0,'rgba(255,210,120,.55)'); g.addColorStop(1,'rgba(255,170,60,0)'); cercle(c,l/2,h/2,22,g);
+    c.fillStyle='#2b2620'; c.fillRect(l/2-8,h/2-8,16,16); c.fillStyle='#ffd77a'; c.fillRect(l/2-5,h/2-5,10,10); c.strokeStyle='#2b2620'; c.lineWidth=1.5; c.beginPath(); c.moveTo(l/2,h/2-5); c.lineTo(l/2,h/2+5); c.moveTo(l/2-5,h/2); c.lineTo(l/2+5,h/2); c.stroke(); cercle(c,l/2,h/2,2,'#fff6d0'); }},
+  tapis_ovale:{nom:'Tapis ovale',cat:'Taverne',calque:'objets',taille:[2,1],decal:true,dessin(c,l,h){ c.fillStyle='#6a4a2a'; c.beginPath(); c.ellipse(l/2,h/2,l/2-4,h/2-6,0,0,7); c.fill();
+    [['#8a3a2a',.85],['#c9a46a',.7],['#5a6a3a',.55],['#8a3a2a',.4]].forEach(([coul,f])=>{ c.strokeStyle=coul; c.lineWidth=3; c.beginPath(); c.ellipse(l/2,h/2,(l/2-4)*f,(h/2-6)*f,0,0,7); c.stroke(); }); }},
+  paillasse:{nom:'Paillasse',cat:'Taverne',calque:'objets',taille:[1,2],dessin(c,l,h){ c.fillStyle='#c9a44a'; rrect(c,8,8,l-16,h-16,8); c.fill();
+    c.strokeStyle='rgba(120,90,30,.6)'; c.lineWidth=1; const r=hasard(4); for(let i=0;i<40;i++){ const x=10+r()*(l-20), y=10+r()*(h-20), a=r()*3; c.beginPath(); c.moveTo(x,y); c.lineTo(x+Math.cos(a)*6,y+Math.sin(a)*6); c.stroke(); }
+    c.fillStyle='#8a6a4a'; rrect(c,12,h/2,l-24,h/2-14,4); c.fill(); c.fillStyle='#d9cfb4'; rrect(c,14,14,l-28,16,5); c.fill(); }},
+  table_cuisine:{nom:'Table de cuisine',cat:'Taverne',calque:'objets',taille:[2,1],dessin(c,l,h){ bois(c,4,8,l-8,h-16,'#9a7048'); c.fillStyle='#c9a46a'; c.fillRect(14,h/2-9,30,18);
+    c.fillStyle='#e9e2d0'; c.fillRect(20,h/2-2,16,3); c.fillStyle='#8f969e'; c.fillRect(36,h/2-2,8,3);
+    [[60,h/2-6,'#d9461a'],[68,h/2+5,'#e8b43a'],[78,h/2-4,'#6aa84f'],[88,h/2+4,'#a8452a']].forEach(([x,y,coul])=>cercle(c,x,y,5,coul,'rgba(0,0,0,.4)')); cercle(c,104,h/2,8,'#c9b48a','#6b5530'); }},
+  vaisselle:{nom:'Vaisselle',cat:'Taverne',calque:'objets',decal:true,dessin(c,l,h){ for(let i=0;i<4;i++) cercle(c,24+i*1.5,26-i*1.5,11,'#e9e4d8','#9a958c'); cercle(c,44,40,9,'#b8b3a8','#77736c'); chope(c,24,46,5); }},
+  seau_balai:{nom:'Seau et balai',cat:'Taverne',calque:'objets',dessin(c,l,h){ cercle(c,24,34,11,'#7a5a3a','#3a2a1a'); cercle(c,24,34,7,'#4a7aa0'); c.strokeStyle='#5a5f66'; c.lineWidth=1.5; c.beginPath(); c.arc(24,34,12,Math.PI*1.1,Math.PI*1.9); c.stroke();
+    c.strokeStyle='#8a6038'; c.lineWidth=3; c.beginPath(); c.moveTo(36,14); c.lineTo(50,46); c.stroke(); c.fillStyle='#c9a44a'; c.save(); c.translate(52,50); c.rotate(-.4); c.fillRect(-7,-2,14,10); c.restore(); }},
+
+  /* ===== Grotte ===== */
+  stalagmites:{nom:'Stalagmites',cat:'Grotte',calque:'objets',obstacle:.2,dessin(c,l,h){ stalag(c,24,26,12,1); stalag(c,42,38,9,2); stalag(c,26,46,6,3); }},
+  grande_stalagmite:{nom:'Grande stalagmite',cat:'Grotte',calque:'objets',taille:[2,2],obstacle:.25,dessin(c,l,h){ stalag(c,l/2,h/2,40,7); stalag(c,l/2+42,h/2+38,10,8); stalag(c,l/2-44,h/2+30,8,9); }},
+  eboulis:{nom:'Éboulis',cat:'Grotte',calque:'objets',taille:[2,2],obstacle:.3,dessin(c,l,h){ const r=hasard(44); for(let i=0;i<9;i++) roc(c,20+r()*(l-40),20+r()*(h-40),10+r()*14,i+20);
+    for(let i=0;i<30;i++) cercle(c,8+r()*(l-16),8+r()*(h-16),1.5+r()*2.5,nuance('#8d8a85',(r()-.5)*.4)); }},
+  rocher_plat:{nom:'Rocher plat',cat:'Grotte',calque:'objets',taille:[2,1],dessin(c,l,h){ c.save(); c.translate(l/2,h/2); c.scale(1.9,1); roc(c,0,0,22,53); c.restore();
+    c.strokeStyle='rgba(0,0,0,.25)'; c.lineWidth=1.2; c.beginPath(); c.moveTo(l/2-20,h/2-4); c.lineTo(l/2+6,h/2+6); c.lineTo(l/2+24,h/2-2); c.stroke(); }},
+  cristaux_geants:{nom:'Cristaux géants',cat:'Grotte',calque:'objets',taille:[2,2],obstacle:.3,lumiere:{clair:3,faible:6,couleur:'#b07aff',anim:'pulse'},dessin(c,l,h){
+    const g=c.createRadialGradient(l/2,h/2,4,l/2,h/2,60); g.addColorStop(0,'rgba(190,140,255,.45)'); g.addColorStop(1,'rgba(150,90,255,0)'); cercle(c,l/2,h/2,60,g);
+    [[l/2,h/2-6,16,40,0],[l/2-24,h/2+10,11,28,-.6],[l/2+24,h/2+8,12,30,.55],[l/2-8,h/2+26,9,20,-.2],[l/2+14,h/2-30,8,18,.3]].forEach(([x,y,w,hh,a])=>cristalForme(c,x,y,w,hh,a,'#6a3ac4','#efe0ff','#4a2a9a')); }},
+  champignons_lumineux:{nom:'Champignons lumineux',cat:'Grotte',calque:'objets',decal:true,lumiere:{clair:1,faible:3,couleur:'#5ff0d0',anim:'pulse'},dessin(c,l,h){
+    const g=c.createRadialGradient(l/2,h/2,2,l/2,h/2,30); g.addColorStop(0,'rgba(95,240,208,.4)'); g.addColorStop(1,'rgba(95,240,208,0)'); cercle(c,l/2,h/2,30,g);
+    [[24,26,8],[40,22,6],[34,40,9],[48,40,5],[20,42,4]].forEach(([x,y,r])=>{ const m=c.createRadialGradient(x-r*.3,y-r*.3,1,x,y,r); m.addColorStop(0,'#d8fff4'); m.addColorStop(1,'#2ab09a'); cercle(c,x,y,r,m,'rgba(10,60,50,.6)'); cercle(c,x+r*.25,y-r*.25,r*.2,'rgba(255,255,255,.8)'); }); }},
+  mousse_lumineuse:{nom:'Mousse lumineuse',cat:'Grotte',calque:'objets',decal:true,lumiere:{clair:.5,faible:2,couleur:'#8cf06a',anim:null},dessin(c,l,h){ const r=hasard(61);
+    for(let i=0;i<40;i++){ const a=r()*7, d=r()*24; cercle(c,l/2+Math.cos(a)*d,h/2+Math.sin(a)*d,2+r()*5,`rgba(${120+r()*60|0},${220+r()*35|0},${90+r()*40|0},.55)`); } }},
+  flaque:{nom:'Flaque',cat:'Grotte',calque:'objets',decal:true,dessin(c,l,h){ const r=hasard(13), pts=[]; for(let i=0;i<10;i++){ const a=i/10*Math.PI*2; pts.push([l/2+Math.cos(a)*(16+r()*8)*1.25,h/2+Math.sin(a)*(14+r()*6)*.85]); }
+    const g=c.createRadialGradient(l/2-6,h/2-6,2,l/2,h/2,28); g.addColorStop(0,'rgba(140,185,220,.8)'); g.addColorStop(1,'rgba(40,80,120,.6)'); c.fillStyle=g; c.beginPath();
+    for(let i=0;i<pts.length;i++){ const [x1,y1]=pts[i], [x2,y2]=pts[(i+1)%pts.length], mx=(x1+x2)/2, my=(y1+y2)/2; i?c.quadraticCurveTo(x1,y1,mx,my):c.moveTo(mx,my); }
+    const [x1,y1]=pts[0], [x2,y2]=pts[1]; c.quadraticCurveTo(x1,y1,(x1+x2)/2,(y1+y2)/2); c.fill();
+    c.strokeStyle='rgba(20,40,60,.35)'; c.lineWidth=1.5; c.stroke(); c.strokeStyle='rgba(255,255,255,.4)'; c.lineWidth=1.2; c.beginPath(); c.arc(l/2-8,h/2-5,7,3.5,5.2); c.stroke(); }},
+  nid:{nom:'Nid',cat:'Grotte',calque:'objets',taille:[2,2],dessin(c,l,h){ const r=hasard(71); c.lineCap='round';
+    for(let i=0;i<120;i++){ const a=r()*7, d=24+r()*22, x=l/2+Math.cos(a)*d, y=h/2+Math.sin(a)*d, b=a+1.4+(r()-.5); c.strokeStyle=['#6b4a2a','#8a6038','#4a3018','#a07a4a'][(r()*4)|0]; c.lineWidth=1.5+r()*2;
+      c.beginPath(); c.moveTo(x,y); c.lineTo(x+Math.cos(b)*14,y+Math.sin(b)*14); c.stroke(); }
+    cercle(c,l/2,h/2,24,'#3a2814'); [[l/2-8,h/2-4],[l/2+9,h/2-6],[l/2,h/2+9]].forEach(([x,y])=>{ const g=c.createRadialGradient(x-3,y-3,1,x,y,9); g.addColorStop(0,'#f4f0e0'); g.addColorStop(1,'#a8b89a'); c.fillStyle=g; c.beginPath(); c.ellipse(x,y,8,10,.3,0,7); c.fill(); cercle(c,x+2,y+3,1.5,'#6a7a5a'); }); }},
+  toile_geante:{nom:'Toile géante',cat:'Grotte',calque:'objets',taille:[2,2],decal:true,dessin(c,l,h){ const cx=l/2, cy=h/2; c.strokeStyle='rgba(235,235,240,.65)'; c.lineWidth=1.2;
+    for(let i=0;i<12;i++){ const a=i/12*Math.PI*2; c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+Math.cos(a)*64,cy+Math.sin(a)*64); c.stroke(); }
+    for(let k=1;k<8;k++){ c.beginPath(); for(let i=0;i<=12;i++){ const a=i/12*Math.PI*2, d=k*8+Math.sin(i*3+k)*1.5; c.lineTo(cx+Math.cos(a)*d,cy+Math.sin(a)*d); } c.stroke(); } }},
+  cocon:{nom:'Cocon',cat:'Grotte',calque:'objets',dessin(c,l,h){ const g=c.createLinearGradient(l/2-10,0,l/2+10,0); g.addColorStop(0,'#c9c4b8'); g.addColorStop(.5,'#f4f0e8'); g.addColorStop(1,'#a8a294'); c.fillStyle=g;
+    c.beginPath(); c.ellipse(l/2,h/2,11,22,.3,0,7); c.fill(); c.strokeStyle='rgba(120,110,100,.5)'; c.lineWidth=1; for(let i=-3;i<=3;i++){ c.beginPath(); c.ellipse(l/2,h/2+i*5,11-Math.abs(i),3,.3,0,Math.PI); c.stroke(); } }},
+  racines:{nom:'Racines',cat:'Grotte',calque:'objets',taille:[2,2],decal:true,dessin(c,l,h){ const r=hasard(81); c.lineCap='round';
+    const branche=(x,y,a,L,w,n)=>{ if(n<=0||w<1) return; const x2=x+Math.cos(a)*L, y2=y+Math.sin(a)*L; c.strokeStyle='#4a3018'; c.lineWidth=w+1.5; c.beginPath(); c.moveTo(x,y); c.lineTo(x2,y2); c.stroke();
+      c.strokeStyle='#7a5a3a'; c.lineWidth=w; c.stroke(); branche(x2,y2,a+(r()-.5)*.9,L*.75,w*.7,n-1); if(r()<.6) branche(x2,y2,a+(r()-.5)*1.8,L*.6,w*.55,n-2); };
+    branche(4,6,.8,30,7,5); branche(l-6,10,2.2,26,6,5); branche(8,h-8,-.6,24,5,4); }},
+  filon:{nom:'Filon d\'or',cat:'Grotte',calque:'objets',obstacle:.2,dessin(c,l,h){ roc(c,l/2,h/2,24,91); const r=hasard(92);
+    for(let i=0;i<9;i++){ const x=l/2+(r()-.5)*28, y=h/2+(r()-.5)*26; c.fillStyle=r()<.5?'#ffd84a':'#e8b42a'; c.beginPath(); c.moveTo(x,y-3); c.lineTo(x+3,y); c.lineTo(x,y+3); c.lineTo(x-3,y); c.fill(); } }},
+  chariot_mine:{nom:'Chariot de mine',cat:'Grotte',calque:'objets',dessin(c,l,h){ c.fillStyle='#3a3d42'; c.fillRect(l/2-16,h/2-22,4,44); c.fillRect(l/2+12,h/2-22,4,44);
+    bois(c,l/2-14,h/2-18,28,36,'#6b4426'); c.strokeStyle='#5a5f66'; c.lineWidth=3; c.strokeRect(l/2-14,h/2-18,28,36);
+    const r=hasard(93); for(let i=0;i<8;i++) roc(c,l/2-8+r()*16,h/2-10+r()*20,5,i+40); }},
+  rails:{nom:'Rails',cat:'Grotte',calque:'objets',decal:true,dessin(c,l,h){ c.fillStyle='#5a3a1e'; for(let i=0;i<4;i++) c.fillRect(l/2-20,4+i*16,40,7);
+    c.fillStyle='#8c939e'; c.fillRect(l/2-15,0,4,h); c.fillRect(l/2+11,0,4,h); c.fillStyle='rgba(255,255,255,.35)'; c.fillRect(l/2-15,0,1.3,h); c.fillRect(l/2+11,0,1.3,h); }},
+  outils_mineur:{nom:'Outils de mineur',cat:'Grotte',calque:'objets',decal:true,dessin(c,l,h){ c.lineCap='round';
+    c.strokeStyle='#7a5a3a'; c.lineWidth=3.5; c.beginPath(); c.moveTo(14,50); c.lineTo(42,18); c.stroke(); c.strokeStyle='#8c939e'; c.lineWidth=4; c.beginPath(); c.moveTo(32,10); c.quadraticCurveTo(44,14,52,26); c.stroke();
+    c.strokeStyle='#7a5a3a'; c.lineWidth=3; c.beginPath(); c.moveTo(22,22); c.lineTo(48,52); c.stroke(); c.fillStyle='#8c939e'; c.save(); c.translate(50,54); c.rotate(.7); c.fillRect(-6,-4,12,10); c.restore(); }},
+  etai:{nom:'Étai de bois',cat:'Grotte',calque:'objets',obstacle:.3,dessin(c,l,h){ c.fillStyle='#5a3a1e'; c.fillRect(l/2-13,h/2-13,26,26); bois(c,l/2-11,h/2-11,22,22,'#8a6038');
+    c.strokeStyle='#3a2616'; c.lineWidth=2; c.beginPath(); c.moveTo(l/2-11,h/2-11); c.lineTo(l/2+11,h/2+11); c.moveTo(l/2+11,h/2-11); c.lineTo(l/2-11,h/2+11); c.stroke(); }},
+  pont_corde:{nom:'Pont de corde',cat:'Grotte',calque:'objets',taille:[1,3],dessin(c,l,h){ c.strokeStyle='#a08050'; c.lineWidth=2.5; c.beginPath(); c.moveTo(8,0); c.lineTo(8,h); c.moveTo(l-8,0); c.lineTo(l-8,h); c.stroke();
+    for(let i=0;i<14;i++){ const y=4+i*h/14; bois(c,9,y,l-18,h/14-3,i%2?'#8a6038':'#7a5230'); } }},
+  sac_couchage:{nom:'Sac de couchage',cat:'Grotte',calque:'objets',taille:[1,2],dessin(c,l,h){ c.fillStyle='#3a5a3a'; rrect(c,10,8,l-20,h-16,12); c.fill(); c.fillStyle='#4f7a4a'; rrect(c,12,34,l-24,h-46,8); c.fill();
+    c.fillStyle='#8a2a2a'; rrect(c,13,12,l-26,18,6); c.fill(); c.strokeStyle='rgba(0,0,0,.25)'; c.lineWidth=1; for(let i=0;i<5;i++){ c.beginPath(); c.moveTo(12,44+i*14); c.lineTo(l-12,44+i*14); c.stroke(); } }},
+  tente:{nom:'Tente',cat:'Grotte',calque:'objets',taille:[2,2],dessin(c,l,h){ const g=c.createLinearGradient(0,0,l,0); g.addColorStop(0,'#7a6a4a'); g.addColorStop(.5,'#b8a47a'); g.addColorStop(1,'#6a5a3a');
+    c.fillStyle=g; c.beginPath(); c.moveTo(10,14); c.lineTo(l-10,14); c.lineTo(l-4,h-10); c.lineTo(4,h-10); c.closePath(); c.fill();
+    c.strokeStyle='#4a3a22'; c.lineWidth=3; c.beginPath(); c.moveTo(l/2,10); c.lineTo(l/2,h-6); c.stroke(); c.lineWidth=1; for(let i=1;i<4;i++){ c.beginPath(); c.moveTo(10+i*(l-20)/4,14); c.lineTo(4+i*(l-8)/4,h-10); c.stroke(); }
+    c.fillStyle='#2a2216'; c.beginPath(); c.moveTo(l/2-14,h-10); c.lineTo(l/2,h-36); c.lineTo(l/2+14,h-10); c.fill(); }},
+
+  /* ===== Culte ===== */
+  autel_sacrificiel:{nom:'Autel sacrificiel',cat:'Culte',calque:'objets',taille:[2,1],dessin(c,l,h){ c.fillStyle='#4a4645'; c.fillRect(4,6,l-8,h-12); c.fillStyle='#6d6862'; c.fillRect(8,10,l-16,h-20);
+    c.fillStyle='rgba(130,10,15,.85)'; c.beginPath(); c.ellipse(l/2,h/2,26,10,0,0,7); c.fill(); for(let i=0;i<5;i++) cercle(c,l/2-34+i*16,h/2+(i%2?8:-8),2.5,'rgba(130,10,15,.8)');
+    c.save(); c.translate(l/2+10,h/2-2); c.rotate(-.5); c.fillStyle='#c9ced6'; c.fillRect(-2,-14,4,16); c.fillStyle='#3a2616'; c.fillRect(-3,2,6,9); c.fillStyle='#b8861a'; c.fillRect(-6,1,12,2.5); c.restore();
+    bougie(c,12,14,3); bougie(c,l-12,14,3); bougie(c,12,h-14,3); bougie(c,l-12,h-14,3); }},
+  autel_obscur:{nom:'Autel obscur',cat:'Culte',calque:'objets',taille:[2,2],lumiere:{clair:2,faible:5,couleur:'#9a5aff',anim:'pulse'},dessin(c,l,h){ const cx=l/2, cy=h/2;
+    c.fillStyle='#1a171c'; c.beginPath(); for(let i=0;i<8;i++){ const a=i/8*Math.PI*2+Math.PI/8; c.lineTo(cx+Math.cos(a)*54,cy+Math.sin(a)*54); } c.fill();
+    c.fillStyle='#2e2933'; c.beginPath(); for(let i=0;i<8;i++){ const a=i/8*Math.PI*2+Math.PI/8; c.lineTo(cx+Math.cos(a)*40,cy+Math.sin(a)*40); } c.fill();
+    runes(c,cx,cy,47,16,'#b48cff'); const g=c.createRadialGradient(cx,cy,2,cx,cy,22); g.addColorStop(0,'#f0e0ff'); g.addColorStop(.4,'#9a5aff'); g.addColorStop(1,'rgba(90,40,180,0)'); cercle(c,cx,cy,22,g);
+    for(let i=0;i<4;i++){ const a=i/4*Math.PI*2+Math.PI/4; bougie(c,cx+Math.cos(a)*30,cy+Math.sin(a)*30,3.5,'#2a2228'); } }},
+  bougies:{nom:'Bougies',cat:'Culte',calque:'objets',decal:true,lumiere:{clair:1,faible:3,couleur:'#ffd27a',anim:'torch'},dessin(c,l,h){ [[20,22,4],[30,18,3],[42,26,4.5],[26,36,3.5],[40,42,3],[48,34,2.5]].forEach(([x,y,r])=>{ c.fillStyle='rgba(240,230,200,.6)'; c.beginPath(); c.ellipse(x,y+r,r*1.6,r*.8,0,0,7); c.fill(); bougie(c,x,y,r); }); }},
+  candelabre:{nom:'Candélabre',cat:'Culte',calque:'objets',lumiere:{clair:2,faible:5,couleur:'#ffd27a',anim:'torch'},dessin(c,l,h){ c.strokeStyle='#b8861a'; c.lineWidth=2.5; c.lineCap='round';
+    for(let i=0;i<5;i++){ const a=-Math.PI/2+i*Math.PI*2/5; c.beginPath(); c.moveTo(l/2,h/2); c.lineTo(l/2+Math.cos(a)*16,h/2+Math.sin(a)*16); c.stroke(); bougie(c,l/2+Math.cos(a)*16,h/2+Math.sin(a)*16,3.2); }
+    cercle(c,l/2,h/2,6,'#d9a93a','#6b4a10'); bougie(c,l/2,h/2,3); }},
+  pentacle_sang:{nom:'Pentacle de sang',cat:'Culte',calque:'objets',taille:[2,2],decal:true,dessin(c,l,h){ const cx=l/2, cy=h/2; c.strokeStyle='rgba(140,10,20,.85)'; c.lineWidth=4; c.lineCap='round';
+    cercle(c,cx,cy,52,null,c.strokeStyle); c.beginPath(); for(let i=0;i<=5;i++){ const a=-Math.PI/2+i*4*Math.PI/5; c.lineTo(cx+Math.cos(a)*50,cy+Math.sin(a)*50); } c.stroke();
+    const r=hasard(101); for(let i=0;i<14;i++){ const a=r()*7, d=40+r()*20; cercle(c,cx+Math.cos(a)*d,cy+Math.sin(a)*d,1+r()*3,'rgba(140,10,20,.7)'); }
+    for(let i=0;i<5;i++){ const a=-Math.PI/2+i*2*Math.PI/5; bougie(c,cx+Math.cos(a)*52,cy+Math.sin(a)*52,3.5,'#2a2228'); } }},
+  cercle_invocation:{nom:'Cercle d\'invocation',cat:'Culte',calque:'objets',taille:[3,3],decal:true,lumiere:{clair:2,faible:5,couleur:'#ff4a4a',anim:'pulse'},dessin(c,l,h){ const cx=l/2, cy=h/2;
+    c.shadowColor='#ff4a4a'; c.shadowBlur=10; c.strokeStyle='rgba(255,110,90,.9)'; c.lineWidth=3; cercle(c,cx,cy,88,null,c.strokeStyle); c.lineWidth=2; cercle(c,cx,cy,74,null,c.strokeStyle); cercle(c,cx,cy,30,null,c.strokeStyle);
+    c.beginPath(); for(let i=0;i<=7;i++){ const a=-Math.PI/2+i*3*Math.PI*2/7; c.lineTo(cx+Math.cos(a)*74,cy+Math.sin(a)*74); } c.stroke(); runes(c,cx,cy,81,24,'rgba(255,170,150,.95)'); c.shadowBlur=0;
+    for(let i=0;i<7;i++){ const a=-Math.PI/2+i*Math.PI*2/7; bougie(c,cx+Math.cos(a)*96,cy+Math.sin(a)*96,4,'#2a2228'); } }},
+  idole:{nom:'Idole',cat:'Culte',calque:'objets',taille:[2,2],obstacle:.2,dessin(c,l,h){ const cx=l/2, cy=h/2; c.fillStyle='#3a3836'; c.fillRect(8,8,l-16,h-16); c.fillStyle='#55524d'; c.fillRect(14,14,l-28,h-28);
+    c.strokeStyle='#2c3a2e'; c.lineCap='round'; for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; c.lineWidth=7; c.beginPath(); c.moveTo(cx,cy); c.bezierCurveTo(cx+Math.cos(a)*20,cy+Math.sin(a)*20,cx+Math.cos(a+.8)*30,cy+Math.sin(a+.8)*30,cx+Math.cos(a+.4)*42,cy+Math.sin(a+.4)*42); c.stroke(); c.strokeStyle='#4a6a4e'; c.lineWidth=3; c.stroke(); c.strokeStyle='#2c3a2e'; }
+    const g=c.createRadialGradient(cx-6,cy-6,2,cx,cy,20); g.addColorStop(0,'#7a9a7e'); g.addColorStop(1,'#2c3a2e'); cercle(c,cx,cy,19,g); cercle(c,cx-6,cy-3,3,'#e8ff6a'); cercle(c,cx+6,cy-3,3,'#e8ff6a'); }},
+  obelisque:{nom:'Obélisque',cat:'Culte',calque:'objets',obstacle:.2,lumiere:{clair:1,faible:3,couleur:'#7ad0ff',anim:'pulse'},dessin(c,l,h){ c.fillStyle='#2a282c'; c.fillRect(l/2-22,h/2-22,44,44);
+    const g=c.createLinearGradient(l/2-14,h/2-14,l/2+14,h/2+14); g.addColorStop(0,'#5a5660'); g.addColorStop(1,'#1e1c22'); c.fillStyle=g; c.beginPath(); c.moveTo(l/2-15,h/2-15); c.lineTo(l/2+15,h/2-15); c.lineTo(l/2+15,h/2+15); c.lineTo(l/2-15,h/2+15); c.fill();
+    c.strokeStyle='rgba(0,0,0,.4)'; c.lineWidth=1; c.beginPath(); c.moveTo(l/2-15,h/2-15); c.lineTo(l/2+15,h/2+15); c.moveTo(l/2+15,h/2-15); c.lineTo(l/2-15,h/2+15); c.stroke(); runes(c,l/2,h/2,9,6,'#8ae0ff'); }},
+  vasque_feu:{nom:'Vasque de feu',cat:'Culte',calque:'objets',taille:[2,2],lumiere:{clair:4,faible:8,couleur:'#ff9b4a',anim:'flame'},dessin(c,l,h){ const cx=l/2, cy=h/2;
+    cercle(c,cx,cy,46,'#3a3632','#121110'); cercle(c,cx,cy,40,'#22201e'); const g=c.createRadialGradient(cx,cy,2,cx,cy,38); g.addColorStop(0,'#fffbe0'); g.addColorStop(.25,'#ffd06a'); g.addColorStop(.6,'#ff6a1a'); g.addColorStop(1,'#5a1a08'); cercle(c,cx,cy,37,g);
+    for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; c.fillStyle='#b8861a'; c.fillRect(cx+Math.cos(a)*44-3,cy+Math.sin(a)*44-3,6,6); } }},
+  bancs_eglise:{nom:'Bancs',cat:'Culte',calque:'objets',taille:[3,1],dessin(c,l,h){ bois(c,4,h/2-14,l-8,12,'#5a3418'); bois(c,4,h/2+4,l-8,10,'#6b4224'); c.fillStyle='#3a2210'; c.fillRect(4,h/2-14,6,28); c.fillRect(l-10,h/2-14,6,28); }},
+  tapis_rituel:{nom:'Tapis rituel',cat:'Culte',calque:'objets',taille:[1,3],decal:true,dessin(c,l,h){ c.fillStyle='#5a1020'; c.fillRect(8,0,l-16,h); c.fillStyle='#d9a93a'; c.fillRect(10,0,3,h); c.fillRect(l-13,0,3,h);
+    for(let i=0;i<5;i++){ const y=20+i*38; c.fillStyle='#d9a93a'; c.beginPath(); c.moveTo(l/2,y-9); c.lineTo(l/2+9,y); c.lineTo(l/2,y+9); c.lineTo(l/2-9,y); c.fill(); cercle(c,l/2,y,3,'#5a1020'); } }},
+  lutrin:{nom:'Lutrin et grimoire',cat:'Culte',calque:'objets',dessin(c,l,h){ bois(c,l/2-16,h/2-12,32,24,'#4a2d17'); c.save(); c.translate(l/2,h/2); c.rotate(-.1);
+    c.fillStyle='#3a1a2a'; c.fillRect(-15,-11,30,22); c.fillStyle='#efe6cf'; c.fillRect(-13,-9,12,18); c.fillRect(1,-9,12,18); c.fillStyle='rgba(120,20,30,.7)'; for(let i=0;i<5;i++){ c.fillRect(-11,-6+i*3.4,8,1); c.fillRect(3,-6+i*3.4,8,1); }
+    cercle(c,7,4,3,null,'rgba(150,20,40,.8)'); c.restore(); }},
+  chevalet:{nom:'Chevalet de torture',cat:'Culte',calque:'objets',taille:[1,2],dessin(c,l,h){ bois(c,10,8,l-20,h-16,'#5a3a1e'); c.fillStyle='#3a2616'; c.fillRect(6,10,6,h-20); c.fillRect(l-12,10,6,h-20);
+    for(const y of [14,h-14]){ c.fillStyle='#5a5f66'; c.fillRect(8,y-3,l-16,6); cercle(c,l/2,y,5,'#3a3d42','#1a1c1e'); }
+    c.strokeStyle='#8c939e'; c.lineWidth=2; for(const y of [26,h-26]){ c.beginPath(); c.arc(l/2-8,y,4,0,7); c.stroke(); c.beginPath(); c.arc(l/2+8,y,4,0,7); c.stroke(); } }},
+  cranes:{nom:'Pile de crânes',cat:'Culte',calque:'objets',dessin(c,l,h){ [[22,36],[40,38],[31,26],[48,26],[16,24],[30,46]].forEach(([x,y])=>crane(c,x,y,7)); }},
+  banniere:{nom:'Bannière',cat:'Culte',calque:'objets',taille:[2,1],dessin(c,l,h){ c.fillStyle='#2b2620'; c.fillRect(6,6,l-12,5); cercle(c,8,8,4,'#b8861a'); cercle(c,l-8,8,4,'#b8861a');
+    c.fillStyle='#4a1030'; c.beginPath(); c.moveTo(14,10); c.lineTo(l-14,10); c.lineTo(l-14,h-14); c.lineTo(l/2,h-4); c.lineTo(14,h-14); c.fill();
+    c.strokeStyle='#d9a93a'; c.lineWidth=2; c.stroke(); c.lineWidth=2.5; cercle(c,l/2,h/2,10,null,'#d9a93a'); c.beginPath(); c.moveTo(l/2,h/2-10); c.lineTo(l/2,h/2+10); c.moveTo(l/2-8,h/2+4); c.lineTo(l/2+8,h/2+4); c.stroke(); }},
+  vitrail:{nom:'Lumière de vitrail',cat:'Culte',calque:'objets',taille:[2,2],decal:true,dessin(c,l,h){ // projection colorée d'une fenêtre en ogive
+    const x0=20, x1=l-20, yb=h-10, yh=30, cx=l/2; c.save(); c.beginPath(); c.moveTo(x0,yb); c.lineTo(x0,yh); c.quadraticCurveTo(x0,4,cx,0); c.quadraticCurveTo(x1,4,x1,yh); c.lineTo(x1,yb); c.closePath(); c.clip();
+    const cols=['255,70,70','70,130,255','255,210,70','110,230,130','190,100,255','255,150,60'];
+    for(let j=0;j<5;j++) for(let i=0;i<3;i++){ const w=(x1-x0)/3, hh=(yb)/5; c.fillStyle=`rgba(${cols[(i+j*2)%6]},.32)`; c.fillRect(x0+i*w,j*hh,w,hh); }
+    c.strokeStyle='rgba(20,15,10,.35)'; c.lineWidth=2.5; for(let i=1;i<3;i++){ c.beginPath(); c.moveTo(x0+i*(x1-x0)/3,0); c.lineTo(x0+i*(x1-x0)/3,yb); c.stroke(); }
+    for(let j=1;j<5;j++){ c.beginPath(); c.moveTo(x0,j*yb/5); c.lineTo(x1,j*yb/5); c.stroke(); } c.restore();
+    const g=c.createRadialGradient(cx,h/2,10,cx,h/2,l*.6); g.addColorStop(0,'rgba(255,240,200,.18)'); g.addColorStop(1,'rgba(255,240,200,0)'); c.fillStyle=g; c.fillRect(0,0,l,h); }},
+  bassin_sang:{nom:'Bassin de sang',cat:'Culte',calque:'objets',dessin(c,l,h){ cercle(c,l/2,h/2,24,'#6d6862','#3a3836'); cercle(c,l/2,h/2,19,'#4a4645');
+    const g=c.createRadialGradient(l/2-5,h/2-5,1,l/2,h/2,17); g.addColorStop(0,'#c02030'); g.addColorStop(1,'#4a0810'); cercle(c,l/2,h/2,17,g); cercle(c,l/2-5,h/2-6,3,'rgba(255,200,200,.35)'); }},
+  table_alchimie:{nom:'Table d\'alchimie',cat:'Culte',calque:'objets',taille:[2,1],lumiere:{clair:1,faible:3,couleur:'#8cff8c',anim:'pulse'},dessin(c,l,h){ bois(c,4,8,l-8,h-16,'#4a2d17');
+    fiole(c,20,h/2-4,7,'#7aff7a'); fiole(c,38,h/2+6,5,'#ff7ad0'); fiole(c,52,h/2-6,6,'#7ad0ff'); fiole(c,66,h/2+4,4,'#ffd84a');
+    cercle(c,92,h/2,11,'#2a2622','#0e0c0b'); const g=c.createRadialGradient(92,h/2,1,92,h/2,9); g.addColorStop(0,'#d8ffd0'); g.addColorStop(1,'#3aa03a'); cercle(c,92,h/2,8,g);
+    c.fillStyle='#efe6cf'; c.save(); c.translate(110,h/2); c.rotate(.2); c.fillRect(-6,-9,12,18); c.restore(); }},
+  orbe:{nom:'Orbe',cat:'Culte',calque:'objets',lumiere:{clair:2,faible:5,couleur:'#c07aff',anim:'pulse'},dessin(c,l,h){ c.fillStyle='#2a282c'; c.beginPath(); for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; c.lineTo(l/2+Math.cos(a)*18,h/2+Math.sin(a)*18); } c.fill();
+    const g=c.createRadialGradient(l/2-4,h/2-4,1,l/2,h/2,13); g.addColorStop(0,'#ffffff'); g.addColorStop(.3,'#e0b0ff'); g.addColorStop(1,'#5a2a9a'); cercle(c,l/2,h/2,12,g); }},
+  fissure:{nom:'Fissure incandescente',cat:'Culte',calque:'objets',taille:[2,1],decal:true,lumiere:{clair:1,faible:3,couleur:'#ff6a20',anim:'flame'},dessin(c,l,h){ const r=hasard(111);
+    const pts=[]; for(let i=0;i<=10;i++) pts.push([6+i*(l-12)/10,h/2+(r()-.5)*18]);
+    c.lineCap='round'; c.lineJoin='round'; c.shadowColor='#ff8a20'; c.shadowBlur=10;
+    for(const [w,coul] of [[9,'#2a0a04'],[5,'#d9461a'],[2,'#ffe08a']]){ c.strokeStyle=coul; c.lineWidth=w; c.beginPath(); pts.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y)); c.stroke(); } c.shadowBlur=0; }},
+  ossuaire:{nom:'Niche d\'ossuaire',cat:'Culte',calque:'objets',taille:[2,1],dessin(c,l,h){ c.fillStyle='#3a3836'; c.fillRect(2,4,l-4,h-8); for(let i=0;i<4;i++){ c.fillStyle='#1e1c1a'; rrect(c,6+i*30,8,26,h-16,8); c.fill(); crane(c,19+i*30,h/2,8); } }},
 };
-const CATEGORIES = ['Sols','Murs','Murs fins','Donjon','Nature','Mobilier','Perso'];
+const CATEGORIES = ['Sols','Murs','Murs fins','Donjon','Nature','Mobilier','Taverne','Grotte','Culte','Perso'];
 
 /* ---------- La carte ---------- */
 let carte = null;
