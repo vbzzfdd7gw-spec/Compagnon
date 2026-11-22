@@ -238,6 +238,7 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
   <form method="dialog">
     <h2>Cartes d'exemple</h2>
     <p class="resume">Ouvre une carte pour la modifier, t'en inspirer ou l'exporter vers Foundry. Elle remplace la carte en cours : enregistre celle-ci d'abord si tu veux la garder.</p>
+    <div class="onglets" id="filtres-exemples" style="border:0;padding:8px 0 0"></div>
     <div id="liste-exemples"></div>
     <div class="pieds"><button class="btn" value="annuler">Fermer</button></div>
   </form>
@@ -2332,32 +2333,86 @@ function zip(fichiers){ const enc=new TextEncoder(), morceaux=[], central=[]; le
 
 /* Cartes d'exemple (dossier exemples/) */
 const EXEMPLES=[
-  {id:'taverne',nom:'Taverne du Sanglier Ivre',desc:'Salle commune, cuisine, réserve, chambres et rue pavée. Ambiance intérieure.'},
-  {id:'grotte',nom:'Grotte des Murmures',desc:'Cavernes, lac souterrain, gouffre et pont, cristaux, nid d\'araignées, brigands, mine.'},
-  {id:'sanctuaire',nom:'Sanctuaire du Culte',desc:'Cercle d\'invocation, ossuaire, cellules, laboratoire et porte secrète. Ambiance crypte.'},
-  {id:'clairiere',nom:'Clairière de la Rivière',desc:'Hameau, rivière et pont, marché, campement et forêt. En plein jour.'},
-  {id:'forge',nom:'Forge du Village',desc:'Atelier du forgeron, logis, cour à bois et puits. Au crépuscule.'},
-  {id:'marche',nom:'Place du Marché',desc:'Fontaine, étals, échoppes et maisons autour de la place. En plein jour.'},
-  {id:'port',nom:'Quais du Port',desc:'Entrepôts, quais en bois, barques et marchandises. Au crépuscule.'},
-  {id:'hameau_neige',nom:'Hameau Enneigé',desc:'Cabanes, grange, lac gelé et forêt de sapins. De nuit.'},
-  {id:'cimetiere',nom:'Cimetière de Minuit',desc:'Tombes, mausolée, tombe ouverte et fontaine. De nuit.'},
-  {id:'bandits',nom:'Repaire des Brigands',desc:'Palissade, tentes, feu, prisonnier en cage et butin. De nuit, en forêt.'},
-  {id:'ruines',nom:'Temple en Ruine',desc:'Murs effondrés, colonnes brisées, autel et nature qui reprend ses droits.'},
-  {id:'oasis',nom:'Oasis du Désert',desc:'Point d\'eau, palmiers, campement de caravane et étals.'},
-  {id:'tour_mage',nom:'Tour du Mage',desc:'Tour ronde : bibliothèque, chambre, laboratoire, cercle et orbe au centre.'},
-  {id:'salle_trone',nom:'Salle du Trône',desc:'Trône sur estrade, colonnades, bannières, garde et trésorerie.'},
-  {id:'prison',nom:'Prison du Château',desc:'Couloir de cellules à herses, salle des gardes et salle de torture.'},
-  {id:'crypte_royale',nom:'Crypte Royale',desc:'Sarcophages, colonnes, ossuaire et trésor derrière une porte secrète.'},
-  {id:'egouts',nom:'Égouts de la Cité',desc:'Canaux, passerelles, repaire d\'un culte et planque de contrebandiers.'},
-  {id:'mine',nom:'Mine Abandonnée',desc:'Galeries étayées, rails, chariots, filons et puits inondé.'},
-  {id:'antre_dragon',nom:'Antre du Dragon',desc:'Caverne de lave, trône sur le trésor, ossements et cristaux.'},
+  {id:'taverne',cat:'Bâtiment',nom:'Taverne du Sanglier Ivre',desc:'Salle commune, cuisine, réserve, chambres et rue pavée. Ambiance intérieure.'},
+  {id:'grotte',cat:'Grotte',nom:'Grotte des Murmures',desc:'Cavernes, lac souterrain, gouffre et pont, cristaux, nid d\'araignées, brigands, mine.'},
+  {id:'sanctuaire',cat:'Donjon',nom:'Sanctuaire du Culte',desc:'Cercle d\'invocation, ossuaire, cellules, laboratoire et porte secrète. Ambiance crypte.'},
+  {id:'clairiere',cat:'Extérieur',nom:'Clairière de la Rivière',desc:'Hameau, rivière et pont, marché, campement et forêt. En plein jour.'},
+  {id:'forge',cat:'Bâtiment',nom:'Forge du Village',desc:'Atelier du forgeron, logis, cour à bois et puits. Au crépuscule.'},
+  {id:'marche',cat:'Village',nom:'Place du Marché',desc:'Fontaine, étals, échoppes et maisons autour de la place. En plein jour.'},
+  {id:'port',cat:'Village',nom:'Quais du Port',desc:'Entrepôts, quais en bois, barques et marchandises. Au crépuscule.'},
+  {id:'hameau_neige',cat:'Village',nom:'Hameau Enneigé',desc:'Cabanes, grange, lac gelé et forêt de sapins. De nuit.'},
+  {id:'cimetiere',cat:'Extérieur',nom:'Cimetière de Minuit',desc:'Tombes, mausolée, tombe ouverte et fontaine. De nuit.'},
+  {id:'bandits',cat:'Extérieur',nom:'Repaire des Brigands',desc:'Palissade, tentes, feu, prisonnier en cage et butin. De nuit, en forêt.'},
+  {id:'ruines',cat:'Extérieur',nom:'Temple en Ruine',desc:'Murs effondrés, colonnes brisées, autel et nature qui reprend ses droits.'},
+  {id:'oasis',cat:'Extérieur',nom:'Oasis du Désert',desc:'Point d\'eau, palmiers, campement de caravane et étals.'},
+  {id:'tour_mage',cat:'Bâtiment',nom:'Tour du Mage',desc:'Tour ronde : bibliothèque, chambre, laboratoire, cercle et orbe au centre.'},
+  {id:'salle_trone',cat:'Bâtiment',nom:'Salle du Trône',desc:'Trône sur estrade, colonnades, bannières, garde et trésorerie.'},
+  {id:'prison',cat:'Donjon',nom:'Prison du Château',desc:'Couloir de cellules à herses, salle des gardes et salle de torture.'},
+  {id:'crypte_royale',cat:'Donjon',nom:'Crypte Royale',desc:'Sarcophages, colonnes, ossuaire et trésor derrière une porte secrète.'},
+  {id:'egouts',cat:'Donjon',nom:'Égouts de la Cité',desc:'Canaux, passerelles, repaire d\'un culte et planque de contrebandiers.'},
+  {id:'mine',cat:'Grotte',nom:'Mine Abandonnée',desc:'Galeries étayées, rails, chariots, filons et puits inondé.'},
+  {id:'antre_dragon',cat:'Grotte',nom:'Antre du Dragon',desc:'Caverne de lave, trône sur le trésor, ossements et cristaux.'},
+  {"id":"d_oubliettes","cat":"Donjon","nom":"Oubliettes du Baron","desc":"Cachots, salle de torture et salle des gardes sous un château."},
+  {"id":"d_crypte_saints","cat":"Donjon","nom":"Crypte des Saints","desc":"Tombeaux, ossuaires et chapelle funéraire sous une abbaye."},
+  {"id":"d_temple_englouti","cat":"Donjon","nom":"Temple Englouti","desc":"Temple oublié envahi par l'eau et les ruines."},
+  {"id":"d_forteresse_naine","cat":"Donjon","nom":"Forteresse Naine","desc":"Halls taillés dans la roche, forge, casernes et salle du trône."},
+  {"id":"d_repaire_necro","cat":"Donjon","nom":"Repaire du Nécromancien","desc":"Laboratoire, salles rituelles et cryptes profanées."},
+  {"id":"d_tombeau_roi","cat":"Donjon","nom":"Tombeau du Roi-Liche","desc":"Salle du trône funèbre, trésor et pièges."},
+  {"id":"d_bibliotheque_interdite","cat":"Donjon","nom":"Bibliothèque Interdite","desc":"Archives souterraines, salles d'étude et coffres scellés."},
+  {"id":"d_cachot_gobelins","cat":"Donjon","nom":"Repaire Gobelin","desc":"Ruines squattées, réserves pillées et prisonniers."},
+  {"id":"d_sanctuaire_flamme","cat":"Donjon","nom":"Sanctuaire de la Flamme","desc":"Culte du feu : autels, braseros et fissures de lave."},
+  {"id":"d_caveau_marchand","cat":"Donjon","nom":"Caveau du Marchand","desc":"Entrepôts secrets, salle forte et passages dérobés."},
+  {"id":"d_prison_royale","cat":"Donjon","nom":"Prison Royale","desc":"Quartier de haute sécurité, salle des gardes et torture."},
+  {"id":"d_ruines_elfiques","cat":"Donjon","nom":"Ruines Elfiques","desc":"Salles de marbre effondrées, bibliothèque et autel."},
+  {"id":"d_labyrinthe","cat":"Donjon","nom":"Labyrinthe du Minotaure","desc":"Petites salles nombreuses reliées par des couloirs."},
+  {"id":"d_citadelle","cat":"Donjon","nom":"Citadelle du Seigneur Noir","desc":"Grandes salles, trône, casernes et salle de guerre."},
+  {"id":"g_lac_souterrain","cat":"Grotte","nom":"Lac Souterrain","desc":"Vaste caverne autour d'un lac sombre, champignons lumineux."},
+  {"id":"g_coeur_volcan","cat":"Grotte","nom":"Cœur du Volcan","desc":"Galeries de cendres et rivières de lave."},
+  {"id":"g_grotte_cristaux","cat":"Grotte","nom":"Grotte de Cristal","desc":"Cavernes scintillantes de cristaux de toutes les couleurs."},
+  {"id":"g_nid_araignees","cat":"Grotte","nom":"Nid des Araignées","desc":"Toiles géantes, cocons et ossements de voyageurs."},
+  {"id":"g_foret_champignons","cat":"Grotte","nom":"Forêt de Champignons","desc":"Caverne humide envahie de champignons géants et lumineux."},
+  {"id":"g_camp_gobelins","cat":"Grotte","nom":"Antre Gobelin","desc":"Campement gobelin dans une caverne : feu, butin, prisonniers."},
+  {"id":"g_mine_naine","cat":"Grotte","nom":"Mine Naine Abandonnée","desc":"Galeries étayées, filons d'or, chariots et éboulements."},
+  {"id":"g_antre_troll","cat":"Grotte","nom":"Antre du Troll","desc":"Caverne puante, ossements, trésor mal gardé."},
+  {"id":"g_grotte_glace","cat":"Grotte","nom":"Grotte de Glace","desc":"Caverne gelée, cristaux de glace et lac pris par le gel."},
+  {"id":"g_gouffre","cat":"Grotte","nom":"Le Gouffre Sans Fond","desc":"Caverne fendue par un abîme, ponts de corde et lumières."},
+  {"id":"e_embuscade","cat":"Extérieur","nom":"Embuscade sur la Route","desc":"Route forestière, chariot renversé et brigands cachés."},
+  {"id":"e_gue","cat":"Extérieur","nom":"Le Gué de la Rivière","desc":"Une route traverse une rivière sur un pont de bois."},
+  {"id":"e_marais","cat":"Extérieur","nom":"Marais Brumeux","desc":"Boue, eaux stagnantes, arbres morts et feux follets."},
+  {"id":"e_ruines_tour","cat":"Extérieur","nom":"Tour en Ruine","desc":"Les restes d'une tour de guet sur une colline."},
+  {"id":"e_campement","cat":"Extérieur","nom":"Campement de Voyageurs","desc":"Clairière avec tentes, feu de camp et chevaux de bât."},
+  {"id":"e_desert_oasis","cat":"Extérieur","nom":"Caravane du Désert","desc":"Dunes, rochers de grès et campement de caravane."},
+  {"id":"e_col_enneige","cat":"Extérieur","nom":"Col Enneigé","desc":"Sentier de montagne dans la neige, sapins et rochers."},
+  {"id":"e_plage","cat":"Extérieur","nom":"Crique des Contrebandiers","desc":"Plage, barques échouées et marchandises cachées."},
+  {"id":"e_cercle_fees","cat":"Extérieur","nom":"Clairière des Fées","desc":"Rond de fées, champignons lumineux et arbre sacré."},
+  {"id":"e_menhirs","cat":"Extérieur","nom":"Cercle des Menhirs","desc":"Lande, pierres levées et autel druidique."},
+  {"id":"e_cimetiere_foret","cat":"Extérieur","nom":"Cimetière Oublié","desc":"Tombes envahies par la forêt, nuit et brume."},
+  {"id":"e_camp_militaire","cat":"Extérieur","nom":"Camp Militaire","desc":"Tentes d'armée, palissade de chevaux de frise, entraînement."},
+  {"id":"e_carrefour","cat":"Extérieur","nom":"Carrefour du Pendu","desc":"Deux routes se croisent près d'un vieux gibet."},
+  {"id":"e_verger","cat":"Extérieur","nom":"Verger et Ferme","desc":"Arbres fruitiers, potagers, ruches et meules de foin."},
+  {"id":"b_maison","cat":"Bâtiment","nom":"Maison du Bourgmestre","desc":"Séjour, chambres, cuisine et cabinet de travail."},
+  {"id":"b_boutique","cat":"Bâtiment","nom":"Échoppe de l'Apothicaire","desc":"Boutique, laboratoire, réserve et logement."},
+  {"id":"b_chapelle","cat":"Bâtiment","nom":"Chapelle du Village","desc":"Nef, sacristie et logement du prêtre."},
+  {"id":"b_manoir","cat":"Bâtiment","nom":"Manoir Hanté","desc":"Grand manoir aux nombreuses pièces, à la nuit tombée."},
+  {"id":"b_caserne","cat":"Bâtiment","nom":"Caserne de la Garde","desc":"Dortoirs, armurerie, réfectoire et bureau du capitaine."},
+  {"id":"b_auberge","cat":"Bâtiment","nom":"Auberge du Chemin","desc":"Salle commune, cuisine et chambres à louer."},
+  {"id":"b_tour_mage","cat":"Bâtiment","nom":"Laboratoire de l'Alchimiste","desc":"Laboratoires, bibliothèque et chambre d'un mage."},
+  {"id":"b_forge","cat":"Bâtiment","nom":"Forge et Écurie","desc":"Atelier du forgeron, remise et logement."},
+  {"id":"v_hameau","cat":"Village","nom":"Hameau des Collines","desc":"Quelques maisons autour d'un puits."},
+  {"id":"v_bourg_marche","cat":"Village","nom":"Bourg un Jour de Marché","desc":"Place pavée, étals et maisons de colombage."},
+  {"id":"v_village_neige","cat":"Village","nom":"Village du Grand Nord","desc":"Maisons de bois dans la neige, la nuit."},
+  {"id":"v_village_desert","cat":"Village","nom":"Comptoir du Désert","desc":"Maisons de pierre autour d'un puits, étals et palmiers."},
 ];
 const dlgExemples=document.getElementById('dlg-exemples');
-function dialogueExemples(){ const l=document.getElementById('liste-exemples'); l.innerHTML='';
-  for(const e of EXEMPLES){ const b=document.createElement('button'); b.type='button'; b.className='exemple';
+let filtreExemples='Toutes';
+function dialogueExemples(){ const f=document.getElementById('filtres-exemples'); f.innerHTML='';
+  for(const cat of ['Toutes','Donjon','Grotte','Extérieur','Bâtiment','Village']){ const n=cat==='Toutes'?EXEMPLES.length:EXEMPLES.filter(e=>e.cat===cat).length;
+    const b=document.createElement('button'); b.type='button'; b.textContent=`${cat} (${n})`; b.className=cat===filtreExemples?'actif':''; b.onclick=()=>{ filtreExemples=cat; dialogueExemples(); }; f.appendChild(b); }
+  const l=document.getElementById('liste-exemples'); l.innerHTML='';
+  for(const e of EXEMPLES){ if(filtreExemples!=='Toutes'&&e.cat!==filtreExemples) continue; const b=document.createElement('button'); b.type='button'; b.className='exemple';
     b.innerHTML=`<img src="exemples/${e.id}.webp" alt="" loading="lazy"><b></b><span></span>`; b.querySelector('b').textContent=e.nom; b.querySelector('span').textContent=e.desc;
     b.onclick=()=>ouvrirExemple(e); l.appendChild(b); }
-  dlgExemples.showModal(); }
+  if(!dlgExemples.open) dlgExemples.showModal(); }
 async function ouvrirExemple(e){
   try{ const rep=await fetch(`exemples/${e.id}.json`); if(!rep.ok) throw 0; const d=validerCarte(await rep.json()); if(!d) throw 0;
     dlgExemples.close(); carte=d; nomEl.value=carte.nom; selAmb.value=carte.ambiance; pile.length=0; pileRefaire.length=0;
