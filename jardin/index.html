@@ -114,6 +114,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .strip canvas.done{opacity:.8}
 .strip canvas.cur{border-color:var(--sun);background:#2f5038}
 .row2{display:flex;gap:8px;align-items:center}
+.row2 .mv,.row2 .danger{flex:1}
+.mv{padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:var(--shed-3);font-weight:800;font-size:12.5px}
+.confirm{position:absolute;display:flex;gap:6px;transform:translateX(-50%);z-index:3}
+.confirm .ok{padding:9px 14px;border:0;border-radius:12px;background:var(--sun);color:var(--sun-ink);font-family:var(--display);font-weight:800;font-size:15px;box-shadow:0 3px 0 var(--sun-edge),0 6px 16px rgba(0,0,0,.3);white-space:nowrap}
+.confirm .ok:disabled{background:#6b3b36;color:#ffd2cc;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.confirm .no{width:40px;border-radius:12px;border:1.5px solid var(--glass-line);background:var(--glass);font-size:18px;font-weight:800}
 .row2 label{flex:1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:800}
 .row2 select{flex:1;min-width:0;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--shed-2)}
 .danger{padding:7px 10px;border-radius:10px;border:1px solid #7a3530;background:#3a1f1c;color:#ffc4bc;font-weight:800;font-size:12.5px}
@@ -210,6 +216,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
       <label class="chk"><input type="checkbox" id="cAuto"> Enchaîner</label>
     </div>
   </div>
+  <div id="confirm" class="confirm" hidden><button id="bOk" class="ok">Planter ici</button><button id="bNo" class="no" aria-label="Annuler">✕</button></div>
   <p id="hint" hidden></p>
   <section id="sel" class="panel" hidden></section>
 
@@ -379,11 +386,11 @@ function txt(x,y,s,col,sz){S.fx.push({k:'txt',x,y,s,col,sz:sz||13,t:0,d:0.9});}
 function lineFx(x1,y1,x2,y2,col,w){S.fx.push({k:'ln',x1,y1,x2,y2,col,w:w||3,t:0,d:0.18});}
 
 /* ---------- Placement & actions ---------- */
-function canPlace(x,y){
+function canPlace(x,y,ign){
   if(x<20||x>W-20||y<30||y>H-12)return false;
   for(const s of SEG)if(distSeg(x,y,s)<PW/2+15)return false;
   if(Math.hypot(x-TREE.x,y-TREE.y+30)<88)return false;
-  for(const t of S.towers)if(Math.hypot(x-t.x,y-t.y)<36)return false;
+  for(const t of S.towers)if(t!==ign&&Math.hypot(x-t.x,y-t.y)<36)return false;
   return true;
 }
 function place(type,x,y){
@@ -465,6 +472,7 @@ function muzzle(t){
   }
 }
 function updTower(t,dt){
+  if(S.moving===t)return;
   const D=DEFS[t.type],st=stats(t);
   t.pop=Math.max(0,t.pop-dt*2.2);t.anim=Math.max(0,t.anim-dt*3);
   if(S.running&&t.stage<5)t.xp+=(D.kind==='farm'?6:2.5)*dt;
@@ -961,7 +969,7 @@ function render(){
   const c=ctx,Z=RS*CAM.z;c.setTransform(Z,0,0,Z,-CAM.x*Z,-CAM.y*Z);
   const wantK=RS*Math.min(2.5,Math.ceil(CAM.z*2)/2);if(wantK!==bgK){clearTimeout(bgT);bgT=setTimeout(()=>buildBG(wantK),160);bgK=wantK;}
   c.drawImage(BG,0,0,W,H);
-  const show=S.place?null:(S.sel||S.hover);
+  const show=S.place||S.moving?null:(S.sel||S.hover);
   if(show){const st=stats(show);if(st.range)rangeCircle(c,show.x,show.y,st.range,true);}
   for(const f of S.fx)if(f.k==='ring'){const k=f.t/f.d;c.globalAlpha=1-k;Ell(c,f.x,f.y,f.r0+(f.r1-f.r0)*k,(f.r0+(f.r1-f.r0)*k)*0.92,null,f.col,f.w*(1-k*0.5));c.globalAlpha=1;}
   const items=[];
@@ -969,7 +977,7 @@ function render(){
   for(const e of S.enemies)if(!e.fly)items.push([e.y,1,e]);
   items.push([TREE.y,2,null]);
   items.sort((a,b)=>a[0]-b[0]);
-  for(const[,k,o]of items){if(k===0){drawTower(c,o,o.x,o.y,1.15,AT);if(o===S.sel)selMark(c,o);}else if(k===1)dEnemy(c,o,AT);else dTree(c,AT);}
+  for(const[,k,o]of items){if(k===0){if(o===S.moving)c.globalAlpha=0.3;drawTower(c,o,o.x,o.y,1.15,AT);c.globalAlpha=1;if(o===S.sel)selMark(c,o);}else if(k===1)dEnemy(c,o,AT);else dTree(c,AT);}
   for(const t of S.towers)if(t.beamT){const h=sunH(t)*1.15,x1=t.x+Math.sin(t.lean)*h,y1=t.y-h*Math.cos(t.lean),e=t.beamT;
     c.lineCap='round';line(c,x1,y1,e.x,ey(e),'rgba(255,120,30,.45)',9);line(c,x1,y1,e.x,ey(e),'rgba(255,220,120,.95)',3.5);glow(c,e.x,ey(e),14,'rgba(255,200,80,.8)');}
   for(const e of S.enemies)if(e.fly)dEnemy(c,e,AT);
@@ -981,9 +989,11 @@ function render(){
     else if(f.k==='ln'){c.globalAlpha=1-k;line(c,f.x1,f.y1,f.x2,f.y2,f.col,f.w);c.globalAlpha=1;}
     else if(f.k==='txt'){c.globalAlpha=1-k*k;c.font=`800 ${f.sz}px "Baloo 2",Nunito,sans-serif`;c.textAlign='center';c.lineWidth=3;c.strokeStyle='rgba(30,30,10,.7)';c.strokeText(f.s,f.x,f.y);c.fillStyle=f.col;c.fillText(f.s,f.x,f.y);c.globalAlpha=1;}
   }
-  if(S.place&&S.ptr){const ok=canPlace(S.ptr.x,S.ptr.y)&&S.pollen>=DEFS[S.place].cost;const st=statsOf(S.place,0,null);
-    if(st.range)rangeCircle(c,S.ptr.x,S.ptr.y,st.range,ok);else Ell(c,S.ptr.x,S.ptr.y,26,10,ok?'rgba(255,255,255,.2)':'rgba(255,80,60,.3)',ok?'#fff':'#ff5a4f',2);
-    c.globalAlpha=ok?0.85:0.45;drawTower(c,{type:S.place,stage:0,branch:null,angle:-Math.PI/2,lean:0,anim:0,pop:0},S.ptr.x,S.ptr.y,1.15,AT);c.globalAlpha=1;}
+  const gp=ghostPos();
+  if(gp){const ok=ghostOk(gp),st=S.moving?stats(S.moving):statsOf(S.place,0,null);
+    if(st.range)rangeCircle(c,gp.x,gp.y,st.range,ok);else Ell(c,gp.x,gp.y,26,10,ok?'rgba(255,255,255,.2)':'rgba(255,80,60,.3)',ok?'#fff':'#ff5a4f',2);
+    if(S.pend){c.save();c.setLineDash([6,5]);c.lineDashOffset=-AT*18;Ell(c,gp.x,gp.y,24,10,null,ok?'#ffe066':'#ff5a4f',2.5);c.restore();}
+    c.globalAlpha=ok?0.9:0.5;drawTower(c,S.moving?{...S.moving,pop:0,lean:0}:{type:S.place,stage:0,branch:null,angle:-Math.PI/2,lean:0,anim:0,pop:0},gp.x,gp.y,1.15,AT);c.globalAlpha=1;}
   // Entrée du chemin
   c.font='800 13px "Baloo 2",Nunito,sans-serif';c.textAlign='left';c.fillStyle='rgba(60,40,10,.6)';c.fillText('Entrée des nuisibles',14,80);
   c.setTransform(RS,0,0,RS,0,0);
@@ -1028,15 +1038,22 @@ function towerAt(x,y){let b=null,bd=28;for(const t of S.towers){const d=Math.hyp
 const playing=()=>started&&!S.over&&!S.paused;
 const ptrs=new Map();let pinch=null,drag=null,suppress=false;
 const dist2=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-function updHover(ev){const p=toLogical(ev);S.ptr=p;S.hover=S.place?null:towerAt(p.x,p.y);cv.style.cursor=drag&&drag.moved?'grabbing':S.place?(canPlace(p.x,p.y)?'copy':'not-allowed'):(S.hover?'pointer':CAM.z>1?'grab':'default');}
+let lastPT='mouse';
+document.addEventListener('pointerdown',ev=>{lastPT=ev.pointerType||'mouse';},true);
+const placing=()=>!!(S.place||S.moving);
+function ghostPos(){if(!placing())return null;return S.pend||(lastPT==='mouse'&&S.ptr?S.ptr:null);}
+function ghostOk(g){return canPlace(g.x,g.y,S.moving)&&(S.moving||S.pollen>=DEFS[S.place].cost);}
+function updHover(ev){const p=toLogical(ev);S.ptr=p;S.hover=placing()?null:towerAt(p.x,p.y);cv.style.cursor=drag&&drag.moved?'grabbing':placing()?(canPlace(p.x,p.y,S.moving)?'copy':'not-allowed'):(S.hover?'pointer':CAM.z>1?'grab':'default');}
 cv.addEventListener('pointerdown',ev=>{
   if(!started)return;
   try{cv.setPointerCapture(ev.pointerId);}catch(e){}
   const p=scr(ev);ptrs.set(ev.pointerId,p);
   if(ptrs.size>=2){const[a,b]=[...ptrs.values()],m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
     pinch={d0:Math.max(10,dist2(a,b)),z0:CAM.z,wx:CAM.x+m.x/CAM.z,wy:CAM.y+m.y/CAM.z};drag=null;suppress=true;return;}
+  const w=toLogical(ev);
   drag={x:p.x,y:p.y,cx:CAM.x,cy:CAM.y,moved:false,touch:ev.pointerType!=='mouse'};
-  if(ev.pointerType!=='mouse')S.ptr=toLogical(ev);
+  if(S.pend&&placing()&&Math.hypot(w.x-S.pend.x,w.y-(S.pend.y-12))<60/CAM.z+18){drag.ghost=true;drag.gx=S.pend.x;drag.gy=S.pend.y;}
+  if(ev.pointerType!=='mouse')S.ptr=w;
 });
 cv.addEventListener('pointermove',ev=>{
   if(!started)return;
@@ -1044,7 +1061,10 @@ cv.addEventListener('pointermove',ev=>{
   if(pinch&&ptrs.size>=2){const[a,b]=[...ptrs.values()],m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
     CAM.z=Math.max(1,Math.min(3,pinch.z0*dist2(a,b)/pinch.d0));CAM.x=pinch.wx-m.x/CAM.z;CAM.y=pinch.wy-m.y/CAM.z;clampCam();return;}
   if(drag&&ptrs.size===1){
-    const p=scr(ev),dx=p.x-drag.x,dy=p.y-drag.y,thr=(drag.touch?12:6)*W/cv.getBoundingClientRect().width;
+    const p=scr(ev),dx=p.x-drag.x,dy=p.y-drag.y,thr=(drag.touch?10:5)*W/cv.getBoundingClientRect().width;
+    if(drag.ghost){if(Math.hypot(dx,dy)>thr*0.5)drag.moved=true;
+      if(drag.moved){S.pend={x:Math.max(20,Math.min(W-20,drag.gx+dx/CAM.z)),y:Math.max(30,Math.min(H-12,drag.gy+dy/CAM.z))};}
+      return;}
     if(!drag.moved&&CAM.z>1&&Math.hypot(dx,dy)>thr)drag.moved=true;
     if(drag.moved){CAM.x=drag.cx-dx/CAM.z;CAM.y=drag.cy-dy/CAM.z;clampCam();}
   }
@@ -1052,20 +1072,39 @@ cv.addEventListener('pointermove',ev=>{
 });
 function endPtr(ev){ptrs.delete(ev.pointerId);if(ptrs.size<2)pinch=null;if(ptrs.size===0){const s=suppress;suppress=false;return s;}return true;}
 cv.addEventListener('pointercancel',ev=>{endPtr(ev);drag=null;});
-cv.addEventListener('pointerleave',()=>{if(S&&!ptrs.size){S.hover=null;if(!S.place)S.ptr=null;}});
+cv.addEventListener('pointerleave',()=>{if(S&&!ptrs.size){S.hover=null;if(!placing())S.ptr=null;}});
 cv.addEventListener('pointerup',ev=>{
   const skip=endPtr(ev),d=drag;drag=null;
-  if(!playing()||skip||(d&&d.moved)){if(started)updHover(ev);return;}
+  if(!playing()||skip||(d&&d.moved)){if(started&&!(d&&d.ghost))updHover(ev);return;}
   const p=toLogical(ev);S.ptr=p;
   if(ev.button===2){cancelPlace();return;}
-  if(S.place){
-    const k=S.place,t=place(k,p.x,p.y);
-    if(t){if(!ev.shiftKey||S.pollen<DEFS[k].cost){S.place=null;S.sel=t;hint('');}}
-    else hint(S.pollen<DEFS[k].cost?'Pas assez de pollen.':'Impossible de planter ici : trop près du chemin, de l’arbre ou d’un autre défenseur.');
+  if(placing()){
+    if(ev.pointerType==='mouse'&&!S.pend)commitAt(p.x,p.y,ev.shiftKey);
+    else if(!(d&&d.ghost))S.pend={x:p.x,y:p.y};
     return;
   }
   S.sel=towerAt(p.x,p.y);
 });
+function commitAt(x,y,keep){
+  if(S.moving){
+    const t=S.moving;
+    if(!canPlace(x,y,t)){hint('Impossible de le placer ici : trop près du chemin, de l’arbre ou d’un autre défenseur.');return false;}
+    for(let i=0;i<8;i++)part(t.x,t.y-4,'#9e7343',2.2,70);
+    t.x=x;t.y=y;t.pop=0.6;S.moving=null;S.pend=null;S.sel=t;hint('');
+    for(let i=0;i<10;i++)part(x,y-4,'#9e7343',2.5,80);
+    return true;
+  }
+  const k=S.place,t=place(k,x,y);
+  if(t){S.pend=null;if(!keep||S.pollen<DEFS[k].cost){S.place=null;S.sel=t;hint('');}return true;}
+  hint(S.pollen<DEFS[k].cost?'Pas assez de pollen.':'Impossible de planter ici : trop près du chemin, de l’arbre ou d’un autre défenseur.');
+  return false;
+}
+function confirmPend(){if(S.pend&&placing())commitAt(S.pend.x,S.pend.y,false);}
+function startMove(t){
+  cancelPlace();S.moving=t;S.sel=null;
+  if(lastPT!=='mouse'){S.pend={x:t.x,y:t.y};hint('Fais glisser le défenseur jusqu’à sa nouvelle place, puis valide.',60000);}
+  else hint('Clique à l’endroit où tu veux le replanter. Échap pour annuler.',60000);
+}
 cv.addEventListener('wheel',ev=>{if(!started)return;ev.preventDefault();const p=scr(ev);zoomAt(p.x,p.y,CAM.z*Math.exp(-ev.deltaY*0.0018));},{passive:false});
 function zoomBtn(f){zoomAt(W/2,H/2,f?CAM.z*f:1);if(!f)resetCam();}
 cv.addEventListener('contextmenu',ev=>{ev.preventDefault();if(started)cancelPlace();});
@@ -1074,11 +1113,12 @@ window.addEventListener('keydown',ev=>{
   if(!started)return;
   if(ev.key==='Escape'||ev.key==='p'||ev.key==='P'){
     if(S.paused&&!ov.hidden&&!S.won){resume();return;}
-    if(ev.key==='Escape'&&S.place){cancelPlace();return;}
+    if(ev.key==='Escape'&&placing()){cancelPlace();return;}
     if(ev.key==='Escape'&&S.sel){S.sel=null;return;}
     openPause();
   }
   else if(!playing())return;
+  else if(ev.key==='Enter'&&S.pend){ev.preventDefault();confirmPend();}
   else if(ev.key===' '){ev.preventDefault();startWave();}
   else if(/^[1-6]$/.test(ev.key))choose(ORDER[+ev.key-1]);
   else if(ev.key==='+'||ev.key==='=')zoomBtn(1.35);
@@ -1105,14 +1145,16 @@ function choose(k){
   if(!playing())return;
   if(S.place===k){cancelPlace();return;}
   if(S.pollen<DEFS[k].cost){hint(`${DEFS[k].name} : il faut ${DEFS[k].cost} pollen.`);return;}
-  S.place=k;S.sel=null;hint(`${DEFS[k].name} : ${DEFS[k].desc} Touche le jardin pour planter.`,60000);
+  S.moving=null;S.pend=null;S.place=k;S.sel=null;
+  hint(lastPT==='mouse'?`${DEFS[k].name} : ${DEFS[k].desc} Clique dans le jardin pour planter.`:`${DEFS[k].name} : touche le jardin, fais glisser la plante pour l’ajuster, puis valide.`,60000);
 }
-function cancelPlace(){S.place=null;hint('');}
+function cancelPlace(){if(S.moving)S.sel=S.moving;S.place=null;S.moving=null;S.pend=null;hint('');}
 function refreshShopPreviews(){shopEl.querySelectorAll('canvas').forEach(paint);}
 $('bWave').addEventListener('click',()=>{if(playing())startWave();});
 $('bSpeed').addEventListener('click',()=>{S.speed=S.speed%3+1;});
 $('bPause').addEventListener('click',openPause);
 $('bFull').addEventListener('click',toggleFS);
+$('bOk').addEventListener('click',confirmPend);$('bNo').addEventListener('click',cancelPlace);
 $('bZin').addEventListener('click',()=>zoomBtn(1.35));$('bZout').addEventListener('click',()=>zoomBtn(1/1.35));$('bZ0').addEventListener('click',()=>zoomBtn(0));
 $('bFold').addEventListener('click',()=>{const f=trayEl.classList.toggle('folded');$('bFold').textContent=f?'›':'‹';$('bFold').setAttribute('aria-label',f?'Déplier les défenseurs':'Replier les défenseurs');});
 $('cAuto').addEventListener('change',e=>{S.auto=e.target.checked;S.autoT=1.5;});
@@ -1177,12 +1219,14 @@ function buildSel(){
     <div class="evo">${evo}</div>
     <div class="stats">${statLines(t.type,st)}<div><span>Infligés</span><b id="sDealt">0</b></div><div><span>Éliminés</span><b id="sKills">0</b></div></div>
     <div class="strip">${strip}</div>
-    <div class="row2">${D.kind!=='farm'||st.beam?`<label for="sMode">Cible<select id="sMode">${modes.map(([v,l])=>`<option value="${v}"${t.mode===v?' selected':''}>${l}</option>`).join('')}</select></label>`:'<label></label>'}<button class="danger" id="bSell">Arracher +${refund}</button></div>`;
+    <div class="row2">${D.kind!=='farm'||st.beam?`<label for="sMode">Cible<select id="sMode">${modes.map(([v,l])=>`<option value="${v}"${t.mode===v?' selected':''}>${l}</option>`).join('')}</select></label>`:'<label></label>'}</div>
+    <div class="row2"><button class="mv" id="bMove">Déplacer</button><button class="danger" id="bSell">Arracher +${refund}</button></div>`;
   selEl.hidden=false;
   selEl.querySelectorAll('canvas[data-p]').forEach(paint);
   selEl.querySelectorAll('.evo-btn').forEach(b=>b.addEventListener('click',()=>{evolve(t,b.dataset.br);}));
   $('bDesel').addEventListener('click',()=>{S.sel=null;});
   $('bSell').addEventListener('click',()=>sell(t));
+  $('bMove').addEventListener('click',()=>startMove(t));
   const sm=$('sMode');if(sm)sm.addEventListener('change',e=>{t.mode=e.target.value;});
 }
 let lastUI={};
@@ -1197,6 +1241,14 @@ function ui(){
   setText('bSpeed','×'+S.speed);
   $('bZin').disabled=CAM.z>=3;$('bZout').disabled=CAM.z<=1;$('bZ0').disabled=CAM.z<=1;
   for(const b of shopEl.children){const k=b.dataset.k;b.classList.toggle('poor',S.pollen<DEFS[k].cost);b.classList.toggle('on',S.place===k);}
+  const cf=$('confirm');
+  if(S.pend&&placing()){
+    const r=cv.getBoundingClientRect(),k=r.width/W*CAM.z,gx=r.left+(S.pend.x-CAM.x)*k,gy=r.top+(S.pend.y-CAM.y)*k,gw=gameEl.clientWidth,gh=gameEl.clientHeight;
+    const ok=ghostOk(S.pend);let top=gy+14;if(top>gh-170)top=gy-62*k-52;
+    cf.style.left=Math.max(110,Math.min(gw-110,gx))+'px';cf.style.top=Math.max(60,top)+'px';
+    setText('bOk',!ok?(S.place&&S.pollen<DEFS[S.place].cost?'Pas assez de pollen':'Pas ici'):S.moving?'Placer ici':`Planter ici · ${DEFS[S.place].cost}`);
+    $('bOk').disabled=!ok;cf.hidden=false;
+  }else cf.hidden=true;
   if(S.sel&&!S.towers.includes(S.sel))S.sel=null;
   buildSel();
   if(S.sel){
@@ -1223,7 +1275,8 @@ function overlay(html,btns,wide){
 const closeOv=()=>{ov.hidden=true;ov.innerHTML='';};
 const HELP=`<h2>Comment jouer</h2>
   <p>Pucerons, limaces, scarabées et corbeaux remontent le chemin pour dévorer l'Arbre-Mère.</p>
-  <ul><li><b>Plante</b> un défenseur : choisis-le en bas, puis touche le jardin à côté du chemin.</li>
+  <ul><li><b>Plante</b> un défenseur : choisis-le en bas, touche le jardin, fais glisser la plante pour l'ajuster, puis touche <b>Planter ici</b>. À la souris, un clic suffit.</li>
+  <li>Un défenseur mal placé ? Touche-le, puis <b>Déplacer</b> : c'est gratuit.</li>
   <li>En combattant, il se remplit de <b>sève</b>.</li>
   <li>Jauge pleine : touche-le et fais-le <b>évoluer</b> contre du pollen. Il change de forme à chaque stade, six en tout.</li>
   <li>Au stade 3, choisis sa <b>voie</b> : deux formes adultes très différentes.</li>
@@ -1255,7 +1308,7 @@ function showVictory(){
   overlay(`<h2>Le jardin est sauvé</h2><p>Les ${LAST_WAVE} vagues sont repoussées et l'Arbre-Mère tient debout avec <b>${Math.ceil(S.hp)}</b> points de vie.</p><p>Tu peux continuer en mode infini : les vagues deviennent de plus en plus dures.</p>`,
     [['Continuer',()=>{closeOv();S.paused=false;}],['Nouvelle partie',restart],['Menu principal',toHome]]);
 }
-function setPlayUI(on){hudEl.hidden=!on;trayEl.hidden=!on;$('zoom').hidden=!on;homeEl.hidden=on;if(!on){selEl.hidden=true;hint('');}}
+function setPlayUI(on){$('confirm').hidden=true;hudEl.hidden=!on;trayEl.hidden=!on;$('zoom').hidden=!on;homeEl.hidden=on;if(!on){selEl.hidden=true;hint('');}}
 function play(){
   enterFS();
   newGame();resetCam();started=true;lastUI={};selKey='';closeOv();setPlayUI(true);refreshNext();
