@@ -414,6 +414,14 @@ const ASSETS = {
     const m=fbm(x*.45,y*.45,3), r=ridge(x*1.9,y*1.9,3), g=vn(x*26,y*26);
     mel(C,[66,60,54],[98,90,80],m); mul(C,.8+.3*r+.1*g); cailloux(x,y,C,5,.1,[112,104,96]); }},
   dalles:{nom:'Dalles',cat:'Sols',calque:'sol',dur:true,px(x,y,C){ carreaux(x,y,C,[128,128,134],[150,146,140]); }},
+  dalles_anciennes:{nom:'Dalles anciennes',cat:'Sols',calque:'sol',dur:true,px(x,y,C){ // donjon : usées, fissurées, mousse dans les joints
+    const ry=Math.floor(y*2), dec=(ry%2)*.27, rx=Math.floor((x+dec)*1.6), fx=(x+dec)*1.6-rx, fy=y*2-ry, h=h2(rx*5+1,ry*3+7)/255, e=Math.min(fx*.62,(1-fx)*.62,fy*.5,(1-fy)*.5);
+    mel(C,[88,86,84],[128,124,118],h*.6+vn(x*.6,y*.6)*.4); mul(C,(.8+.3*fbm(x*2.4+h*7,y*2.4,3))*(.94+.08*vn(x*40,y*40)));
+    const usure=fbm(x*1.2+3,y*1.2,2); if(usure>.6) mul(C,1+(usure-.6)*.4);
+    if(e<.05){ const j=1-e/.05, mousse=fbm(x*3,y*3,2)>.55; vers(C,mousse?[52,72,38]:[34,32,30],j*.85); }
+    else if(e<.08) mul(C,.9);
+    const cr=ridge(x*4+h*30,y*4-h*10,2); if(h>.6&&cr>.93) mul(C,1-.6*sm(.93,.985,cr));
+    if(fbm(x*.7+9,y*.7,3)>.66) vers(C,[70,60,46],.35); }},
   dalles_noires:{nom:'Dalles sombres',cat:'Sols',calque:'sol',dur:true,px(x,y,C){ carreaux(x,y,C,[48,50,58],[66,66,76]); }},
   dallage:{nom:'Dallage',cat:'Sols',calque:'sol',dur:true,px(x,y,C){ // grandes pierres plates irrégulières
     worley(x*2.1,y*2.1); const e=W2-W1, h=WID/255;
@@ -448,7 +456,7 @@ const ASSETS = {
     mel(C,[176,140,70],[220,186,110],m); mul(C,.75+.3*Math.max(s,s2)+.1*vn(x*50,y*50)); }},
   cendres:{nom:'Cendres',cat:'Sols',calque:'sol',prio:4.8,px(x,y,C){ const m=fbm(x*.45,y*.45,3), g=vn(x*30,y*30);
     mel(C,[54,50,48],[100,96,92],m); mul(C,.85+.2*g); if(vn(x*9,y*9)>.88) vers(C,[220,90,30],.6*sm(.88,.97,vn(x*9,y*9))); }},
-  gouffre:{nom:'Gouffre',cat:'Sols',calque:'sol',dur:true,px(x,y,C){ mel(C,[3,4,8],[16,18,28],fbm(x*.8,y*.8,3)*.8); }},
+  gouffre:{nom:'Gouffre',cat:'Sols',calque:'sol',prio:0,px(x,y,C){ mel(C,[3,4,8],[16,18,28],fbm(x*.8,y*.8,3)*.8); }},
 
   /* ===== Murs ===== (le dessus du mur ; contour, relief et ombres sont ajoutés au rendu) */
   mur_pierre:{nom:'Pierre',cat:'Murs',calque:'murs',bord:'#1c1b1a',px(x,y,C){ appareil(x,y,C,.25,.45,[100,96,90],[142,136,128],[46,44,42],.5); }},
@@ -461,9 +469,9 @@ const ASSETS = {
     const w=.2, col=Math.floor(x/w), fx=x/w-col, h=h2(col,7)/255;
     mel(C,[96,62,34],[132,90,52],h); mul(C,(.5+.6*Math.sin(fx*Math.PI))*(.88+.2*vn(x*28,y*3+col*5)));
     if(Math.abs(((y+h*3)%1.6)-.8)<.03) mul(C,.6); }},
-  mur_grotte:{nom:'Roche',cat:'Murs',calque:'murs',bord:'#141210',px(x,y,C){
-    const r=ridge(x*1.3,y*1.3,4), m=fbm(x*.6,y*.6,3);
-    mel(C,[52,47,42],[112,102,92],r*.8+m*.2); mul(C,.85+.2*vn(x*20,y*20)); }},
+  mur_grotte:{nom:'Roche',cat:'Murs',calque:'murs',bord:'#141210',organique:true,px(x,y,C){
+    const r=ridge(x*1.3,y*1.3,4), m=fbm(x*.6,y*.6,3), st=Math.sin((y*2.2+fbm(x*.5,y*.5,2)*3)*Math.PI);
+    mel(C,[50,45,40],[118,108,96],r*.75+m*.25); mul(C,(.86+.18*vn(x*20,y*20))*(1+st*.05)); if(r>.86) vers(C,[150,140,126],(r-.86)*2.5); }},
   mur_colombage:{nom:'Colombage',cat:'Murs',calque:'murs',bord:'#2a1a0e',
     pxFin(u,v,w,C){ const f=((u*2.5)%1+1)%1, poteau=f<.13||Math.abs(v)>.34;
       if(poteau){ mel(C,[66,40,22],[98,62,34],vn(u*4,v*9+w)); mul(C,.88+.18*vn(u*40,v*6)); } else { mel(C,[204,194,174],[232,224,206],fbm(u*3,v*3+w,3)); mul(C,.93+.09*vn(u*50,v*50)); } },
@@ -1043,6 +1051,32 @@ function murCase(x,y,id,k,budget){ const cle=`w|${k}|${x}|${y}|${id}`; const vu=
   const a=asset(id); if(!a||!a.px) return null; const S=tailleTuile(k), cv=toile(S,S), c=cv.getContext('2d'), img=c.createImageData(S,S), d=img.data;
   for(let py=0;py<S;py++) for(let px=0;px<S;px++){ a.px(x+(px+.5)/S,y+(py+.5)/S,C0); const o=(py*S+px)*4; d[o]=C0[0]; d[o+1]=C0[1]; d[o+2]=C0[2]; d[o+3]=255; }
   c.putImageData(img,0,0); return enCache(cle,cv); }
+/* Masse des murs : 1 pixel par case, transparence selon la distance à la pièce la plus proche
+   (agrandie avec lissage, elle fait un dégradé de la paroi éclairée vers le noir) */
+let masseCache=null;
+function carteMasse(){ if(masseCache&&masseCache.v===versionCarte&&masseCache.l===carte.l&&masseCache.h===carte.h) return masseCache.cv;
+  const L=carte.l, H=carte.h, cv=toile(L,H), c=cv.getContext('2d'), im=c.createImageData(L,H), d=im.data, mur=(x,y)=>!dedans(x,y)||!!carte.murs[idx(x,y)];
+  for(let y=0;y<H;y++) for(let x=0;x<L;x++){ if(!carte.murs[idx(x,y)]) continue; let dist=5;
+    for(let r=1;r<5&&dist===5;r++) for(let j=-r;j<=r&&dist===5;j++) for(let i=-r;i<=r;i++){ if(Math.max(Math.abs(i),Math.abs(j))!==r) continue; if(!mur(x+i,y+j)){ dist=r; break; } }
+    const a=[0,0,.6,.8,.88,.92][dist], o=(y*L+x)*4; d[o]=8; d[o+1]=8; d[o+2]=12; d[o+3]=a*255; }
+  c.putImageData(im,0,0); masseCache={v:versionCarte,l:L,h:H,cv}; return cv; }
+/* Parois organiques (roche de grotte) : contour interpolé et bruité au lieu de suivre la grille */
+const estOrga=(x,y)=>{ if(!dedans(x,y)) return true; const id=carte.murs[idx(x,y)]; return !!(id&&asset(id)?.organique); };
+function organiqueAutour(x,y){ for(let j=-1;j<=1;j++) for(let i=-1;i<=1;i++) if(dedans(x+i,y+j)&&estOrga(x+i,y+j)) return true; return false; }
+function rocheCase(x,y,k,budget){ let cle=`r|${k}|${x}|${y}|`, mat=null; const I=new Array(9);
+  for(let j=-1;j<=1;j++) for(let i=-1;i<=1;i++){ const v=estOrga(x+i,y+j); I[(j+1)*3+i+1]=v?1:0; cle+=v?1:0; if(v&&!mat&&dedans(x+i,y+j)) mat=carte.murs[idx(x+i,y+j)]; }
+  const centre=carte.murs[idx(x,y)]; if(centre&&asset(centre)?.organique) mat=centre; if(!mat) mat='mur_grotte'; cle+='|'+mat;
+  if(I.every(v=>v)) return murCase(x,y,mat,k,budget);
+  const vu=cache.get(cle); if(vu) return vu; if(budget&&performance.now()>budget.fin){ budget.manque=true; return null; }
+  const a=asset(mat), S=tailleTuile(k), cv=toile(S,S), c=cv.getContext('2d'), img=c.createImageData(S,S), d=img.data;
+  for(let py=0;py<S;py++){ const wy=y+(py+.5)/S, gy=wy-y-.5, y0=gy<0?-1:0, fy=gy-y0;
+    for(let px=0;px<S;px++){ const wx=x+(px+.5)/S, gx=wx-x-.5, x0=gx<0?-1:0, fx=gx-x0, i00=(y0+1)*3+x0+1;
+      const f=(I[i00]*(1-fx)+I[i00+1]*fx)*(1-fy)+(I[i00+3]*(1-fx)+I[i00+4]*fx)*fy;
+      const th=Math.min(.85,Math.max(.15,.5+(fbm(wx*.9+11,wy*.9-3,3)-.5)*.75+(vn(wx*6,wy*6)-.5)*.1)), al=sm(th-.03,th+.03,f), o=(py*S+px)*4;
+      if(al<=0){ d[o+3]=0; continue; }
+      a.px(wx,wy,C0); const bord=sm(.14,0,f-th); mul(C0,1-.45*bord); // paroi plus sombre au bord : relief
+      d[o]=C0[0]; d[o+1]=C0[1]; d[o+2]=C0[2]; d[o+3]=al*255; } }
+  c.putImageData(img,0,0); return enCache(cle,cv); }
 /* Aperçu d'un matériau pour la palette */
 function apercuMateriau(canvas,id){ const a=asset(id), S=canvas.width, c=canvas.getContext('2d'), img=c.createImageData(S,S), d=img.data, z=1.6/S;
   for(let py=0;py<S;py++) for(let px=0;px<S;px++){ a.px(3.2+px*z,5.3+py*z,C0); const o=(py*S+px)*4; d[o]=C0[0]; d[o+1]=C0[1]; d[o+2]=C0[2]; d[o+3]=255; }
@@ -1222,23 +1256,31 @@ function dessinerCarte(c,x0,y0,x1,y1,o){
   // Sol (avec transitions)
   for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){ const id=carte.sol[y*L+x]; if(!id||!asset(id)) continue;
     const t=solCase(x,y,ks,o.budget); if(t) c.drawImage(t,x*T,y*T,T+ov,T+ov); else { c.fillStyle=couleurMoyenne(id); c.fillRect(x*T,y*T,T+ov,T+ov); } }
-  // Ombre portée des murs (floutée), calculée un peu au-delà de la zone visible
-  const ombreMurs=new Path2D(); let aDesMurs=false;
-  for(let y=Math.max(0,y0-1);y<=Math.min(carte.h-1,y1+1);y++) for(let x=Math.max(0,x0-1);x<=Math.min(L-1,x1+1);x++)
-    if(carte.murs[y*L+x]){ ombreMurs.rect(x*T,y*T,T,T); aDesMurs=true; }
-  if(aDesMurs){ c.save(); c.fillStyle='#111';
-    c.shadowColor='rgba(0,0,0,.6)'; c.shadowBlur=26*o.ech; c.fill(ombreMurs);                                   // pénombre au pied des murs
-    c.shadowColor='rgba(0,0,0,.55)'; c.shadowBlur=10*o.ech; c.shadowOffsetX=7*o.ech; c.shadowOffsetY=10*o.ech; c.fill(ombreMurs); // ombre portée
+  // Murs épais : dessinés sur un calque à part, puis posés avec pénombre et ombre portée qui suivent leur forme exacte
+  const xm0=Math.max(0,x0-1), ym0=Math.max(0,y0-1), xm1=Math.min(L-1,x1+1), ym1=Math.min(carte.h-1,y1+1);
+  let aDesMurs=false; for(let y=ym0;y<=ym1&&!aDesMurs;y++) for(let x=xm0;x<=xm1;x++) if(carte.murs[y*L+x]){ aDesMurs=true; break; }
+  if(aDesMurs){
+    const lay=toile(c.canvas.width,c.canvas.height), lc=lay.getContext('2d'); lc.setTransform(c.getTransform());
+    for(let y=ym0;y<=ym1;y++) for(let x=xm0;x<=xm1;x++){ const id=carte.murs[y*L+x], a=id&&asset(id);
+      if(a && !a.organique){
+        const t=murCase(x,y,id,ks,o.budget); if(t) lc.drawImage(t,x*T,y*T,T+ov,T+ov); else { lc.fillStyle=couleurMoyenne(id); lc.fillRect(x*T,y*T,T+ov,T+ov); }
+        const m=(dx,dy)=>!dedans(x+dx,y+dy)||!!carte.murs[idx(x+dx,y+dy)];
+        const N=m(0,-1),S=m(0,1),W=m(-1,0),E=m(1,0), e=4, B=11, X=x*T, Y=y*T;
+        // couronnement : bandeau de pierre plus clair le long des parois, avec ses joints
+        lc.fillStyle='rgba(255,246,230,.16)'; if(!N) lc.fillRect(X,Y,T,B); if(!S) lc.fillRect(X,Y+T-B,T,B); if(!W) lc.fillRect(X,Y,B,T); if(!E) lc.fillRect(X+T-B,Y,B,T);
+        lc.fillStyle='rgba(0,0,0,.4)'; const dec=(x*37+y*17)%21;
+        for(let k=dec;k<T;k+=21){ if(!N) lc.fillRect(X+k,Y,1.5,B); if(!S) lc.fillRect(X+k,Y+T-B,1.5,B); if(!W) lc.fillRect(X,Y+k,B,1.5); if(!E) lc.fillRect(X+T-B,Y+k,B,1.5); }
+        lc.fillStyle='rgba(0,0,0,.35)'; if(!N) lc.fillRect(X,Y+B,T,2); if(!S) lc.fillRect(X,Y+T-B-2,T,2); if(!W) lc.fillRect(X+B,Y,2,T); if(!E) lc.fillRect(X+T-B-2,Y,2,T);
+        lc.fillStyle='rgba(255,255,255,.22)'; if(!N) lc.fillRect(X,Y+e,T,2); if(!W) lc.fillRect(X+e,Y,2,T);
+        lc.fillStyle=a.bord||'#222'; if(!N) lc.fillRect(X,Y,T,e); if(!S) lc.fillRect(X,Y+T-e,T,e); if(!W) lc.fillRect(X,Y,e,T); if(!E) lc.fillRect(X+T-e,Y,e,T);
+      } else if(organiqueAutour(x,y)){ const t=rocheCase(x,y,ks,o.budget); if(t) lc.drawImage(t,x*T,y*T,T+ov,T+ov); else if(a){ lc.fillStyle=couleurMoyenne(id); lc.fillRect(x*T,y*T,T+ov,T+ov); } }
+    }
+    // la masse des murs s'enfonce dans l'obscurité loin des pièces
+    lc.save(); lc.globalCompositeOperation='source-atop'; lc.imageSmoothingEnabled=true; lc.imageSmoothingQuality='high'; lc.drawImage(carteMasse(),0,0,L*T,carte.h*T); lc.restore();
+    c.save(); c.setTransform(1,0,0,1,0,0);
+    c.shadowColor='rgba(0,0,0,.7)'; c.shadowBlur=24*o.ech; c.drawImage(lay,0,0);                                                   // pénombre au pied des murs
+    c.shadowColor='rgba(0,0,0,.5)'; c.shadowBlur=9*o.ech; c.shadowOffsetX=6*o.ech; c.shadowOffsetY=9*o.ech; c.drawImage(lay,0,0);     // ombre portée
     c.restore(); }
-  // Murs : texture, contour sombre, arête éclairée en haut/gauche, arête ombrée en bas/droite
-  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){ const id=carte.murs[y*L+x]; if(!id) continue; const a=asset(id); if(!a) continue;
-    const t=murCase(x,y,id,ks,o.budget); if(t) c.drawImage(t,x*T,y*T,T+ov,T+ov); else { c.fillStyle=couleurMoyenne(id); c.fillRect(x*T,y*T,T+ov,T+ov); }
-    const m=(dx,dy)=>dedans(x+dx,y+dy)&&!!carte.murs[idx(x+dx,y+dy)];
-    const N=m(0,-1),S=m(0,1),W=m(-1,0),E=m(1,0), e=4, X=x*T, Y=y*T;
-    c.fillStyle='rgba(255,255,255,.2)'; if(!N) c.fillRect(X,Y+e,T,3); if(!W) c.fillRect(X+e,Y,3,T);
-    c.fillStyle='rgba(0,0,0,.35)'; if(!S) c.fillRect(X,Y+T-e-5,T,5); if(!E) c.fillRect(X+T-e-5,Y,5,T);
-    c.fillStyle=a.bord||'#222'; if(!N) c.fillRect(X,Y,T,e); if(!S) c.fillRect(X,Y+T-e,T,e); if(!W) c.fillRect(X,Y,e,T); if(!E) c.fillRect(X+T-e,Y,e,T);
-  }
   dessinerBords(c,x0,y0,x1,y1,o);
   // Objets (un peu au-delà de la zone visible, pour les gros objets)
   for(let y=Math.max(0,y0-6);y<=y1;y++) for(let x=Math.max(0,x0-6);x<=x1;x++){ const ob=carte.objets[y*L+x]; if(!ob) continue;
