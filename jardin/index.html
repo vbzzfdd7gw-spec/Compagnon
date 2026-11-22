@@ -65,6 +65,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .card .nm{font-weight:800;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.2}
 .card .pr{font-family:var(--display);font-size:14.5px;font-weight:700;color:var(--sun);font-variant-numeric:tabular-nums;line-height:1.1}
 .card .key{position:absolute;top:3px;left:6px;font-size:10px;color:var(--muted);font-weight:800}
+.card{touch-action:none;cursor:grab}
 .card.on{border-color:var(--sun);background:var(--shed-3);box-shadow:0 0 0 3px rgba(255,207,58,.25)}
 .card.poor{opacity:.42}
 #tray.folded .shop{display:none}
@@ -1220,10 +1221,28 @@ function paint(cnv){
   const sz=+cnv.dataset.sz,px=Math.round(sz*Math.min(2,window.devicePixelRatio||1));cnv.width=px;cnv.height=px;cnv.style.width=cnv.style.height=sz+'px';
   const c=cnv.getContext('2d'),[type,st,br]=cnv.dataset.p.split(',');c.clearRect(0,0,px,px);c.drawImage(thumb(type,+st,br||null),0,0,px,px);
 }
+let cardDrag=null,cardClickSkip=false;
 ORDER.forEach((k,i)=>{
   const D=DEFS[k],b=document.createElement('button');b.className='card';b.dataset.k=k;b.title=D.name+' : '+D.desc;
   b.innerHTML=`<span class="key">${i+1}</span><canvas data-sz="46" data-p="${k},0,"></canvas><span class="nm">${D.name}</span><span class="pr">${D.cost}</span>`;
-  b.addEventListener('click',()=>choose(k));shopEl.appendChild(b);
+  b.addEventListener('click',()=>{if(cardClickSkip){cardClickSkip=false;return;}choose(k);});
+  b.addEventListener('pointerdown',ev=>{cardClickSkip=false;if(!playing())return;cardDrag={k,id:ev.pointerId,x:ev.clientX,y:ev.clientY,on:false,touch:ev.pointerType!=='mouse'};try{b.setPointerCapture(ev.pointerId);}catch(e){}});
+  b.addEventListener('pointermove',ev=>{
+    const d=cardDrag;if(!d||d.id!==ev.pointerId)return;
+    if(!d.on){
+      if(Math.hypot(ev.clientX-d.x,ev.clientY-d.y)<8)return;
+      if(S.pollen<DEFS[d.k].cost){hint(`${DEFS[d.k].name} : il faut ${DEFS[d.k].cost} pollen.`);cardDrag=null;cardClickSkip=true;return;}
+      d.on=true;S.moving=null;S.sel=null;S.place=d.k;S.pend=null;S.dragging=true;hint('');
+    }
+    const off=d.touch?60:0,p=groundAt(ev.clientX,ev.clientY-off),over=document.elementFromPoint(ev.clientX,ev.clientY)===cv&&document.elementFromPoint(ev.clientX,ev.clientY-off)===cv;
+    S.pend=p&&over?{x:Math.max(20,Math.min(W-20,p.x)),y:Math.max(30,Math.min(H-12,p.y))}:null;
+  });
+  const endCard=(ev,cancel)=>{const d=cardDrag;if(!d||d.id!==ev.pointerId)return;cardDrag=null;if(!d.on)return;cardClickSkip=true;S.dragging=false;
+    if(cancel||!S.pend){cancelPlace();hint('Dépose la créature dans le jardin, à côté du chemin.');}
+    else hint(ghostOk(S.pend)?'Fais glisser le fantôme pour l’ajuster, puis touche Planter ici.':'Pas ici : fais glisser le fantôme ailleurs.',60000);};
+  b.addEventListener('pointerup',ev=>endCard(ev,false));
+  b.addEventListener('pointercancel',ev=>endCard(ev,true));
+  shopEl.appendChild(b);
 });
 function choose(k){
   if(!playing())return;
@@ -1232,7 +1251,7 @@ function choose(k){
   S.moving=null;S.pend=null;S.place=k;S.sel=null;
   hint(lastPT==='mouse'?`${DEFS[k].name} : ${DEFS[k].desc} Clique dans le jardin pour planter.`:`${DEFS[k].name} : touche le jardin, fais glisser la plante pour l’ajuster, puis valide.`,60000);
 }
-function cancelPlace(){if(S.moving)S.sel=S.moving;S.place=null;S.moving=null;S.pend=null;hint('');}
+function cancelPlace(){if(S.moving)S.sel=S.moving;S.place=null;S.moving=null;S.pend=null;S.dragging=false;hint('');}
 function refreshShopPreviews(){shopEl.querySelectorAll('canvas').forEach(paint);}
 $('bWave').addEventListener('click',()=>{if(playing())startWave();});
 $('bSpeed').addEventListener('click',()=>{S.speed=S.speed%3+1;});
@@ -1328,7 +1347,7 @@ function ui(){
   $('bZin').disabled=CAM.z>=3;$('bZout').disabled=CAM.z<=1;$('bZ0').disabled=CAM.z<=1;
   for(const b of shopEl.children){const k=b.dataset.k;b.classList.toggle('poor',S.pollen<DEFS[k].cost);b.classList.toggle('on',S.place===k);}
   const cf=$('confirm');
-  if(S.pend&&placing()){
+  if(S.pend&&placing()&&!S.dragging){
     const gw=gameEl.clientWidth,gh=gameEl.clientHeight,bs=toScreen(S.pend.x,0,S.pend.y),ts=toScreen(S.pend.x,70,S.pend.y),gx=bs.x;
     const ok=ghostOk(S.pend);let top=bs.y+14;if(top>gh-170)top=ts.y-52;
     cf.style.left=Math.max(110,Math.min(gw-110,gx))+'px';cf.style.top=Math.max(60,top)+'px';
@@ -1357,7 +1376,7 @@ function overlay(html,btns,wide){
 const closeOv=()=>{ov.hidden=true;ov.innerHTML='';};
 const HELP=`<h2>Comment jouer</h2>
   <p>Pucerons, limaces, scarabées et corbeaux remontent le chemin pour dévorer l'Arbre-Mère.</p>
-  <ul><li><b>Plante</b> un défenseur : choisis-le en bas, touche le jardin, fais glisser la plante pour l'ajuster, puis touche <b>Planter ici</b>. À la souris, un clic suffit.</li>
+  <ul><li><b>Plante</b> un défenseur : fais-le glisser depuis la barre jusqu'au jardin (ou choisis-le puis touche le jardin), fais glisser la plante pour l'ajuster, puis touche <b>Planter ici</b>. À la souris, un clic suffit.</li>
   <li>Un défenseur mal placé ? Touche-le, puis <b>Déplacer</b> : c'est gratuit.</li>
   <li>En combattant, il se remplit de <b>sève</b>.</li>
   <li>Jauge pleine : touche-le et fais-le <b>évoluer</b> contre du pollen. Il change de forme à chaque stade, six en tout.</li>
@@ -1394,7 +1413,7 @@ function setPlayUI(on){$('confirm').hidden=true;hudEl.hidden=!on;trayEl.hidden=!
 function play(){
   enterFS();
   newGame();resetCam();started=true;lastUI={};selKey='';closeOv();setPlayUI(true);refreshNext();
-  hint('Choisis un défenseur en bas, puis touche le jardin. Pince ou utilise + et − pour zoomer.',5500);
+  hint('Fais glisser un défenseur depuis la barre jusqu’au jardin. Pince ou utilise + et − pour zoomer.',5500);
 }
 function restart(){play();}
 function toHome(){started=false;closeOv();setPlayUI(false);startDemo();showBest();}
