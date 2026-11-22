@@ -64,6 +64,23 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .card canvas{width:46px;height:46px}
 .card .nm{font-weight:800;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.2}
 .card .pr{font-family:var(--display);font-size:14.5px;font-weight:700;color:var(--sun);font-variant-numeric:tabular-nums;line-height:1.1}
+.card .info{position:absolute;top:3px;right:4px;width:17px;height:17px;border-radius:50%;background:rgba(255,255,255,.14);color:var(--ink);font:800 11px/17px var(--body);text-align:center;font-style:italic;cursor:help}
+.card .info:hover{background:var(--sun);color:var(--sun-ink)}
+.ilead{color:var(--muted)}
+.itree{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
+.ilane{display:grid;grid-template-columns:170px 1fr;gap:10px;align-items:center;background:var(--shed);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+.ilane>span b{display:block;font-family:var(--display);font-size:15px;color:var(--ink)}
+.ilane>span em{display:block;font-style:normal;font-size:11.5px;color:var(--muted);line-height:1.3}
+.ilane>div{display:flex;gap:6px;flex-wrap:wrap}
+.ifig{display:flex;flex-direction:column;align-items:center;gap:2px;width:84px;padding:4px 2px 5px;border-radius:10px;border:1.5px solid transparent;background:#1a3023}
+.ifig span{font-size:10.5px;line-height:1.15;font-weight:700;text-align:center}
+.ifig.on{border-color:var(--sun);background:var(--shed-3)}
+.idet{background:var(--shed);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.idh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:8px}
+.idh b{font-family:var(--display);font-size:18px;color:var(--sun)}
+.idh span{font-size:12px;color:var(--muted);font-weight:700}
+@media (max-width:640px){.ilane{grid-template-columns:1fr}.ifig{width:30%}}
+@media (max-height:520px){.ifig canvas{width:44px!important;height:44px!important}.ifig{width:76px}.itree{gap:5px}}
 .card .key{position:absolute;top:3px;left:6px;font-size:10px;color:var(--muted);font-weight:800}
 .card{touch-action:none;cursor:grab}
 .card.on{border-color:var(--sun);background:var(--shed-3);box-shadow:0 0 0 3px rgba(255,207,58,.25)}
@@ -1224,20 +1241,24 @@ function paint(cnv){
 let cardDrag=null,cardClickSkip=false;
 ORDER.forEach((k,i)=>{
   const D=DEFS[k],b=document.createElement('button');b.className='card';b.dataset.k=k;b.title=D.name+' : '+D.desc;
-  b.innerHTML=`<span class="key">${i+1}</span><canvas data-sz="46" data-p="${k},0,"></canvas><span class="nm">${D.name}</span><span class="pr">${D.cost}</span>`;
+  b.innerHTML=`<span class="key">${i+1}</span><canvas data-sz="46" data-p="${k},0,"></canvas><span class="nm">${D.name}</span><span class="pr">${D.cost}</span><span class="info" role="button" aria-label="Voir ce que fait ${D.name} et ses évolutions">i</span>`;
+  b.querySelector('.info').addEventListener('click',ev=>{ev.stopPropagation();cardClickSkip=false;openInfo(k);});
+  b.addEventListener('contextmenu',ev=>{ev.preventDefault();openInfo(k);});
   b.addEventListener('click',()=>{if(cardClickSkip){cardClickSkip=false;return;}choose(k);});
-  b.addEventListener('pointerdown',ev=>{cardClickSkip=false;if(!playing())return;cardDrag={k,id:ev.pointerId,x:ev.clientX,y:ev.clientY,on:false,touch:ev.pointerType!=='mouse'};try{b.setPointerCapture(ev.pointerId);}catch(e){}});
+  b.addEventListener('pointerdown',ev=>{cardClickSkip=false;if(!playing()||ev.target.closest('.info')||ev.button===2)return;const d=cardDrag={k,id:ev.pointerId,x:ev.clientX,y:ev.clientY,on:false,touch:ev.pointerType!=='mouse'};try{b.setPointerCapture(ev.pointerId);}catch(e){}
+    d.lp=setTimeout(()=>{if(cardDrag===d&&!d.on){cardDrag=null;cardClickSkip=true;try{navigator.vibrate&&navigator.vibrate(15);}catch(e){}openInfo(k);}},480);});
   b.addEventListener('pointermove',ev=>{
     const d=cardDrag;if(!d||d.id!==ev.pointerId)return;
     if(!d.on){
       if(Math.hypot(ev.clientX-d.x,ev.clientY-d.y)<8)return;
+      clearTimeout(d.lp);
       if(S.pollen<DEFS[d.k].cost){hint(`${DEFS[d.k].name} : il faut ${DEFS[d.k].cost} pollen.`);cardDrag=null;cardClickSkip=true;return;}
       d.on=true;S.moving=null;S.sel=null;S.place=d.k;S.pend=null;S.dragging=true;hint('');
     }
     const off=d.touch?60:0,p=groundAt(ev.clientX,ev.clientY-off),over=document.elementFromPoint(ev.clientX,ev.clientY)===cv&&document.elementFromPoint(ev.clientX,ev.clientY-off)===cv;
     S.pend=p&&over?{x:Math.max(20,Math.min(W-20,p.x)),y:Math.max(30,Math.min(H-12,p.y))}:null;
   });
-  const endCard=(ev,cancel)=>{const d=cardDrag;if(!d||d.id!==ev.pointerId)return;cardDrag=null;if(!d.on)return;cardClickSkip=true;S.dragging=false;
+  const endCard=(ev,cancel)=>{const d=cardDrag;if(!d||d.id!==ev.pointerId)return;clearTimeout(d.lp);cardDrag=null;if(!d.on)return;cardClickSkip=true;S.dragging=false;
     if(cancel||!S.pend){cancelPlace();hint('Dépose la créature dans le jardin, à côté du chemin.');}
     else hint(ghostOk(S.pend)?'Fais glisser le fantôme pour l’ajuster, puis touche Planter ici.':'Pas ici : fais glisser le fantôme ailleurs.',60000);};
   b.addEventListener('pointerup',ev=>endCard(ev,false));
@@ -1377,6 +1398,7 @@ const closeOv=()=>{ov.hidden=true;ov.innerHTML='';};
 const HELP=`<h2>Comment jouer</h2>
   <p>Pucerons, limaces, scarabées et corbeaux remontent le chemin pour dévorer l'Arbre-Mère.</p>
   <ul><li><b>Plante</b> un défenseur : fais-le glisser depuis la barre jusqu'au jardin (ou choisis-le puis touche le jardin), fais glisser la plante pour l'ajuster, puis touche <b>Planter ici</b>. À la souris, un clic suffit.</li>
+  <li><b>Appui long</b> (ou bouton <b>i</b>) sur une créature de la barre : tu vois ce qu'elle fait et toutes ses évolutions.</li>
   <li>Un défenseur mal placé ? Touche-le, puis <b>Déplacer</b> : c'est gratuit.</li>
   <li>En combattant, il se remplit de <b>sève</b>.</li>
   <li>Jauge pleine : touche-le et fais-le <b>évoluer</b> contre du pollen. Il change de forme à chaque stade, six en tout.</li>
@@ -1392,6 +1414,29 @@ function showGallery(back){
     <div class="lane"><span>${D.A.n}</span>${fig(k,3,'A')}${fig(k,4,'A')}${fig(k,5,'A')}</div>
     <div class="lane"><span>${D.B.n}</span>${fig(k,3,'B')}${fig(k,4,'B')}${fig(k,5,'B')}</div></article>`;}).join('')}</div>`;
   overlay(html,[['Fermer',back||closeOv]],true);
+}
+function openInfo(k){
+  if(!started||S.over)return;
+  if(S.dragging)cancelPlace();
+  const wasPaused=S.paused;S.paused=true;
+  const D=DEFS[k];
+  const fig=(s,b)=>`<button class="ifig" data-s="${s}" data-b="${b||''}" title="${statsOf(k,s,b).n}"><canvas data-sz="54" data-p="${k},${s},${b||''}"></canvas><span>${statsOf(k,s,b).n}</span></button>`;
+  const html=`<h2>${D.name}</h2><p class="ilead">${D.desc} <b>${D.cost} pollen</b> · ${D.air?'touche les ennemis volants':'ne touche pas les ennemis volants'}.</p>
+    <div class="itree">
+      <div class="ilane"><span><b>Jeunesse</b><em>Trois stades, toujours dans cet ordre</em></span><div>${fig(0)}${fig(1)}${fig(2)}</div></div>
+      <div class="ilane"><span><b>Voie ${D.A.n}</b><em>${D.A.d}</em></span><div>${fig(3,'A')}${fig(4,'A')}${fig(5,'A')}</div></div>
+      <div class="ilane"><span><b>Voie ${D.B.n}</b><em>${D.B.d}</em></span><div>${fig(3,'B')}${fig(4,'B')}${fig(5,'B')}</div></div>
+    </div>
+    <div class="idet" id="idet"></div>`;
+  const close=()=>{closeOv();S.paused=wasPaused;};
+  const btns=[['Fermer',close]];
+  if(S.pollen>=D.cost)btns.unshift([`Planter · ${D.cost}`,()=>{close();choose(k);}]);
+  overlay(html,btns,true);
+  const det=(s,b)=>{const st=statsOf(k,s,b);
+    $('idet').innerHTML=`<div class="idh"><b>${st.n}</b><span>Stade ${s+1}/6${b?' · voie '+D[b].n:''}${s>0?` · pour y évoluer : ${D.evo[s-1]} pollen et ${XPN[s-1]} sève`:' · forme posée dans le jardin'}</span></div><div class="stats">${statLines(k,st)}</div>`;
+    ov.querySelectorAll('.ifig').forEach(f=>f.classList.toggle('on',+f.dataset.s===s&&(f.dataset.b||'')===(b||'')));};
+  ov.querySelectorAll('.ifig').forEach(f=>f.addEventListener('click',()=>{det(+f.dataset.s,f.dataset.b||null);try{$('idet').scrollIntoView({block:'nearest',behavior:'smooth'});}catch(e){}}));
+  det(0,null);
 }
 function openPause(){
   if(!started||S.over||S.won&&S.paused)return;
