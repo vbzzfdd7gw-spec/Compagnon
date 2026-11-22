@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Télécommande TV</title>
+<meta name="description" content="Télécommande pour téléviseur Samsung via SmartThings.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Télécommande">
+<meta name="theme-color" content="#0e1424">
+<style>
+:root{
+  --bg:#0e1424;--body:#18213a;--body2:#202b49;--key:#2a3658;--key-hi:#34416a;--key-press:#4a5a8e;
+  --fg:#eef2fb;--muted:#93a0bf;--line:#2f3b5f;--accent:#6ea8ff;--red:#ff5d5d;--good:#5fd39b;--warn:#f2c14e;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.35;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;touch-action:manipulation}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select{font:inherit;color:var(--fg);background:var(--key);border:1px solid var(--line);border-radius:12px;padding:12px;width:100%;min-width:0;-webkit-user-select:text;user-select:text}
+.wrap{max-width:420px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.top .name{flex:1;min-width:0}
+.top .name b{display:block;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .name small{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--good)}.dot.err{background:var(--red)}
+.icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--body);border:1px solid var(--line)}
+.icon-btn svg{width:20px;height:20px}
+.remote{background:linear-gradient(180deg,var(--body2),var(--body));border:1px solid var(--line);border-radius:36px;padding:18px 16px 20px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.key{background:var(--key);border-radius:16px;min-height:48px;display:grid;place-items:center;font-weight:600;font-size:.9rem;transition:background .08s,transform .08s;position:relative}
+.key svg{width:22px;height:22px}
+.key:active,.key.pressed{background:var(--key-press);transform:scale(.96)}
+.key[disabled]{opacity:.32;pointer-events:none}
+.key.round{width:52px;height:52px;border-radius:50%;min-height:0}
+.key.power{background:var(--red);color:#fff}
+.key.power:active{background:#ff8080}
+.lbl{display:block;font-size:.66rem;color:var(--muted);text-align:center;margin-top:4px;font-weight:500}
+.col{display:flex;flex-direction:column;align-items:center}
+.status{margin:14px 0 4px;background:#0b1120;border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;font-variant-numeric:tabular-nums}
+.status div small{display:block;color:var(--muted);font-size:.66rem;text-transform:uppercase;letter-spacing:.06em}
+.status div span{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.dpad{position:relative;width:236px;height:236px;margin:18px auto 14px;border-radius:50%;background:var(--key);box-shadow:inset 0 0 0 1px var(--line)}
+.dpad button{position:absolute;display:grid;place-items:center;color:var(--fg);transition:background .08s}
+.dpad .d{width:76px;height:76px;border-radius:50%}
+.dpad .d svg{width:26px;height:26px}
+.dpad .d:active,.dpad .d.pressed{background:var(--key-press)}
+.dpad .up{left:80px;top:2px}.dpad .down{left:80px;bottom:2px}.dpad .left{left:2px;top:80px}.dpad .right{right:2px;top:80px}
+.dpad .ok{left:68px;top:68px;width:100px;height:100px;border-radius:50%;background:var(--key-hi);font-weight:700;letter-spacing:.04em;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.dpad .ok:active,.dpad .ok.pressed{background:var(--key-press)}
+.dpad[aria-disabled="true"]{opacity:.32;pointer-events:none}
+.rockers{display:grid;grid-template-columns:64px 1fr 64px;gap:12px;align-items:center;margin-top:8px}
+.rocker{display:flex;flex-direction:column;background:var(--key);border-radius:32px;overflow:hidden}
+.rocker button{height:62px;display:grid;place-items:center;font-size:1.4rem;font-weight:600}
+.rocker button:active,.rocker button.pressed{background:var(--key-press)}
+.rocker .mid{font-size:.68rem;color:var(--muted);text-align:center;padding:2px 0;letter-spacing:.08em}
+.rocker[aria-disabled="true"]{opacity:.32;pointer-events:none}
+.center-keys{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.media{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:16px}
+.media .key{min-height:44px;border-radius:14px}
+.section{margin-top:18px}
+.section h2{font-size:.72rem;margin:0 0 8px 4px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.app{border-radius:14px;min-height:52px;font-weight:700;font-size:.78rem;color:#fff;display:grid;place-items:center;text-align:center;padding:4px;transition:transform .08s}
+.app:active{transform:scale(.95)}
+.app[disabled]{opacity:.32;pointer-events:none}
+.sources{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--key);border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:.85rem;font-weight:600}
+.chip.cur{background:var(--accent);color:#081428;border-color:var(--accent)}
+.chip:active{background:var(--key-press)}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.keypad .key{font-size:1.15rem;min-height:50px}
+.chan-input{display:flex;gap:8px;margin-bottom:8px}
+.chan-input output{flex:1;background:#0b1120;border:1px solid var(--line);border-radius:14px;padding:12px;font-size:1.2rem;font-weight:700;text-align:center;letter-spacing:.2em;min-height:50px;font-variant-numeric:tabular-nums}
+.vol-slider{display:flex;align-items:center;gap:12px;margin-top:4px}
+.vol-slider input{padding:0;height:6px;accent-color:var(--accent);background:transparent;border:0}
+.vol-slider span{min-width:2.5ch;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:#0b1120;border:1px solid var(--line);color:var(--fg);padding:10px 16px;border-radius:14px;font-size:.88rem;max-width:calc(100vw - 32px);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:var(--red)}
+.note{background:#0b1120;border:1px solid var(--line);border-radius:14px;padding:12px;font-size:.85rem;color:var(--muted);margin-top:14px}
+.note b{color:var(--fg)}
+/* Réglages */
+.sheet{position:fixed;inset:0;background:rgba(5,8,16,.7);display:none;align-items:flex-end;justify-content:center;z-index:40}
+.sheet.open{display:flex}
+.sheet .panel{background:var(--body);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;width:100%;max-width:520px;max-height:92vh;overflow:auto;padding:18px max(18px,env(safe-area-inset-right)) calc(22px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left));-webkit-user-select:text;user-select:text}
+.sheet h3{margin:0 0 4px;font-size:1.15rem}
+.sheet p{margin:6px 0;color:var(--muted);font-size:.9rem}
+.sheet label{display:block;font-size:.82rem;color:var(--muted);margin:14px 0 6px}
+.sheet ol{padding-left:20px;margin:8px 0;color:var(--muted);font-size:.88rem}
+.sheet ol li{margin:6px 0}
+.sheet ol b,.sheet code{color:var(--fg)}
+.sheet code{background:var(--key);padding:1px 6px;border-radius:6px;font-size:.85em}
+.sheet a{color:var(--accent)}
+.btn{display:block;width:100%;padding:13px;border-radius:14px;background:var(--accent);color:#081428;font-weight:700;text-align:center;margin-top:14px}
+.btn.ghost{background:var(--key);color:var(--fg)}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--line)}
+.err-msg{color:var(--red);font-size:.88rem;margin-top:8px;min-height:1.2em}
+details{margin-top:12px;background:var(--body2);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+details summary{cursor:pointer;font-weight:600;font-size:.92rem}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="name">
+      <b id="tvName">Télécommande</b>
+      <small><span class="dot" id="dot"></span><span id="tvState">Non configurée</span></small>
+    </div>
+    <button class="icon-btn" id="refreshBtn" aria-label="Actualiser l'état">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+    </button>
+    <button class="icon-btn" id="settingsBtn" aria-label="Réglages">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </div>
+
+  <div class="remote">
+    <div class="row">
+      <div class="col"><button class="key round power" data-act="power" aria-label="Marche / arrêt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>
+      </button><span class="lbl">Marche</span></div>
+      <div class="col"><button class="key round" data-act="mute" data-cap="audioMute" aria-label="Couper le son">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>
+      </button><span class="lbl">Muet</span></div>
+      <div class="col"><button class="key round" data-key="SOURCE" aria-label="Sources">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M12 17v3M8 20h8"/><path d="m10 9 3 2-3 2"/></svg>
+      </button><span class="lbl">Source</span></div>
+      <div class="col"><button class="key round" data-key="HOME" aria-label="Accueil">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>
+      </button><span class="lbl">Accueil</span></div>
+    </div>
+
+    <div class="status">
+      <div><small>Volume</small><span id="stVol">–</span></div>
+      <div><small>Chaîne</small><span id="stCh">–</span></div>
+      <div><small>Source</small><span id="stSrc">–</span></div>
+    </div>
+
+    <div class="dpad" id="dpad">
+      <button class="d up" data-key="UP" data-repeat aria-label="Haut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button>
+      <button class="d left" data-key="LEFT" data-repeat aria-label="Gauche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+      <button class="ok" data-key="OK" aria-label="OK">OK</button>
+      <button class="d right" data-key="RIGHT" data-repeat aria-label="Droite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
+      <button class="d down" data-key="DOWN" data-repeat aria-label="Bas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+    </div>
+
+    <div class="rockers">
+      <div class="rocker" id="volRocker">
+        <button data-act="volUp" data-repeat aria-label="Volume plus">+</button>
+        <div class="mid">VOL</div>
+        <button data-act="volDown" data-repeat aria-label="Volume moins">−</button>
+      </div>
+      <div class="center-keys">
+        <div class="col" style="width:100%"><button class="key" style="width:100%" data-key="BACK" aria-label="Retour">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>
+        </button><span class="lbl">Retour</span></div>
+        <div class="col" style="width:100%"><button class="key" style="width:100%" data-key="MENU" aria-label="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button><span class="lbl">Menu</span></div>
+        <div class="col" style="width:100%;grid-column:span 2"><button class="key" style="width:100%" id="chanBtn" data-cap="tvChannel" aria-label="Taper un numéro de chaîne">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.7"/><circle cx="12" cy="6" r="1.7"/><circle cx="18" cy="6" r="1.7"/><circle cx="6" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18" cy="12" r="1.7"/><circle cx="6" cy="18" r="1.7"/><circle cx="12" cy="18" r="1.7"/><circle cx="18" cy="18" r="1.7"/></svg>
+        </button><span class="lbl">Pavé numérique</span></div>
+      </div>
+      <div class="rocker" id="chRocker">
+        <button data-act="chUp" aria-label="Chaîne suivante">⌃</button>
+        <div class="mid">CH</div>
+        <button data-act="chDown" aria-label="Chaîne précédente">⌄</button>
+      </div>
+    </div>
+
+    <div class="vol-slider" id="volSliderRow">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);flex:none"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+      <input type="range" id="volSlider" min="0" max="100" value="0" aria-label="Volume">
+      <span id="volVal">–</span>
+    </div>
+
+    <div class="media" id="mediaRow">
+      <button class="key" data-media="rewind" aria-label="Retour rapide"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 6v12l-8-6zM21 6v12l-8-6z"/></svg></button>
+      <button class="key" data-media="play" aria-label="Lecture"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg></button>
+      <button class="key" data-media="pause" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+      <button class="key" data-media="stop" aria-label="Stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg></button>
+      <button class="key" data-media="fastForward" aria-label="Avance rapide"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8-6zM3 6v12l8-6z"/></svg></button>
+    </div>
+  </div>
+
+  <div class="section" id="appsSection">
+    <h2>Applications</h2>
+    <div class="apps" id="apps"></div>
+  </div>
+
+  <div class="section" id="srcSection">
+    <h2>Entrées</h2>
+    <div class="sources" id="sources"></div>
+  </div>
+
+  <div class="note hidden" id="navNote"></div>
+</div>
+
+<!-- Pavé numérique -->
+<div class="sheet" id="padSheet">
+  <div class="panel">
+    <h3>Aller à la chaîne</h3>
+    <div class="chan-input" style="margin-top:12px"><output id="chanOut"></output></div>
+    <div class="keypad" id="keypad"></div>
+    <button class="btn" id="chanGo">Valider</button>
+    <button class="btn ghost" data-close>Fermer</button>
+  </div>
+</div>
+
+<!-- Réglages -->
+<div class="sheet" id="setSheet">
+  <div class="panel">
+    <h3>Réglages</h3>
+    <p>La télécommande passe par <b>SmartThings</b>, le service de Samsung. Le jeton reste enregistré uniquement sur ce téléphone.</p>
+
+    <details id="helpBox">
+      <summary>Comment obtenir le jeton ?</summary>
+      <ol>
+        <li>Installe l'appli <b>SmartThings</b> et ajoute ta télé (Ajouter un appareil → TV → Samsung), en étant connecté au même compte Samsung que la télé.</li>
+        <li>Sur la télé : <b>Paramètres → Général → Gestionnaire de périphériques externes → Allumer avec mobile</b> : activé (pour pouvoir l'allumer à distance).</li>
+        <li>Ouvre <a href="https://account.smartthings.com/tokens" target="_blank" rel="noopener">account.smartthings.com/tokens</a> et connecte-toi avec ton compte Samsung.</li>
+        <li><b>Generate new token</b>, donne-lui un nom, coche au minimum <b>Devices</b> : <code>List all devices</code>, <code>See all devices</code>, <code>Control all devices</code>.</li>
+        <li>Copie le jeton affiché et colle-le ci-dessous.</li>
+      </ol>
+      <p>⚠️ Samsung fait expirer ces jetons personnels au bout de <b>24 h</b> : il faudra en recoller un nouveau quand l'appli te le signalera.</p>
+    </details>
+
+    <label for="tokenIn">Jeton d'accès SmartThings</label>
+    <input id="tokenIn" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+    <button class="btn" id="connectBtn">Rechercher mes télés</button>
+
+    <div id="devBox" class="hidden">
+      <label for="devSel">Téléviseur</label>
+      <select id="devSel"></select>
+      <button class="btn" id="useBtn">Utiliser cette télé</button>
+    </div>
+    <div class="err-msg" id="setErr"></div>
+
+    <button class="btn ghost" data-close>Fermer</button>
+    <button class="btn danger" id="forgetBtn">Effacer le jeton et la télé</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const API='https://api.smartthings.com/v1';
+const LS={tok:'tv.token',dev:'tv.device',name:'tv.name'};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+
+let token=store.get(LS.tok)||'';
+let deviceId=store.get(LS.dev)||'';
+let caps=new Set();        // capacités du téléviseur (composant main)
+let state={};              // dernier état connu
+let devicesCache=[];
+
+// Applications Tizen courantes (identifiants des télés 2019+)
+const APPS=[
+  {name:'Netflix',id:'3201907018807',color:'#e50914'},
+  {name:'YouTube',id:'111299001912',color:'#ff0033'},
+  {name:'Prime Video',id:'3201910019365',color:'#1a98ff'},
+  {name:'Disney+',id:'3201901017640',color:'#113ccf'},
+];
+
+/* ---------- Petites aides ---------- */
+let toastT;
+function toast(msg,err){const t=$('#toast');t.textContent=msg;t.classList.toggle('err',!!err);t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),err?4200:1600);}
+function setConn(text,cls){$('#tvState').textContent=text;const d=$('#dot');d.className='dot'+(cls?' '+cls:'');}
+function buzz(){try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}}
+
+class ApiError extends Error{constructor(status,msg){super(msg);this.status=status;}}
+async function api(path,opts={}){
+  if(!token)throw new ApiError(0,'Aucun jeton');
+  let res;
+  try{
+    res=await fetch(API+path,{...opts,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','Accept':'application/json',...(opts.headers||{})}});
+  }catch(e){throw new ApiError(-1,'Impossible de joindre SmartThings. Vérifie ta connexion internet.');}
+  if(res.status===401)throw new ApiError(401,'Jeton refusé ou expiré. Colle un nouveau jeton dans les réglages.');
+  if(res.status===403)throw new ApiError(403,'Accès refusé : le jeton doit avoir les droits « Devices » (voir, lister et contrôler).');
+  if(res.status===429)throw new ApiError(429,'Trop de commandes d\'un coup, ralentis un peu.');
+  if(!res.ok){let m='Erreur SmartThings ('+res.status+')';try{const j=await res.json();if(j.error&&j.error.message)m=j.error.message;}catch(e){}throw new ApiError(res.status,m);}
+  const txt=await res.text();return txt?JSON.parse(txt):{};
+}
+function handleErr(e){
+  console.warn(e);
+  toast(e.message||String(e),true);
+  if(e.status===401){setConn('Jeton expiré','err');}
+  else if(e.status===-1){setConn('Hors ligne','err');}
+}
+
+/* ---------- Commandes ---------- */
+let queue=Promise.resolve();
+function send(capability,command,args=[]){
+  if(!deviceId){openSettings();return Promise.resolve();}
+  const body={commands:[{component:'main',capability,command,arguments:args}]};
+  // les commandes sont envoyées les unes après les autres pour garder l'ordre
+  queue=queue.then(()=>api('/devices/'+deviceId+'/commands',{method:'POST',body:JSON.stringify(body)})).catch(e=>{handleErr(e);});
+  return queue;
+}
+function sendKey(k){
+  if(!caps.has('samsungvd.remoteControl')){toast('Touche non disponible sur ce modèle via SmartThings',true);return;}
+  return send('samsungvd.remoteControl','send',[k,'PRESS_AND_RELEASED']);
+}
+
+const ACTIONS={
+  power(){
+    const on=state.switch==='on';
+    send('switch',on?'off':'on').then(()=>{state.switch=on?'off':'on';render();setTimeout(refresh,2500);});
+  },
+  mute(){
+    const m=state.mute==='muted';
+    send('audioMute',m?'unmute':'mute').then(()=>{state.mute=m?'unmuted':'muted';render();});
+  },
+  volUp(){send('audioVolume','volumeUp');if(typeof state.volume==='number'){state.volume=Math.min(100,state.volume+1);render();}scheduleRefresh();},
+  volDown(){send('audioVolume','volumeDown');if(typeof state.volume==='number'){state.volume=Math.max(0,state.volume-1);render();}scheduleRefresh();},
+  chUp(){send('tvChannel','channelUp');scheduleRefresh(1500);},
+  chDown(){send('tvChannel','channelDown');scheduleRefresh(1500);},
+};
+
+let refreshT;
+function scheduleRefresh(ms=1200){clearTimeout(refreshT);refreshT=setTimeout(refresh,ms);}
+
+/* ---------- Appui long = répétition ---------- */
+function bindPress(el,fn){
+  const repeat=el.hasAttribute('data-repeat');
+  let t1,t2,fired=false;
+  const stop=()=>{clearTimeout(t1);clearInterval(t2);el.classList.remove('pressed');};
+  el.addEventListener('pointerdown',e=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    e.preventDefault();fired=true;el.classList.add('pressed');buzz();fn();
+    if(repeat){t1=setTimeout(()=>{t2=setInterval(fn,260);},450);}
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>el.addEventListener(ev,stop));
+  // clavier / accessibilité
+  el.addEventListener('click',e=>{if(fired){fired=false;return;}fn();});
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+}
+
+$$('[data-key]').forEach(b=>bindPress(b,()=>sendKey(b.dataset.key)));
+$$('[data-act]').forEach(b=>bindPress(b,()=>ACTIONS[b.dataset.act]()));
+$$('[data-media]').forEach(b=>bindPress(b,()=>send('mediaPlayback',b.dataset.media)));
+
+// Curseur de volume
+const slider=$('#volSlider');
+slider.addEventListener('input',()=>{$('#volVal').textContent=slider.value;});
+slider.addEventListener('change',()=>{const v=+slider.value;state.volume=v;send('audioVolume','setVolume',[v]);render();});
+
+// Applications
+$('#apps').innerHTML=APPS.map((a,i)=>`<button class="app" data-app="${i}" style="background:${a.color}">${a.name}</button>`).join('');
+$$('[data-app]').forEach(b=>b.addEventListener('click',()=>{
+  const a=APPS[+b.dataset.app];buzz();
+  send('custom.launchapp','launchApp',[a.id,a.name]).then(()=>toast('Lancement de '+a.name+'…'));
+}));
+
+// Pavé numérique
+let chanBuf='';
+$('#keypad').innerHTML=['1','2','3','4','5','6','7','8','9','⌫','0','C'].map(k=>`<button class="key" data-pad="${k}">${k}</button>`).join('');
+$$('[data-pad]').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.pad;buzz();
+  if(k==='⌫')chanBuf=chanBuf.slice(0,-1);else if(k==='C')chanBuf='';else if(chanBuf.length<4)chanBuf+=k;
+  $('#chanOut').textContent=chanBuf;
+}));
+$('#chanBtn').addEventListener('click',()=>{chanBuf='';$('#chanOut').textContent='';$('#padSheet').classList.add('open');});
+$('#chanGo').addEventListener('click',()=>{
+  if(!chanBuf)return;
+  send('tvChannel','setTvChannel',[chanBuf]).then(()=>{toast('Chaîne '+chanBuf);scheduleRefresh(1500);});
+  $('#padSheet').classList.remove('open');
+});
+
+/* ---------- État ---------- */
+function v(st,cap,attr){return st&&st[cap]&&st[cap][attr]?st[cap][attr].value:undefined;}
+function parseList(x){if(Array.isArray(x))return x;if(typeof x==='string'){try{const j=JSON.parse(x);if(Array.isArray(j))return j;}catch(e){}}return [];}
+
+async function refresh(){
+  if(!token||!deviceId){render();return;}
+  try{
+    const s=await api('/devices/'+deviceId+'/status');
+    const m=(s.components&&s.components.main)||{};
+    state.switch=v(m,'switch','switch');
+    const vol=v(m,'audioVolume','volume');state.volume=typeof vol==='number'?vol:undefined;
+    state.mute=v(m,'audioMute','mute');
+    state.channel=v(m,'tvChannel','tvChannel');
+    state.channelName=v(m,'tvChannel','tvChannelName');
+    // Sources : la capacité Samsung donne des noms lisibles, la standard des identifiants
+    const map=parseList(v(m,'samsungvd.mediaInputSource','supportedInputSourcesMap'));
+    if(map.length){
+      state.srcCap='samsungvd.mediaInputSource';
+      state.sources=map.map(o=>({id:o.id,name:o.name||o.id}));
+      state.source=v(m,'samsungvd.mediaInputSource','inputSource');
+    }else{
+      state.srcCap='mediaInputSource';
+      state.sources=parseList(v(m,'mediaInputSource','supportedInputSources')).map(x=>({id:x,name:x}));
+      state.source=v(m,'mediaInputSource','inputSource');
+    }
+    const h=v(m,'healthCheck','DeviceWatch-DeviceStatus');
+    state.health=h;
+    setConn(state.switch==='on'?'Allumée':(state.switch==='off'?'En veille':'Connectée'),state.switch==='on'?'on':'');
+  }catch(e){handleErr(e);}
+  render();
+}
+
+function render(){
+  const has=c=>caps.has(c);
+  const ready=!!(token&&deviceId);
+  $$('[data-cap]').forEach(b=>b.disabled=ready&&caps.size>0&&!has(b.dataset.cap));
+  const navOk=!ready||caps.size===0||has('samsungvd.remoteControl');
+  $('#dpad').setAttribute('aria-disabled',String(!navOk));
+  $$('[data-key]').forEach(b=>b.disabled=!navOk);
+  $('#volRocker').setAttribute('aria-disabled',String(ready&&caps.size>0&&!has('audioVolume')));
+  $('#chRocker').setAttribute('aria-disabled',String(ready&&caps.size>0&&!has('tvChannel')));
+  $('#volSliderRow').classList.toggle('hidden',ready&&caps.size>0&&!has('audioVolume'));
+  $('#mediaRow').classList.toggle('hidden',ready&&caps.size>0&&!has('mediaPlayback'));
+  $('#appsSection').classList.toggle('hidden',ready&&caps.size>0&&!has('custom.launchapp'));
+
+  const nn=$('#navNote');
+  if(ready&&caps.size>0&&!has('samsungvd.remoteControl')){
+    nn.innerHTML='<b>Flèches, OK, Retour, Menu et Accueil indisponibles</b> : SmartThings ne propose pas ces touches pour ce téléviseur. Marche, volume, chaînes, sources et applis fonctionnent.';
+    nn.classList.remove('hidden');
+  }else nn.classList.add('hidden');
+
+  $('#stVol').textContent=state.mute==='muted'?'Muet':(typeof state.volume==='number'?state.volume:'–');
+  $('#stCh').textContent=state.channelName||state.channel||'–';
+  const cur=(state.sources||[]).find(s=>s.id===state.source);
+  $('#stSrc').textContent=cur?cur.name:(state.source||'–');
+  if(typeof state.volume==='number'&&document.activeElement!==slider){slider.value=state.volume;$('#volVal').textContent=state.volume;}
+
+  const src=state.sources||[];
+  $('#srcSection').classList.toggle('hidden',!src.length);
+  $('#sources').innerHTML=src.map((s,i)=>`<button class="chip${s.id===state.source?' cur':''}" data-src="${i}">${esc(s.name)}</button>`).join('');
+  $$('[data-src]').forEach(b=>b.addEventListener('click',()=>{
+    const s=src[+b.dataset.src];buzz();
+    send(state.srcCap,'setInputSource',[s.id]).then(()=>{state.source=s.id;render();toast(s.name);});
+  }));
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+async function loadDevice(){
+  if(!token||!deviceId){render();return;}
+  try{
+    const d=await api('/devices/'+deviceId);
+    const main=(d.components||[]).find(c=>c.id==='main')||{capabilities:[]};
+    caps=new Set(main.capabilities.map(c=>c.id));
+    const name=d.label||d.name||'Téléviseur';
+    store.set(LS.name,name);$('#tvName').textContent=name;
+  }catch(e){handleErr(e);}
+  await refresh();
+}
+
+/* ---------- Réglages ---------- */
+function openSettings(){
+  $('#tokenIn').value=token;$('#setErr').textContent='';
+  $('#helpBox').open=!token;
+  $('#setSheet').classList.add('open');
+}
+$('#settingsBtn').addEventListener('click',openSettings);
+$('#refreshBtn').addEventListener('click',()=>{buzz();loadDevice();});
+$$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('.sheet').classList.remove('open')));
+$$('.sheet').forEach(s=>s.addEventListener('click',e=>{if(e.target===s)s.classList.remove('open');}));
+
+function isTv(d){
+  const caps=((d.components||[]).find(c=>c.id==='main')||{capabilities:[]}).capabilities.map(c=>c.id);
+  return (d.ocf&&d.ocf.ocfDeviceType==='oic.d.tv')||caps.includes('tvChannel')||caps.includes('samsungvd.remoteControl')||caps.includes('samsungvd.mediaInputSource');
+}
+$('#connectBtn').addEventListener('click',async()=>{
+  const t=$('#tokenIn').value.trim();
+  $('#setErr').textContent='';
+  if(!t){$('#setErr').textContent='Colle d\'abord ton jeton.';return;}
+  token=t;
+  $('#connectBtn').textContent='Recherche…';
+  try{
+    const r=await api('/devices');
+    devicesCache=(r.items||[]);
+    let tvs=devicesCache.filter(isTv);
+    if(!tvs.length)tvs=devicesCache;
+    if(!tvs.length){$('#setErr').textContent='Aucun appareil trouvé sur ce compte SmartThings. Ajoute d\'abord ta télé dans l\'appli SmartThings.';return;}
+    store.set(LS.tok,token);
+    $('#devSel').innerHTML=tvs.map(d=>`<option value="${esc(d.deviceId)}"${d.deviceId===deviceId?' selected':''}>${esc(d.label||d.name)}</option>`).join('');
+    $('#devBox').classList.remove('hidden');
+    if(tvs.length===1&&!deviceId){useDevice(tvs[0].deviceId);}
+  }catch(e){$('#setErr').textContent=e.message;}
+  finally{$('#connectBtn').textContent='Rechercher mes télés';}
+});
+function useDevice(id){
+  deviceId=id;store.set(LS.dev,id);
+  $('#setSheet').classList.remove('open');
+  toast('Télé enregistrée');
+  setConn('Connexion…');
+  loadDevice();
+}
+$('#useBtn').addEventListener('click',()=>useDevice($('#devSel').value));
+$('#forgetBtn').addEventListener('click',()=>{
+  if(!confirm('Effacer le jeton et la télé enregistrés sur ce téléphone ?'))return;
+  Object.values(LS).forEach(k=>store.del(k));
+  token='';deviceId='';caps=new Set();state={};
+  $('#tvName').textContent='Télécommande';setConn('Non configurée');
+  $('#tokenIn').value='';$('#devBox').classList.add('hidden');
+  render();
+});
+
+/* ---------- Démarrage ---------- */
+$('#tvName').textContent=store.get(LS.name)||'Télécommande';
+render();
+if(token&&deviceId){setConn('Connexion…');loadDevice();}
+else{setTimeout(openSettings,300);}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&token&&deviceId)refresh();});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body></html>
