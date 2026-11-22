@@ -13,7 +13,8 @@
 //   arcEclair (dés), vol, epines (dés), critMin, init, benitDebut,
 //   manaDebut, resist [types], cacheDebut, regen, peurReduite,
 //   peurDebut, sangSort, peurMin, saigne, orMult, bonusTest,
-//   vorpale (dés ajoutés aux critiques), antiCrit, antiRouille, sacSansFond
+//   vorpale (dés ajoutés aux critiques), antiCrit, antiRouille, sacSansFond,
+//   attireTirs (les tirs ennemis le visent), vuln [types] (dégâts ×2), temeraireDebut
 //   campagne    : objet qu'on ne trouve que dans cette campagne (et dans le Chaos)
 // =====================================================================
 
@@ -94,7 +95,36 @@ const OBJETS = {
   pieu_argent: { nom: 'Pieu d\'argent béni', icone: '🪵', rarete: 'rare', campagne: 'chateau', classes: ARMES, desc: 'Les coups d\'arme infligent +1d8 radiant (empêche les vampires de se régénérer).', mods: { traits: { armeElem: { des: '1d8', type: 'radiant' } } } },
   fragment_abime: { nom: 'Fragment de l\'Abîme', icone: '🌀', rarete: 'legendaire', campagne: 'abime', classes: null, desc: '+2 aux dégâts d\'arme, +2 aux sorts et au DD. Il murmure : +10 Peur au début de chaque combat.', mods: { bonusDegats: 2, bonusSort: 2, ddSort: 2, traits: { peurDebut: 10 } } },
 
+  arc_plus1: { nom: 'Arc +1', icone: '🏹', rarete: 'commun', classes: ['rodeur', 'roublard', 'guerrier'], desc: '+1 au toucher et aux dégâts avec les armes.', mods: { bonusArme: 1, bonusDegats: 1 } },
+  orbe_cristal: { nom: 'Orbe de cristal', icone: '🔮', rarete: 'commun', classes: LANCEURS, desc: '+1 aux attaques de sort et au DD.', mods: { bonusSort: 1, ddSort: 1 } },
+  pierre_alerte: { nom: 'Pierre d\'alerte', icone: '🔔', rarete: 'commun', classes: null, desc: '+3 à l\'initiative et +1 aux tests.', mods: { traits: { init: 3, bonusTest: 1 } } },
+  talisman_antidote: { nom: 'Talisman antipoison', icone: '🧿', rarete: 'commun', classes: null, desc: 'Résistance aux dégâts de poison.', mods: { traits: { resist: ['poison'] } } },
+  cape_hiver: { nom: 'Cape d\'hiver', icone: '🧣', rarete: 'commun', classes: null, desc: 'Résistance aux dégâts de froid.', mods: { traits: { resist: ['froid'] } } },
+  bracelets_cuir: { nom: 'Bracelets de cuir clouté', icone: '⛓️', rarete: 'commun', classes: ['magicien', 'ensorceleur', 'moine', 'druide', 'barde', 'occultiste', 'roublard'], desc: '+1 CA et +3 PV maximum.', mods: { ca: 1, pvMax: 3 } },
+  bracelets_defense: { nom: 'Bracelets de défense', icone: '🛡️', rarete: 'rare', classes: ['magicien', 'ensorceleur', 'moine', 'druide', 'barde', 'occultiste', 'roublard'], desc: '+2 CA (pour qui ne porte ni armure lourde ni bouclier).', mods: { ca: 2 } },
+  amulette_sante: { nom: 'Amulette de santé', icone: '💚', rarete: 'rare', classes: null, desc: '+10 PV maximum et +1 aux sauvegardes.', mods: { pvMax: 10, bonusSauv: 1 } },
+  anneau_resistance: { nom: 'Anneau de résistance', icone: '💍', rarete: 'rare', classes: null, desc: 'Résistance au feu et à la foudre.', mods: { traits: { resist: ['feu', 'foudre'] } } },
+  manteau_evasion: { nom: 'Manteau de l\'esquive', icone: '🧥', rarete: 'rare', classes: null, desc: 'Évasion : sauvegarde de DEX réussie, aucun dégât ; ratée, moitié.', mods: { traits: { evasion: true } } },
+  marque_givre: { nom: 'Marque-givre', icone: '❄️', rarete: 'rare', classes: ARMES, desc: '+1d6 froid à ses coups et résistance au froid.', mods: { traits: { armeElem: { des: '1d6', type: 'froid' }, resist: ['froid'] } } },
+  marteau_tonnerre: { nom: 'Marteau du tonnerre', icone: '🔨', rarete: 'rare', classes: ARMES, desc: '+1d6 tonnerre à ses coups.', mods: { traits: { armeElem: { des: '1d6', type: 'tonnerre' } } } },
+  piece_fortune: { nom: 'Pièce de la fortune', icone: '🪙', rarete: 'rare', classes: null, desc: 'Chanceux : deux fois par combat, relance une attaque ou une sauvegarde ratée.', mods: { traits: { chanceux: 2 } } },
+  etendard_meneur: { nom: 'Fanion du meneur', icone: '🚩', rarete: 'rare', classes: null, desc: 'Au début de chaque combat, toute l\'équipe gagne 5 PV temporaires.', mods: { traits: { meneur: true } } },
+  pierre_ioun_protection: { nom: 'Pierre ioun de protection', icone: '💠', rarete: 'rare', classes: null, desc: '+1 CA et commence chaque combat avec quelques PV temporaires.', mods: { ca: 1, traits: { egide: 2 } } },
+  lame_solaire: { nom: 'Lame solaire', icone: '☀️', rarete: 'legendaire', classes: ARMES, desc: '+2 au toucher et aux dégâts, +1d8 radiant à ses coups.', mods: { bonusArme: 2, bonusDegats: 2, traits: { armeElem: { des: '1d8', type: 'radiant' } } } },
+  ceinture_geant: { nom: 'Ceinture de force de géant', icone: '🥋', rarete: 'legendaire', classes: ARMES, desc: '+2 au toucher et +4 aux dégâts avec les armes.', mods: { bonusArme: 2, bonusDegats: 4 } },
+  armure_invulnerabilite: { nom: 'Armure d\'invulnérabilité', icone: '🛡️', rarete: 'legendaire', classes: ARMURES, desc: '+1 CA et −4 à chaque coup subi.', mods: { ca: 1, traits: { reduction: 4 } } },
+  robe_archimage: { nom: 'Robe de l\'archimage', icone: '🥻', rarete: 'legendaire', classes: ['magicien', 'ensorceleur', 'occultiste'], desc: '+2 aux sorts et au DD, +2 CA, avantage aux sauvegardes de concentration.', mods: { bonusSort: 2, ddSort: 2, ca: 2, traits: { mageGuerre: true } } },
+  pierre_ioun_maitrise: { nom: 'Pierre ioun de maîtrise', icone: '🔷', rarete: 'legendaire', classes: null, desc: '+1 au toucher (armes et sorts), au DD et à toutes les sauvegardes.', mods: { bonusArme: 1, bonusSort: 1, ddSort: 1, bonusSauv: 1 } },
+  symbole_aube: { nom: 'Symbole sacré de l\'aube', icone: '🔆', rarete: 'legendaire', classes: ['clerc', 'paladin'], desc: '+1 aux sorts et au DD, +3 aux dégâts de tous ses sorts.', mods: { bonusSort: 1, ddSort: 1, traits: { adepte: 3 } } },
   // -------------------------------------------------------- maudits
+  epee_vengeance: { nom: 'Épée de la vengeance', icone: '🗡️', rarete: 'maudit', classes: ARMES, desc: '+2 au toucher et aux dégâts. Malédiction : elle réclame le sang, −2 CA.', mods: { bonusArme: 2, bonusDegats: 2, ca: -2 } },
+  bouclier_attraction: { nom: 'Bouclier d\'attraction des projectiles', icone: '🎯', rarete: 'maudit', classes: ARMURES, desc: '+2 CA et résistance aux dégâts perforants. Malédiction : les tirs et sorts à distance des ennemis le visent en priorité.', mods: { ca: 2, traits: { resist: ['perforant'], attireTirs: true } } },
+  armure_vulnerabilite: { nom: 'Armure de vulnérabilité', icone: '🦺', rarete: 'maudit', classes: null, desc: 'Résistance aux dégâts tranchants. Malédiction : vulnérabilité aux dégâts contondants (×2).', mods: { traits: { resist: ['tranchant'], vuln: ['contondant'] } } },
+  dague_sacrifice: { nom: 'Dague du sacrifice', icone: '🔪', rarete: 'maudit', classes: null, desc: '+1d6 nécrotique à ses coups. Malédiction : −8 PV maximum.', mods: { pvMax: -8, traits: { armeElem: { des: '1d6', type: 'nécrotique' } } } },
+  talisman_mauvais_sort: { nom: 'Talisman du mauvais sort', icone: '🪬', rarete: 'maudit', classes: LANCEURS, desc: '+2 au DD de ses sorts. Malédiction : −2 à toutes ses sauvegardes.', mods: { ddSort: 2, bonusSauv: -2 } },
+  bottes_danse: { nom: 'Bottes de danse irrésistible', icone: '👠', rarete: 'maudit', classes: null, desc: '+6 à l\'initiative. Malédiction : il danse au début du combat, les attaques contre lui ont l\'avantage pendant ses deux premiers tours.', mods: { traits: { init: 6, temeraireDebut: true } } },
+  heaume_folie: { nom: 'Heaume de la folie', icone: '🪖', rarete: 'maudit', classes: null, desc: '+3 aux attaques de sort et au DD. Malédiction : +20 Peur au début de chaque combat.', mods: { bonusSort: 3, ddSort: 3, traits: { peurDebut: 20 } } },
+  gantelets_rage: { nom: 'Gantelets de rage aveugle', icone: '🥊', rarete: 'maudit', classes: ARMES, desc: '+5 aux dégâts avec les armes. Malédiction : −3 au toucher.', mods: { bonusDegats: 5, bonusArme: -3 } },
   hache_sanglante: { nom: 'Hache sanglante', icone: '🪓', rarete: 'maudit', classes: ARMES, desc: '+3 aux dégâts avec les armes. Malédiction : +15 Peur au début de chaque combat.', mods: { bonusDegats: 3, traits: { peurDebut: 15 } } },
   grimoire_interdit: { nom: 'Grimoire interdit', icone: '📕', rarete: 'maudit', classes: LANCEURS, desc: '+2 aux sorts et au DD. Malédiction : chaque emplacement dépensé coûte 3 PV.', mods: { bonusSort: 2, ddSort: 2, traits: { sangSort: 3 } } },
   masque_dement: { nom: 'Masque du dément', icone: '🎭', rarete: 'maudit', classes: null, desc: '+2 au toucher (armes et sorts). Malédiction : la Peur ne descend jamais sous 30.', mods: { bonusArme: 2, bonusSort: 2, traits: { peurMin: 30 } } },
@@ -188,11 +218,11 @@ const AMELIORATIONS = {
 // Récompenses. Une offre : { categorie, pj, cle, titre, icone, desc, rarete?, quantite? }
 // ---------------------------------------------------------------------
 const CHANCES_RARETE = {
-  combat: { commun: 60, rare: 30, legendaire: 3, maudit: 7 },
-  elite: { commun: 25, rare: 50, legendaire: 15, maudit: 10 },
-  tresor: { commun: 30, rare: 45, legendaire: 15, maudit: 10 },
-  boss: { commun: 0, rare: 55, legendaire: 40, maudit: 5 },
-  marchand: { commun: 45, rare: 40, legendaire: 8, maudit: 7 }
+  combat: { commun: 57, rare: 30, legendaire: 3, maudit: 10 },
+  elite: { commun: 22, rare: 50, legendaire: 15, maudit: 13 },
+  tresor: { commun: 26, rare: 45, legendaire: 15, maudit: 14 },
+  boss: { commun: 0, rare: 53, legendaire: 40, maudit: 7 },
+  marchand: { commun: 42, rare: 40, legendaire: 8, maudit: 10 }
 };
 
 // Chance qu'un combat ordinaire propose un objet magique (élites et boss : garanti)
