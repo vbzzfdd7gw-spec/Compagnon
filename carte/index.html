@@ -102,6 +102,13 @@ dialog .aide{margin-top:12px;color:var(--doux);font-size:13px}
 dialog .aide summary{cursor:pointer;color:var(--texte)}
 #ambiance{max-width:170px;appearance:none;-webkit-appearance:none}
 @media (max-width:720px){ #ambiance{max-width:46px} }
+#dlg-exemples{max-width:min(94vw,620px)}
+#liste-exemples{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:12px;max-height:60vh;overflow:auto}
+.exemple{background:var(--panneau2);border:1px solid var(--ligne);border-radius:12px;padding:0;overflow:hidden;text-align:left;display:flex;flex-direction:column}
+.exemple:hover{border-color:var(--accent)}
+.exemple img{width:100%;aspect-ratio:3/2;object-fit:cover;display:block;background:#0d0f14}
+.exemple b{display:block;padding:8px 10px 2px}
+.exemple span{display:block;padding:0 10px 10px;color:var(--doux);font-size:12px}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--panneau2);border:1px solid var(--ligne);
   border-radius:999px;padding:8px 16px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.vu{opacity:1}
@@ -134,6 +141,7 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
     <button class="btn" id="b-menu" aria-haspopup="true" aria-expanded="false">☰<span class="txt"> Fichier</span></button>
     <div class="menu" id="menu" hidden>
       <button data-act="nouvelle">🗺️ Nouvelle carte…</button>
+      <button data-act="exemples">📚 Cartes d'exemple…</button>
       <button data-act="taille">📐 Taille de la carte…</button>
       <hr>
       <button data-act="ouvrir">📂 Ouvrir un fichier (.json)</button>
@@ -223,6 +231,15 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
       <p><b>.json</b> : la scène seule (murs, portes, lumières, grille). Télécharge aussi « Image de la scène seule » avec les mêmes réglages et téléverse-la dans le dossier indiqué, puis importe le .json comme ci-dessus.</p>
       <p><b>.dd2vtt</b> : avec le module <i>Universal Battlemap Importer</i>, tout s'importe d'un coup (image, murs, portes, lumières). Les fenêtres ne sont pas prises en charge par ce format.</p>
     </details>
+  </form>
+</dialog>
+
+<dialog id="dlg-exemples">
+  <form method="dialog">
+    <h2>Cartes d'exemple</h2>
+    <p class="resume">Ouvre une carte pour la modifier, t'en inspirer ou l'exporter vers Foundry. Elle remplace la carte en cours : enregistre celle-ci d'abord si tu veux la garder.</p>
+    <div id="liste-exemples"></div>
+    <div class="pieds"><button class="btn" value="annuler">Fermer</button></div>
   </form>
 </dialog>
 
@@ -1601,7 +1618,7 @@ bMenu.onclick=e=>{ e.stopPropagation(); menu.hidden=!menu.hidden; bMenu.setAttri
 document.addEventListener('click',e=>{ if(!menu.contains(e.target)) fermerMenu(); });
 menu.onclick=e=>{ const b=e.target.closest('button'); if(!b) return; fermerMenu();
   ({ nouvelle:()=>dialogueTaille(true), taille:()=>dialogueTaille(false), ouvrir:()=>document.getElementById('f-json').click(),
-     enregistrer:enregistrerFichier, png:exporterPNG, foundry:dialogueExport,
+     enregistrer:enregistrerFichier, png:exporterPNG, foundry:dialogueExport, exemples:dialogueExemples,
      murs:()=>{ if(confirm('Effacer tous les murs (épais, fins, portes et fenêtres) ?')) effacerTousLesMurs(); },
      vider:()=>{ if(!confirm('Tout effacer sur cette carte ?')) return; memoriser(); carte.sol.fill(null); carte.murs.fill(null); carte.objets.fill(null); carte.bh.fill(null); carte.bv.fill(null); apresModif(); } })[b.dataset.act]?.(); };
 
@@ -1764,6 +1781,25 @@ function zip(fichiers){ const enc=new TextEncoder(), morceaux=[], central=[]; le
   fin.setUint32(0,0x06054b50,true); fin.setUint16(8,fichiers.length,true); fin.setUint16(10,fichiers.length,true);
   fin.setUint32(12,tailleCentral,true); fin.setUint32(16,pos,true);
   return new Blob([...morceaux,...central,new Uint8Array(fin.buffer)],{type:'application/zip'}); }
+
+/* Cartes d'exemple (dossier exemples/) */
+const EXEMPLES=[
+  {id:'taverne',nom:'Taverne du Sanglier Ivre',desc:'Salle commune, cuisine, réserve, chambres et rue pavée. Ambiance intérieure.'},
+  {id:'grotte',nom:'Grotte des Murmures',desc:'Cavernes, lac souterrain, gouffre et pont, cristaux, nid d\'araignées, brigands, mine.'},
+  {id:'sanctuaire',nom:'Sanctuaire du Culte',desc:'Cercle d\'invocation, ossuaire, cellules, laboratoire et porte secrète. Ambiance crypte.'},
+  {id:'clairiere',nom:'Clairière de la Rivière',desc:'Hameau, rivière et pont, marché, campement et forêt. En plein jour.'},
+];
+const dlgExemples=document.getElementById('dlg-exemples');
+function dialogueExemples(){ const l=document.getElementById('liste-exemples'); l.innerHTML='';
+  for(const e of EXEMPLES){ const b=document.createElement('button'); b.type='button'; b.className='exemple';
+    b.innerHTML=`<img src="exemples/${e.id}.webp" alt="" loading="lazy"><b></b><span></span>`; b.querySelector('b').textContent=e.nom; b.querySelector('span').textContent=e.desc;
+    b.onclick=()=>ouvrirExemple(e); l.appendChild(b); }
+  dlgExemples.showModal(); }
+async function ouvrirExemple(e){
+  try{ const rep=await fetch(`exemples/${e.id}.json`); if(!rep.ok) throw 0; const d=validerCarte(await rep.json()); if(!d) throw 0;
+    dlgExemples.close(); carte=d; nomEl.value=carte.nom; selAmb.value=carte.ambiance; pile.length=0; pileRefaire.length=0;
+    chargerImagesCarte(); construirePalette(); cadrer(); apresModif(); toast(`« ${e.nom} » ouverte`); }
+  catch{ toast('Impossible d\'ouvrir cette carte (connexion ?)'); } }
 
 /* Ouvrir / importer */
 function validerCarte(d){ if(!d||typeof d!=='object'||!Number.isInteger(d.l)||!Number.isInteger(d.h)||d.l<1||d.h<1||d.l>500||d.h>500) return null;
