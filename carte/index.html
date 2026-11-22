@@ -987,7 +987,7 @@ function rendre(){ renduDemande=false; if(!carte) return;
     if(ci&&ci.calque==='bords'){ const b=ci.b||bordProche(survolMonde.x,survolMonde.y); if(b){ ctx.fillStyle='rgba(229,96,77,.85)'; ctx.fillRect(...rectBord(b)); } }
     else if(etat.zoneGomme){ const cx=Math.floor(survolMonde.x), cy=Math.floor(survolMonde.y); ctx.setLineDash([6/cam.s,4/cam.s]); ctx.strokeRect(cx*T,cy*T,T,T); ctx.setLineDash([]); }
     else if(ci&&ci.calque==='tousMurs'&&etat.taillePinceau===1){ const cx=Math.floor(survolMonde.x), cy=Math.floor(survolMonde.y), b=bordProche(survolMonde.x,survolMonde.y);
-      ctx.strokeRect(cx*T,cy*T,T,T); if(b&&b.d<TOL_BORD&&lireBord(b)){ ctx.fillStyle='rgba(229,96,77,.85)'; ctx.fillRect(...rectBord(b)); } }
+      ctx.strokeRect(cx*T,cy*T,T,T); if(b&&b.d<tolBord()&&lireBord(b)){ ctx.fillStyle='rgba(229,96,77,.85)'; ctx.fillRect(...rectBord(b)); } }
     else if(ci&&ci.calque==='objets'&&etat.taillePinceau===1){ const ob=ci.ob||objetCouvrant(Math.floor(survolMonde.x),Math.floor(survolMonde.y));
       if(ob){ const [l,h]=empreinte(ob.a,ob.o[1]); ctx.fillRect(ob.x*T,ob.y*T,l*T,h*T); ctx.strokeRect(ob.x*T,ob.y*T,l*T,h*T); } }
     else { const n=etat.taillePinceau, d=Math.floor((n-1)/2), cx=Math.floor(survolMonde.x), cy=Math.floor(survolMonde.y); ctx.strokeRect((cx-d)*T,(cy-d)*T,n*T,n*T); } }
@@ -1098,7 +1098,8 @@ function poser(x,y){ const a=asset(etat.assetId); if(!a) return;
 /* ---------- Gomme ----------
    Le premier clic choisit ce qu'on efface (mur fin, objet, mur, sol) et le trait s'y tient :
    on ne troue jamais le sol en voulant effacer un mur. Supprimer une porte rebouche le mur. */
-const TOL_BORD=.3; // distance (en cases) jusqu'à laquelle un clic vise un mur fin
+// distance (en cases) jusqu'à laquelle un clic vise un mur fin : au moins ~24 px à l'écran, confortable au doigt
+const tolBord=()=>Math.min(.48,Math.max(.3,24/(cam.s*T)));
 function objetCouvrant(x,y){ // l'objet (même de plusieurs cases) qui recouvre la case x,y
   for(let j=0;j<=6;j++) for(let i=0;i<=6;i++){ const ax=x-i, ay=y-j; if(!dedans(ax,ay)) continue; const o=carte.objets[idx(ax,ay)], a=o&&asset(o[0]); if(!a) continue;
     const [l,h]=empreinte(a,o[1]); if(i<l&&j<h) return {x:ax,y:ay,o,a}; }
@@ -1118,13 +1119,19 @@ function cibleGomme(m){ const c={x:Math.floor(m.x),y:Math.floor(m.y)}, b=bordPro
   if(etat.modeGomme==='murs') return {calque:'tousMurs'};
   if(etat.modeGomme==='objets') return {calque:'objets'};
   if(etat.modeGomme==='sol') return {calque:'sol'};
-  if(surBord&&b.d<TOL_BORD) return {calque:'bords',b};
+  if(surBord&&b.d<tolBord()) return {calque:'bords',b};
   if(!dedans(c.x,c.y)) return null;
   const ob=objetCouvrant(c.x,c.y); if(ob) return {calque:'objets',ob};
   if(carte.murs[idx(c.x,c.y)]) return {calque:'murs',c};
   if(surBord&&b.d<.45) return {calque:'bords',b};
   if(carte.sol[idx(c.x,c.y)]) return {calque:'sol',c};
   return null; }
+function effacerLigneBords(b){ // depuis un bord, efface la ligne droite de murs fins (et ses ouvertures) jusqu'au premier vide
+  const pas=b.o==='h'?[1,0]:[0,1]; let n=0;
+  for(const sens of [-1,1]){ let x=b.x+pas[0]*sens, y=b.y+pas[1]*sens;
+    while(x>=0&&y>=0&&(b.o==='h'?(x<carte.l&&y<=carte.h):(x<=carte.l&&y<carte.h))){ const e={o:b.o,x,y}; if(!lireBord(e)) break; ecrireBord(e,null); n++; x+=pas[0]*sens; y+=pas[1]*sens; } }
+  ecrireBord(b,null); return n; }
+let dernierTapBord=null;
 function effacerBordsZone(xa,ya,xb,yb){ // tous les murs fins dans un rectangle de cases, pourtour compris
   for(let y=Math.max(0,ya);y<=Math.min(carte.h,yb+1);y++) for(let x=Math.max(0,xa);x<=Math.min(carte.l-1,xb);x++) carte.bh[iH(x,y)]=null;
   for(let y=Math.max(0,ya);y<=Math.min(carte.h-1,yb);y++) for(let x=Math.max(0,xa);x<=Math.min(carte.l,xb+1);x++) carte.bv[iV(x,y)]=null; }
@@ -1141,10 +1148,10 @@ function effacerTousLesMurs(){ memoriser(); carte.murs.fill(null); carte.bh.fill
 function gommerVers(g,m){ // efface sur le calque choisi, de la position précédente jusqu'à m
   const n=etat.taillePinceau, d=Math.hypot(m.x-g.m.x,m.y-g.m.y), pas=Math.max(1,Math.ceil(d/.1));
   for(let k=1;k<=pas||k===1;k++){ const t=pas?k/pas:1, x=g.m.x+(m.x-g.m.x)*t, y=g.m.y+(m.y-g.m.y)*t;
-    if(g.calque==='bords'){ const b=bordProche(x,y); if(b&&b.d<TOL_BORD+(n-1)*.5&&lireBord(b)) retirerBord(b); }
+    if(g.calque==='bords'){ const b=bordProche(x,y); if(b&&b.d<tolBord()+(n-1)*.5&&lireBord(b)) retirerBord(b); }
     else if(g.calque==='tousMurs'){ const cx=Math.floor(x), cy=Math.floor(y), r=Math.floor((n-1)/2);
       for(let j=0;j<n;j++) for(let i=0;i<n;i++) if(dedans(cx-r+i,cy-r+j)) effacerMursCase(cx-r+i,cy-r+j);
-      if(n>1) effacerBordsZone(cx-r,cy-r,cx-r+n-1,cy-r+n-1); else { const b=bordProche(x,y); if(b&&b.d<TOL_BORD&&lireBord(b)) ecrireBord(b,null); } }
+      if(n>1) effacerBordsZone(cx-r,cy-r,cx-r+n-1,cy-r+n-1); else { const b=bordProche(x,y); if(b&&b.d<tolBord()&&lireBord(b)) ecrireBord(b,null); } }
     else { const cx=Math.floor(x), cy=Math.floor(y), r=Math.floor((n-1)/2);
       for(let j=0;j<n;j++) for(let i=0;i<n;i++){ const px=cx-r+i, py=cy-r+j; if(!dedans(px,py)) continue; const id=idx(px,py);
         if(g.calque==='objets'){ const ob=objetCouvrant(px,py); if(ob) retirerObjet(ob.x,ob.y); }
@@ -1203,7 +1210,11 @@ cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); const 
     if(aSel.ouverture){ memoriser(); ecrireBord(b,etat.assetId); apresModif(); return; }
     geste={type:'bords', b0:b}; apercuBords=[b]; demanderRendu(); return; }
   if(etat.outil==='gomme' && etat.zoneGomme){ geste={type:'gommeZone'}; apercuRect={x0:c.x,y0:c.y,x1:c.x,y1:c.y,gomme:true}; demanderRendu(); return; }
-  if(etat.outil==='gomme'){ const cible=cibleGomme(m); memoriser(); geste={type:'gomme',calque:cible?cible.calque:null,m};
+  if(etat.outil==='gomme'){ const bp=bordProche(m.x,m.y), maint=performance.now();
+    if(bp&&dernierTapBord&&maint-dernierTapBord.t<450&&bp.o===dernierTapBord.b.o&&bp.x===dernierTapBord.b.x&&bp.y===dernierTapBord.b.y){ // double-tap
+      dernierTapBord=null; memoriser(); const n=effacerLigneBords(bp); apresModif(); if(n) toast('Ligne de mur effacée'); return; }
+    const cible=cibleGomme(m); dernierTapBord=(cible&&(cible.calque==='bords'||cible.calque==='tousMurs')&&bp&&bp.d<tolBord())?{t:maint,b:bp}:null;
+    memoriser(); geste={type:'gomme',calque:cible?cible.calque:null,m};
     if(cible){ if(cible.calque==='bords') retirerBord(cible.b); else gommerVers(geste,m); } demanderRendu(); return; }
   if(etat.outil==='pipette'){ const b=bordProche(m.x,m.y); if(b&&b.d<.2&&lireBord(b)){ choisirAsset(lireBord(b)); choisirOutil('pinceau'); return; } pipette(c.x,c.y); return; }
   if(etat.outil==='remplir'){ memoriser(); remplir(c.x,c.y); apresModif(); return; }
