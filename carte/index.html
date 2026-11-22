@@ -195,11 +195,14 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
     <p class="resume" id="ex-resume"></p>
     <div class="pieds col">
       <button class="btn actif" value="zip">📦 Foundry : image + scène (.zip)</button>
+      <button class="btn" value="json">📄 Scène Foundry seule (.json)</button>
+      <button class="btn" value="image">🖼️ Image de la scène seule</button>
       <button class="btn" value="uvtt">🗺️ Universal VTT (.dd2vtt)</button>
       <button class="btn" value="annuler">Annuler</button>
     </div>
     <details class="aide"><summary>Comment importer dans Foundry ?</summary>
       <p><b>.zip</b> : décompresse-le. Dans Foundry, ouvre le navigateur de fichiers, crée le dossier indiqué ci-dessus (dans <i>Data</i>) et téléverse l'image. Crée une scène vide, fais un clic droit dessus dans l'onglet Scènes → <i>Importer des données</i>, puis choisis le fichier <i>.json</i>. Murs, portes et lumières sont en place.</p>
+      <p><b>.json</b> : la scène seule (murs, portes, lumières, grille). Télécharge aussi « Image de la scène seule » avec les mêmes réglages et téléverse-la dans le dossier indiqué, puis importe le .json comme ci-dessus.</p>
       <p><b>.dd2vtt</b> : avec le module <i>Universal Battlemap Importer</i>, tout s'importe d'un coup (image, murs, portes, lumières). Les fenêtres ne sont pas prises en charge par ce format.</p>
     </details>
   </form>
@@ -860,9 +863,9 @@ function dialogueExport(){
   try{ const s=JSON.parse(localStorage.getItem(CLE_EXPORT)||'{}'); for(const id of champsEx) if(id in s){ const e=document.getElementById(id); if(e.type==='checkbox') e.checked=s[id]; else e.value=s[id]; } }catch{}
   majResumeEx(); dlgEx.returnValue=''; dlgEx.showModal(); }
 champsEx.forEach(id=>document.getElementById(id).addEventListener('input',majResumeEx));
-dlgEx.addEventListener('close',async()=>{ const choix=dlgEx.returnValue; if(choix!=='zip'&&choix!=='uvtt') return;
+dlgEx.addEventListener('close',async()=>{ const choix=dlgEx.returnValue; if(!['zip','uvtt','json','image'].includes(choix)) return;
   const o=lireOptionsEx(); o.ppc=ppcPossible(o.ppc); toast('Préparation de l\'export…'); await new Promise(r=>setTimeout(r,30));
-  try{ if(choix==='zip') await exporterFoundry(o); else await exporterUVTT(o); }
+  try{ await ({zip:exporterFoundry, uvtt:exporterUVTT, json:exporterSceneJSON, image:exporterImageScene})[choix](o); }
   catch(err){ console.error(err); toast('Échec de l\'export'); }
   viderCache(); demanderRendu(); });
 
@@ -893,11 +896,20 @@ function sceneFoundry(o,cheminImage){ const S=o.ppc, g=geometrieVTT(), r=v=>Math
     tokenVision:true, fogExploration:true,
     globalLight:!o.sombre, darkness:sombre, environment:{darknessLevel:sombre, globalLight:{enabled:!o.sombre}},
     walls, lights, tokens:[], notes:[], sounds:[], templates:[], tiles:[], drawings:[], flags:{'atelier-cartes':{version:1}} }; }
+// L'image est en webp si le navigateur sait l'écrire, sinon en png (Safari ancien)
+let extImage=null;
+async function formatImage(){ if(!extImage){ const b=await versBlob(toile(2,2),'image/webp',.9); extImage=b&&b.type==='image/webp'?'webp':'png'; } return extImage; }
+async function imageScene(o){ const ext=await formatImage();
+  return { blob:await versBlob(rendreImage(o.ppc,o.grille),'image/'+ext,.92), ext }; }
+const cheminImage=(o,ext)=>(o.dossier?o.dossier+'/':'')+`${nomSimple()}.${ext}`;
+async function exporterSceneJSON(o){ const ext=await formatImage(), scene=sceneFoundry(o,cheminImage(o,ext));
+  telecharger(new Blob([JSON.stringify(scene,null,1)],{type:'application/json'}),`${nomSimple()}-scene.json`);
+  toast(`Scène exportée : ${scene.walls.length} murs, ${scene.lights.length} lumières · image attendue : ${cheminImage(o,ext)}`); }
+async function exporterImageScene(o){ const {blob,ext}=await imageScene(o);
+  telecharger(blob,`${nomSimple()}.${ext}`); toast(`Image exportée (${carte.l*o.ppc} × ${carte.h*o.ppc} px)`); }
 async function exporterFoundry(o){
-  const img=rendreImage(o.ppc,o.grille);
-  let blob=await versBlob(img,'image/webp',.92), ext='webp';
-  if(!blob||blob.type!=='image/webp'){ blob=await versBlob(img,'image/png'); ext='png'; }
-  const base=nomSimple(), fImage=`${base}.${ext}`, chemin=(o.dossier?o.dossier+'/':'')+fImage;
+  const {blob,ext}=await imageScene(o);
+  const base=nomSimple(), fImage=`${base}.${ext}`, chemin=cheminImage(o,ext);
   const scene=sceneFoundry(o,chemin);
   const lisez=`${carte.nom} — export Atelier de Cartes pour Foundry VTT (v10 et suivantes)
 
