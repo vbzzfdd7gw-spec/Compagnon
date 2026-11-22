@@ -819,9 +819,15 @@ function rendre(){ renduDemande=false; if(!carte) return;
   if(apercuRect){ const {xa,ya,xb,yb}=normRect(apercuRect); ctx.fillStyle='rgba(240,168,58,.22)'; ctx.fillRect(xa*T,ya*T,(xb-xa+1)*T,(yb-ya+1)*T);
     ctx.strokeStyle='#f0a83a'; ctx.lineWidth=2/cam.s; ctx.strokeRect(xa*T,ya*T,(xb-xa+1)*T,(yb-ya+1)*T); }
   else if(apercuBords){ ctx.fillStyle='rgba(240,168,58,.75)'; for(const b of apercuBords) ctx.fillRect(...rectBord(b)); }
-  else if(survolMonde && etat.outil!=='main' && ((etat.outil==='pinceau'&&asset(etat.assetId)?.calque==='bords')||(etat.outil==='gomme'&&bordGommable(survolMonde)))){
-    const b=bordProche(survolMonde.x,survolMonde.y); if(b){ ctx.fillStyle=etat.outil==='gomme'?'rgba(229,96,77,.8)':'rgba(255,255,255,.7)'; ctx.fillRect(...rectBord(b)); } }
-  else if(survol && dedans(survol.x,survol.y) && etat.outil!=='main'){
+  else if(survolMonde && etat.outil==='gomme'){ const ci=(geste&&geste.calque)?{calque:geste.calque}:cibleGomme(survolMonde);
+    ctx.fillStyle='rgba(229,96,77,.35)'; ctx.strokeStyle='#e5604d'; ctx.lineWidth=2/cam.s;
+    if(ci&&ci.calque==='bords'){ const b=ci.b||bordProche(survolMonde.x,survolMonde.y); if(b){ ctx.fillStyle='rgba(229,96,77,.85)'; ctx.fillRect(...rectBord(b)); } }
+    else if(ci&&ci.calque==='objets'&&etat.taillePinceau===1){ const ob=ci.ob||objetCouvrant(Math.floor(survolMonde.x),Math.floor(survolMonde.y));
+      if(ob){ const [l,h]=empreinte(ob.a,ob.o[1]); ctx.fillRect(ob.x*T,ob.y*T,l*T,h*T); ctx.strokeRect(ob.x*T,ob.y*T,l*T,h*T); } }
+    else { const n=etat.taillePinceau, d=Math.floor((n-1)/2), cx=Math.floor(survolMonde.x), cy=Math.floor(survolMonde.y); ctx.strokeRect((cx-d)*T,(cy-d)*T,n*T,n*T); } }
+  else if(survolMonde && etat.outil==='pinceau' && asset(etat.assetId)?.calque==='bords'){
+    const b=bordProche(survolMonde.x,survolMonde.y); if(b){ ctx.fillStyle='rgba(255,255,255,.7)'; ctx.fillRect(...rectBord(b)); } }
+  else if(survol && dedans(survol.x,survol.y) && etat.outil!=='main' && etat.outil!=='gomme'){
     const a=asset(etat.assetId);
     if(etat.outil==='pinceau' && a && a.calque==='objets'){ const rot=a.ouverture?orientationAuto(survol.x,survol.y,a):etat.rot;
       ctx.globalAlpha=.6; const im=objetCanvas(etat.assetId,rot,k); if(im) ctx.drawImage(im,survol.x*T-im.m,survol.y*T-im.m,im.lw,im.lh); ctx.globalAlpha=1;
@@ -923,7 +929,44 @@ function poser(x,y){ const a=asset(etat.assetId); if(!a) return;
   if(a.calque==='objets'){ poserObjet(x,y,etat.assetId,etat.rot); return; }
   pinceauCarre(x,y,(i)=>{ carte[a.calque][i]=etat.assetId; if(a.calque==='murs') carte.objets[i]=null; });
 }
-function gommer(x,y){ pinceauCarre(x,y,(i)=>{ if(carte.objets[i]) carte.objets[i]=null; else if(carte.murs[i]) carte.murs[i]=null; else carte.sol[i]=null; }); }
+/* ---------- Gomme ----------
+   Le premier clic choisit ce qu'on efface (mur fin, objet, mur, sol) et le trait s'y tient :
+   on ne troue jamais le sol en voulant effacer un mur. Supprimer une porte rebouche le mur. */
+const TOL_BORD=.3; // distance (en cases) jusqu'à laquelle un clic vise un mur fin
+function objetCouvrant(x,y){ // l'objet (même de plusieurs cases) qui recouvre la case x,y
+  for(let j=0;j<=6;j++) for(let i=0;i<=6;i++){ const ax=x-i, ay=y-j; if(!dedans(ax,ay)) continue; const o=carte.objets[idx(ax,ay)], a=o&&asset(o[0]); if(!a) continue;
+    const [l,h]=empreinte(a,o[1]); if(i<l&&j<h) return {x:ax,y:ay,o,a}; }
+  return null; }
+function retirerObjet(x,y){ const i=idx(x,y), o=carte.objets[i], a=o&&asset(o[0]); carte.objets[i]=null;
+  if(a&&a.ouverture&&a.ouverture!=='secrete'){ const [l,h]=empreinte(a,o[1]), horiz=l!==h?l>h:o[1]%2===0;
+    const mur=(dx,dy)=>dedans(x+dx,y+dy)?carte.murs[idx(x+dx,y+dy)]:null;
+    const voisin=horiz?(mur(-1,0)||mur(l,0)):(mur(0,-1)||mur(0,h));
+    if(voisin) for(let j=0;j<h;j++) for(let k=0;k<l;k++) if(dedans(x+k,y+j)) carte.murs[idx(x+k,y+j)]=voisin; } }
+function retirerBord(b){ const v=lireBord(b), a=v&&asset(v); if(!a) return;
+  if(a.ouverture){ // une porte, fenêtre ou arche retirée : on rebouche avec le mur fin voisin s'il y en a un
+    const voisins=b.o==='h'?[{o:'h',x:b.x-1,y:b.y},{o:'h',x:b.x+1,y:b.y}]:[{o:'v',x:b.x,y:b.y-1},{o:'v',x:b.x,y:b.y+1}];
+    for(const n of voisins){ if(n.x<0||n.y<0||(n.o==='h'&&(n.x>=carte.l||n.y>carte.h))||(n.o==='v'&&(n.x>carte.l||n.y>=carte.h))) continue;
+      const w=lireBord(n); if(w&&asset(w)&&!asset(w).ouverture){ ecrireBord(b,w); return; } } }
+  ecrireBord(b,null); }
+function cibleGomme(m){ const c={x:Math.floor(m.x),y:Math.floor(m.y)}, b=bordProche(m.x,m.y), surBord=b&&lireBord(b);
+  if(surBord&&b.d<TOL_BORD) return {calque:'bords',b};
+  if(!dedans(c.x,c.y)) return null;
+  const ob=objetCouvrant(c.x,c.y); if(ob) return {calque:'objets',ob};
+  if(carte.murs[idx(c.x,c.y)]) return {calque:'murs',c};
+  if(surBord&&b.d<.45) return {calque:'bords',b};
+  if(carte.sol[idx(c.x,c.y)]) return {calque:'sol',c};
+  return null; }
+function gommerVers(g,m){ // efface sur le calque choisi, de la position précédente jusqu'à m
+  const n=etat.taillePinceau, d=Math.hypot(m.x-g.m.x,m.y-g.m.y), pas=Math.max(1,Math.ceil(d/.1));
+  for(let k=1;k<=pas||k===1;k++){ const t=pas?k/pas:1, x=g.m.x+(m.x-g.m.x)*t, y=g.m.y+(m.y-g.m.y)*t;
+    if(g.calque==='bords'){ const b=bordProche(x,y); if(b&&b.d<TOL_BORD+(n-1)*.5&&lireBord(b)) retirerBord(b); }
+    else { const cx=Math.floor(x), cy=Math.floor(y), r=Math.floor((n-1)/2);
+      for(let j=0;j<n;j++) for(let i=0;i<n;i++){ const px=cx-r+i, py=cy-r+j; if(!dedans(px,py)) continue; const id=idx(px,py);
+        if(g.calque==='objets'){ const ob=objetCouvrant(px,py); if(ob) retirerObjet(ob.x,ob.y); }
+        else if(g.calque==='murs') carte.murs[id]=null;
+        else if(g.calque==='sol') carte.sol[id]=null; } }
+    if(k>=pas) break; }
+  g.m=m; }
 function pinceauCarre(x,y,f){ const n=etat.taillePinceau, d=Math.floor((n-1)/2);
   for(let j=0;j<n;j++) for(let i=0;i<n;i++){ const cx=x-d+i, cy=y-d+j; if(dedans(cx,cy)) f(idx(cx,cy)); } }
 function ligne(x0,y0,x1,y1,f){ const dx=Math.abs(x1-x0), dy=-Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1; let e=dx+dy;
@@ -948,14 +991,13 @@ function appliquerRect(r,piece){ const {xa,ya,xb,yb}=normRect(r); const a=asset(
   if(!a||a.calque==='bords') return;
   for(let y=ya;y<=yb;y++) for(let x=xa;x<=xb;x++){ const i=idx(x,y);
     if(a.calque==='objets') poserObjet(x,y,etat.assetId,etat.rot); else { carte[a.calque][i]=etat.assetId; if(a.calque==='murs') carte.objets[i]=null; } } }
-function bordGommable(m){ const b=bordProche(m.x,m.y); return b&&b.d<.2&&lireBord(b); }
 function versMonde(sx,sy){ return { x:(sx-cam.ox)/cam.s/T, y:(sy-cam.oy)/cam.s/T }; }
 function pieceBords(r,id){ const {xa,ya,xb,yb}=normRect(r);
   for(let y=ya;y<=yb;y++) for(let x=xa;x<=xb;x++) carte.murs[idx(x,y)]=null;
   for(let x=xa;x<=xb;x++){ carte.bh[iH(x,ya)]=id; carte.bh[iH(x,yb+1)]=id; }
   for(let y=ya;y<=yb;y++){ carte.bv[iV(xa,y)]=id; carte.bv[iV(xb+1,y)]=id; } }
 function pipette(x,y){ if(!dedans(x,y)) return; const i=idx(x,y);
-  const o=carte.objets[i]; if(o){ choisirAsset(o[0]); etat.rot=o[1]; majCourant(); }
+  const ob=objetCouvrant(x,y), o=ob&&ob.o; if(o){ choisirAsset(o[0]); etat.rot=o[1]; majCourant(); }
   else if(carte.murs[i]) choisirAsset(carte.murs[i]); else if(carte.sol[i]) choisirAsset(carte.sol[i]); else return;
   choisirOutil('pinceau'); }
 
@@ -964,7 +1006,7 @@ const pointeurs=new Map(); let geste=null, espace=false;
 function posLocale(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
 cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); const p=posLocale(e); pointeurs.set(e.pointerId,p); fermerMenu();
   if(pointeurs.size===2){ // deuxième doigt : on annule le trait en cours et on passe en zoom/déplacement
-    if(geste && geste.type==='trait'){ restaurer(pile.pop()); majBoutons(); }
+    if(geste && (geste.type==='trait'||geste.type==='gomme'||geste.type==='bords')){ if(geste.type!=='bords') restaurer(pile.pop()); apercuBords=null; majBoutons(); }
     apercuRect=null; const [a,b]=[...pointeurs.values()];
     geste={type:'pince', d0:Math.hypot(a.x-b.x,a.y-b.y)||1, s0:cam.s,
       wx:((a.x+b.x)/2-cam.ox)/cam.s, wy:((a.y+b.y)/2-cam.oy)/cam.s}; demanderRendu(); return; }
@@ -975,11 +1017,12 @@ cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); const 
   if(etat.outil==='pinceau' && aSel && aSel.calque==='bords'){ const b=bordProche(m.x,m.y); if(!b) return;
     if(aSel.ouverture){ memoriser(); ecrireBord(b,etat.assetId); apresModif(); return; }
     geste={type:'bords', b0:b}; apercuBords=[b]; demanderRendu(); return; }
-  if(etat.outil==='gomme' && bordGommable(m)){ memoriser(); ecrireBord(bordProche(m.x,m.y),null); geste={type:'gommeBords'}; demanderRendu(); return; }
+  if(etat.outil==='gomme'){ const cible=cibleGomme(m); memoriser(); geste={type:'gomme',calque:cible?cible.calque:null,m};
+    if(cible){ if(cible.calque==='bords') retirerBord(cible.b); else gommerVers(geste,m); } demanderRendu(); return; }
   if(etat.outil==='pipette'){ const b=bordProche(m.x,m.y); if(b&&b.d<.2&&lireBord(b)){ choisirAsset(lireBord(b)); choisirOutil('pinceau'); return; } pipette(c.x,c.y); return; }
   if(etat.outil==='remplir'){ memoriser(); remplir(c.x,c.y); apresModif(); return; }
   if(etat.outil==='rect'||etat.outil==='piece'){ geste={type:'rect'}; apercuRect={x0:c.x,y0:c.y,x1:c.x,y1:c.y}; demanderRendu(); return; }
-  memoriser(); geste={type:'trait', dernier:c}; (etat.outil==='gomme'?gommer:poser)(c.x,c.y); demanderRendu();
+  memoriser(); geste={type:'trait', dernier:c}; poser(c.x,c.y); demanderRendu();
 });
 cv.addEventListener('pointermove',e=>{ const p=posLocale(e);
   if(pointeurs.has(e.pointerId)) pointeurs.set(e.pointerId,p);
@@ -987,12 +1030,13 @@ cv.addEventListener('pointermove',e=>{ const p=posLocale(e);
   survolMonde=versMonde(p.x,p.y); if(asset(etat.assetId)?.calque==='bords'||etat.outil==='gomme') demanderRendu();
   if(!geste) return;
   if(geste.type==='bords'){ apercuBords=bordsEntre(geste.b0,survolMonde.x,survolMonde.y); return; }
-  if(geste.type==='gommeBords'){ if(bordGommable(survolMonde)){ ecrireBord(bordProche(survolMonde.x,survolMonde.y),null); } return; }
+  if(geste.type==='gomme'){ if(!geste.calque){ const ci=cibleGomme(survolMonde); if(ci){ geste.calque=ci.calque; geste.m=survolMonde; } }
+    if(geste.calque) gommerVers(geste,survolMonde); else geste.m=survolMonde; demanderRendu(); return; }
   if(geste.type==='pince' && pointeurs.size>=2){ const [a,b]=[...pointeurs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y), mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
     cam.s=Math.max(.08,Math.min(4,geste.s0*d/geste.d0)); cam.ox=mx-geste.wx*cam.s; cam.oy=my-geste.wy*cam.s; demanderRendu(); }
   else if(geste.type==='deplacer'){ cam.ox=geste.ox+p.x-geste.x; cam.oy=geste.oy+p.y-geste.y; demanderRendu(); }
   else if(geste.type==='rect'){ apercuRect.x1=c.x; apercuRect.y1=c.y; demanderRendu(); }
-  else if(geste.type==='trait'){ const a=asset(etat.assetId); const f=etat.outil==='gomme'?gommer:poser;
+  else if(geste.type==='trait'){ const a=asset(etat.assetId); const f=poser;
     if(etat.outil!=='gomme' && a && a.calque==='objets'){ // objets : un par empreinte, pas un par case
       const [l,h]=empreinte(a,etat.rot); if(Math.abs(c.x-geste.dernier.x)>=l || Math.abs(c.y-geste.dernier.y)>=h){ f(c.x,c.y); geste.dernier=c; } }
     else { ligne(geste.dernier.x,geste.dernier.y,c.x,c.y,f); geste.dernier=c; }
@@ -1002,7 +1046,7 @@ function finPointeur(e){ if(!pointeurs.has(e.pointerId)) return; pointeurs.delet
   if(!geste) return;
   if(geste.type==='pince'){ if(pointeurs.size===0) geste=null; return; }
   if(geste.type==='bords' && apercuBords){ memoriser(); for(const b of apercuBords) ecrireBord(b,etat.assetId); apercuBords=null; apresModif(); }
-  else if(geste.type==='gommeBords') apresModif();
+  else if(geste.type==='gomme') apresModif();
   else if(geste.type==='rect' && apercuRect){ memoriser(); appliquerRect(apercuRect, etat.outil==='piece'); apercuRect=null; apresModif(); }
   else if(geste.type==='trait') apresModif();
   geste=null; demanderRendu(); }
