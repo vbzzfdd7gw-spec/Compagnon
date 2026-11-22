@@ -292,6 +292,7 @@ class Combat {
         pj.emplacements[1].restant++;
         this.log(`🔮 ${this.nomHtml(pj)} récupère un emplacement de sort (pierre de mana).`, 'bon');
       }
+      if (t.temeraireDebut) { pj.etats.illumine = 2; this.log(`👠 Les bottes de ${this.nomHtml(pj)} l'entraînent dans une danse irrésistible !`, 'mauvais'); }
       if (t.peurDebut) { this.log(`🪓 Une malédiction murmure à ${this.nomHtml(pj)}…`, 'mauvais'); this.modifierPeur(pj, t.peurDebut); }
     }
     // Encensoir / relique : toute l'équipe bénie 2 tours
@@ -1373,6 +1374,10 @@ class Combat {
       n = Math.floor(n / 2);
       this.log(`→ ${this.nomHtml(c)} résiste (${type}, ÷2) : ${n} dégâts.`, 'jet');
     }
+    if (!m && c.traits && c.traits.vuln && c.traits.vuln.includes(type)) {
+      n = n * 2;
+      this.log(`→ ${this.nomHtml(c)} est vulnérable (${type}, ×2) : ${n} dégâts.`, 'mauvais');
+    }
     if (c.camp === 'pj' && c.traits && c.traits.reduction && n > 0) {
       n = Math.max(0, n - c.traits.reduction);
       this.log(`→ 🛡️ ${this.nomHtml(c)} amortit le coup (−${c.traits.reduction}) : ${n} dégâts.`, 'jet');
@@ -1660,6 +1665,9 @@ class Combat {
     const cibles = this.ciblesValides(m, act);
     const provocateur = cibles.find(c => c.etats.defi);
     if (provocateur && alea() < 0.8) return provocateur;
+    // Bouclier d'attraction des projectiles (maudit) : les tirs vont vers lui
+    const aimant = act.vise && act.vise.includes('arriere') && cibles.find(c => c.traits && c.traits.attireTirs);
+    if (aimant && alea() < 0.75) return aimant;
     const ours = cibles.find(c => c.traits && c.traits.espritOurs && c.etats.rage);
     if (ours && alea() < 0.6) return ours;
     // Préférence légère pour les cibles blessées
