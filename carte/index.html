@@ -157,6 +157,7 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
     <button class="btn" id="b-menu" aria-haspopup="true" aria-expanded="false">☰<span class="txt"> Fichier</span></button>
     <div class="menu" id="menu" hidden>
       <button data-act="nouvelle">🗺️ Nouvelle carte…</button>
+      <button data-act="generer">🎲 Générer une carte…</button>
       <button data-act="exemples">📚 Cartes d'exemple…</button>
       <button data-act="taille">📐 Taille de la carte…</button>
       <hr>
@@ -165,6 +166,7 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
       <button data-act="foundry">🎲 Exporter pour Foundry VTT…</button>
       <button data-act="png">🖼️ Exporter l'image seule (.png)</button>
       <hr>
+      <button data-act="habiller">✨ Habiller avec ma bibliothèque</button>
       <button data-act="murs">🧱 Effacer tous les murs</button>
       <button data-act="vider">🧹 Tout effacer</button>
     </div>
@@ -257,6 +259,17 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
       <p><b>.json</b> : la scène seule (murs, portes, lumières, grille). Télécharge aussi « Image de la scène seule » avec les mêmes réglages et téléverse-la dans le dossier indiqué, puis importe le .json comme ci-dessus.</p>
       <p><b>.dd2vtt</b> : avec le module <i>Universal Battlemap Importer</i>, tout s'importe d'un coup (image, murs, portes, lumières). Les fenêtres ne sont pas prises en charge par ce format.</p>
     </details>
+  </form>
+</dialog>
+
+<dialog id="dlg-generer">
+  <form method="dialog">
+    <h2>Générer une carte</h2>
+    <p class="resume">Choisis un lieu : l'Atelier crée une carte neuve, différente à chaque fois, que tu peux ensuite modifier librement. Elle remplace la carte en cours.</p>
+    <label>Lieu <select id="gen-theme"></select></label>
+    <label id="gen-lbl-hab">Habiller avec ma bibliothèque <input type="checkbox" id="gen-hab" checked></label>
+    <p class="resume" id="gen-info"></p>
+    <div class="pieds"><button class="btn" value="annuler">Annuler</button><button class="btn actif" value="ok">🎲 Générer</button></div>
   </form>
 </dialog>
 
@@ -1932,7 +1945,7 @@ function geometrieVTT(){ const L=carte.l, H=carte.h, murs=[], obstacles=[], ouve
       lumieres.push({x:lx,y:ly,...a.lumiere}); }
   }
   for(const o of carte.libres||[]){ const a=asset(o.id); if(!a) continue;
-    if(a.lumiere) lumieres.push({x:o.x,y:o.y,...a.lumiere});
+    const lum=a.lumiere||o.lum; if(lum) lumieres.push({x:o.x,y:o.y,...lum});
     if(a.obstacle){ const p=coinsLibre(o,a.obstacle*(o.s||1)); for(let i=0;i<4;i++) obstacles.push([p[i][0],p[i][1],p[(i+1)%4][0],p[(i+1)%4][1]]); } }
   // murs fins : les bords alignés de même nature sont fusionnés ; portes, fenêtres… à part ; l'arche ne bloque rien
   for(let y=0;y<=H;y++){ let deb=null; for(let x=0;x<=L;x++){ const id=x<L?carte.bh[iH(x,y)]:null, a=id&&asset(id), mur=a&&!a.ouverture;
@@ -2281,7 +2294,8 @@ bMenu.onclick=e=>{ e.stopPropagation(); menu.hidden=!menu.hidden; bMenu.setAttri
 document.addEventListener('click',e=>{ if(!menu.contains(e.target)) fermerMenu(); });
 menu.onclick=e=>{ const b=e.target.closest('button'); if(!b) return; fermerMenu();
   ({ nouvelle:()=>dialogueTaille(true), taille:()=>dialogueTaille(false), ouvrir:()=>document.getElementById('f-json').click(),
-     enregistrer:enregistrerFichier, png:exporterPNG, foundry:dialogueExport, exemples:dialogueExemples,
+     enregistrer:enregistrerFichier, png:exporterPNG, foundry:dialogueExport, exemples:dialogueExemples, generer:dialogueGenerer,
+     habiller:()=>habiller(),
      murs:()=>{ if(confirm('Effacer tous les murs (épais, fins, portes et fenêtres) ?')) effacerTousLesMurs(); },
      vider:()=>{ if(!confirm('Tout effacer sur cette carte ?')) return; memoriser(); carte.sol.fill(null); carte.murs.fill(null); carte.objets.fill(null); carte.bh.fill(null); carte.bv.fill(null); carte.libres=[]; apresModif(); } })[b.dataset.act]?.(); };
 
@@ -2445,6 +2459,274 @@ function zip(fichiers){ const enc=new TextEncoder(), morceaux=[], central=[]; le
   fin.setUint32(12,tailleCentral,true); fin.setUint32(16,pos,true);
   return new Blob([...morceaux,...central,new Uint8Array(fin.buffer)],{type:'application/zip'}); }
 
+// Générateurs de cartes d'exemple (exécutés dans la page de l'Atelier)
+window.__gen=(()=>{
+  let occ, r;
+  const nouv=(l,h,fond,nom,amb,graine)=>{ carte=carteVide(l,h,fond); carte.nom=nom; carte.ambiance=amb; occ=new Set(); r=hasard(graine); };
+  const S=(x0,y0,x1,y1,id)=>{ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++) if(dedans(x,y)) carte.sol[idx(x,y)]=id; };
+  const M=(x0,y0,x1,y1,id)=>{ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++) if(dedans(x,y)) carte.murs[idx(x,y)]=id; };
+  const vide=(x0,y0,x1,y1,sol)=>{ for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++) if(dedans(x,y)){ carte.murs[idx(x,y)]=null; if(sol) carte.sol[idx(x,y)]=sol; } };
+  const H=(x0,x1,y,id)=>{ for(let x=x0;x<=x1;x++) if(x>=0&&x<carte.l&&y>=0&&y<=carte.h) carte.bh[iH(x,y)]=id; };
+  const V=(x,y0,y1,id)=>{ for(let y=y0;y<=y1;y++) if(y>=0&&y<carte.h&&x>=0&&x<=carte.l) carte.bv[iV(x,y)]=id; };
+  const mur=(x,y)=>!dedans(x,y)||!!carte.murs[idx(x,y)];
+  const O=(x,y,id,rot=0,force,sols)=>{ const a=asset(id); if(!a||a.calque!=='objets'||!dedans(x,y)) return false; const [l,h]=empreinte(a,rot), cases=[];
+    for(let j=0;j<h;j++) for(let i=0;i<l;i++){ const k=(x+i)+','+(y+j); if(!force&&(occ.has(k)||!dedans(x+i,y+j)||carte.murs[idx(x+i,y+j)]||(sols&&!sols.includes(carte.sol[idx(x+i,y+j)])))) return false; cases.push(k); }
+    cases.forEach(k=>occ.add(k)); carte.objets[idx(x,y)]=[id,rot]; return true; };
+  const bloquer=(x,y)=>occ.add(x+','+y);
+  const choix=a=>a[Math.floor(r()*a.length)];
+  const semer=(n,ids,zone,sols,essais=10)=>{ let k=0; for(let t=0;t<n*essais&&k<n;t++){ const x=Math.floor(zone[0]+r()*(zone[2]-zone[0]+1)), y=Math.floor(zone[1]+r()*(zone[3]-zone[1]+1)); if(O(x,y,choix(ids),Math.floor(r()*4)%(asset(ids[0])?.taille?2:4),false,sols)) k++; } return k; };
+  // pose le long des murs d'une salle (zone intérieure x0..x1, y0..y1)
+  const contreMur=(z,ids,n)=>{ let k=0; for(let t=0;t<n*12&&k<n;t++){ const cote=Math.floor(r()*4); let x,y; if(cote===0){ x=z[0]+Math.floor(r()*(z[2]-z[0]+1)); y=z[1]; } else if(cote===1){ x=z[0]+Math.floor(r()*(z[2]-z[0]+1)); y=z[3]; } else if(cote===2){ x=z[0]; y=z[1]+Math.floor(r()*(z[3]-z[1]+1)); } else { x=z[2]; y=z[1]+Math.floor(r()*(z[3]-z[1]+1)); }
+    const id=choix(ids), a=asset(id), [l,h]=a.taille||[1,1]; const rot=(l!==h&&(cote>=2))?1:0; if(cote===1) y=z[3]-(rot?l:h)+1; if(cote===3) x=z[2]-(rot?h:l)+1; if(O(x,y,id,rot)) k++; } return k; };
+  const centre=(z,ids,n)=>semer(n,ids,[z[0]+1,z[1]+1,z[2]-1,z[3]-1]);
+  const HERBE=['herbe','herbe_haute'];
+
+  /* ======================= DONJONS ======================= */
+  const SALLES={
+    garde:{sols:['dalles_anciennes','dalles'],mur:['rack_armes','tonneau','caisse','armure','coffre','lits_superposes'],centre:['table_longue','table_jeu','banc','tabouret','repas']},
+    tresor:{sols:['dallage','marbre'],mur:['coffre','coffre_ouvert','tresor','urne','statue'],centre:['tresor','coffre','bourse_or','cristal_jaune']},
+    crypte:{sols:['dalles_noires','dalles_anciennes'],mur:['sarcophage','tombe','ossuaire','cercueil'],centre:['sarcophage','sarcophage_ouvert','tas_os','bougies','cranes']},
+    prison:{sols:['dalles_anciennes','paille'],mur:['cage','chaines','paillasse','seau_balai','menottes'],centre:['squelette','os','sang','tas_os']},
+    biblio:{sols:['parquet','dalles'],mur:['bibliotheque','bibliotheque','etagere_pots','globe'],centre:['lutrin','bureau','livres','table','chandelier']},
+    culte:{sols:['marbre','dalles_noires','mosaique'],mur:['candelabre','banniere','statue_demon','idole','obelisque'],centre:['cercle_rituel','autel_sacrificiel','bougies','pentacle_sang','bassin_sang']},
+    reserve:{sols:['dalles_anciennes','terre'],mur:['tonneaux','caisses_empilees','sacs','tonneau','caisse','jarre','amphores'],centre:['tonneau_couche','sacs','caisse']},
+    alchimie:{sols:['dalles','mosaique'],mur:['potions','etagere_bouteilles','bibliotheque'],centre:['table_alchimie','chaudron_bouillonnant','fiole','cristal','sablier','orbe_vert']},
+    torture:{sols:['dalles_anciennes'],mur:['chaines','vierge_fer','cage','rack_armes'],centre:['chevalet','roue_torture','brasero','guillotine','sang']},
+    caserne:{sols:['parquet','dalles_anciennes'],mur:['lits_superposes','coffre','rack_armes','armure'],centre:['table','tabouret','mannequin']},
+    trone:{sols:['marbre'],mur:['statue','armure','banniere','candelabre'],centre:['trone','tapis_rituel','brasero_pied']},
+    ruine:{sols:['dalles_anciennes','sol_grotte'],mur:['gravats','colonne_brisee','eboulis','toile'],centre:['gravats','os','squelette','flaque','champignons']},
+  };
+  function donjon(o){ const L=o.l||34, Hh=o.h||26; nouv(L,Hh,o.sol||'dalles_anciennes',o.nom,o.amb||'crypte',o.graine);
+    M(0,0,L-1,Hh-1,o.mur||'mur_taille'); const salles=[];
+    for(let t=0;t<300&&salles.length<(o.n||9);t++){ const w=4+Math.floor(r()*(o.grand?8:6)), h=4+Math.floor(r()*(o.grand?6:4)), x=1+Math.floor(r()*(L-w-2)), y=1+Math.floor(r()*(Hh-h-2));
+      if(salles.some(s=>x<=s.x1+2&&x+w-1>=s.x0-2&&y<=s.y1+2&&y+h-1>=s.y0-2)) continue; salles.push({x0:x,y0:y,x1:x+w-1,y1:y+h-1}); }
+    salles.sort((a,b)=>a.x0-b.x0);
+    const types=o.types||Object.keys(SALLES);
+    salles.forEach((s,i)=>{ s.type=i===0?(o.premier||'garde'):choix(types); const T=SALLES[s.type]; s.sol=choix(T.sols); vide(s.x0,s.y0,s.x1,s.y1,s.sol); });
+    const couloir=(x,y)=>{ if(dedans(x,y)&&mur(x,y)){ carte.murs[idx(x,y)]=null; carte.sol[idx(x,y)]=o.couloir||'dalles_anciennes'; } };
+    const cx=s=>Math.floor((s.x0+s.x1)/2), cy=s=>Math.floor((s.y0+s.y1)/2);
+    for(let i=1;i<salles.length;i++){ let best=null,bd=1e9; for(let j=0;j<i;j++){ const d=Math.abs(cx(salles[i])-cx(salles[j]))+Math.abs(cy(salles[i])-cy(salles[j])); if(d<bd){ bd=d; best=salles[j]; } }
+      const a=salles[i], b=best; let x=cx(a), y=cy(a); const tx=cx(b), ty=cy(b), hd=r()<.5;
+      if(hd){ while(x!==tx){ couloir(x,y); x+=Math.sign(tx-x); } while(y!==ty){ couloir(x,y); y+=Math.sign(ty-y); } }
+      else { while(y!==ty){ couloir(x,y); y+=Math.sign(ty-y); } while(x!==tx){ couloir(x,y); x+=Math.sign(tx-x); } }
+      if(r()<.3&&i>1){ const c=salles[Math.floor(r()*i)]; let x2=cx(a), y2=cy(a); while(x2!==cx(c)){ couloir(x2,y2); x2+=Math.sign(cx(c)-x2); } while(y2!==cy(c)){ couloir(x2,y2); y2+=Math.sign(cy(c)-y2); } } }
+    // portes : cases de couloir collées à une salle, entre deux murs
+    for(const s of salles) for(let y=s.y0-1;y<=s.y1+1;y++) for(let x=s.x0-1;x<=s.x1+1;x++){ const bord=x===s.x0-1||x===s.x1+1||y===s.y0-1||y===s.y1+1; if(!bord||!dedans(x,y)||mur(x,y)) continue;
+      const hz=mur(x-1,y)&&mur(x+1,y), vt=mur(x,y-1)&&mur(x,y+1); if(!(hz||vt)) continue; if(r()<.75){ const t=r(); O(x,y,t<.08?'porte_secrete':t<.18?'herse':'porte',hz?0:1,true); if(t<.08) carte.murs[idx(x,y)]=o.mur||'mur_taille'; } else bloquer(x,y); }
+    // dégager les abords des passages
+    for(const s of salles) for(let y=s.y0;y<=s.y1;y++) for(let x=s.x0;x<=s.x1;x++){ const pres=[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{ const xx=x+dx,yy=y+dy; return (xx<s.x0||xx>s.x1||yy<s.y0||yy>s.y1)&&dedans(xx,yy)&&!mur(xx,yy); }); if(pres) bloquer(x,y); }
+    salles.forEach((s,i)=>{ const T=SALLES[s.type], z=[s.x0,s.y0,s.x1,s.y1], aire=(s.x1-s.x0+1)*(s.y1-s.y0+1);
+      contreMur(z,['torche'],aire>30?3:2); contreMur(z,T.mur,Math.max(2,Math.floor(aire/7))); centre(z,T.centre,Math.max(1,Math.floor(aire/14)));
+      if(i===0) O(s.x0,s.y0,'escalier',0,true); });
+    // couloirs : quelques torches et débris
+    let k=0; for(let t=0;t<400&&k<(o.n||9);t++){ const x=1+Math.floor(r()*(L-2)), y=1+Math.floor(r()*(Hh-2)); if(mur(x,y)||carte.sol[idx(x,y)]!==(o.couloir||'dalles_anciennes')||salles.some(s=>x>=s.x0&&x<=s.x1&&y>=s.y0&&y<=s.y1)) continue; if(O(x,y,choix(['torche','gravats','toile','os','flaque']))) k++; }
+    if(o.apres) o.apres(salles); }
+
+  /* ======================= GROTTES ======================= */
+  function grotte(o){ const L=o.l||36, Hh=o.h||26; nouv(L,Hh,o.sol||'sol_grotte',o.nom,o.amb||'nuit',o.graine);
+    M(0,0,L-1,Hh-1,o.mur||'mur_grotte'); const solG=o.sol||'sol_grotte';
+    const creuse=(cx,cy,rr)=>{ for(let y=Math.floor(cy-rr-2);y<=cy+rr+2;y++) for(let x=Math.floor(cx-rr-2);x<=cx+rr+2;x++){ if(x<1||y<1||x>L-2||y>Hh-2) continue;
+        const a=Math.atan2(y-cy,x-cx), d=Math.hypot(x+.5-cx,y+.5-cy), lim=rr*(.8+.4*fbm(Math.cos(a)*1.3+cx*.37,Math.sin(a)*1.3+cy*.41,3)); if(d<lim){ carte.murs[idx(x,y)]=null; carte.sol[idx(x,y)]=solG; } } };
+    const salles=[]; const nb=o.salles||10;
+    for(let t=0;t<200&&salles.length<nb;t++){ const rr=3.2+r()*(o.grand?4.5:3.4), cx=3+rr+r()*(L-6-2*rr), cy=3+rr+r()*(Hh-6-2*rr); if(salles.some(s=>Math.hypot(s[0]-cx,s[1]-cy)<s[2]+rr-.5)) continue; salles.push([cx,cy,rr]); }
+    salles.sort((a,b)=>a[0]-b[0]); salles.forEach(([x,y,rr])=>creuse(x,y,rr));
+    for(let i=1;i<salles.length;i++){ let best=salles[0],bd=1e9; for(let j=0;j<i;j++){ const d=Math.hypot(salles[i][0]-salles[j][0],salles[i][1]-salles[j][1]); if(d<bd){ bd=d; best=salles[j]; } }
+      const [x0,y0]=salles[i], [x1,y1]=best, n=Math.ceil(bd*2), w=1.2+r()*.7; for(let k=0;k<=n;k++){ const t=k/n; creuse(x0+(x1-x0)*t+Math.sin(t*6+i)*1.1,y0+(y1-y0)*t+Math.cos(t*5+i)*1.1,w); } }
+    if(salles.length>3&&r()<.7){ const a=salles[0], b2=salles[salles.length-1], n=Math.ceil(Math.hypot(a[0]-b2[0],a[1]-b2[1])*2); for(let k=0;k<=n;k++){ const t=k/n; creuse(a[0]+(b2[0]-a[0])*t,a[1]+(b2[1]-a[1])*t+Math.sin(t*7)*3,1.3); } }
+    const libres=[]; for(let y=0;y<Hh;y++) for(let x=0;x<L;x++) if(!mur(x,y)) libres.push([x,y]);
+    // liquide (lac, lave, gouffre)
+    if(o.liquide){ const [lx,ly]=choix(libres); for(const [x,y] of libres){ const d=Math.hypot(x-lx,y-ly)+fbm(x*.3,y*.3,2)*3; if(d<(o.rayon||4)) carte.sol[idx(x,y)]=o.liquide[0]; else if(o.liquide[1]&&d<(o.rayon||4)+1.4) carte.sol[idx(x,y)]=o.liquide[1]; } }
+    if(o.sol2) for(const [x,y] of libres) if(carte.sol[idx(x,y)]===(o.sol||'sol_grotte')&&fbm(x*.25+7,y*.25,3)>.58) carte.sol[idx(x,y)]=o.sol2;
+    const SOLS=[o.sol||'sol_grotte',o.sol2].filter(Boolean);
+    const n=libres.length;
+    semer(Math.floor(n/14),o.decor||['stalagmites','gravats','flaque','champignons'],[1,1,L-2,Hh-2],SOLS);
+    semer(Math.floor(n/28),o.lumieres||['champignons_lumineux','cristal','mousse_lumineuse'],[1,1,L-2,Hh-2],SOLS);
+    if(o.special) o.special(libres,SOLS);
+    if(o.entree){ const yy=Math.round(salles[0][1]); for(let x=0;x<L;x++){ let fini=false; for(let y=yy-1;y<=yy+1;y++){ if(!mur(x,y)&&x>1){ fini=true; continue; } carte.murs[idx(x,y)]=null; carte.sol[idx(x,y)]=x<2?'herbe':o.sol||'sol_grotte'; } if(fini) break; } } }
+  const groupe=(libres,ids,SOLS,n=2)=>{ for(let k=0;k<n;k++){ const [x,y]=choix(libres); for(const id of ids){ for(let t=0;t<20;t++){ if(O(x+Math.floor((r()-.5)*7),y+Math.floor((r()-.5)*7),id,0,false,SOLS)) break; } } } };
+
+  /* ======================= EXTÉRIEURS ======================= */
+  function exterieur(o){ const L=o.l||34, Hh=o.h||24; nouv(L,Hh,o.sol||'herbe',o.nom,o.amb||'jour',o.graine); const base=o.sol||'herbe';
+    if(o.sol2) for(let y=0;y<Hh;y++) for(let x=0;x<L;x++) if(fbm(x*.18+3,y*.18,3)>(o.seuil2||.58)) carte.sol[idx(x,y)]=o.sol2;
+    if(o.riviere){ const f=y=>L*.55+Math.sin(y*.3+o.graine)*2.5+Math.sin(y*.11)*1.6; for(let y=0;y<Hh;y++) for(let x=0;x<L;x++){ const d=Math.abs(x+.5-f(y)); if(d<1.2) carte.sol[idx(x,y)]='eau_profonde'; else if(d<2.3) carte.sol[idx(x,y)]='eau'; else if(d<3) carte.sol[idx(x,y)]=o.rive||'sable'; } }
+    if(o.mer){ for(let y=0;y<Hh;y++) for(let x=0;x<L;x++){ const b=Hh*.62+Math.sin(x*.25)*1.5+fbm(x*.3,y*.1,2)*2; if(y>b+2.5) carte.sol[idx(x,y)]='eau_profonde'; else if(y>b) carte.sol[idx(x,y)]='eau'; else if(y>b-3) carte.sol[idx(x,y)]='sable'; } }
+    if(o.etang){ const [ex,ey]=o.etang; for(let y=0;y<Hh;y++) for(let x=0;x<L;x++){ const d=Math.hypot(x-ex,y-ey)+fbm(x*.3,y*.3,2)*2.5; if(d<o.retang) carte.sol[idx(x,y)]=o.liq||'eau_profonde'; else if(d<o.retang+1.3) carte.sol[idx(x,y)]=o.liq2||'eau'; } }
+    if(o.route){ for(let x=0;x<L;x++){ const yc=Math.round(Hh/2+Math.sin(x*.22+o.graine)*2); S(x,yc-1,x,yc,o.route); if(carte.sol[idx(x,yc)].startsWith('eau')) {} } }
+    if(o.route2){ for(let y=0;y<Hh;y++){ const xc=Math.round(L*.3+Math.sin(y*.25+o.graine)*1.5); S(xc,y,xc+1,y,o.route2); } }
+    if(o.pont&&o.route){ for(let x=0;x<L;x++){ const yc=Math.round(Hh/2+Math.sin(x*.22+o.graine)*2); if(['eau','eau_profonde','sable'].includes(carte.sol[idx(x,yc)])||['eau','eau_profonde'].includes(carte.sol[idx(x,yc-1)])){ S(x,yc-1,x,yc,'parquet'); carte.bh[iH(x,yc-1)]='fin_bois'; carte.bh[iH(x,yc+1)]='fin_bois'; } } }
+    if(o.avant) o.avant();
+    const SOLS=o.solsDecor||[base,o.sol2].filter(Boolean);
+    if(o.apres) o.apres(SOLS); // éléments de scène d'abord, pour qu'ils aient leur place
+    if(o.arbres) for(let t=0;t<o.arbres*12;t++){ const x=Math.floor(r()*(L-1)), y=Math.floor(r()*(Hh-1)); const dens=fbm(x*.15+11,y*.15,2); if(dens>(o.seuilArbres||.45)||x<2||y<2||x>L-4||y>Hh-4) O(x,y,choix(o.essences||['arbre','sapin','arbre_automne','chene']),0,false,SOLS); }
+    semer(o.ndecor||18,o.decor||['buisson','rocher','fleurs','touffe','souche','fougere'],[0,0,L-1,Hh-1],SOLS); }
+
+  /* ======================= BÂTIMENTS (murs fins, pièces) ======================= */
+  const PIECES={
+    sejour:{sols:['parquet'],mur:['cheminee','bibliotheque','armoire','commode','vaisselier','plante_verte'],centre:['table','table_nappe','fauteuil_rouge','tapis_bleu','chaise']},
+    chambre:{sols:['parquet'],mur:['lit','lit_double','armoire','coffre','table_chevet','commode','coiffeuse'],centre:['tapis_rond_rouge','tapis','pouf']},
+    cuisine:{sols:['dalles'],mur:['cheminee','etagere_bouteilles','tonneau','vaisselier','sacs','tonneau_robinet'],centre:['table_cuisine','marmite','panier_pommes','panier_pain']},
+    boutique:{sols:['parquet'],mur:['etagere_pots','bibliotheque','tonneaux','caisses_empilees','potions'],centre:['comptoir','coffre','sacs','balance']},
+    atelier:{sols:['dalles','terre'],mur:['etabli','rack_armes','tonneau','caisses_empilees','enclume'],centre:['enclume','brasero','outils_mineur']},
+    chapelle:{sols:['marbre','dalles'],mur:['candelabre','statue_deesse','banniere','cierges'],centre:['bancs_eglise','autel','tapis_couloir_bleu']},
+    etude:{sols:['parquet'],mur:['bibliotheque','bibliotheque','globe','telescope','sphere_armillaire'],centre:['bureau','lutrin','fauteuil_cuir','livres','tapis_oriental']},
+    labo:{sols:['dalles','mosaique'],mur:['potions','etagere_bouteilles','bibliotheque','cristal_vert'],centre:['table_alchimie','chaudron_bouillonnant','sablier','orbe_vert']},
+    dortoir:{sols:['parquet'],mur:['lits_superposes','lits_superposes','coffre','lit'],centre:['table','tabouret']},
+    salle_auberge:{sols:['parquet'],mur:['comptoir','tonneau_robinet','etagere_bouteilles','cheminee','tonneaux'],centre:['table_taverne','table_longue','table_jeu','chopes','repas']},
+    remise:{sols:['terre','paille'],mur:['tonneaux','caisses_empilees','sacs','fagots','brouette'],centre:['caisse','sacs','meule_foin']},
+  };
+  function batiment(o){ const L=o.l||28, Hh=o.h||22; nouv(L,Hh,o.ext||'herbe',o.nom,o.amb||'interieur',o.graine);
+    if(o.ext==='herbe') for(let y=0;y<Hh;y++) for(let x=0;x<L;x++) if(fbm(x*.2,y*.2,3)>.6) carte.sol[idx(x,y)]='herbe_haute';
+    const bx0=3, by0=3, bx1=L-4, by1=Hh-5, mf=o.mur||'fin_colombage';
+    // découpage en pièces (BSP)
+    const pieces=[]; const decoupe=(x0,y0,x1,y1,prof)=>{ const w=x1-x0+1, h=y1-y0+1; if(prof<=0||(w<9&&h<9)||(w*h<50&&r()<.5)){ pieces.push({x0,y0,x1,y1}); return; }
+      if(w>=h){ const c=x0+3+Math.floor(r()*(w-6)); decoupe(x0,y0,c,y1,prof-1); decoupe(c+1,y0,x1,y1,prof-1); V(c+1,y0,y1,mf); const p=y0+1+Math.floor(r()*(h-2)); carte.bv[iV(c+1,p)]='porte_fine'; }
+      else { const c=y0+3+Math.floor(r()*(h-6)); decoupe(x0,y0,x1,c,prof-1); decoupe(x0,c+1,x1,y1,prof-1); H(x0,x1,c+1,mf); const p=x0+1+Math.floor(r()*(w-2)); carte.bh[iH(p,c+1)]='porte_fine'; } };
+    decoupe(bx0,by0,bx1,by1,o.prof||3);
+    H(bx0,bx1,by0,mf); H(bx0,bx1,by1+1,mf); V(bx0,by0,by1,mf); V(bx1+1,by0,by1,mf);
+    const px=Math.floor((bx0+bx1)/2); carte.bh[iH(px,by1+1)]='porte_fine'; carte.bh[iH(px+1,by1+1)]='porte_fine'; S(px,by1+1,px+1,Hh-1,o.allee||'terre');
+    for(let k=0;k<6;k++){ const x=bx0+1+Math.floor(r()*(bx1-bx0-1)); if(carte.bh[iH(x,by0)]===mf) carte.bh[iH(x,by0)]='fenetre_fine'; const y=by0+1+Math.floor(r()*(by1-by0-1)); if(carte.bv[iV(bx0,y)]===mf) carte.bv[iV(bx0,y)]='fenetre_fine'; if(carte.bv[iV(bx1+1,y)]===mf&&r()<.6) carte.bv[iV(bx1+1,y)]='fenetre_fine'; }
+    pieces.sort((a,b)=>(b.x1-b.x0+1)*(b.y1-b.y0+1)-(a.x1-a.x0+1)*(a.y1-a.y0+1));
+    pieces.forEach((p,i)=>{ p.type=o.types[i%o.types.length]; const T=PIECES[p.type]; S(p.x0,p.y0,p.x1,p.y1,choix(T.sols));
+      // garder libres les cases devant les portes
+      for(let y=p.y0;y<=p.y1;y++) for(let x=p.x0;x<=p.x1;x++){ const pr=[carte.bh[iH(x,y)],carte.bh[iH(x,y+1)],carte.bv[iV(x,y)],carte.bv[iV(x+1,y)]].some(v=>v==='porte_fine'); if(pr) bloquer(x,y); } });
+    pieces.forEach(p=>{ const T=PIECES[p.type], z=[p.x0,p.y0,p.x1,p.y1], aire=(p.x1-p.x0+1)*(p.y1-p.y0+1);
+      contreMur(z,T.mur,Math.max(2,Math.floor(aire/6))); centre(z,T.centre,Math.max(1,Math.floor(aire/12))); contreMur(z,['lanterne','chandelier','bougeoir'],aire>25?2:1); });
+    // abords
+    const SOLS=[o.ext||'herbe','herbe_haute'];
+    if(o.ext==='herbe'){ for(let t=0;t<120;t++){ const x=Math.floor(r()*(L-1)), y=Math.floor(r()*(Hh-1)); if(x<=1||y<=1||x>=L-3||y>=Hh-3) O(x,y,choix(['arbre','chene','sapin','arbre_automne']),0,false,SOLS); } }
+    semer(10,o.dehors||['buisson','fleurs','tonneau','touffe','caisse','fagots'],[0,0,L-1,Hh-1],[o.ext||'herbe','herbe_haute','paves','terre']); }
+
+  /* ======================= VILLAGES ======================= */
+  function village(o){ const L=o.l||36, Hh=o.h||26; nouv(L,Hh,o.sol||'herbe',o.nom,o.amb||'jour',o.graine);
+    for(let y=0;y<Hh;y++) for(let x=0;x<L;x++) if(fbm(x*.2,y*.2,3)>.6) carte.sol[idx(x,y)]=o.sol==='neige'?'neige':o.sol==='sable'?'sable':'herbe_haute';
+    const ry=Math.floor(Hh/2), rx=Math.floor(L/2); S(0,ry-1,L-1,ry,o.rue||'terre'); S(rx-1,0,rx,Hh-1,o.rue||'terre'); S(rx-3,ry-3,rx+2,ry+2,o.place||'paves');
+    O(rx-1,ry-1,o.centre||'puits',0,true);
+    const lots=[[2,2],[rx+3,2],[2,ry+3],[rx+3,ry+3],[Math.floor(rx/2),2],[rx+3+Math.floor(rx/2),ry+3]];
+    let nb=0; for(const [x0,y0] of lots){ if(nb>=(o.maisons||5)) break; const w=5+Math.floor(r()*3), h=4+Math.floor(r()*2); if(x0+w>L-2||y0+h>Hh-2) continue;
+      if([...Array(h).keys()].some(j=>[...Array(w).keys()].some(i=>{ const X=x0+i,Y=y0+j; return (Y>=ry-1&&Y<=ry)||(X>=rx-1&&X<=rx)||(X>=rx-3&&X<=rx+2&&Y>=ry-3&&Y<=ry+2)||occ.has(X+','+Y); }))) continue;
+      const mf=choix(o.murs||['fin_colombage','fin_bois','fin_pierre']); S(x0,y0,x0+w-1,y0+h-1,choix(['parquet','dalles','paille']));
+      H(x0,x0+w-1,y0,mf); H(x0,x0+w-1,y0+h,mf); V(x0,y0,y0+h-1,mf); V(x0+w,y0,y0+h-1,mf);
+      const porteBas=y0<ry, dx=x0+Math.floor(w/2); carte.bh[iH(dx,porteBas?y0+h:y0)]='porte_fine'; bloquer(dx,porteBas?y0+h-1:y0);
+      carte.bv[iV(x0,y0+1)]='fenetre_fine'; const z=[x0,y0,x0+w-1,y0+h-1];
+      contreMur(z,['lit','cheminee','armoire','coffre','tonneau','etagere_pots','commode'],3); centre(z,['table','table_ronde','tapis_ovale','tabouret'],1); contreMur(z,['lanterne','bougeoir'],1);
+      for(let j=-1;j<=h;j++) for(let i=-1;i<=w;i++) bloquer(x0+i,y0+j); nb++; }
+    semer(6,o.etals||['etal','etal_bleu','etal_vert','charrette','tonneaux_vin','caisses_empilees'],[rx-6,ry-6,rx+5,ry+5],[o.place||'paves',o.rue||'terre',o.sol||'herbe']);
+    semer(6,['lampadaire'],[1,1,L-2,Hh-2],[o.rue||'terre',o.place||'paves']);
+    const SOLS=[o.sol||'herbe','herbe_haute','neige','sable'];
+    for(let t=0;t<200;t++){ const x=Math.floor(r()*(L-1)), y=Math.floor(r()*(Hh-1)); if(x<2||y<2||x>L-4||y>Hh-4||r()<.04) O(x,y,choix(o.essences||['arbre','chene','sapin','arbre_automne','arbre_fruits']),0,false,SOLS); }
+    semer(14,o.decor||['buisson','fleurs','meule_foin','fagots','potager','ruche','abreuvoir','epouvantail','linge','brouette'],[0,0,L-1,Hh-1],SOLS); }
+
+  return {donjon,grotte,groupe:(...a)=>groupe(...a),exterieur,batiment,village,O:(...a)=>O(...a),S,M,vide,choix:a=>choix(a),r:()=>r()};
+})();
+
+window.__liste50=[
+ // ---------- Donjons (14) ----------
+ {id:'d_oubliettes',cat:'Donjon',nom:'Oubliettes du Baron',desc:'Cachots, salle de torture et salle des gardes sous un château.',gen:'donjon',o:{graine:1001,types:['prison','torture','garde','reserve','prison'],premier:'garde',mur:'mur_pierre'}},
+ {id:'d_crypte_saints',cat:'Donjon',nom:'Crypte des Saints',desc:'Tombeaux, ossuaires et chapelle funéraire sous une abbaye.',gen:'donjon',o:{graine:1002,types:['crypte','crypte','culte','tresor'],premier:'crypte',mur:'mur_taille',couloir:'dalles_noires'}},
+ {id:'d_temple_englouti',cat:'Donjon',nom:'Temple Englouti',desc:'Temple oublié envahi par l\'eau et les ruines.',gen:'donjon',o:{graine:1003,types:['culte','ruine','tresor','ruine'],premier:'ruine',apres:()=>{ for(let y=0;y<carte.h;y++) for(let x=0;x<carte.l;x++) if(!carte.murs[idx(x,y)]&&fbm(x*.2,y*.2,3)>.6) carte.sol[idx(x,y)]='eau'; }}},
+ {id:'d_forteresse_naine',cat:'Donjon',nom:'Forteresse Naine',desc:'Halls taillés dans la roche, forge, casernes et salle du trône.',gen:'donjon',o:{graine:1004,grand:true,n:8,types:['caserne','reserve','tresor','garde','trone'],premier:'garde',mur:'mur_taille',sol:'dallage'}},
+ {id:'d_repaire_necro',cat:'Donjon',nom:'Repaire du Nécromancien',desc:'Laboratoire, salles rituelles et cryptes profanées.',gen:'donjon',o:{graine:1005,types:['alchimie','culte','crypte','biblio','prison'],premier:'crypte',couloir:'dalles_noires'}},
+ {id:'d_tombeau_roi',cat:'Donjon',nom:'Tombeau du Roi-Liche',desc:'Salle du trône funèbre, trésor et pièges.',gen:'donjon',o:{graine:1006,types:['trone','crypte','tresor','torture'],premier:'crypte',mur:'mur_taille'}},
+ {id:'d_bibliotheque_interdite',cat:'Donjon',nom:'Bibliothèque Interdite',desc:'Archives souterraines, salles d\'étude et coffres scellés.',gen:'donjon',o:{graine:1007,types:['biblio','biblio','alchimie','tresor'],premier:'biblio',couloir:'dalles'}},
+ {id:'d_cachot_gobelins',cat:'Donjon',nom:'Repaire Gobelin',desc:'Ruines squattées, réserves pillées et prisonniers.',gen:'donjon',o:{graine:1008,types:['ruine','reserve','prison','garde'],premier:'ruine',mur:'mur_pierre',sol:'terre',couloir:'terre'}},
+ {id:'d_sanctuaire_flamme',cat:'Donjon',nom:'Sanctuaire de la Flamme',desc:'Culte du feu : autels, braseros et fissures de lave.',gen:'donjon',o:{graine:1009,types:['culte','culte','tresor','garde'],premier:'culte',couloir:'cendres',apres:(ss)=>{ for(const s of ss){ const x=Math.floor((s.x0+s.x1)/2), y=Math.floor((s.y0+s.y1)/2); __gen.O(x,y,'vasque_feu'); } }}},
+ {id:'d_caveau_marchand',cat:'Donjon',nom:'Caveau du Marchand',desc:'Entrepôts secrets, salle forte et passages dérobés.',gen:'donjon',o:{graine:1010,types:['reserve','reserve','tresor','garde'],premier:'reserve',mur:'mur_brique',couloir:'dalles'}},
+ {id:'d_prison_royale',cat:'Donjon',nom:'Prison Royale',desc:'Quartier de haute sécurité, salle des gardes et torture.',gen:'donjon',o:{graine:1011,n:11,types:['prison','prison','torture','garde','caserne'],premier:'garde',mur:'mur_pierre'}},
+ {id:'d_ruines_elfiques',cat:'Donjon',nom:'Ruines Elfiques',desc:'Salles de marbre effondrées, bibliothèque et autel.',gen:'donjon',o:{graine:1012,types:['ruine','biblio','culte','ruine'],premier:'ruine',mur:'mur_marbre',couloir:'marbre'}},
+ {id:'d_labyrinthe',cat:'Donjon',nom:'Labyrinthe du Minotaure',desc:'Petites salles nombreuses reliées par des couloirs.',gen:'donjon',o:{graine:1013,n:14,types:['ruine','prison','crypte','reserve','tresor'],premier:'ruine',mur:'mur_taille'}},
+ {id:'d_citadelle',cat:'Donjon',nom:'Citadelle du Seigneur Noir',desc:'Grandes salles, trône, casernes et salle de guerre.',gen:'donjon',o:{graine:1014,grand:true,n:8,types:['trone','caserne','garde','torture','tresor'],premier:'garde',mur:'mur_taille',couloir:'dalles_noires'}},
+ // ---------- Grottes (10) ----------
+ {id:'g_lac_souterrain',cat:'Grotte',nom:'Lac Souterrain',desc:'Vaste caverne autour d\'un lac sombre, champignons lumineux.',gen:'grotte',o:{graine:2001,liquide:['eau_profonde','eau'],rayon:6,entree:true,lumieres:['champignons_lumineux','champignons_bleus','mousse_lumineuse'],special:(L,S)=>__gen.groupe(L,['barque','pierres_gue','nenuphars'],S)}},
+ {id:'g_coeur_volcan',cat:'Grotte',nom:'Cœur du Volcan',desc:'Galeries de cendres et rivières de lave.',gen:'grotte',o:{graine:2002,liquide:['lave'],rayon:5,sol2:'cendres',amb:'nuit',decor:['rocher_basalte','gravats','stalagmites'],lumieres:['fissure','cristal_rouge'],special:(L,S)=>__gen.groupe(L,['crane_bete','tresor','os'],S)}},
+ {id:'g_grotte_cristaux',cat:'Grotte',nom:'Grotte de Cristal',desc:'Cavernes scintillantes de cristaux de toutes les couleurs.',gen:'grotte',o:{graine:2003,lumieres:['cristal','cristal_vert','cristal_rouge','cristal_jaune','cristaux_geants'],decor:['stalagmites','cristal','flaque'],special:(L,S)=>__gen.groupe(L,['cristaux_geants','filon','outils_mineur'],S,2)}},
+ {id:'g_nid_araignees',cat:'Grotte',nom:'Nid des Araignées',desc:'Toiles géantes, cocons et ossements de voyageurs.',gen:'grotte',o:{graine:2004,decor:['toile','toile_geante','cocon','os','squelette'],lumieres:['champignons_lumineux'],special:(L,S)=>__gen.groupe(L,['toile_geante','cocon','cocon','tas_os','coffre'],S,3)}},
+ {id:'g_foret_champignons',cat:'Grotte',nom:'Forêt de Champignons',desc:'Caverne humide envahie de champignons géants et lumineux.',gen:'grotte',o:{graine:2005,sol2:'boue',decor:['champignons','champignon_geant','flaque','racines'],lumieres:['champignons_lumineux','champignons_bleus','mousse_lumineuse','feu_follet'],special:(L,S)=>__gen.groupe(L,['champignon_geant','champignon_geant','rond_fees'],S,2)}},
+ {id:'g_camp_gobelins',cat:'Grotte',nom:'Antre Gobelin',desc:'Campement gobelin dans une caverne : feu, butin, prisonniers.',gen:'grotte',o:{graine:2006,entree:true,lumieres:['rondins','lanterne'],decor:['gravats','os','caisse','tonneau','sac_couchage'],special:(L,S)=>{ __gen.groupe(L,['rondins','tente','sac_couchage','sac_couchage','tresor','cage','table_jeu'],S); __gen.groupe(L,['tente','rondins','caisses_empilees'],S); }}},
+ {id:'g_mine_naine',cat:'Grotte',nom:'Mine Naine Abandonnée',desc:'Galeries étayées, filons d\'or, chariots et éboulements.',gen:'grotte',o:{graine:2007,densite:.47,entree:true,decor:['etai','eboulis','filon','gravats','rails'],lumieres:['lanterne','lanterne'],special:(L,S)=>__gen.groupe(L,['chariot_mine','outils_mineur','filon','caisses_empilees','table'],S,2)}},
+ {id:'g_antre_troll',cat:'Grotte',nom:'Antre du Troll',desc:'Caverne puante, ossements, trésor mal gardé.',gen:'grotte',o:{graine:2008,sol2:'boue',decor:['tas_os','os','crane_bete','rochers','flaque_boue'],lumieres:['rondins'],special:(L,S)=>__gen.groupe(L,['tresor','coffre_ouvert','tas_os','marmite','rondins'],S)}},
+ {id:'g_grotte_glace',cat:'Grotte',nom:'Grotte de Glace',desc:'Caverne gelée, cristaux de glace et lac pris par le gel.',gen:'grotte',o:{graine:2009,sol:'neige',liquide:['eau_profonde','eau'],rayon:4,amb:'nuit',decor:['rocher_enneige','tas_neige','stalagmites'],lumieres:['cristal_glace'],special:(L,S)=>__gen.groupe(L,['trou_glace','squelette','coffre'],S)}},
+ {id:'g_gouffre',cat:'Grotte',nom:'Le Gouffre Sans Fond',desc:'Caverne fendue par un abîme, ponts de corde et lumières.',gen:'grotte',o:{graine:2010,liquide:['gouffre'],rayon:5,lumieres:['lanterne','cristal','champignons_lumineux'],special:(L,S)=>__gen.groupe(L,['squelette','tente','rondins','sac_couchage'],S)}},
+ // ---------- Extérieurs (14) ----------
+ {id:'e_embuscade',cat:'Extérieur',nom:'Embuscade sur la Route',desc:'Route forestière, chariot renversé et brigands cachés.',gen:'exterieur',o:{graine:3001,route:'terre',arbres:40,seuilArbres:.42,apres:(S)=>{ const O=__gen.O; O(15,10,'chariot_marchand'); O(19,11,'caisses_empilees'); O(12,13,'tonneau'); O(20,9,'squelette'); O(11,9,'tronc'); }}},
+ {id:'e_gue',cat:'Extérieur',nom:'Le Gué de la Rivière',desc:'Une route traverse une rivière sur un pont de bois.',gen:'exterieur',o:{graine:3002,route:'terre',riviere:true,pont:true,arbres:30,decor:['buisson','rocher','fleurs','roseaux','touffe']}},
+ {id:'e_marais',cat:'Extérieur',nom:'Marais Brumeux',desc:'Boue, eaux stagnantes, arbres morts et feux follets.',gen:'exterieur',o:{graine:3003,sol:'boue',sol2:'eau',seuil2:.6,amb:'crepuscule',arbres:22,essences:['arbre_mort','saule','arbre_mort'],solsDecor:['boue'],decor:['roseaux','souche_moussue','champignons','feu_follet','branches','flaque_boue','lys_eau']}},
+ {id:'e_ruines_tour',cat:'Extérieur',nom:'Tour en Ruine',desc:'Les restes d\'une tour de guet sur une colline.',gen:'exterieur',o:{graine:3004,arbres:26,avant:()=>{ for(let y=8;y<=16;y++) for(let x=13;x<=21;x++){ const d=Math.hypot(x-17,y-12); if(d<4.6){ carte.sol[idx(x,y)]='dallage'; if(d>3.6&&fbm(x*.6,y*.6,2)>.42) carte.murs[idx(x,y)]='mur_taille'; } } }, apres:()=>{ const O=__gen.O; O(16,11,'gravats'); O(18,13,'colonne_brisee'); O(15,13,'escalier'); O(19,10,'squelette'); }}},
+ {id:'e_campement',cat:'Extérieur',nom:'Campement de Voyageurs',desc:'Clairière avec tentes, feu de camp et chevaux de bât.',gen:'exterieur',o:{graine:3005,arbres:34,seuilArbres:.4,apres:()=>{ const O=__gen.O; O(15,10,'rondins'); O(12,8,'tente'); O(18,7,'tente_ronde'); O(13,13,'sac_couchage',1); O(17,13,'sac_couchage',1); O(20,11,'charrette'); O(11,11,'tronc'); O(16,9,'broche_camp'); }}},
+ {id:'e_desert_oasis',cat:'Extérieur',nom:'Caravane du Désert',desc:'Dunes, rochers de grès et campement de caravane.',gen:'exterieur',o:{graine:3006,sol:'sable',etang:[24,7],retang:3,arbres:0,decor:['rocher_gres','cactus','squelette_bete','crane_bete','palmier_petit','poteries'],ndecor:20,apres:()=>{ const O=__gen.O; O(8,10,'tente_bedouine'); O(12,15,'tapis_bedouin'); O(9,14,'rondins'); O(5,15,'chariot_marchand'); O(22,4,'palmier'); O(26,9,'palmier'); }}},
+ {id:'e_col_enneige',cat:'Extérieur',nom:'Col Enneigé',desc:'Sentier de montagne dans la neige, sapins et rochers.',gen:'exterieur',o:{graine:3007,sol:'neige',route:'terre',amb:'crepuscule',arbres:40,essences:['sapin_enneige','sapin_enneige','sapin_givre'],decor:['rocher_enneige','tas_neige','congere','bois_givre'],apres:()=>{ const O=__gen.O; O(14,8,'tente_fourrure'); O(17,10,'rondins'); O(12,13,'traineau'); }}},
+ {id:'e_plage',cat:'Extérieur',nom:'Crique des Contrebandiers',desc:'Plage, barques échouées et marchandises cachées.',gen:'exterieur',o:{graine:3008,mer:true,arbres:12,essences:['palmier','arbre','sapin'],decor:['rocher','galets','caisse','tonneau_rhum','filets','cordage','ancre'],ndecor:16,solsDecor:['herbe','sable','herbe_haute'],apres:()=>{ const O=__gen.O; O(10,15,'barque',1); O(18,16,'barque'); O(14,13,'caisses_empilees'); O(22,13,'rondins'); O(6,12,'coffre_marin'); }}},
+ {id:'e_cercle_fees',cat:'Extérieur',nom:'Clairière des Fées',desc:'Rond de fées, champignons lumineux et arbre sacré.',gen:'exterieur',o:{graine:3009,amb:'nuit',arbres:40,seuilArbres:.38,essences:['arbre','cerisier','arbre_pourpre','chene'],decor:['champignons','fleurs_violettes','fleurs_blanches','feu_follet','lucioles','champignons_bleus'],ndecor:22,apres:()=>{ const O=__gen.O; O(15,10,'rond_fees'); O(16,11,'arbre_sacre',0,true); O(12,14,'pierre_lune'); }}},
+ {id:'e_menhirs',cat:'Extérieur',nom:'Cercle des Menhirs',desc:'Lande, pierres levées et autel druidique.',gen:'exterieur',o:{graine:3010,sol2:'herbe_haute',amb:'crepuscule',arbres:14,decor:['rocher','menhir','cairn','buisson_epineux','galets'],apres:()=>{ const O=__gen.O; O(14,9,'cercle_pierres'); O(15,10,'cercle_vert',0,true); }}},
+ {id:'e_cimetiere_foret',cat:'Extérieur',nom:'Cimetière Oublié',desc:'Tombes envahies par la forêt, nuit et brume.',gen:'exterieur',o:{graine:3011,amb:'nuit',arbres:30,essences:['arbre_mort','sapin','arbre_automne'],decor:['tombe','tombe','tombe','os','branches','buisson_epineux','lanterne'],ndecor:26}},
+ {id:'e_camp_militaire',cat:'Extérieur',nom:'Camp Militaire',desc:'Tentes d\'armée, palissade de chevaux de frise, entraînement.',gen:'exterieur',o:{graine:3012,sol2:'terre',arbres:12,decor:['tonneau','caisse','sacs_sable','rack_lances'],apres:()=>{ const O=__gen.O; for(const [x,y] of [[8,6],[12,6],[16,6],[8,15],[12,15]]) O(x,y,'tente_militaire'); O(20,8,'table_camp'); O(21,12,'cible'); O(23,12,'mannequin'); O(20,14,'etendard'); O(24,9,'tour_guet'); for(let x=4;x<26;x+=2) O(x,19,'chevaux_frise'); }}},
+ {id:'e_carrefour',cat:'Extérieur',nom:'Carrefour du Pendu',desc:'Deux routes se croisent près d\'un vieux gibet.',gen:'exterieur',o:{graine:3013,route:'terre',route2:'terre',arbres:30,amb:'crepuscule',apres:()=>{ const O=__gen.O; O(12,9,'panneau'); O(13,14,'pilori'); O(7,14,'arbre_mort'); O(15,8,'lanterne'); }}},
+ {id:'e_verger',cat:'Extérieur',nom:'Verger et Ferme',desc:'Arbres fruitiers, potagers, ruches et meules de foin.',gen:'exterieur',o:{graine:3014,arbres:24,essences:['arbre_fruits','arbre_fruits','cerisier'],decor:['potager','ruche','meule_foin','epouvantail','abreuvoir','brouette','fagots'],ndecor:16}},
+ // ---------- Bâtiments (8) ----------
+ {id:'b_maison',cat:'Bâtiment',nom:'Maison du Bourgmestre',desc:'Séjour, chambres, cuisine et cabinet de travail.',gen:'batiment',o:{graine:4001,types:['sejour','chambre','cuisine','etude','chambre']}},
+ {id:'b_boutique',cat:'Bâtiment',nom:'Échoppe de l\'Apothicaire',desc:'Boutique, laboratoire, réserve et logement.',gen:'batiment',o:{graine:4002,types:['boutique','labo','remise','chambre'],mur:'fin_pierre'}},
+ {id:'b_chapelle',cat:'Bâtiment',nom:'Chapelle du Village',desc:'Nef, sacristie et logement du prêtre.',gen:'batiment',o:{graine:4003,prof:2,types:['chapelle','etude','chambre'],mur:'fin_taille'}},
+ {id:'b_manoir',cat:'Bâtiment',nom:'Manoir Hanté',desc:'Grand manoir aux nombreuses pièces, à la nuit tombée.',gen:'batiment',o:{graine:4004,l:34,h:26,prof:4,amb:'nuit',types:['sejour','etude','chambre','cuisine','chambre','labo','chapelle'],mur:'fin_taille'}},
+ {id:'b_caserne',cat:'Bâtiment',nom:'Caserne de la Garde',desc:'Dortoirs, armurerie, réfectoire et bureau du capitaine.',gen:'batiment',o:{graine:4005,types:['dortoir','atelier','salle_auberge','etude','dortoir'],mur:'fin_pierre',ext:'paves'}},
+ {id:'b_auberge',cat:'Bâtiment',nom:'Auberge du Chemin',desc:'Salle commune, cuisine et chambres à louer.',gen:'batiment',o:{graine:4006,types:['salle_auberge','cuisine','chambre','chambre','remise']}},
+ {id:'b_tour_mage',cat:'Bâtiment',nom:'Laboratoire de l\'Alchimiste',desc:'Laboratoires, bibliothèque et chambre d\'un mage.',gen:'batiment',o:{graine:4007,types:['labo','etude','labo','chambre'],mur:'fin_taille',amb:'interieur'}},
+ {id:'b_forge',cat:'Bâtiment',nom:'Forge et Écurie',desc:'Atelier du forgeron, remise et logement.',gen:'batiment',o:{graine:4008,prof:2,types:['atelier','remise','chambre'],mur:'fin_bois'}},
+ // ---------- Villages (4) ----------
+ {id:'v_hameau',cat:'Village',nom:'Hameau des Collines',desc:'Quelques maisons autour d\'un puits.',gen:'village',o:{graine:5001,maisons:5}},
+ {id:'v_bourg_marche',cat:'Village',nom:'Bourg un Jour de Marché',desc:'Place pavée, étals et maisons de colombage.',gen:'village',o:{graine:5002,maisons:6,murs:['fin_colombage'],centre:'fontaine'}},
+ {id:'v_village_neige',cat:'Village',nom:'Village du Grand Nord',desc:'Maisons de bois dans la neige, la nuit.',gen:'village',o:{graine:5003,sol:'neige',amb:'nuit',murs:['fin_bois'],essences:['sapin_enneige','sapin_givre'],decor:['tas_neige','congere','bois_givre','traineau','rocher_enneige'],etals:['traineau','bois_givre','tonneaux']}},
+ {id:'v_village_desert',cat:'Village',nom:'Comptoir du Désert',desc:'Maisons de pierre autour d\'un puits, étals et palmiers.',gen:'village',o:{graine:5004,sol:'sable',rue:'sable',place:'dallage',murs:['fin_pierre'],essences:['palmier','palmier_petit'],decor:['poteries','cactus','rocher_gres','tapis_bedouin'],etals:['etal','etal_violet','poteries','amphores']}},
+];
+
+// Retravail d'une carte : objets libérés de la grille, décalés et tournés naturellement, tables garnies, débris
+window.__naturel=(graine)=>{ const r=hasard(graine);
+  const ORGANIQUE=/arbre|sapin|chene|bouleau|cerisier|saule|palmier|buisson|arbuste|rocher|roc|galets|fougere|fleurs|touffe|souche|champignon|cristal|stalag|eboulis|gravats|os|crane|squelette|toile|branches|feuilles|ronces|roseaux|nenuphar|lys|flaque|cactus|menhir|cairn|tas_|meule|sacs|sac_|caisse|tonneau|bourse|livres|bouteilles|chopes|repas|fagots|poteries|jarre|amphores|cocon|nid|tresor|seau|bougies|cierges|lucioles|feu_follet|fiole/;
+  const FIXE=/porte|herse|fenetre|escalier|echelle|rails|pont|tapis|cercle|pentacle|runes|rond_fees|chemin|piege|plaque|fosse|grille|trappe|potager|tente|lit|banniere|tapisserie|etagere|bibliotheque|comptoir|ossuaire|cheminee/;
+  const L=carte.libres||(carte.libres=[]);
+  const surGrille=[];
+  for(let y=0;y<carte.h;y++) for(let x=0;x<carte.l;x++){ const o=carte.objets[idx(x,y)]; if(!o) continue; const a=asset(o[0]); if(!a||a.ouverture) continue; surGrille.push([x,y,o,a]); }
+  for(const [x,y,o,a] of surGrille){ const [l,h]=empreinte(a,o[1]); let cx=x+l/2, cy=y+h/2, ang=o[1]*90, s=1;
+    if(FIXE.test(o[0])){ ang+= (r()-.5)*2; }
+    else if(ORGANIQUE.test(o[0])){ const petit=l===1&&h===1; cx+=(r()-.5)*(petit?.5:.2); cy+=(r()-.5)*(petit?.5:.2); ang=petit?r()*360:ang+(r()-.5)*24; s=petit?.85+r()*.3:.95+r()*.1;
+      if(/arbre|sapin|chene|bouleau|cerisier|saule|palmier/.test(o[0])){ ang=r()*360; s=.85+r()*.45; } }
+    else { cx+=(r()-.5)*.18; cy+=(r()-.5)*.18; ang+=(r()-.5)*14; }
+    // ne pas déborder dans un mur (épais ou fin) : sinon on garde la position et l'orientation d'origine
+    const libreEn=(px,py)=>dedans(Math.floor(px),Math.floor(py))&&!carte.murs[idx(Math.floor(px),Math.floor(py))];
+    const croiseBord=(ax,ay,bx,by)=>{ for(let t=0;t<=1;t+=.1){ const px=ax+(bx-ax)*t, py=ay+(by-ay)*t; const b=bordProche(px,py); if(b&&b.d<.12&&lireBord(b)&&!asset(lireBord(b))?.ouverture) return true; } return false; };
+    const test={id:o[0],x:cx,y:cy,a:ang,s}; const pts=coinsLibre(test,.12).concat([[cx,cy]]);
+    const exterieur=/arbre|sapin|chene|bouleau|cerisier|saule|palmier/.test(o[0]);
+    if(!exterieur&&(pts.some(([px,py])=>!libreEn(px,py))||pts.some(([px,py])=>croiseBord(cx,cy,px,py)))){ cx=x+l/2; cy=y+h/2; ang=o[1]*90; s=1; }
+    carte.objets[idx(x,y)]=null; L.push({id:o[0],x:+cx.toFixed(3),y:+cy.toFixed(3),a:Math.round(((ang%360)+360)%360),s:+s.toFixed(2)}); }
+  // tables garnies et chaises orientées
+  const tables=L.filter(o=>/^table($|_ronde|_nappe|_longue|_taverne|_ronde_nappe|_cuisine)|^bureau|^table_camp/.test(o.id));
+  for(const t of tables){ const a=asset(t.id), [l,h]=a.taille||[1,1], n=Math.round(l*h*1.5)+1, ra=(t.a||0)*Math.PI/180;
+    for(let k=0;k<n;k++){ const lx=(r()-.5)*(l-.5), ly=(r()-.5)*(h-.5), id=['chopes','bouteilles','repas','bougeoir','livres','cruche','panier_pain','fromages','bourse_or','sablier'][Math.floor(r()*10)];
+      if(/cuisine/.test(t.id)&&r()<.5) continue; L.push({id,x:+(t.x+lx*Math.cos(ra)-ly*Math.sin(ra)).toFixed(3),y:+(t.y+lx*Math.sin(ra)+ly*Math.cos(ra)).toFixed(3),a:Math.round(r()*360),s:+(.45+r()*.15).toFixed(2)}); }
+    if(/^table($|_nappe|_longue)/.test(t.id)&&r()<.85){ for(const cote of [-1,1]) for(let i=0;i<l;i++){ if(r()<.35) continue; const lx=i-(l-1)/2+(r()-.5)*.25, ly=cote*(h/2+.42);
+      const px=t.x+lx*Math.cos(ra)-ly*Math.sin(ra), py=t.y+lx*Math.sin(ra)+ly*Math.cos(ra); if(!dedans(Math.floor(px),Math.floor(py))||carte.murs[idx(Math.floor(px),Math.floor(py))]) continue;
+      L.push({id:'chaise',x:+px.toFixed(3),y:+py.toFixed(3),a:Math.round(((t.a||0)+(cote>0?180:0)+(r()-.5)*24+360)%360),s:.85}); } } }
+  // débris sur les sols de donjon et de grotte
+  const DEBRIS={dalles_anciennes:['gravats','os','toile','sang','flaque'],dalles_noires:['os','gravats','toile','bougies'],sol_grotte:['gravats','galets','os','flaque','champignons'],dallage:['gravats','galets','touffe']};
+  let k=0; for(let t=0;t<carte.l*carte.h*.5&&k<carte.l*carte.h/28;t++){ const x=r()*carte.l, y=r()*carte.h, cx=Math.floor(x), cy=Math.floor(y); if(!dedans(cx,cy)||carte.murs[idx(cx,cy)]) continue;
+    const ids=DEBRIS[carte.sol[idx(cx,cy)]]; if(!ids) continue; if(L.some(o=>Math.hypot(o.x-x,o.y-y)<.9)) continue; L.push({id:ids[Math.floor(r()*ids.length)],x:+x.toFixed(3),y:+y.toFixed(3),a:Math.round(r()*360),s:+(.6+r()*.4).toFixed(2)}); k++; }
+  // ordre de dessin : sols décoratifs (tapis, cercles) dessous, arbres dessus
+  const rang=o=>/tapis|cercle|pentacle|runes|rond_fees|flaque|sang|toile|potager|rails|pont|fosse|plaque|grille|trappe/.test(o.id)?0:/arbre|sapin|chene|bouleau|cerisier|saule|palmier|tente/.test(o.id)?3:/chopes|bouteilles|repas|bougeoir|livres|cruche|panier|fromages|bourse|sablier/.test(o.id)?2:1;
+  L.sort((a,b)=>rang(a)-rang(b)); };
+
+/* « Générer une carte » : les générateurs des cartes d'exemple, avec une graine neuve à chaque fois,
+   puis l'habillage avec la bibliothèque de l'utilisateur (dans son navigateur). */
+const dlgGen=document.getElementById('dlg-generer');
+function dialogueGenerer(){ const sel=document.getElementById('gen-theme'); if(!sel.options.length){ const cats={};
+    for(const e of __liste50){ (cats[e.cat]??=[]).push(e); }
+    sel.innerHTML=Object.entries(cats).map(([c,l])=>`<optgroup label="${c}">${l.map(e=>`<option value="${e.id}">${e.nom}</option>`).join('')}</optgroup>`).join(''); sel.onchange=majGen; }
+  const n=BIB.liste.length; document.getElementById('gen-hab').disabled=!n; document.getElementById('gen-hab').checked=!!n; majGen(); dlgGen.showModal(); }
+function majGen(){ const e=__liste50.find(x=>x.id===document.getElementById('gen-theme').value), n=BIB.liste.length;
+  document.getElementById('gen-info').textContent=(e?e.desc+' ':'')+(n?`Ta bibliothèque compte ${n} assets.`:'Ta bibliothèque est vide : la carte utilisera les objets dessinés de l\'Atelier.'); }
+dlgGen.addEventListener('close',async()=>{ if(dlgGen.returnValue!=='ok') return; const e=__liste50.find(x=>x.id===document.getElementById('gen-theme').value); if(!e) return;
+  const graine=(Date.now()%1e6)|0; toast('Création de la carte…'); await new Promise(r=>setTimeout(r,30));
+  try{ __gen[e.gen]({...e.o,graine,nom:e.nom}); __naturel(graine+7); }catch(err){ console.error(err); toast('Échec de la génération'); return; }
+  nomEl.value=carte.nom; selAmb.value=carte.ambiance; pile.length=0; pileRefaire.length=0; chargerImagesCarte(); construirePalette(); cadrer(); apresModif();
+  if(document.getElementById('gen-hab').checked&&BIB.liste.length){ habiller(); } else toast(`« ${e.nom} » créée`); });
+
 /* Cartes d'exemple (dossier exemples/) */
 const EXEMPLES=[
   {id:'taverne',cat:'Bâtiment',nom:'Taverne du Sanglier Ivre',desc:'Salle commune, cuisine, réserve, chambres et rue pavée. Ambiance intérieure.'},
@@ -2546,7 +2828,7 @@ function validerCarte(d){ if(!d||typeof d!=='object'||!Number.isInteger(d.l)||!N
     objets:tab(d.objets,v=>Array.isArray(v)&&estId(v[0])&&[0,1,2,3].includes(v[1])),
     bh:tabN(d.bh,(d.h+1)*d.l), bv:tabN(d.bv,d.h*(d.l+1)), images,
     libres:(Array.isArray(d.libres)?d.libres:[]).filter(o=>o&&estId(o.id)&&isFinite(o.x)&&isFinite(o.y)).slice(0,20000)
-      .map(o=>({id:o.id,x:Math.max(-1,Math.min(d.l+1,+o.x)),y:Math.max(-1,Math.min(d.h+1,+o.y)),a:isFinite(o.a)?+o.a%360:0,s:isFinite(o.s)?Math.max(.2,Math.min(5,+o.s)):1})) }; }
+      .map(o=>({id:o.id,x:Math.max(-1,Math.min(d.l+1,+o.x)),y:Math.max(-1,Math.min(d.h+1,+o.y)),a:isFinite(o.a)?+o.a%360:0,s:isFinite(o.s)?Math.max(.2,Math.min(5,+o.s)):1,...(o.lum&&isFinite(o.lum.faible)?{lum:{clair:+o.lum.clair||1,faible:+o.lum.faible,couleur:/^#[0-9a-f]{6}$/i.test(o.lum.couleur)?o.lum.couleur:'#ffcf80',anim:typeof o.lum.anim==='string'?o.lum.anim:null}}:{})})) }; }
 document.getElementById('f-json').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
   try{ const d=validerCarte(JSON.parse(await f.text())); if(!d) throw 0; carte=d; nomEl.value=carte.nom; selAmb.value=carte.ambiance; pile.length=0; pileRefaire.length=0;
     chargerImagesCarte(); construirePalette(); cadrer(); apresModif(); toast('Carte ouverte'); }
@@ -2621,6 +2903,7 @@ function construireBiblio(g){ const barre=document.createElement('div'); barre.c
   barre.querySelector('[data-b=zip]').onclick=()=>document.getElementById('f-zip').click();
   barre.querySelector('[data-b=gerer]').onclick=bibGerer;
   barre.querySelector('[data-b=export]').onclick=bibExporter;
+  if(BIB.liste.length){ const h=document.createElement('button'); h.className='btn'; h.textContent='✨ Habiller la carte avec ces assets'; h.title='Remplace les objets dessinés de la carte par les assets les plus proches de ta bibliothèque'; h.onclick=()=>habiller(); barre.appendChild(h); }
   if(!BIB.liste.length){ const p=document.createElement('p'); p.className='biblio-vide'; p.innerHTML='Ta bibliothèque est vide.<br>Importe un <b>dossier</b> d\'assets (par exemple ton dossier « JDR asset ») ou un <b>.zip</b> de pack. Les sous-dossiers deviennent des catégories. Rien n\'est publié : les images restent dans ce navigateur.'; g.appendChild(p); return; }
   const q=BIB.recherche.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); let n=0, total=0;
   for(const e of BIB.liste){ const k=e.pack+(e.dossier?' › '+e.dossier:''); if(BIB.dossier!=='*'&&k!==BIB.dossier) continue;
@@ -2673,6 +2956,40 @@ async function bibImporterExport(l,man){ let m; try{ m=JSON.parse(await (await m
       if(lot.length>=25){ await vider(); toast(`Import… ${ok} / ${total}`); } }catch{} }
   await vider(); BIB.liste.sort((a,b)=>(a.pack+a.dossier+a.nom).localeCompare(b.pack+b.dossier+b.nom,'fr')); chargerImagesCarte();
   etat.cat='Bibliothèque'; construireOnglets(); construirePalette(); demanderRendu(); toast(`${ok} assets importés dans la bibliothèque`); }
+/* « Habiller » une carte : chaque objet dessiné est remplacé par l'asset de la bibliothèque le plus proche
+   (même nature d'après le nom anglais des fichiers, taille et proportions voisines). Tout se passe dans le navigateur. */
+const CORRESP=[
+  [/^table_ronde|^table_ronde_nappe/,/(?:^| )(?:round.*table|table.*round)[a-z]{0,4}(?: |$)/],[/^table_alchimie/,/(?:^| )(?:alchem|laborator)[a-z]{0,4}(?: |$)/],[/^table_jeu|^echiquier/,/(?:^| )(?:game.*table|chess|card.*table)[a-z]{0,4}(?: |$)/],
+  [/^table|^table_nappe|^table_longue|^table_taverne|^table_cuisine|^petite_table|^table_camp|^table_marbre|^table_chevet/,/(?:^| )(?:table)[a-z]{0,4}(?: |$)/],
+  [/^chaise/,/(?:^| )(?:chair)[a-z]{0,4}(?: |$)/],[/^tabouret/,/(?:^| )(?:stool)[a-z]{0,4}(?: |$)/],[/^banc|^bancs_eglise|^banc_pierre/,/(?:^| )(?:bench|pew)[a-z]{0,4}(?: |$)/],[/^lit_double|^baldaquin/,/(?:^| )(?:double.*bed|bed.*double|bed)[a-z]{0,4}(?: |$)/],[/^lit|^lits_superposes|^paillasse|^sac_couchage/,/(?:^| )(?:bed|bedroll|cot)[a-z]{0,4}(?: |$)/],
+  [/^bibliotheque/,/(?:^| )(?:bookshel|bookcase)[a-z]{0,4}(?: |$)/],[/^etagere|^vaisselier|^potions/,/(?:^| )(?:shel(f|ves))[a-z]{0,4}(?: |$)/],[/^armoire/,/(?:^| )(?:wardrobe|cupboard|cabinet)[a-z]{0,4}(?: |$)/],[/^commode|^coiffeuse/,/(?:^| )(?:dresser|drawer)[a-z]{0,4}(?: |$)/],[/^bureau/,/(?:^| )(?:desk)[a-z]{0,4}(?: |$)/],
+  [/^fauteuil|^canape|^pouf/,/(?:^| )(?:armchair|sofa|couch|chair)[a-z]{0,4}(?: |$)/],[/^cheminee|^poele_bois/,/(?:^| )(?:fireplace|hearth|stove)[a-z]{0,4}(?: |$)/],[/^tapis_couloir|^tapis_rituel/,/(?:^| )(?:runner|rug|carpet)[a-z]{0,4}(?: |$)/],[/^tapis|^peau_/,/(?:^| )(?:rug|carpet|fur)[a-z]{0,4}(?: |$)/],
+  [/^tonneau_couche/,/(?:^| )(?:barrel)[a-z]{0,4}(?: |$)/],[/^tonneau_robinet|^tonnelet/,/(?:^| )(?:keg|barrel)[a-z]{0,4}(?: |$)/],[/^tonneau|^tonneaux|^tonneau_rhum|^poudre/,/(?:^| )(?:barrel)[a-z]{0,4}(?: |$)/],[/^caisse|^caisses_empilees|^caisses_poisson/,/(?:^| )(?:crate)[a-z]{0,4}(?: |$)/],
+  [/^coffre_ouvert|^tresor|^bourse_or/,/(?:^| )(?:treasure|gold|coin|chest)[a-z]{0,4}(?: |$)/],[/^coffre|^malle|^coffre_marin/,/(?:^| )(?:chest|trunk)[a-z]{0,4}(?: |$)/],[/^sacs|^sac_farine|^sacoche/,/(?:^| )(?:sack|bag)[a-z]{0,4}(?: |$)/],[/^jarre|^amphores|^urne|^pots_terre|^poteries/,/(?:^| )(?:jar|urn|vase|pot|pottery|amphora)[a-z]{0,4}(?: |$)/],
+  [/^panier/,/(?:^| )(?:basket)[a-z]{0,4}(?: |$)/],[/^chopes/,/(?:^| )(?:mug|tankard|cup)[a-z]{0,4}(?: |$)/],[/^bouteilles/,/(?:^| )(?:bottle)[a-z]{0,4}(?: |$)/],[/^livres|^lutrin|^grimoire/,/(?:^| )(?:book)[a-z]{0,4}(?: |$)/],[/^repas|^panier_pain|^fromages|^jambon|^poissons_planche|^gateau/,/(?:^| )(?:food|bread|plate|meal|cheese)[a-z]{0,4}(?: |$)/],
+  [/^chaudron|^marmite/,/(?:^| )(?:cauldron|pot)[a-z]{0,4}(?: |$)/],[/^comptoir/,/(?:^| )(?:counter|bar)[a-z]{0,4}(?: |$)/],[/^etal/,/(?:^| )(?:stall|market)[a-z]{0,4}(?: |$)/],[/^charrette|^chariot_marchand|^charrette_foin/,/(?:^| )(?:cart|wagon)[a-z]{0,4}(?: |$)/],[/^chariot_mine/,/(?:^| )(?:mine.*cart|minecart|cart)[a-z]{0,4}(?: |$)/],
+  [/^tente/,/(?:^| )(?:tent)[a-z]{0,4}(?: |$)/],[/^rondins|^broche_camp|^foyer/,/(?:^| )(?:campfire|fire ?pit|fire)[a-z]{0,4}(?: |$)/],[/^barque|^radeau/,/(?:^| )(?:boat|raft)[a-z]{0,4}(?: |$)/],[/^trone/,/(?:^| )(?:throne)[a-z]{0,4}(?: |$)/],[/^enclume/,/(?:^| )(?:anvil)[a-z]{0,4}(?: |$)/],[/^etabli/,/(?:^| )(?:workbench|work ?table)[a-z]{0,4}(?: |$)/],
+  [/^torche/,/(?:^| )(?:torch)[a-z]{0,4}(?: |$)/],[/^bougies|^bougeoir|^cierges|^candelabre|^chandelier/,/(?:^| )(?:candle|candelabr)[a-z]{0,4}(?: |$)/],[/^lanterne|^lampadaire|^lampe/,/(?:^| )(?:lantern|lamp)[a-z]{0,4}(?: |$)/],[/^brasero|^vasque_feu/,/(?:^| )(?:brazier)[a-z]{0,4}(?: |$)/],[/^lustre/,/(?:^| )(?:chandelier)[a-z]{0,4}(?: |$)/],
+  [/^statue|^buste|^gargouille/,/(?:^| )(?:statue|bust|gargoyle)[a-z]{0,4}(?: |$)/],[/^colonne|^pilier/,/(?:^| )(?:pillar|column)[a-z]{0,4}(?: |$)/],[/^autel/,/(?:^| )(?:altar)[a-z]{0,4}(?: |$)/],[/^puits/,/(?:^| )(?:well)[a-z]{0,4}(?: |$)/],[/^fontaine/,/(?:^| )(?:fountain)[a-z]{0,4}(?: |$)/],
+  [/^sarcophage/,/(?:^| )(?:sarcophag)[a-z]{0,4}(?: |$)/],[/^cercueil/,/(?:^| )(?:coffin)[a-z]{0,4}(?: |$)/],[/^tombe/,/(?:^| )(?:grave|tomb|headstone)[a-z]{0,4}(?: |$)/],[/^squelette/,/(?:^| )(?:skeleton)[a-z]{0,4}(?: |$)/],[/^os$|^tas_os|^cranes|^crane/,/(?:^| )(?:bone|skull)[a-z]{0,4}(?: |$)/],[/^cage/,/(?:^| )(?:cage)[a-z]{0,4}(?: |$)/],[/^chaines|^menottes/,/(?:^| )(?:chain|shackle)[a-z]{0,4}(?: |$)/],
+  [/^gravats|^eboulis/,/(?:^| )(?:rubble|debris)[a-z]{0,4}(?: |$)/],[/^toile/,/(?:^| )(?:web)[a-z]{0,4}(?: |$)/],[/^cristal|^cristaux/,/(?:^| )(?:crystal)[a-z]{0,4}(?: |$)/],[/^meule_foin/,/(?:^| )(?:hay)[a-z]{0,4}(?: |$)/],[/^fagots|^bois_givre/,/(?:^| )(?:firewood|log ?pile|logs)[a-z]{0,4}(?: |$)/],
+  [/^sapin/,/(?:^| )(?:pine|fir|conifer)[a-z]{0,4}(?: |$)/],[/^arbre_mort/,/(?:^| )(?:dead.*tree|tree.*dead|bare.*tree)[a-z]{0,4}(?: |$)/],[/^palmier/,/(?:^| )(?:palm)[a-z]{0,4}(?: |$)/],[/^arbre|^chene|^cerisier|^bouleau|^saule/,/(?:^| )(?:tree)[a-z]{0,4}(?: |$)/],[/^arbuste|^buisson/,/(?:^| )(?:bush|shrub)[a-z]{0,4}(?: |$)/],
+  [/^rocher|^rochers|^galets|^roc/,/(?:^| )(?:rock|boulder|stone)[a-z]{0,4}(?: |$)/],[/^souche/,/(?:^| )(?:stump)[a-z]{0,4}(?: |$)/],[/^tronc/,/(?:^| )(?:log|trunk)[a-z]{0,4}(?: |$)/],[/^fleurs/,/(?:^| )(?:flower)[a-z]{0,4}(?: |$)/],[/^champignon/,/(?:^| )(?:mushroom|fungus)[a-z]{0,4}(?: |$)/],[/^fougere/,/(?:^| )(?:fern)[a-z]{0,4}(?: |$)/],[/^roseaux/,/(?:^| )(?:reed|cattail)[a-z]{0,4}(?: |$)/],
+];
+function habiller(){ const libs=BIB.liste.filter(e=>!/shadow|\bsh\b|_sh_/i.test(e.nom)); if(!libs.length){ toast('Ta bibliothèque est vide : importe d\'abord des assets'); return; }
+  const texte=e=>' '+(e.nom+' '+e.dossier).toLowerCase().replace(/[^a-z0-9]+/g,' ')+' '; memoriser();
+  // objets sur la grille → objets libres (même place)
+  for(let y=0;y<carte.h;y++) for(let x=0;x<carte.l;x++){ const o=carte.objets[idx(x,y)], a=o&&asset(o[0]); if(!a||a.ouverture||a.biblio) continue; versLibre({x,y,o,a}); }
+  const cache2=new Map(); let n=0, sans=0;
+  for(const o of carte.libres){ const a=asset(o.id); if(!a||a.biblio||a.perso||a.ouverture) continue; const regle=CORRESP.find(([ri])=>ri.test(o.id)); if(!regle){ sans++; continue; }
+    let cands=cache2.get(regle); if(!cands){ cands=libs.filter(e=>regle[1].test(texte(e))); cache2.set(regle,cands); } if(!cands.length){ sans++; continue; }
+    const [l0,h0]=(a.taille||[1,1]).map(v=>v*(o.s||1)), long0=Math.max(l0,h0), aire0=l0*h0, aspect0=l0>=h0;
+    const note=e=>{ const A=ASSETS[e.id], [l,h]=A.dim||A.taille, ar=Math.abs(Math.log((l*h)/aire0)); return ar+(Math.abs(l-h)>.3&&(l>=h)!==aspect0&&Math.abs(l0-h0)>.3?.15:0); };
+    const tri=cands.map(e=>[note(e),e]).sort((x,y)=>x[0]-y[0]).slice(0,4); const k=hashCase(Math.round(o.x*7),Math.round(o.y*7))%tri.length, e=tri[k][1], A=ASSETS[e.id], [l,h]=A.dim||A.taille;
+    const tourne=Math.abs(l0-h0)>.3&&Math.abs(l-h)>.3&&(l>=h)!==aspect0;
+    if(a.lumiere) o.lum=a.lumiere; o.id=e.id; o.s=+Math.max(.5,Math.min(1.6,long0/Math.max(l,h))).toFixed(2); if(tourne) o.a=((o.a||0)+90)%360; n++; }
+  bibPrecharger(idsCarte()).then(()=>{ viderCache(); demanderRendu(); }); apresModif();
+  toast(n?`✨ ${n} objets habillés avec ta bibliothèque${sans?` · ${sans} sans équivalent`:''} (↶ pour annuler)`:'Aucun objet de la carte n\'a d\'équivalent dans ta bibliothèque'); }
 async function lireZip(f){ const fin=new DataView(await f.slice(Math.max(0,f.size-66000)).arrayBuffer()); let p=-1;
   for(let i=fin.byteLength-22;i>=0;i--) if(fin.getUint32(i,true)===0x06054b50){ p=i; break; } if(p<0) throw new Error('fin de zip introuvable');
   const n=fin.getUint16(p+10,true), taille=fin.getUint32(p+12,true), debut=fin.getUint32(p+16,true); if(debut===0xFFFFFFFF||n===0xFFFF) throw new Error('zip64 non pris en charge, décompresse-le et importe le dossier');
