@@ -121,6 +121,10 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
 .asset img{width:52px;height:52px;object-fit:contain;border-radius:6px;background:#0d0f14}
 .bib-jauge{height:10px;background:var(--fond);border-radius:999px;overflow:hidden;margin-top:12px}#bib-barre{height:100%;width:0;background:var(--accent);transition:width .2s}
 @media (max-width:720px){ #grille-assets .biblio-barre{grid-row:1/-1;width:180px} .biblio-vide{width:220px;white-space:normal} }
+#dlg-biblio{max-width:min(94vw,520px)}
+#bib-choix{margin-top:10px}.bib-choix-tete{display:flex;gap:6px;align-items:center}.bib-choix-tete b{flex:1}.bib-choix-tete .btn{padding:4px 10px;font-size:12px}
+#bib-liste-choix{max-height:40vh;overflow:auto;margin-top:6px;border:1px solid var(--ligne);border-radius:8px;padding:4px 8px}
+#bib-liste-choix label{display:flex;justify-content:flex-start;gap:8px;margin:5px 0;font-size:13px}#bib-liste-choix label span{color:var(--doux);margin-left:auto}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--panneau2);border:1px solid var(--ligne);
   border-radius:999px;padding:8px 16px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.vu{opacity:1}
@@ -280,10 +284,11 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
 <input type="file" id="f-json" accept=".json,application/json" hidden>
 <input type="file" id="f-image" accept="image/*" hidden multiple>
 <input type="file" id="f-dossier" hidden webkitdirectory directory multiple>
-<input type="file" id="f-zip" accept=".zip,application/zip" hidden multiple>
+<input type="file" id="f-zip" accept=".zip,.dungeondraft_pack,application/zip" hidden multiple>
 <dialog id="dlg-biblio">
   <h2>Ajouter à la bibliothèque</h2>
   <p class="resume" id="bib-resume"></p>
+  <div id="bib-choix" hidden><div class="bib-choix-tete"><b>Catégories à importer</b><button class="btn" type="button" id="bib-tout">Tout</button><button class="btn" type="button" id="bib-rien">Rien</button></div><div id="bib-liste-choix"></div></div>
   <label>Échelle des assets (pixels par case) <input type="number" id="bib-ppc" min="10" max="2000" value="200"></label>
   <p class="resume">La plupart des packs (Forgotten Adventures, Tom Cartos…) sont à 200 px par case ; certains à 100, 140 ou 300. Les sous-dossiers deviennent des catégories. Les images restent dans ce navigateur, rien n'est publié.</p>
   <div class="pieds" id="bib-pieds"><button class="btn" id="bib-annuler" type="button">Annuler</button><button class="btn actif" id="bib-ok" type="button">Importer</button></div>
@@ -2607,7 +2612,7 @@ function bibDossiers(){ const m=new Map(); for(const e of BIB.liste){ const k=e.
 
 /* Palette de la bibliothèque : barre de filtres, recherche, vignettes */
 function construireBiblio(g){ const barre=document.createElement('div'); barre.className='biblio-barre';
-  const dos=bibDossiers(); barre.innerHTML=`<div class="biblio-boutons"><button class="btn" data-b="dossier">📁 Dossier</button><button class="btn" data-b="zip">🗜️ .zip</button><button class="btn" data-b="gerer" title="Retirer un pack ou tout vider">🗑</button></div>
+  const dos=bibDossiers(); barre.innerHTML=`<div class="biblio-boutons"><button class="btn" data-b="dossier">📁 Dossier</button><button class="btn" data-b="zip" title=".zip ou pack Dungeondraft (.dungeondraft_pack)">📦 Pack</button><button class="btn" data-b="gerer" title="Retirer un pack ou tout vider">🗑</button></div>
     <select class="btn" id="bib-dossier"><option value="*">Tous les dossiers (${BIB.liste.length})</option>${dos.map(([k,n])=>`<option value="${k.replace(/"/g,'&quot;')}">${k.replace(/</g,'&lt;')} (${n})</option>`).join('')}</select>
     <input type="search" id="bib-recherche" placeholder="Rechercher…" spellcheck="false">`;
   g.appendChild(barre); const sel=barre.querySelector('#bib-dossier'), rech=barre.querySelector('#bib-recherche'); sel.value=dos.some(([k])=>k===BIB.dossier)?BIB.dossier:'*'; rech.value=BIB.recherche;
@@ -2628,9 +2633,24 @@ function construireBiblio(g){ const barre=document.createElement('div'); barre.c
 const EXT_IMG=/\.(png|webp|jpe?g|gif|avif)$/i;
 document.getElementById('f-dossier').onchange=e=>{ const f=[...e.target.files].filter(x=>EXT_IMG.test(x.name)).map(x=>({chemin:x.webkitRelativePath||x.name,blob:x})); e.target.value=''; bibDialogue(f); };
 document.getElementById('f-zip').onchange=async e=>{ const fs=[...e.target.files]; e.target.value=''; const tout=[];
-  for(const f of fs){ try{ const l=await lireZip(f); const racines=new Set(l.map(x=>x.chemin.split('/')[0])); const unique=racines.size===1&&l.every(x=>x.chemin.includes('/'));
+  for(const f of fs){ if(/\.dungeondraft_pack$/i.test(f.name)){ try{ toast('Lecture du pack…'); const l=await lirePCK(f); tout.push(...l); BIB.dd=true; }catch(err){ toast('Pack illisible : '+f.name+' ('+err.message+')'); } continue; }
+    try{ const l=await lireZip(f); const racines=new Set(l.map(x=>x.chemin.split('/')[0])); const unique=racines.size===1&&l.every(x=>x.chemin.includes('/'));
       tout.push(...l.map(x=>({...x,chemin:unique?x.chemin:f.name.replace(/\.zip$/i,'')+'/'+x.chemin}))); }catch(err){ toast('Zip illisible : '+f.name+' ('+err.message+')'); } }
   bibDialogue(tout); };
+/* Pack Dungeondraft (.dungeondraft_pack) = archive Godot « PCK » : un index puis les fichiers bruts.
+   Seuls les objets (textures/objects/…) sont proposés ; Dungeondraft utilise 256 px par case. */
+async function lirePCK(f){ const tete=new DataView(await f.slice(0,96).arrayBuffer()); if(tete.getUint32(0,true)!==0x43504447) throw new Error('ce n\'est pas un pack Dungeondraft');
+  const version=tete.getUint32(4,true); let o=4+4+12, base=0n;
+  if(version>=2){ const flags=tete.getUint32(o,true); o+=4; base=tete.getBigUint64(o,true); o+=8; if(flags&1) throw new Error('pack chiffré'); }
+  o+=64; const n=tete.getUint32(o,true); o+=4;
+  // l'index peut être long : on le lit par blocs
+  let tampon=new Uint8Array(await f.slice(o,o+Math.min(f.size-o,4e6)).arrayBuffer()), dv=new DataView(tampon.buffer), p=0, debut=o; const dec=new TextDecoder(), res=[];
+  const assurer=async k=>{ if(p+k<=tampon.length) return; debut+=p; tampon=new Uint8Array(await f.slice(debut,debut+Math.max(k,4e6)).arrayBuffer()); dv=new DataView(tampon.buffer); p=0; };
+  for(let i=0;i<n;i++){ await assurer(4); const ln=dv.getUint32(p,true); p+=4; await assurer(ln+40); const chemin=dec.decode(tampon.subarray(p,p+ln)).replace(/\0+$/,''); p+=ln;
+    const off=Number(dv.getBigUint64(p,true)+base); p+=8; const taille=Number(dv.getBigUint64(p,true)); p+=8; p+=16; if(version>=2) p+=4;
+    const m=chemin.match(/textures\/objects\/(.+)$/i); if(!m||!EXT_IMG.test(chemin)) continue;
+    res.push({chemin:f.name.replace(/\.dungeondraft_pack$/i,'')+'/'+m[1], lire:async()=>f.slice(off,off+taille)}); }
+  return res; }
 async function lireZip(f){ const fin=new DataView(await f.slice(Math.max(0,f.size-66000)).arrayBuffer()); let p=-1;
   for(let i=fin.byteLength-22;i>=0;i--) if(fin.getUint32(i,true)===0x06054b50){ p=i; break; } if(p<0) throw new Error('fin de zip introuvable');
   const n=fin.getUint16(p+10,true), taille=fin.getUint32(p+12,true), debut=fin.getUint32(p+16,true); if(debut===0xFFFFFFFF||n===0xFFFF) throw new Error('zip64 non pris en charge, décompresse-le et importe le dossier');
@@ -2641,13 +2661,23 @@ async function lireZip(f){ const fin=new DataView(await f.slice(Math.max(0,f.siz
       if(meth===0) return brut; if(meth===8) return await new Response(brut.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob(); throw new Error('compression '+meth); }}); }
   return res; }
 const dlgBib=document.getElementById('dlg-biblio'); let bibAImporter=[], bibAnnule=false;
-function bibDialogue(liste){ if(!liste.length){ toast('Aucune image trouvée'); return; } bibAImporter=liste;
+const groupeDe=x=>{ const seg=x.chemin.split('/'); return seg.slice(0,Math.min(3,seg.length-1)).join(' › '); };
+function bibDialogue(liste){ if(!liste.length){ toast(BIB.dd?'Aucun objet trouvé dans ce pack (un pack de textures ne contient que des sols et des murs)':'Aucune image trouvée'); BIB.dd=false; return; } bibAImporter=liste;
+  const groupes=new Map(); for(const x of liste){ const g=groupeDe(x); groupes.set(g,(groupes.get(g)||0)+1); }
+  const choix=document.getElementById('bib-choix'), lc=document.getElementById('bib-liste-choix'); choix.hidden=groupes.size<2; lc.innerHTML='';
+  for(const [g,n] of [...groupes.entries()].sort((a,b)=>a[0].localeCompare(b[0],'fr'))){ const l=document.createElement('label'); l.innerHTML=`<input type="checkbox" checked><b></b><span>${n}</span>`; l.querySelector('b').textContent=g.split(' › ').slice(1).join(' › ')||g; l.querySelector('input').dataset.g=g; lc.appendChild(l); }
+  if(liste.length>1500) lc.querySelectorAll('input').forEach(c=>c.checked=false);
+  document.getElementById('bib-tout').onclick=()=>lc.querySelectorAll('input').forEach(c=>c.checked=true); document.getElementById('bib-rien').onclick=()=>lc.querySelectorAll('input').forEach(c=>c.checked=false);
+  if(BIB.dd){ document.getElementById('bib-ppc').value=256; }
   const racines=new Set(liste.map(x=>x.chemin.split('/')[0])); document.getElementById('bib-resume').textContent=`${liste.length} images trouvées dans « ${[...racines].slice(0,3).join(', ')}${racines.size>3?'…':''} ».`;
-  try{ const s=JSON.parse(localStorage.getItem('atelier-cartes-biblio')||'{}'); if(s.ppc) document.getElementById('bib-ppc').value=s.ppc; }catch{}
+  if(!BIB.dd) try{ const s=JSON.parse(localStorage.getItem('atelier-cartes-biblio')||'{}'); if(s.ppc) document.getElementById('bib-ppc').value=s.ppc; }catch{}
+  BIB.dd=false;
   document.getElementById('bib-progres').hidden=true; document.getElementById('bib-pieds').hidden=false; dlgBib.showModal(); }
 document.getElementById('bib-annuler').onclick=()=>{ bibAnnule=true; dlgBib.close(); };
 document.getElementById('bib-ok').onclick=async()=>{ const ppc=Math.max(10,+document.getElementById('bib-ppc').value||200); try{ localStorage.setItem('atelier-cartes-biblio',JSON.stringify({ppc})); }catch{}
-  document.getElementById('bib-pieds').hidden=true; document.getElementById('bib-progres').hidden=false; bibAnnule=false;
+  const coches=new Set([...document.querySelectorAll('#bib-liste-choix input:checked')].map(c=>c.dataset.g));
+  if(!document.getElementById('bib-choix').hidden){ bibAImporter=bibAImporter.filter(x=>coches.has(groupeDe(x))); if(!bibAImporter.length){ toast('Coche au moins une catégorie'); return; } }
+  document.getElementById('bib-choix').hidden=true; document.getElementById('bib-pieds').hidden=true; document.getElementById('bib-progres').hidden=false; bibAnnule=false;
   const barre=document.getElementById('bib-barre'), txt=document.getElementById('bib-txt'); let ok=0, ko=0, i=0; const lot=[];
   const vider=async()=>{ if(!lot.length) return; const l=lot.splice(0); await bibTx('readwrite',st=>{ for(const e of l) st.put(e); }); for(const e of l){ const j=BIB.liste.findIndex(x=>x.id===e.id); if(j>=0) BIB.liste[j]=e; else BIB.liste.push(e); bibEnregistrerAsset(e); } };
   for(const f of bibAImporter){ if(bibAnnule) break; i++;
@@ -2656,10 +2686,10 @@ document.getElementById('bib-ok').onclick=async()=>{ const ppc=Math.max(10,+docu
   try{ await vider(); }catch(err){ toast('Mémoire du navigateur pleine ?'); }
   BIB.liste.sort((a,b)=>(a.pack+a.dossier+a.nom).localeCompare(b.pack+b.dossier+b.nom,'fr'));
   dlgBib.close(); etat.cat='Bibliothèque'; construireOnglets(); construirePalette(); toast(`${ok} assets ajoutés à la bibliothèque${ko?` (${ko} ignorés)`:''}`); };
-async function bibPreparer(chemin,blob,ppc){ const bmp=await createImageBitmap(blob); let w=bmp.width, h=bmp.height; const max=2048, s=Math.min(1,max/Math.max(w,h));
+async function bibPreparer(chemin,blob,ppc){ const bmp=await createImageBitmap(blob); let w=bmp.width, h=bmp.height; const max=2048, s=Math.min(1,max/Math.max(w,h),200/ppc);
   const cv=toile(w*s,h*s); cv.getContext('2d').drawImage(bmp,0,0,cv.width,cv.height); let out=await versBlob(cv,'image/webp',.9); if(!out||out.type!=='image/webp') out=await versBlob(cv,'image/png');
   const vs=Math.min(1,112/Math.max(w,h)), vc=toile(w*vs,h*vs); vc.getContext('2d').drawImage(bmp,0,0,vc.width,vc.height); const vignette=await versBlob(vc,'image/webp',.8)||await versBlob(vc,'image/png'); bmp.close&&bmp.close();
-  const seg=chemin.split('/').filter(Boolean), fichier=seg.pop(), pack=seg.length>1?seg[1]:(seg[0]||'Import'), dossier=seg.slice(2).join(' › ');
+  const seg=chemin.split('/').filter(Boolean), fichier=seg.pop(), dd=/^FA_|_v\d/.test(seg[0]||''), pack=dd?seg[0]:(seg.length>1?seg[1]:(seg[0]||'Import')), dossier=seg.slice(dd?1:2).join(' › ');
   const nom=fichier.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim().slice(0,48);
   let hsh=2166136261; for(const ch of chemin){ hsh^=ch.charCodeAt(0); hsh=Math.imul(hsh,16777619); }
   return { id:'bib_'+(hsh>>>0).toString(36)+'_'+chemin.length.toString(36), nom, pack, dossier, w:cv.width/s, h:cv.height/s, ppc, blob:out, vignette }; }
