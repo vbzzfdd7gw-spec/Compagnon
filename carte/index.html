@@ -120,7 +120,7 @@ dialog .aide summary{cursor:pointer;color:var(--texte)}
 .biblio-vide{grid-column:1/-1;color:var(--doux);font-size:12px;line-height:1.5;margin:4px 0}
 .asset img{width:52px;height:52px;object-fit:contain;border-radius:6px;background:#0d0f14}
 .bib-jauge{height:10px;background:var(--fond);border-radius:999px;overflow:hidden;margin-top:12px}#bib-barre{height:100%;width:0;background:var(--accent);transition:width .2s}
-@media (max-width:720px){ #grille-assets .biblio-barre{grid-row:1/-1;width:180px} .biblio-vide{width:220px;white-space:normal} }
+@media (max-width:720px){ #grille-assets .biblio-barre{grid-row:1/-1;grid-column:span 3;width:auto} #grille-assets .biblio-vide{grid-row:1/-1;grid-column:span 4;white-space:normal} .biblio-boutons .btn{padding:6px 4px} }
 #dlg-biblio{max-width:min(94vw,520px)}
 #bib-choix{margin-top:10px}.bib-choix-tete{display:flex;gap:6px;align-items:center}.bib-choix-tete b{flex:1}.bib-choix-tete .btn{padding:4px 10px;font-size:12px}
 #bib-liste-choix{max-height:40vh;overflow:auto;margin-top:6px;border:1px solid var(--ligne);border-radius:8px;padding:4px 8px}
@@ -2612,7 +2612,7 @@ function bibDossiers(){ const m=new Map(); for(const e of BIB.liste){ const k=e.
 
 /* Palette de la bibliothèque : barre de filtres, recherche, vignettes */
 function construireBiblio(g){ const barre=document.createElement('div'); barre.className='biblio-barre';
-  const dos=bibDossiers(); barre.innerHTML=`<div class="biblio-boutons"><button class="btn" data-b="dossier">📁 Dossier</button><button class="btn" data-b="zip" title=".zip ou pack Dungeondraft (.dungeondraft_pack)">📦 Pack</button><button class="btn" data-b="gerer" title="Retirer un pack ou tout vider">🗑</button></div>
+  const dos=bibDossiers(); barre.innerHTML=`<div class="biblio-boutons"><button class="btn" data-b="dossier">📁 Dossier</button><button class="btn" data-b="zip" title=".zip ou pack Dungeondraft (.dungeondraft_pack)">📦 Pack</button><button class="btn" data-b="export" title="Exporter la bibliothèque (ou le dossier affiché) en .zip, pour l'importer sur un autre appareil">⬇</button><button class="btn" data-b="gerer" title="Retirer un pack ou tout vider">🗑</button></div>
     <select class="btn" id="bib-dossier"><option value="*">Tous les dossiers (${BIB.liste.length})</option>${dos.map(([k,n])=>`<option value="${k.replace(/"/g,'&quot;')}">${k.replace(/</g,'&lt;')} (${n})</option>`).join('')}</select>
     <input type="search" id="bib-recherche" placeholder="Rechercher…" spellcheck="false">`;
   g.appendChild(barre); const sel=barre.querySelector('#bib-dossier'), rech=barre.querySelector('#bib-recherche'); sel.value=dos.some(([k])=>k===BIB.dossier)?BIB.dossier:'*'; rech.value=BIB.recherche;
@@ -2620,6 +2620,7 @@ function construireBiblio(g){ const barre=document.createElement('div'); barre.c
   barre.querySelector('[data-b=dossier]').onclick=()=>document.getElementById('f-dossier').click();
   barre.querySelector('[data-b=zip]').onclick=()=>document.getElementById('f-zip').click();
   barre.querySelector('[data-b=gerer]').onclick=bibGerer;
+  barre.querySelector('[data-b=export]').onclick=bibExporter;
   if(!BIB.liste.length){ const p=document.createElement('p'); p.className='biblio-vide'; p.innerHTML='Ta bibliothèque est vide.<br>Importe un <b>dossier</b> d\'assets (par exemple ton dossier « JDR asset ») ou un <b>.zip</b> de pack. Les sous-dossiers deviennent des catégories. Rien n\'est publié : les images restent dans ce navigateur.'; g.appendChild(p); return; }
   const q=BIB.recherche.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); let n=0, total=0;
   for(const e of BIB.liste){ const k=e.pack+(e.dossier?' › '+e.dossier:''); if(BIB.dossier!=='*'&&k!==BIB.dossier) continue;
@@ -2632,11 +2633,11 @@ function construireBiblio(g){ const barre=document.createElement('div'); barre.c
 /* Import : fichiers d'un dossier ou entrées d'un .zip → [{chemin, blob}] */
 const EXT_IMG=/\.(png|webp|jpe?g|gif|avif)$/i;
 document.getElementById('f-dossier').onchange=e=>{ const f=[...e.target.files].filter(x=>EXT_IMG.test(x.name)).map(x=>({chemin:x.webkitRelativePath||x.name,blob:x})); e.target.value=''; bibDialogue(f); };
-document.getElementById('f-zip').onchange=async e=>{ const fs=[...e.target.files]; e.target.value=''; const tout=[];
+document.getElementById('f-zip').onchange=async e=>{ const fs=[...e.target.files]; e.target.value=''; const tout=[]; let manifestes=0;
   for(const f of fs){ if(/\.dungeondraft_pack$/i.test(f.name)){ try{ toast('Lecture du pack…'); const l=await lirePCK(f); tout.push(...l); BIB.dd=true; }catch(err){ toast('Pack illisible : '+f.name+' ('+err.message+')'); } continue; }
-    try{ const l=await lireZip(f); const racines=new Set(l.map(x=>x.chemin.split('/')[0])); const unique=racines.size===1&&l.every(x=>x.chemin.includes('/'));
+    try{ const l=await lireZip(f); const man=l.find(x=>/atelier-biblio\.json$/.test(x.chemin)); if(man){ await bibImporterExport(l,man); manifestes++; continue; } const racines=new Set(l.map(x=>x.chemin.split('/')[0])); const unique=racines.size===1&&l.every(x=>x.chemin.includes('/'));
       tout.push(...l.map(x=>({...x,chemin:unique?x.chemin:f.name.replace(/\.zip$/i,'')+'/'+x.chemin}))); }catch(err){ toast('Zip illisible : '+f.name+' ('+err.message+')'); } }
-  bibDialogue(tout); };
+  if(tout.length||!manifestes) bibDialogue(tout); };
 /* Pack Dungeondraft (.dungeondraft_pack) = archive Godot « PCK » : un index puis les fichiers bruts.
    Seuls les objets (textures/objects/…) sont proposés ; Dungeondraft utilise 256 px par case. */
 async function lirePCK(f){ const tete=new DataView(await f.slice(0,96).arrayBuffer()); if(tete.getUint32(0,true)!==0x43504447) throw new Error('ce n\'est pas un pack Dungeondraft');
@@ -2651,12 +2652,33 @@ async function lirePCK(f){ const tete=new DataView(await f.slice(0,96).arrayBuff
     const m=chemin.match(/textures\/objects\/(.+)$/i); if(!m||!EXT_IMG.test(chemin)) continue;
     res.push({chemin:f.name.replace(/\.dungeondraft_pack$/i,'')+'/'+m[1], lire:async()=>f.slice(off,off+taille)}); }
   return res; }
+/* Export de la bibliothèque : un .zip d'images déjà préparées + un manifeste (identifiants, noms, échelles).
+   Réimporté sur un autre appareil, il redonne exactement les mêmes assets : les cartes s'y ouvrent telles quelles. */
+async function bibExporter(){ const sel=BIB.dossier, liste=BIB.liste.filter(e=>sel==='*'||e.pack+(e.dossier?' › '+e.dossier:'')===sel);
+  if(!liste.length){ toast('Bibliothèque vide'); return; }
+  const mo=liste.reduce((s,e)=>s+(e.blob?.size||0),0)/1e6; if(!confirm(`Exporter ${liste.length} assets${sel==='*'?'':` du dossier « ${sel} »`} (≈ ${Math.max(1,Math.round(mo))} Mo) ?\nPour n'en exporter qu'une partie, choisis d'abord un dossier dans la liste.`)) return;
+  toast('Préparation de l\'export…'); const fichiers=[], man=[]; const sur=t=>t.replace(/[\\/:*?"<>|]+/g,'_').trim()||'_';
+  for(const e of liste){ const ext=e.blob.type==='image/png'?'png':'webp', chemin=[sur(e.pack),...(e.dossier?e.dossier.split(' › ').map(sur):[]),sur(e.nom)+'_'+e.id.slice(-6)+'.'+ext].join('/');
+    fichiers.push({nom:chemin,data:new Uint8Array(await e.blob.arrayBuffer())}); man.push({id:e.id,nom:e.nom,pack:e.pack,dossier:e.dossier,w:e.w,h:e.h,ppc:e.ppc,fichier:chemin}); }
+  fichiers.push({nom:'atelier-biblio.json',data:new TextEncoder().encode(JSON.stringify({version:1,assets:man}))});
+  telecharger(zip(fichiers),`bibliotheque-atelier${sel==='*'?'':'-'+sur(sel).slice(0,40)}.zip`); toast(`${liste.length} assets exportés`); }
+async function bibImporterExport(l,man){ let m; try{ m=JSON.parse(await (await man.lire()).text()); }catch{ toast('Export de bibliothèque illisible'); return; }
+  const parChemin=new Map(l.map(x=>[x.chemin,x])); const total=m.assets.length; let ok=0;
+  toast(`Import de ${total} assets…`); const lot=[];
+  const vider=async()=>{ if(!lot.length) return; const l2=lot.splice(0); await bibTx('readwrite',st=>{ for(const e of l2) st.put(e); }); for(const e of l2){ const j=BIB.liste.findIndex(x=>x.id===e.id); if(j>=0) BIB.liste[j]=e; else BIB.liste.push(e); bibEnregistrerAsset(e); } };
+  for(const a of m.assets){ const f=parChemin.get(a.fichier); if(!f||typeof a.id!=='string'||!/^bib_[\w-]+$/.test(a.id)) continue;
+    try{ const blob=await f.lire(), bmp=await createImageBitmap(blob), vs=Math.min(1,112/Math.max(bmp.width,bmp.height)), vc=toile(bmp.width*vs,bmp.height*vs); vc.getContext('2d').drawImage(bmp,0,0,vc.width,vc.height); bmp.close&&bmp.close();
+      const typ=/\.png$/i.test(a.fichier)?'image/png':'image/webp';
+      lot.push({id:a.id,nom:String(a.nom||'Asset').slice(0,48),pack:String(a.pack||'Import'),dossier:String(a.dossier||''),w:+a.w||bmp.width,h:+a.h||bmp.height,ppc:+a.ppc||200,blob:new Blob([blob],{type:typ}),vignette:await versBlob(vc,'image/webp',.8)}); ok++;
+      if(lot.length>=25){ await vider(); toast(`Import… ${ok} / ${total}`); } }catch{} }
+  await vider(); BIB.liste.sort((a,b)=>(a.pack+a.dossier+a.nom).localeCompare(b.pack+b.dossier+b.nom,'fr')); chargerImagesCarte();
+  etat.cat='Bibliothèque'; construireOnglets(); construirePalette(); demanderRendu(); toast(`${ok} assets importés dans la bibliothèque`); }
 async function lireZip(f){ const fin=new DataView(await f.slice(Math.max(0,f.size-66000)).arrayBuffer()); let p=-1;
   for(let i=fin.byteLength-22;i>=0;i--) if(fin.getUint32(i,true)===0x06054b50){ p=i; break; } if(p<0) throw new Error('fin de zip introuvable');
   const n=fin.getUint16(p+10,true), taille=fin.getUint32(p+12,true), debut=fin.getUint32(p+16,true); if(debut===0xFFFFFFFF||n===0xFFFF) throw new Error('zip64 non pris en charge, décompresse-le et importe le dossier');
   const cd=new DataView(await f.slice(debut,debut+taille).arrayBuffer()), dec=new TextDecoder(), res=[]; let o=0;
   for(let i=0;i<n&&o<cd.byteLength;i++){ if(cd.getUint32(o,true)!==0x02014b50) break; const meth=cd.getUint16(o+10,true), csz=cd.getUint32(o+20,true), ln=cd.getUint16(o+28,true), lx=cd.getUint16(o+30,true), lc=cd.getUint16(o+32,true), off=cd.getUint32(o+42,true);
-    const nom=dec.decode(new Uint8Array(cd.buffer,cd.byteOffset+o+46,ln)); o+=46+ln+lx+lc; if(!EXT_IMG.test(nom)||nom.includes('__MACOSX')) continue;
+    const nom=dec.decode(new Uint8Array(cd.buffer,cd.byteOffset+o+46,ln)); o+=46+ln+lx+lc; if((!EXT_IMG.test(nom)&&!/atelier-biblio\.json$/.test(nom))||nom.includes('__MACOSX')) continue;
     res.push({chemin:nom, lire:async()=>{ const h=new DataView(await f.slice(off,off+30).arrayBuffer()); const d=off+30+h.getUint16(26,true)+h.getUint16(28,true), brut=f.slice(d,d+csz);
       if(meth===0) return brut; if(meth===8) return await new Response(brut.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob(); throw new Error('compression '+meth); }}); }
   return res; }
