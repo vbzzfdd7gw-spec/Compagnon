@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Horloges du monde</title>
+<meta name="description" content="Affiche simultanément l'heure de plusieurs villes et compare les fuseaux horaires.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Horloges">
+<meta name="theme-color" content="#0f1322">
+<style>
+:root{
+  --bg:#0f1322;--panel:#181e33;--panel2:#212842;--line:#303a5c;
+  --fg:#eef1fa;--muted:#9aa4c2;--accent:#f2b75b;--accent-ink:#2a1a00;--bad:#ff6b6b;
+  --night:#1a2140;--dawn:#3a4a7a;--work:#c98d32;--work-ink:#1d1200;
+  --f-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+.wrap{max-width:620px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 14px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 32px) max(16px,env(safe-area-inset-left,0px));display:grid;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:1.5rem;margin:0;line-height:1.1}
+h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0;font-weight:600}
+.sub{color:var(--muted);font-size:.9rem}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-weight:600;white-space:nowrap}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{padding:6px 10px;font-size:.85rem;border-radius:8px}
+.btn.danger{color:var(--bad)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;min-width:0}
+
+/* Horloges */
+#clocks{display:grid;gap:10px}
+.clock{display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:center}
+.clock.ref{border-color:var(--accent)}
+.clock svg{width:64px;height:64px;display:block}
+.c-name{font-weight:700;font-size:1.08rem;display:flex;align-items:center;gap:8px;min-width:0}
+.c-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:1px 7px;font-weight:600;flex:none}
+.c-sub{color:var(--muted);font-size:.85rem}
+.c-time{font-family:var(--f-mono);font-size:2rem;font-weight:600;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.c-time small{font-size:.55em;color:var(--muted);margin-left:2px}
+.c-diff{font-size:.85rem;color:var(--accent);font-weight:600}
+.c-more{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted);font-size:1.3rem;align-self:start}
+.c-more:hover{background:var(--panel2)}
+.c-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;padding-top:4px;border-top:1px solid var(--line);margin-top:2px;padding-top:10px}
+.c-actions[hidden]{display:none}
+@media (max-width:420px){.clock{grid-template-columns:52px 1fr auto;gap:10px}.clock svg{width:52px;height:52px}.c-time{font-size:1.6rem}}
+
+/* Décalage */
+.shift{display:grid;gap:10px}
+.shift-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.shift-val{font-family:var(--f-mono);font-weight:600;color:var(--accent)}
+input[type=range]{padding:0;border:0;background:none;accent-color:var(--accent);height:28px}
+.plan{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.plan select,.plan input{width:auto;flex:1 1 120px}
+select{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted)}
+.live i{width:8px;height:8px;border-radius:50%;background:#5fd39b;box-shadow:0 0 0 3px #5fd39b33}
+.live.off i{background:var(--accent);box-shadow:0 0 0 3px #f2b75b33}
+
+/* Comparateur 24 h */
+.grid-wrap{overflow-x:auto;margin:0 -14px;padding:0 14px;scrollbar-width:thin}
+.tl{display:grid;gap:4px;min-width:max-content}
+.tl-row{display:flex;gap:2px;align-items:stretch}
+.tl-lab{position:sticky;left:-14px;z-index:1;background:var(--panel);width:96px;flex:none;font-size:.8rem;font-weight:600;display:flex;align-items:center;padding-right:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-cell{width:44px;flex:none;border-radius:6px;font-family:var(--f-mono);font-size:.74rem;text-align:center;padding:6px 0;background:var(--night);color:#aab3d6;line-height:1.15}
+.tl-cell.d{background:var(--dawn);color:#e4e9fb}
+.tl-cell.w{background:var(--work);color:var(--work-ink);font-weight:600}
+.tl-cell.mid{box-shadow:inset 2px 0 0 #fff8}
+.tl-cell small{display:block;font-size:.62rem;opacity:.85}
+.tl-col{cursor:pointer}
+.tl-col.now{outline:2px solid var(--accent);outline-offset:1px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend b{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+
+/* Dialogue d'ajout */
+dialog{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:16px;padding:0;width:min(520px,calc(100vw - 24px));max-height:min(640px,calc(100vh - 40px))}
+dialog::backdrop{background:#0008}
+.dlg{display:grid;grid-template-rows:auto auto 1fr auto;gap:10px;padding:16px;max-height:min(640px,calc(100vh - 40px))}
+.results{overflow:auto;display:grid;gap:4px;align-content:start;min-height:120px}
+.res{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;text-align:left;width:100%}
+.res:hover,.res:focus-visible{background:var(--panel2)}
+.res .r-t{font-family:var(--f-mono);color:var(--muted);font-size:.85rem;white-space:nowrap}
+.res .r-s{color:var(--muted);font-size:.82rem;display:block}
+.empty{color:var(--muted);text-align:center;padding:20px 8px}
+.toggle{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted);cursor:pointer}
+.toggle input{width:auto}
+</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <div><h1>Horloges du monde</h1><div class="sub" id="today"></div></div>
+    <button class="btn primary" id="addBtn">+ Ajouter</button>
+  </header>
+
+  <section id="clocks" aria-live="off"></section>
+
+  <section class="card shift">
+    <div class="shift-head">
+      <h2>Et s'il était…</h2>
+      <span class="live" id="live"><i></i><span id="liveTxt">En direct</span></span>
+    </div>
+    <input type="range" id="slider" min="-720" max="720" step="15" value="0" aria-label="Décaler l'heure">
+    <div class="shift-head">
+      <span class="shift-val" id="shiftVal">± 0 h</span>
+      <button class="btn small" id="resetBtn">Revenir à maintenant</button>
+    </div>
+    <div class="plan">
+      <input type="time" id="planTime" aria-label="Heure">
+      <span class="sub">à</span>
+      <select id="planTz" aria-label="Ville"></select>
+      <button class="btn small" id="planBtn">Voir</button>
+    </div>
+  </section>
+
+  <section class="card" style="display:grid;gap:10px">
+    <h2>Comparer sur 24 h</h2>
+    <div class="grid-wrap"><div class="tl" id="tl"></div></div>
+    <div class="legend"><span><b style="background:var(--work)"></b>Heures de bureau (9 h–18 h)</span><span><b style="background:var(--dawn)"></b>Matin / soirée</span><span><b style="background:var(--night)"></b>Nuit</span></div>
+    <div class="sub">Touchez une colonne pour voir toutes les horloges à cette heure-là.</div>
+  </section>
+
+  <label class="toggle"><input type="checkbox" id="secs"> Afficher les secondes</label>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" class="dlg">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h1 style="font-size:1.2rem">Ajouter une ville</h1><button class="btn small" value="cancel">Fermer</button></div>
+    <input type="search" id="q" placeholder="Ville, pays ou fuseau (ex. Tokyo, Inde, America/…)" autocomplete="off">
+    <div class="results" id="results"></div>
+    <div class="sub">Astuce : le nom de la ville peut être modifié ensuite avec le bouton « ⋯ ».</div>
+  </form>
+</dialog>
+
+<script>
+'use strict';
+// [nom, fuseau IANA, précision]
+const CITIES=[
+["Paris","Europe/Paris","France"],["Hyderabad","Asia/Kolkata","Inde · Telangana"],["Mumbai","Asia/Kolkata","Inde · Maharashtra"],["New Delhi","Asia/Kolkata","Inde"],["Bangalore","Asia/Kolkata","Inde · Karnataka"],["Chennai","Asia/Kolkata","Inde · Tamil Nadu"],
+["Londres","Europe/London","Royaume-Uni"],["Dublin","Europe/Dublin","Irlande"],["Lisbonne","Europe/Lisbon","Portugal"],["Madrid","Europe/Madrid","Espagne"],["Barcelone","Europe/Madrid","Espagne"],["Bruxelles","Europe/Brussels","Belgique"],["Amsterdam","Europe/Amsterdam","Pays-Bas"],["Genève","Europe/Zurich","Suisse"],["Zurich","Europe/Zurich","Suisse"],["Luxembourg","Europe/Luxembourg","Luxembourg"],["Berlin","Europe/Berlin","Allemagne"],["Rome","Europe/Rome","Italie"],["Vienne","Europe/Vienna","Autriche"],["Prague","Europe/Prague","Tchéquie"],["Varsovie","Europe/Warsaw","Pologne"],["Stockholm","Europe/Stockholm","Suède"],["Oslo","Europe/Oslo","Norvège"],["Copenhague","Europe/Copenhagen","Danemark"],["Helsinki","Europe/Helsinki","Finlande"],["Athènes","Europe/Athens","Grèce"],["Bucarest","Europe/Bucharest","Roumanie"],["Kiev","Europe/Kyiv","Ukraine"],["Istanbul","Europe/Istanbul","Turquie"],["Moscou","Europe/Moscow","Russie"],
+["Casablanca","Africa/Casablanca","Maroc"],["Alger","Africa/Algiers","Algérie"],["Tunis","Africa/Tunis","Tunisie"],["Dakar","Africa/Dakar","Sénégal"],["Abidjan","Africa/Abidjan","Côte d'Ivoire"],["Lagos","Africa/Lagos","Nigeria"],["Le Caire","Africa/Cairo","Égypte"],["Nairobi","Africa/Nairobi","Kenya"],["Johannesburg","Africa/Johannesburg","Afrique du Sud"],["Kinshasa","Africa/Kinshasa","RD Congo"],["Antananarivo","Indian/Antananarivo","Madagascar"],["La Réunion","Indian/Reunion","France"],["Maurice","Indian/Mauritius","Maurice"],
+["Dubaï","Asia/Dubai","Émirats arabes unis"],["Riyad","Asia/Riyadh","Arabie saoudite"],["Doha","Asia/Qatar","Qatar"],["Tel Aviv","Asia/Jerusalem","Israël"],["Beyrouth","Asia/Beirut","Liban"],["Téhéran","Asia/Tehran","Iran"],["Karachi","Asia/Karachi","Pakistan"],["Katmandou","Asia/Kathmandu","Népal"],["Dacca","Asia/Dhaka","Bangladesh"],["Colombo","Asia/Colombo","Sri Lanka"],["Bangkok","Asia/Bangkok","Thaïlande"],["Hô Chi Minh-Ville","Asia/Ho_Chi_Minh","Viêt Nam"],["Singapour","Asia/Singapore","Singapour"],["Kuala Lumpur","Asia/Kuala_Lumpur","Malaisie"],["Jakarta","Asia/Jakarta","Indonésie"],["Manille","Asia/Manila","Philippines"],["Hong Kong","Asia/Hong_Kong","Chine"],["Shanghai","Asia/Shanghai","Chine"],["Pékin","Asia/Shanghai","Chine"],["Taipei","Asia/Taipei","Taïwan"],["Séoul","Asia/Seoul","Corée du Sud"],["Tokyo","Asia/Tokyo","Japon"],
+["Sydney","Australia/Sydney","Australie"],["Melbourne","Australia/Melbourne","Australie"],["Brisbane","Australia/Brisbane","Australie"],["Perth","Australia/Perth","Australie"],["Auckland","Pacific/Auckland","Nouvelle-Zélande"],["Nouméa","Pacific/Noumea","Nouvelle-Calédonie"],["Papeete","Pacific/Tahiti","Polynésie française"],["Honolulu","Pacific/Honolulu","États-Unis · Hawaï"],
+["New York","America/New_York","États-Unis"],["Washington","America/New_York","États-Unis"],["Miami","America/New_York","États-Unis"],["Chicago","America/Chicago","États-Unis"],["Houston","America/Chicago","États-Unis"],["Denver","America/Denver","États-Unis"],["Phoenix","America/Phoenix","États-Unis"],["Los Angeles","America/Los_Angeles","États-Unis"],["San Francisco","America/Los_Angeles","États-Unis"],["Seattle","America/Los_Angeles","États-Unis"],["Anchorage","America/Anchorage","États-Unis · Alaska"],["Montréal","America/Toronto","Canada · Québec"],["Toronto","America/Toronto","Canada"],["Vancouver","America/Vancouver","Canada"],["Mexico","America/Mexico_City","Mexique"],["Bogotá","America/Bogota","Colombie"],["Lima","America/Lima","Pérou"],["Santiago","America/Santiago","Chili"],["Buenos Aires","America/Argentina/Buenos_Aires","Argentine"],["São Paulo","America/Sao_Paulo","Brésil"],["Rio de Janeiro","America/Sao_Paulo","Brésil"],["Pointe-à-Pitre","America/Guadeloupe","Guadeloupe"],["Fort-de-France","America/Martinique","Martinique"],["Cayenne","America/Cayenne","Guyane"],
+["UTC","UTC","Temps universel coordonné"]
+];
+const KEY='horloges-v1';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY)||'null');}catch(e){S=null;}
+if(!S||!Array.isArray(S.clocks)||!S.clocks.length){
+  S={secs:true,clocks:[
+    {id:uid(),name:'Paris',sub:'France',tz:'Europe/Paris'},
+    {id:uid(),name:'Hyderabad',sub:'Telangana 500032 · Inde',tz:'Asia/Kolkata'}
+  ]};
+}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
+let shift=0; // minutes de décalage par rapport à maintenant
+let openMenu=null;
+
+// --- Calcul des fuseaux ---
+const fmtCache={};
+function partsFmt(tz){return fmtCache[tz]||(fmtCache[tz]=new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'}));}
+function offMin(tz,ms){
+  const p=partsFmt(tz).formatToParts(new Date(ms));const g=t=>+p.find(x=>x.type===t).value;
+  const asUTC=Date.UTC(g('year'),g('month')-1,g('day'),g('hour')%24,g('minute'),g('second'));
+  return Math.round((asUTC-Math.floor(ms/1000)*1000)/60000);
+}
+function local(tz,ms){const o=offMin(tz,ms);const d=new Date(ms+o*60000);return{off:o,d,h:d.getUTCHours(),m:d.getUTCMinutes(),s:d.getUTCSeconds(),day:Math.floor((ms+o*60000)/86400000)};}
+const pad=n=>String(n).padStart(2,'0');
+function fmtOff(min){if(!min)return 'même heure';const s=min>0?'+':'−';min=Math.abs(min);const h=Math.floor(min/60),m=min%60;return `${s}${h} h${m?' '+pad(m):''}`;}
+function fmtUtc(min){const s=min>=0?'+':'−';min=Math.abs(min);return `UTC${s}${Math.floor(min/60)}${min%60?':'+pad(min%60):''}`;}
+const dateFmt={};
+function fmtDate(tz,ms){return (dateFmt[tz]||(dateFmt[tz]=new Intl.DateTimeFormat('fr-FR',{timeZone:tz,weekday:'long',day:'numeric',month:'long'}))).format(new Date(ms));}
+function validTz(tz){try{partsFmt(tz).format(0);return true;}catch(e){return false;}}
+
+// --- Horloges ---
+function analog(){return `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="47" fill="var(--panel2)" stroke="var(--line)" stroke-width="2"/>${Array.from({length:12},(_,i)=>`<line x1="50" y1="${i%3?8:6}" x2="50" y2="${i%3?13:16}" stroke="${i%3?'#5b6690':'#c7cee8'}" stroke-width="${i%3?2:3}" stroke-linecap="round" transform="rotate(${i*30} 50 50)"/>`).join('')}<line class="hh" x1="50" y1="50" x2="50" y2="27" stroke="var(--fg)" stroke-width="5" stroke-linecap="round"/><line class="mh" x1="50" y1="50" x2="50" y2="15" stroke="var(--fg)" stroke-width="3.2" stroke-linecap="round"/><line class="sh" x1="50" y1="58" x2="50" y2="12" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/><circle cx="50" cy="50" r="3.4" fill="var(--accent)"/></svg>`;}
+
+function renderClocks(){
+  $('#clocks').innerHTML=S.clocks.map((c,i)=>`
+  <article class="card clock${i===0?' ref':''}" data-id="${c.id}">
+    ${analog()}
+    <div style="min-width:0">
+      <div class="c-name"><span>${esc(c.name)}</span>${i===0?'<span class="tag">Référence</span>':''}</div>
+      <div class="c-time"></div>
+      <div class="c-sub"></div>
+    </div>
+    <button class="c-more" data-act="menu" aria-label="Options pour ${esc(c.name)}" aria-expanded="${openMenu===c.id}">⋯</button>
+    <div class="c-actions" ${openMenu===c.id?'':'hidden'}>
+      ${i>0?'<button class="btn small" data-act="ref">Définir comme référence</button><button class="btn small" data-act="up">Monter</button>':''}
+      ${i<S.clocks.length-1?'<button class="btn small" data-act="down">Descendre</button>':''}
+      <button class="btn small" data-act="rename">Renommer</button>
+      ${S.clocks.length>1?'<button class="btn small danger" data-act="del">Supprimer</button>':''}
+    </div>
+  </article>`).join('');
+  fillPlanSelect();
+  tick(true);
+}
+
+$('#clocks').addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const art=b.closest('.clock');const id=art.dataset.id;const i=S.clocks.findIndex(c=>c.id===id);const c=S.clocks[i];
+  const act=b.dataset.act;
+  if(act==='menu'){openMenu=openMenu===id?null:id;renderClocks();return;}
+  if(act==='ref'){S.clocks.splice(i,1);S.clocks.unshift(c);}
+  if(act==='up'&&i>0){[S.clocks[i-1],S.clocks[i]]=[S.clocks[i],S.clocks[i-1]];}
+  if(act==='down'&&i<S.clocks.length-1){[S.clocks[i+1],S.clocks[i]]=[S.clocks[i],S.clocks[i+1]];}
+  if(act==='rename'){const n=prompt('Nom affiché',c.name);if(n&&n.trim())c.name=n.trim();const s=prompt('Précision (pays, région…)',c.sub||'');if(s!==null)c.sub=s.trim();}
+  if(act==='del'){if(!confirm(`Supprimer l'horloge « ${c.name} » ?`))return;S.clocks.splice(i,1);openMenu=null;}
+  save();renderClocks();
+});
+
+let lastTl='';
+function tick(force){
+  const now=Date.now();const t=now+shift*60000;
+  const ref=S.clocks[0];const rl=local(ref.tz,t);
+  document.querySelectorAll('.clock').forEach(el=>{
+    const c=S.clocks.find(x=>x.id===el.dataset.id);if(!c)return;
+    const L=local(c.tz,t);
+    el.querySelector('.c-time').innerHTML=`${pad(L.h)}:${pad(L.m)}${S.secs?`<small>:${pad(L.s)}</small>`:''}`;
+    const dd=L.day-rl.day;const dayTxt=dd===1?' · demain':dd===-1?' · hier':'';
+    const diff=c===ref?fmtUtc(L.off):`<span class="c-diff">${fmtOff(L.off-rl.off)}</span> · ${fmtUtc(L.off)}`;
+    el.querySelector('.c-sub').innerHTML=`${c.sub?esc(c.sub)+' · ':''}${esc(fmtDate(c.tz,t))}${dayTxt}<br>${diff}`;
+    const sec=L.s,mn=L.m+sec/60,hr=(L.h%12)+mn/60;
+    el.querySelector('.hh').setAttribute('transform',`rotate(${hr*30} 50 50)`);
+    el.querySelector('.mh').setAttribute('transform',`rotate(${mn*6} 50 50)`);
+    const sh=el.querySelector('.sh');sh.setAttribute('transform',`rotate(${sec*6} 50 50)`);sh.style.display=S.secs?'':'none';
+  });
+  $('#today').textContent=shift?'Heure décalée':'Heure actuelle';
+  // Comparateur : reconstruit seulement quand l'heure de référence change
+  const key=S.clocks.map(c=>c.id+c.tz+c.name).join()+'|'+Math.floor((t+rl.off*60000)/3600000)+'|'+shift;
+  if(force||key!==lastTl){lastTl=key;renderTimeline(t);}
+}
+
+function renderTimeline(t){
+  const ref=S.clocks[0];const rl=local(ref.tz,t);
+  const base=Math.floor(t/60000)*60000-rl.m*60000; // début de l'heure courante chez la référence
+  const start=base-6*3600000;
+  const cols=24;
+  let html='';
+  S.clocks.forEach((c,ci)=>{
+    html+=`<div class="tl-row"><div class="tl-lab" title="${esc(c.name)}">${esc(c.name)}</div>`;
+    for(let k=0;k<cols;k++){
+      const ms=start+k*3600000;const L=local(c.tz,ms);
+      const cls=(L.h>=9&&L.h<18)?'w':(L.h>=7&&L.h<22)?'d':'';
+      const isNow=k===6;
+      const lbl=L.m?`${L.h}:${pad(L.m)}`:`${L.h} h`;
+      const midnight=L.h===0;
+      const dl=midnight?`<small>${new Intl.DateTimeFormat('fr-FR',{timeZone:c.tz,weekday:'short'}).format(new Date(ms))}</small>`:'';
+      html+=`<button class="tl-cell tl-col ${cls}${isNow?' now':''}${midnight?' mid':''}" data-k="${k}" aria-label="${esc(c.name)} ${lbl}">${lbl}${dl}</button>`;
+    }
+    html+='</div>';
+  });
+  $('#tl').innerHTML=html;
+  $('#tl').dataset.start=start;
+  const wrap=$('#tl').parentElement;
+  if(!wrap.dataset.scrolled){wrap.scrollLeft=Math.max(0,6*46-90);wrap.dataset.scrolled='1';}
+}
+$('#tl').addEventListener('click',e=>{
+  const b=e.target.closest('.tl-col');if(!b)return;
+  const start=+$('#tl').dataset.start;const target=start+(+b.dataset.k)*3600000;
+  setShift((target-Date.now())/60000);
+});
+
+// --- Décalage ---
+function setShift(min){
+  shift=Math.max(-1440*2,Math.min(1440*2,min));
+  $('#slider').value=Math.max(-720,Math.min(720,Math.round(shift/15)*15));
+  const a=Math.round(Math.abs(shift)),h=Math.floor(a/60),m=a%60;
+  $('#shiftVal').textContent=a?`${shift>0?'+':'−'} ${h} h${m?' '+pad(m):''}`:'± 0 h';
+  $('#live').classList.toggle('off',!!shift);$('#liveTxt').textContent=shift?'Décalé':'En direct';
+  tick(true);
+}
+$('#slider').addEventListener('input',e=>{
+  // le curseur décale à partir de l'heure ronde (quart d'heure) la plus proche
+  const v=+e.target.value;if(!v){setShift(0);return;}
+  const now=Date.now();const q=Math.round(now/900000)*900000;setShift((q-now)/60000+v);
+});
+$('#resetBtn').addEventListener('click',()=>setShift(0));
+function fillPlanSelect(){
+  const sel=$('#planTz');const prev=sel.value;
+  sel.innerHTML=S.clocks.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if(S.clocks.some(c=>c.id===prev))sel.value=prev;
+}
+$('#planBtn').addEventListener('click',()=>{
+  const v=$('#planTime').value;if(!v){$('#planTime').focus();return;}
+  const [H,M]=v.split(':').map(Number);const c=S.clocks.find(x=>x.id===$('#planTz').value);if(!c)return;
+  const now=Date.now();const L=local(c.tz,now);
+  let diff=(H*60+M)-(L.h*60+L.m);
+  if(diff<-720)diff+=1440;if(diff>720)diff-=1440; // prochaine occurrence la plus proche
+  setShift(diff-L.s/60-(now%1000)/60000);
+});
+
+// --- Secondes ---
+$('#secs').checked=!!S.secs;
+$('#secs').addEventListener('change',e=>{S.secs=e.target.checked;save();tick(true);});
+
+// --- Ajout ---
+const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+let allZones=[];try{allZones=Intl.supportedValuesOf('timeZone');}catch(e){}
+function search(q){
+  q=norm(q.trim());
+  const now=Date.now();
+  let list=CITIES.map(([n,tz,sub])=>({n,tz,sub}));
+  if(q){
+    list=list.filter(x=>norm(x.n+' '+x.sub+' '+x.tz).includes(q));
+    const seen=new Set(list.map(x=>x.tz));
+    allZones.filter(z=>!seen.has(z)&&norm(z.replace(/_/g,' ')).includes(q)).slice(0,40).forEach(z=>list.push({n:z.split('/').pop().replace(/_/g,' '),tz:z,sub:z}));
+  }
+  list=list.filter(x=>validTz(x.tz));
+  if(!list.length){$('#results').innerHTML='<div class="empty">Aucun résultat. Essayez un pays ou une grande ville proche.</div>';return;}
+  $('#results').innerHTML=list.map((x,i)=>{const L=local(x.tz,now);return `<button type="button" class="res" data-i="${i}"><span><b>${esc(x.n)}</b><span class="r-s">${esc(x.sub)}</span></span><span class="r-t">${pad(L.h)}:${pad(L.m)} · ${fmtUtc(L.off)}</span></button>`;}).join('');
+  $('#results')._list=list;
+}
+$('#addBtn').addEventListener('click',()=>{$('#q').value='';search('');$('#dlg').showModal();$('#q').focus();});
+$('#q').addEventListener('input',e=>search(e.target.value));
+$('#q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const f=$('#results .res');if(f)f.click();}});
+$('#results').addEventListener('click',e=>{
+  const b=e.target.closest('.res');if(!b)return;const x=$('#results')._list[+b.dataset.i];
+  S.clocks.push({id:uid(),name:x.n,sub:x.sub===x.tz?'':x.sub,tz:x.tz});save();$('#dlg').close();renderClocks();
+  document.querySelector('.clock:last-of-type')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+});
+
+renderClocks();
+// aligné sur la seconde
+(function loop(){tick();setTimeout(loop,1000-Date.now()%1000+5);})();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick(true);});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body></html>
