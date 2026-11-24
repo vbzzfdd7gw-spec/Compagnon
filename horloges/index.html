@@ -90,6 +90,9 @@ dialog::backdrop{background:#0008}
 .res .r-t{font-family:var(--f-mono);color:var(--muted);font-size:.85rem;white-space:nowrap}
 .res .r-s{color:var(--muted);font-size:.82rem;display:block}
 .empty{color:var(--muted);text-align:center;padding:20px 8px}
+.banner{position:sticky;top:calc(env(safe-area-inset-top,0px) + 6px);z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#3a2a0c;border:1px solid var(--accent);color:#ffe2b0;border-radius:12px;padding:10px 12px;font-size:.9rem}
+.banner[hidden]{display:none}
+body.shifted .clock .c-time{color:var(--accent)}
 .toggle{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted);cursor:pointer}
 .toggle input{width:auto}
 </style>
@@ -100,11 +103,13 @@ dialog::backdrop{background:#0008}
     <button class="btn primary" id="addBtn">+ Ajouter</button>
   </header>
 
+  <div class="banner" id="banner" hidden><span>⏳ <b>Heure simulée</b> <span id="bannerVal"></span> — ce n'est pas l'heure actuelle</span><button class="btn small primary" id="bannerBtn">Heure actuelle</button></div>
+
   <section id="clocks" aria-live="off"></section>
 
   <section class="card shift">
     <div class="shift-head">
-      <h2>Et s'il était…</h2>
+      <h2>Et s'il était… (simulation)</h2>
       <span class="live" id="live"><i></i><span id="liveTxt">En direct</span></span>
     </div>
     <input type="range" id="slider" min="-720" max="720" step="15" value="0" aria-label="Décaler l'heure">
@@ -167,6 +172,7 @@ if(!S||!Array.isArray(S.clocks)||!S.clocks.length){
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
 let shift=0; // minutes de décalage par rapport à maintenant
 let openMenu=null;
+let backTimer=null;
 
 // --- Calcul des fuseaux ---
 const fmtCache={};
@@ -280,6 +286,9 @@ function setShift(min){
   const a=Math.round(Math.abs(shift)),h=Math.floor(a/60),m=a%60;
   $('#shiftVal').textContent=a?`${shift>0?'+':'−'} ${h} h${m?' '+pad(m):''}`:'± 0 h';
   $('#live').classList.toggle('off',!!shift);$('#liveTxt').textContent=shift?'Décalé':'En direct';
+  $('#banner').hidden=!shift;document.body.classList.toggle('shifted',!!shift);
+  $('#bannerVal').textContent=a?`(${$('#shiftVal').textContent})`:'';
+  clearTimeout(backTimer);if(shift)backTimer=setTimeout(()=>setShift(0),3*60000); // retour automatique à l'heure actuelle après 3 min
   tick(true);
 }
 $('#slider').addEventListener('input',e=>{
@@ -288,6 +297,7 @@ $('#slider').addEventListener('input',e=>{
   const now=Date.now();const q=Math.round(now/900000)*900000;setShift((q-now)/60000+v);
 });
 $('#resetBtn').addEventListener('click',()=>setShift(0));
+$('#bannerBtn').addEventListener('click',()=>setShift(0));
 function fillPlanSelect(){
   const sel=$('#planTz');const prev=sel.value;
   sel.innerHTML=S.clocks.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -335,7 +345,9 @@ $('#results').addEventListener('click',e=>{
 renderClocks();
 // aligné sur la seconde
 (function loop(){tick();setTimeout(loop,1000-Date.now()%1000+5);})();
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick(true);});
+// en revenant sur l'appli, toujours repartir de l'heure actuelle
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(shift)setShift(0);else tick(true);}});
+window.addEventListener('pageshow',e=>{if(e.persisted)setShift(0);});
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 </script>
 </body></html>
