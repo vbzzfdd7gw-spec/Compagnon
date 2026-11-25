@@ -182,7 +182,7 @@ async function notifyChanges(prev, next) {
       await notify('⚠️ Date retirée du site officiel', `${o.city} (${fmt(o.date)}) n'apparaît plus : annulation ou report possible.`, { tags: ['warning'], priority: 4 });
   }
   if ((prev.news || []).length) {
-    const seen = new Set(prev.news.map(n => n.u)), fresh = next.news.filter(n => !seen.has(n.u));
+    const seen = new Set([...(prev.seen || []), ...prev.news.map(n => n.u)]), fresh = next.news.filter(n => !seen.has(n.u));
     if (fresh.length === 1) await notify('📰 ' + (fresh[0].fr || fresh[0].t), fresh[0].s || 'Nouvelle actu', { click: fresh[0].u, tags: ['newspaper'] });
     else if (fresh.length > 1) await notify(`📰 ${fresh.length} nouvelles actus Tokio Hotel`, fresh.slice(0, 5).map(n => '• ' + (n.fr || n.t)).join('\n') + (fresh.length > 5 ? `\n… et ${fresh.length - 5} autres` : ''), { tags: ['newspaper'] });
   }
@@ -199,6 +199,8 @@ async function main() {
     events: ev ? ev.list : (prev.events || []),
     eventsSource: ev ? ev.source : (prev.eventsSource || null),
   };
+  // mémorise les articles déjà vus pour ne jamais notifier deux fois le même
+  next.seen = [...new Set([...n.map(x => x.u), ...(prev.news || []).map(x => x.u), ...(prev.seen || [])])].slice(0, 500);
   const same = JSON.stringify({ ...prev, updatedAt: undefined }) === JSON.stringify({ ...next, updatedAt: undefined });
   if (same) { console.log('Aucun changement.'); return; }
   await notifyChanges(prev, next);
