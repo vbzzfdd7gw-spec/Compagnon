@@ -1,0 +1,36 @@
+name: TH Fan Hub – mise à jour des actus et concerts
+
+on:
+  schedule:
+    - cron: '17 5,11,17,23 * * *'   # 4 fois par jour
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tokiohotel-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Récupérer les actus et les dates
+        env:
+          BANDSINTOWN_APP_ID: ${{ vars.BANDSINTOWN_APP_ID }}
+        run: node .github/scripts/tokiohotel-update.mjs
+      - name: Publier si quelque chose a changé
+        run: |
+          if git diff --quiet -- tokiohotel/data/live.json; then echo "Rien de nouveau."; exit 0; fi
+          git config user.name "th-fanhub-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tokiohotel/data/live.json
+          git commit -m "TH Fan Hub : mise à jour automatique des actus et concerts"
+          git push
