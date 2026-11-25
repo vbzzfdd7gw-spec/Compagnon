@@ -310,14 +310,14 @@ function viewHome(){
   const news=[...SEED_NEWS.map(n=>({...n,seed:true})),...S.extraNews].sort((a,b)=>b.d.localeCompare(a.d));
   const ln=(LIVE.news||[]).slice(0,S.moreNews?40:8);
   const live=LIVE.updatedAt?`<div class="between"><h2>Dernières actus · auto</h2><span class="hint">MAJ ${esc(ago(LIVE.updatedAt))}</span></div>
-  <div class="list">${ln.map(n=>`<a class="card news" style="text-decoration:none;color:inherit" href="${esc(n.u)}" target="_blank" rel="noopener"><div class="nd">${new Date(n.d).getDate()} ${MOIS[new Date(n.d).getMonth()]}<br>${(n.lang||'').toUpperCase()}</div><div style="display:grid;gap:3px;min-width:0"><b>${esc(n.t)}</b><span class="sub">${esc(n.s||'')} ↗</span></div></a>`).join('')||'<div class="empty">Aucune actu récente trouvée.</div>'}</div>
+  <div class="list">${ln.map(n=>`<a class="card news" style="text-decoration:none;color:inherit" href="${esc(n.u)}" target="_blank" rel="noopener"><div class="nd">${new Date(n.d).getDate()} ${MOIS[new Date(n.d).getMonth()]}<br>${n.fr?(n.lang||'').toUpperCase()+'→FR':(n.lang||'').toUpperCase()}</div><div style="display:grid;gap:3px;min-width:0"><b>${esc(n.fr||n.t)}</b>${n.fr?`<span class="hint" style="font-style:italic">${esc(n.t)}</span>`:''}<span class="sub">${esc(n.s||'')} ↗</span></div></a>`).join('')||'<div class="empty">Aucune actu récente trouvée.</div>'}</div>
   ${(LIVE.news||[]).length>8?`<button class="btn sm" id="moreNews">${S.moreNews?'Voir moins':'Voir plus d’actus ('+LIVE.news.length+')'}</button>`:''}`:'';
   return heroHTML()+live+`
   <h2>Suivre l’actu en direct</h2>
   <div class="links">${NEWS_FEEDS.map(f=>`<a href="${esc(f.u)}" target="_blank" rel="noopener"><i></i>${esc(f.l)}</a>`).join('')}</div>
   <div class="between"><h2>Faits marquants</h2><button class="btn sm" id="addNews">+ Ajouter une actu</button></div>
   <div class="list">${news.map(n=>`<article class="card news"><div class="nd">${pd(n.d).getDate()} ${MOIS[pd(n.d).getMonth()]}<br>${n.d.slice(0,4)}</div><div style="display:grid;gap:4px;min-width:0"><h3>${esc(n.t)}</h3>${n.x?`<div class="sub">${esc(n.x)}</div>`:''}<div class="row">${n.u?`<a class="btn sm" href="${esc(n.u)}" target="_blank" rel="noopener">Lire ↗</a>`:''}${n.seed?'':`<button class="btn sm danger" data-delnews="${esc(n.id)}">Supprimer</button>`}</div></div></article>`).join('')}</div>
-  <p class="hint">Les « Dernières actus » se mettent à jour toutes seules plusieurs fois par jour (Google Actus FR, DE, EN). Les faits marquants sont choisis à la main ; ajoute ceux que tu repères.</p>`;
+  <p class="hint">Les « Dernières actus » se mettent à jour toutes seules plusieurs fois par jour (Google Actus FR, DE, EN), avec les titres étrangers traduits en français. Les faits marquants sont choisis à la main ; ajoute ceux que tu repères.</p>`;
 }
 
 function gigCard(c,full){
