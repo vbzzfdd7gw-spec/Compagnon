@@ -153,7 +153,43 @@ async function translateNews(list, prev) {
   return list;
 }
 
+// ---- Notifications téléphone via ntfy.sh (app gratuite ntfy, s'abonner au sujet NTFY_TOPIC) ----
+const TOPIC = process.env.NTFY_TOPIC || '';
+const APP_URL = 'https://vbzzfdd7gw-spec.github.io/Compagnon/tokiohotel/';
+const MOIS = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const fmt = d => { const [y, m, j] = d.split('-').map(Number); return `${j} ${MOIS[m - 1]} ${y}`; };
+async function notify(title, message, opts = {}) {
+  if (!TOPIC) return;
+  try {
+    const r = await fetch('https://ntfy.sh/', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ topic: TOPIC, title, message: message.slice(0, 900), click: opts.click || APP_URL, tags: opts.tags || [], priority: opts.priority || 3 }) });
+    console.log('Notification', r.ok ? 'envoyée' : 'refusée ' + r.status, ':', title);
+  } catch (e) { console.warn('Notification échec :', e.message); }
+}
+async function notifyChanges(prev, next) {
+  const key = e => e.date + '|' + norm(e.city);
+  if ((prev.events || []).length) {
+    const old = new Map(prev.events.map(e => [key(e), e]));
+    for (const e of next.events) {
+      const o = old.get(key(e));
+      const where = [e.city, e.venue].filter(Boolean).join(' – ');
+      if (!o) await notify('🎟 Nouvelle date Tokio Hotel !', `${where}, le ${fmt(e.date)}.${e.offers[0] ? ' Billets en vente.' : ''}`, { click: e.offers[0]?.u, tags: ['tada'], priority: 4 });
+      else if (e.soldOut && !o.soldOut) await notify('❌ Concert complet', `${where} (${fmt(e.date)}) est complet.`, { tags: ['no_entry'] });
+      else if (!o.offers?.length && e.offers.length) await notify('🎟 Billetterie ouverte', `${where} (${fmt(e.date)}) : les billets sont en vente.`, { click: e.offers[0].u, tags: ['ticket'], priority: 4 });
+    }
+    const now = new Set(next.events.map(key));
+    for (const o of prev.events) if (o.date >= new Date().toISOString().slice(0, 10) && !now.has(key(o)))
+      await notify('⚠️ Date retirée du site officiel', `${o.city} (${fmt(o.date)}) n'apparaît plus : annulation ou report possible.`, { tags: ['warning'], priority: 4 });
+  }
+  if ((prev.news || []).length) {
+    const seen = new Set(prev.news.map(n => n.u)), fresh = next.news.filter(n => !seen.has(n.u));
+    if (fresh.length === 1) await notify('📰 ' + (fresh[0].fr || fresh[0].t), fresh[0].s || 'Nouvelle actu', { click: fresh[0].u, tags: ['newspaper'] });
+    else if (fresh.length > 1) await notify(`📰 ${fresh.length} nouvelles actus Tokio Hotel`, fresh.slice(0, 5).map(n => '• ' + (n.fr || n.t)).join('\n') + (fresh.length > 5 ? `\n… et ${fresh.length - 5} autres` : ''), { tags: ['newspaper'] });
+  }
+}
+
 async function main() {
+  if (process.env.NTFY_TEST === 'true') await notify('🤘 TH Fan Hub', 'Les notifications fonctionnent ! Tu seras prévenu(e) des nouvelles dates, billetteries et actus de Tokio Hotel.', { tags: ['white_check_mark'] });
   let prev = {};
   try { prev = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
   const [n0, ev] = await Promise.all([news(), events()]);
@@ -165,6 +201,7 @@ async function main() {
   };
   const same = JSON.stringify({ ...prev, updatedAt: undefined }) === JSON.stringify({ ...next, updatedAt: undefined });
   if (same) { console.log('Aucun changement.'); return; }
+  await notifyChanges(prev, next);
   next.updatedAt = new Date().toISOString();
   await writeFile(OUT, JSON.stringify(next, null, 1) + '\n');
   console.log(`live.json mis à jour : ${next.news.length} actus, ${next.events.length} concerts.`);

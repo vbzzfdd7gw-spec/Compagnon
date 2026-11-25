@@ -125,6 +125,7 @@ const OFFICIAL = 'https://tokiohotel.com/';
 const SONGKICK = 'https://www.songkick.com/artists/58137-tokio-hotel/calendar';
 const EVENTIM_SE = 'https://www.eventim.de/artist/tokio-hotel/tokio-hotel-summer-encore-2027-4203600/';
 const TREEHOUSE = 'https://treehouse-ticketing.com/';
+const NTFY_TOPIC = 'th-fanhub-d897d7d0fd';
 
 const SEED_CONCERTS = [
  // ---- Summer Encore 2027 ----
@@ -390,6 +391,12 @@ function viewPlan(){
     ${p.note?`<div class="hint">📝 ${esc(p.note)}</div>`:''}
     <div class="row"><button class="btn sm" data-planedit="${c.id}">Modifier</button><button class="btn sm" data-open="${c.id}">Concert</button>${isPast(c)?'':`<span class="tag">J-${daysTo(c.date)}</span>`}</div></article>`;}).join('')}</div>`
    :'<div class="empty">Touche ♡ sur un concert pour l’ajouter à ton plan, puis « J’y vais » pour suivre ton budget.</div>'}
+  <h2>Notifications sur ton téléphone</h2>
+  <div class="card"><div class="sub">Reçois une alerte pour chaque <b>nouvelle date</b>, <b>ouverture de billetterie</b>, concert <b>complet</b> ou <b>annulé</b>, et pour les <b>nouvelles actus</b> (titres en français). Vérification 4 fois par jour, jamais la nuit.</div>
+   <div class="prices"><div><span>1. Installe l’app gratuite <b>ntfy</b></span></div><div><span>2. Touche <b>+</b> et abonne-toi au sujet :</span></div></div>
+   <div class="row"><code style="font-family:var(--f-mono);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;user-select:all">${NTFY_TOPIC}</code><button class="btn sm" id="copyTopic">Copier</button></div>
+   <div class="row"><a class="btn sm primary" href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">ntfy pour iPhone ↗</a><a class="btn sm primary" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">ntfy pour Android ↗</a><a class="btn sm" href="https://ntfy.sh/${NTFY_TOPIC}" target="_blank" rel="noopener">Voir dans le navigateur ↗</a></div>
+   <div class="hint">Laisse le serveur par défaut (ntfy.sh) et autorise les notifications quand l’app le demande.</div></div>
   <h2>Sauvegarde</h2><div class="row"><button class="btn sm" id="exp">Exporter mes données</button><label class="btn sm" style="display:inline-flex;color:var(--fg);font-size:.84rem">Importer<input type="file" id="imp" accept="application/json" hidden></label></div>`;
 }
 
@@ -514,6 +521,7 @@ document.addEventListener('click',e=>{
   else if(d.planedit){editPlan(d.planedit);}
   else if(d.delnews){S.extraNews=S.extraNews.filter(n=>n.id!==d.delnews);save();render();}
   else if(d.delpack){S.extraPacks=S.extraPacks.filter(n=>n.id!==d.delpack);save();render();}
+  else if(t.id==='copyTopic'){navigator.clipboard?.writeText(NTFY_TOPIC).then(()=>{t.textContent='Copié ✓';},()=>{});}
   else if(t.id==='moreNews'){S.moreNews=!S.moreNews;save();render();}
   else if(t.id==='addGig')editConcert(null);
   else if(t.id==='addNews')addNews();
