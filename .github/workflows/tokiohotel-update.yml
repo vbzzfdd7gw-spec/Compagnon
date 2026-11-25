@@ -2,8 +2,13 @@ name: TH Fan Hub – mise à jour des actus et concerts
 
 on:
   schedule:
-    - cron: '17 5,11,17,23 * * *'   # 4 fois par jour
-  workflow_dispatch: {}
+    - cron: '17 5,11,17,20 * * *'   # 4 fois par jour (≈ 6h, 12h, 18h, 21h à Paris, rien la nuit)
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'Envoyer une notification de test'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,6 +30,8 @@ jobs:
       - name: Récupérer les actus et les dates
         env:
           BANDSINTOWN_APP_ID: ${{ vars.BANDSINTOWN_APP_ID }}
+          NTFY_TOPIC: th-fanhub-d897d7d0fd
+          NTFY_TEST: ${{ inputs.test }}
         run: node .github/scripts/tokiohotel-update.mjs
       - name: Publier si quelque chose a changé
         run: |
