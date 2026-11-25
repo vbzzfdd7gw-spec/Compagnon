@@ -231,7 +231,31 @@ S.tab ||= 'home';
 S.filter ||= 'upcoming';
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 
-const concerts = () => [...SEED_CONCERTS.filter(c=>!S.hidden.includes(c.id)).map(c=>({...c,...(S.edits[c.id]||{})})),...S.extraConcerts]
+/* ====================== Données automatiques ======================
+   data/live.json est rafraîchi plusieurs fois par jour par une tâche GitHub
+   (actus Google Actus + dates Bandsintown). */
+let LIVE={news:[],events:[],updatedAt:null};
+const COUNTRY={Germany:['Allemagne','🇩🇪'],France:['France','🇫🇷'],Italy:['Italie','🇮🇹'],Greece:['Grèce','🇬🇷'],Poland:['Pologne','🇵🇱'],Austria:['Autriche','🇦🇹'],Switzerland:['Suisse','🇨🇭'],Netherlands:['Pays-Bas','🇳🇱'],Belgium:['Belgique','🇧🇪'],Spain:['Espagne','🇪🇸'],'United Kingdom':['Royaume-Uni','🇬🇧'],Luxembourg:['Luxembourg','🇱🇺'],'United States':['États-Unis','🇺🇸'],Mexico:['Mexique','🇲🇽'],Brazil:['Brésil','🇧🇷'],Argentina:['Argentine','🇦🇷'],Chile:['Chili','🇨🇱'],'Czech Republic':['Tchéquie','🇨🇿'],Czechia:['Tchéquie','🇨🇿'],Hungary:['Hongrie','🇭🇺'],Portugal:['Portugal','🇵🇹'],Denmark:['Danemark','🇩🇰'],Sweden:['Suède','🇸🇪'],Norway:['Norvège','🇳🇴'],Finland:['Finlande','🇫🇮'],Ireland:['Irlande','🇮🇪'],Russia:['Russie','🇷🇺'],Ukraine:['Ukraine','🇺🇦'],Japan:['Japon','🇯🇵'],Canada:['Canada','🇨🇦']};
+const slug = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-');
+function mergeLive(list){
+  for(const e of (LIVE.events||[])){
+    const offers=(e.offers||[]).map(o=>({l:(o.l||'Billets')+' (Bandsintown)',u:o.u}));
+    const base=list.find(c=>c.date===e.date);
+    if(base){
+      base.live=true; if(e.soldOut) base.soldOut=true;
+      const have=new Set((base.tickets||[]).map(t=>t.u));
+      base.tickets=[...(base.tickets||[]),...offers.filter(o=>!have.has(o.u))];
+    }else{
+      const id='bit-'+e.date+'-'+slug(e.city);
+      if(S.hidden.includes(id)) continue;
+      const [cn,fl]=COUNTRY[e.country]||[e.country,''];
+      list.push({id,date:e.date,city:e.city||'?',country:cn,flag:fl,venue:e.venue||'—',tour:'Nouvelles dates',type:e.festival?'Festival':'Concert',prices:[],
+        tickets:[...offers,...(e.url?[{l:'Bandsintown',u:e.url}]:[])],note:(e.title?e.title+'. ':'')+'Date ajoutée automatiquement depuis Bandsintown.',auto:true,live:true,soldOut:e.soldOut,...(S.edits[id]||{})});
+    }
+  }
+  return list;
+}
+const concerts = () => mergeLive([...SEED_CONCERTS.filter(c=>!S.hidden.includes(c.id)).map(c=>({...c,...(S.edits[c.id]||{})})),...S.extraConcerts])
   .sort((a,b)=>a.date.localeCompare(b.date));
 const members = () => SEED_MEMBERS.map(m=>({...m,h:{...m.h,...(S.handles[m.id]||{})}}));
 
@@ -244,6 +268,7 @@ const pd = s => {const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)
 const fmtD = s => {const d=pd(s);return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});};
 const todayStr = () => {const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const isPast = c => c.date < todayStr();
+const ago = iso => {const m=Math.round((Date.now()-new Date(iso))/6e4);return m<60?'il y a '+Math.max(1,m)+' min':m<1440?'il y a '+Math.round(m/60)+' h':'le '+new Date(iso).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});};
 const daysTo = s => Math.round((pd(s)-pd(todayStr()))/864e5);
 const uid = () => 'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const ticketSearch = c => 'https://www.google.com/search?q='+q('Tokio Hotel '+c.city+' '+c.date.slice(0,4)+' billets');
@@ -282,12 +307,16 @@ function tickCountdown(){
 
 function viewHome(){
   const news=[...SEED_NEWS.map(n=>({...n,seed:true})),...S.extraNews].sort((a,b)=>b.d.localeCompare(a.d));
-  return heroHTML()+`
+  const ln=(LIVE.news||[]).slice(0,S.moreNews?40:8);
+  const live=LIVE.updatedAt?`<div class="between"><h2>Dernières actus · auto</h2><span class="hint">MAJ ${esc(ago(LIVE.updatedAt))}</span></div>
+  <div class="list">${ln.map(n=>`<a class="card news" style="text-decoration:none;color:inherit" href="${esc(n.u)}" target="_blank" rel="noopener"><div class="nd">${new Date(n.d).getDate()} ${MOIS[new Date(n.d).getMonth()]}<br>${(n.lang||'').toUpperCase()}</div><div style="display:grid;gap:3px;min-width:0"><b>${esc(n.t)}</b><span class="sub">${esc(n.s||'')} ↗</span></div></a>`).join('')||'<div class="empty">Aucune actu récente trouvée.</div>'}</div>
+  ${(LIVE.news||[]).length>8?`<button class="btn sm" id="moreNews">${S.moreNews?'Voir moins':'Voir plus d’actus ('+LIVE.news.length+')'}</button>`:''}`:'';
+  return heroHTML()+live+`
   <h2>Suivre l’actu en direct</h2>
   <div class="links">${NEWS_FEEDS.map(f=>`<a href="${esc(f.u)}" target="_blank" rel="noopener"><i></i>${esc(f.l)}</a>`).join('')}</div>
-  <div class="between"><h2>Fil d’actus</h2><button class="btn sm" id="addNews">+ Ajouter une actu</button></div>
+  <div class="between"><h2>Faits marquants</h2><button class="btn sm" id="addNews">+ Ajouter une actu</button></div>
   <div class="list">${news.map(n=>`<article class="card news"><div class="nd">${pd(n.d).getDate()} ${MOIS[pd(n.d).getMonth()]}<br>${n.d.slice(0,4)}</div><div style="display:grid;gap:4px;min-width:0"><h3>${esc(n.t)}</h3>${n.x?`<div class="sub">${esc(n.x)}</div>`:''}<div class="row">${n.u?`<a class="btn sm" href="${esc(n.u)}" target="_blank" rel="noopener">Lire ↗</a>`:''}${n.seed?'':`<button class="btn sm danger" data-delnews="${esc(n.id)}">Supprimer</button>`}</div></div></article>`).join('')}</div>
-  <p class="hint">Actus relevées le ${TODAY_INFO}. Les liens « Suivre l’actu en direct » donnent toujours les dernières nouvelles ; ajoute toi-même celles que tu repères pour garder ton propre fil.</p>`;
+  <p class="hint">Les « Dernières actus » se mettent à jour toutes seules plusieurs fois par jour (Google Actus FR, DE, EN). Les faits marquants sont choisis à la main ; ajoute ceux que tu repères.</p>`;
 }
 
 function gigCard(c,full){
@@ -299,7 +328,7 @@ function gigCard(c,full){
    <div style="display:grid;gap:7px;min-width:0">
     <div class="between"><div style="min-width:0"><h3>${c.flag||''} ${esc(c.city)} <span class="sub">· ${esc(c.country)}</span></h3><div class="sub">${esc(c.venue)}</div></div>
      <button class="btn sm ${p.status?'on':''}" data-fav="${c.id}" aria-label="Ajouter à mon plan">${p.status==='go'?'✔ J’y vais':p.status==='fav'?'♥ Favori':'♡'}</button></div>
-    <div class="row"><span class="tag">${esc(c.tour)}</span><span class="tag">${esc(c.type)}</span>${past?'<span class="tag">Passé</span>':dt<=60?`<span class="tag red">J-${dt}</span>`:''}${min!=null?`<span class="tag good">dès ${eur(min)}</span>`:'<span class="tag warn">Prix à venir</span>'}</div>
+    <div class="row"><span class="tag">${esc(c.tour)}</span><span class="tag">${esc(c.type)}</span>${c.auto?'<span class="tag red">Nouveau</span>':''}${c.live&&!past?'<span class="tag good">✓ Confirmé</span>':''}${c.soldOut?'<span class="tag warn">Complet</span>':''}${past?'<span class="tag">Passé</span>':dt<=60?`<span class="tag red">J-${dt}</span>`:''}${min!=null?`<span class="tag good">dès ${eur(min)}</span>`:'<span class="tag warn">Prix à venir</span>'}</div>
     ${full?gigDetails(c):''}
     <div class="row">${(c.tickets||[]).slice(0,2).map(t=>`<a class="btn sm primary" href="${esc(t.u)}" target="_blank" rel="noopener">🎟 ${esc(t.l)}</a>`).join('')}
      <button class="btn sm" data-open="${c.id}">Détails</button></div>
@@ -317,7 +346,7 @@ function viewGigs(){
   return `<div class="seg" role="tablist">${[['upcoming','À venir'],['fr','En France'],['past','Passés']].map(([k,l])=>`<button data-filter="${k}" class="${f===k?'on':''}">${l}</button>`).join('')}</div>
   <div class="row"><button class="btn sm" id="addGig">+ Ajouter un concert</button><a class="btn sm" href="${OFFICIAL}" target="_blank" rel="noopener">Dates officielles ↗</a><a class="btn sm" href="${SONGKICK}" target="_blank" rel="noopener">Songkick ↗</a></div>
   ${list.length?Object.entries(groups).map(([t,cs])=>`<h2>${esc(t)} · ${cs.length} date${cs.length>1?'s':''}</h2><div class="list">${cs.map(c=>gigCard(c,true)).join('')}</div>`).join(''):'<div class="empty">Aucun concert dans cette liste.</div>'}
-  <p class="hint">Dates et prix relevés le ${TODAY_INFO} auprès des billetteries (Eventim, Fnac, See Tickets…). Certaines dates ne viennent que d’une source : vérifie toujours sur le site officiel avant d’acheter ou de réserver un voyage.</p>`;
+  <p class="hint">${LIVE.eventsSource?`Dates vérifiées automatiquement sur ${esc(LIVE.eventsSource)} (MAJ ${esc(ago(LIVE.updatedAt))}) : « ✓ Confirmé » = date présente dans l’agenda officiel de l’artiste, « Nouveau » = date annoncée depuis.`:'Vérification automatique des dates : en attente de la première mise à jour.'} Les prix par catégorie sont relevés à la main (dernier relevé le ${TODAY_INFO}) : vérifie toujours sur la billetterie avant d’acheter.</p>`;
 }
 
 function viewVip(){
@@ -484,6 +513,7 @@ document.addEventListener('click',e=>{
   else if(d.planedit){editPlan(d.planedit);}
   else if(d.delnews){S.extraNews=S.extraNews.filter(n=>n.id!==d.delnews);save();render();}
   else if(d.delpack){S.extraPacks=S.extraPacks.filter(n=>n.id!==d.delpack);save();render();}
+  else if(t.id==='moreNews'){S.moreNews=!S.moreNews;save();render();}
   else if(t.id==='addGig')editConcert(null);
   else if(t.id==='addNews')addNews();
   else if(t.id==='addPack')addPack();
@@ -496,6 +526,7 @@ document.addEventListener('change',e=>{
 dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
 
 render();
+fetch('data/live.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(d&&typeof d==='object'){LIVE={news:[],events:[],...d};render();}}).catch(()=>{});
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 </script>
 </body></html>
