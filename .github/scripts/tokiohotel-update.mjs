@@ -127,10 +127,37 @@ async function events() {
   } catch (e) { console.warn('Concerts : échec :', e.message); return null; }
 }
 
+// ---- Traduction des titres en français (service Google Traduction public, sans clé ; MyMemory en secours) ----
+async function translate(text) {
+  try {
+    const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=fr&dt=t&q=' + encodeURIComponent(text), { headers: { 'user-agent': UA } });
+    if (r.ok) { const j = await r.json(); const t = (j[0] || []).map(x => x[0]).join('').trim(); if (t) return t; }
+  } catch {}
+  try {
+    const r = await fetch('https://api.mymemory.translated.net/get?langpair=' + (/[äöüß]/i.test(text) ? 'de' : 'en') + '|fr&q=' + encodeURIComponent(text), { headers: { 'user-agent': UA } });
+    if (r.ok) { const j = await r.json(); const t = j?.responseData?.translatedText; if (t && !/MYMEMORY WARNING|QUERY LENGTH/i.test(t)) return decode(t); }
+  } catch {}
+  return null;
+}
+async function translateNews(list, prev) {
+  const known = new Map((prev || []).filter(n => n.fr).map(n => [n.u, n.fr]));
+  let ok = 0, fail = 0;
+  for (const n of list) {
+    if (n.lang === 'fr') continue;
+    if (known.has(n.u)) { n.fr = known.get(n.u); continue; }
+    const t = await translate(n.t);
+    if (t && t.toLowerCase() !== n.t.toLowerCase()) { n.fr = t; ok++; } else fail++;
+    await new Promise(r => setTimeout(r, 250));
+  }
+  console.log(`Traductions : ${ok} nouvelles, ${fail} échecs`);
+  return list;
+}
+
 async function main() {
   let prev = {};
   try { prev = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
-  const [n, ev] = await Promise.all([news(), events()]);
+  const [n0, ev] = await Promise.all([news(), events()]);
+  const n = await translateNews(n0, prev.news);
   const next = {
     news: n.length ? n : (prev.news || []),
     events: ev ? ev.list : (prev.events || []),
