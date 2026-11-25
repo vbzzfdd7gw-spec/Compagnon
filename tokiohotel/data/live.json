@@ -127,13 +127,6 @@
    "lang": "de"
   },
   {
-   "t": "Tokio Hotel: Here Comes the Night (Lyric Version) (Music Video 2021) - Videos",
-   "u": "https://news.google.com/rss/articles/CBMidEFVX3lxTE1LZHN6NGdQTjhTZkVJTDl0c0JCSWhhOUdrRUVaVDNYdWxqazBlUXU5Q2hnNHlaY2Jyd1ZfVEdUNmtXa1NVSHNsaGJKUHVvVmxUOUo3YmEyWElPcGlLRGFKX3AxcS13UmI0dDUxMXJ6eHE1LW5u?oc=5",
-   "s": "IMDb",
-   "d": "2026-11-23T00:17:40.000Z",
-   "lang": "en"
-  },
-  {
    "t": "Streit um Genehmigung von Pyro-Effekten: Städtetags-Präsident Jung aus Leipzig kritisiert Tokio Hotel",
    "u": "https://news.google.com/rss/articles/CBMi3wFBVV95cUxPemtVb3lBZ3VWUzV6dExrNkxRaFlGRnhCcGdvNTZ1Rk5FY2dXUUxEWXdBcm12WllsbGVSc2VzUEh0bGxQMjRKM2JubzlqNHVRLVU3ek5taEwwc25LSlFfT3pHNHRGRGNfT3Q5OGpnOWxMYnhHZHV0QzBDeGhNUnhMMGxSamExRUt3R0tZYllOOWpHR1JhbnRpNG9lVTVhVjBmanFsTU1sem9rbEN0SjZxSVphdnBGMXQtbHNzbFl6SmVVcVdaaUM3MUNsVmpCNDJtSXdDRTZyQnFKM1JBZjlr?oc=5",
    "s": "Deutschlandfunk Kultur",
@@ -279,6 +272,13 @@
    "s": "Antenne Düsseldorf",
    "d": "2026-11-20T13:57:00.000Z",
    "lang": "de"
+  },
+  {
+   "t": "Die einzigartige Ergolgsstory von Tokio Hotel",
+   "u": "https://news.google.com/rss/articles/CBMikwFBVV95cUxNdEQ4U2QtRWVSd3AzdFRCb05hVDV1aHEwamxpUTlDVE9CaXZTQzVJS0RVUW1vRUtSdjRUdmc3aDZ2SnNiNS1GOGM5NWtTMTk1YnZ4ZHBxT1M5VkFxT0hXaFNHVmRLTVEyYVBVRV9MSWdyaVV1N3V5WFZCa1BXc1YwN0EzOE43Z0lRTmxTQ3FDUUE2OG8?oc=5",
+   "s": "WEB.DE",
+   "d": "2026-11-20T11:34:51.000Z",
+   "lang": "de"
   }
  ],
  "events": [
@@ -296,7 +296,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://www.bandsintown.com/t/106626998?affil_code=js_emailwidget_0000004908&app_id=js_emailwidget_0000004908&came_from=248&utm_campaign=ticket&utm_medium=email&utm_source=artist_email",
+     "u": "https://www.more.com/gr-el/tickets/music/festival/release-athens-2027/tokio-hotel",
      "st": ""
     }
    ],
@@ -316,7 +316,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://www.bandsintown.com/t/107035258?affil_code=js_emailwidget_0000004908&app_id=js_emailwidget_0000004908&came_from=248&utm_campaign=ticket&utm_medium=email&utm_source=artist_email",
+     "u": "https://www.musilac.com/billetterie",
      "st": ""
     }
    ],
@@ -336,7 +336,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://www.bandsintown.com/t/107035271?affil_code=js_emailwidget_0000004908&app_id=js_emailwidget_0000004908&came_from=248&utm_campaign=ticket&utm_medium=email&utm_source=artist_email",
+     "u": "https://www.festivaldenimes.com",
      "st": ""
     }
    ],
@@ -356,7 +356,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://www.more.com/gr-el/tickets/music/festival/release-athens-2027/tokio-hotel",
+     "u": "https://estemusicfestival.it/",
      "st": ""
     }
    ],
@@ -376,7 +376,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://www.musilac.com/billetterie",
+     "u": "https://www.vivaticket.com/it/ticket/tokio-hotel/313656",
      "st": ""
     }
    ],
@@ -396,7 +396,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://www.festivaldenimes.com",
+     "u": "https://cdn.happiness-festival.de/tickets/?utm_source=acts&utm_medium=tokiohotel&utm_campaign=vvk27_ak3",
      "st": ""
     }
    ],
@@ -406,67 +406,7 @@
    "date": "2027-08-05",
    "time": "",
    "city": "Aurich",
-   "country": "Germany*",
-   "region": "",
-   "venue": "",
-   "title": "",
-   "festival": false,
-   "lineup": [],
-   "url": "",
-   "offers": [
-    {
-     "l": "Billets (site officiel)",
-     "u": "https://estemusicfestival.it/",
-     "st": ""
-    }
-   ],
-   "soldOut": false
-  },
-  {
-   "date": "2027-08-06",
-   "time": "",
-   "city": "Dortmund",
-   "country": "Germany*",
-   "region": "",
-   "venue": "",
-   "title": "",
-   "festival": false,
-   "lineup": [],
-   "url": "",
-   "offers": [
-    {
-     "l": "Billets (site officiel)",
-     "u": "https://www.vivaticket.com/it/ticket/tokio-hotel/313656",
-     "st": ""
-    }
-   ],
-   "soldOut": false
-  },
-  {
-   "date": "2027-08-08",
-   "time": "",
-   "city": "Würzburg",
-   "country": "Germany*",
-   "region": "",
-   "venue": "",
-   "title": "",
-   "festival": false,
-   "lineup": [],
-   "url": "",
-   "offers": [
-    {
-     "l": "Billets (site officiel)",
-     "u": "https://cdn.happiness-festival.de/tickets/?utm_source=acts&utm_medium=tokiohotel&utm_campaign=vvk27_ak3",
-     "st": ""
-    }
-   ],
-   "soldOut": false
-  },
-  {
-   "date": "2027-08-10",
-   "time": "",
-   "city": "Mönchengladbach",
-   "country": "Germany*",
+   "country": "Germany",
    "region": "",
    "venue": "",
    "title": "",
@@ -483,10 +423,10 @@
    "soldOut": false
   },
   {
-   "date": "2027-08-11",
+   "date": "2027-08-06",
    "time": "",
-   "city": "Frankfurt am Main",
-   "country": "Germany*",
+   "city": "Dortmund",
+   "country": "Germany",
    "region": "",
    "venue": "",
    "title": "",
@@ -503,10 +443,10 @@
    "soldOut": false
   },
   {
-   "date": "2027-08-13",
+   "date": "2027-08-08",
    "time": "",
-   "city": "Dresden",
-   "country": "Germany*",
+   "city": "Würzburg",
+   "country": "Germany",
    "region": "",
    "venue": "",
    "title": "",
@@ -523,10 +463,10 @@
    "soldOut": false
   },
   {
-   "date": "2027-08-15",
+   "date": "2027-08-10",
    "time": "",
-   "city": "Magdeburg",
-   "country": "Germany*",
+   "city": "Mönchengladbach",
+   "country": "Germany",
    "region": "",
    "venue": "",
    "title": "",
@@ -543,10 +483,10 @@
    "soldOut": false
   },
   {
-   "date": "2027-08-17",
+   "date": "2027-08-11",
    "time": "",
-   "city": "Halle (Saale)",
-   "country": "Germany*",
+   "city": "Frankfurt am Main",
+   "country": "Germany",
    "region": "",
    "venue": "",
    "title": "",
@@ -557,6 +497,66 @@
     {
      "l": "Billets (site officiel)",
      "u": "https://short.contrapromotion.com/2p829mkv",
+     "st": ""
+    }
+   ],
+   "soldOut": false
+  },
+  {
+   "date": "2027-08-13",
+   "time": "",
+   "city": "Dresden",
+   "country": "Germany",
+   "region": "",
+   "venue": "",
+   "title": "",
+   "festival": false,
+   "lineup": [],
+   "url": "",
+   "offers": [
+    {
+     "l": "Billets (site officiel)",
+     "u": "https://short.contrapromotion.com/587b8mfd",
+     "st": ""
+    }
+   ],
+   "soldOut": false
+  },
+  {
+   "date": "2027-08-15",
+   "time": "",
+   "city": "Magdeburg",
+   "country": "Germany",
+   "region": "",
+   "venue": "",
+   "title": "",
+   "festival": false,
+   "lineup": [],
+   "url": "",
+   "offers": [
+    {
+     "l": "Billets (site officiel)",
+     "u": "https://short.contrapromotion.com/yc5f8ua2",
+     "st": ""
+    }
+   ],
+   "soldOut": false
+  },
+  {
+   "date": "2027-08-17",
+   "time": "",
+   "city": "Halle (Saale)",
+   "country": "Germany",
+   "region": "",
+   "venue": "",
+   "title": "",
+   "festival": false,
+   "lineup": [],
+   "url": "",
+   "offers": [
+    {
+     "l": "Billets (site officiel)",
+     "u": "https://short.contrapromotion.com/4kjapn8b",
      "st": ""
     }
    ],
@@ -576,7 +576,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://short.contrapromotion.com/587b8mfd",
+     "u": "https://www.ebilet.pl/muzyka/pop/tokio-hotel",
      "st": ""
     }
    ],
@@ -596,7 +596,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://short.contrapromotion.com/yc5f8ua2",
+     "u": "https://www.frequency.at/tickets/",
      "st": ""
     }
    ],
@@ -606,7 +606,7 @@
    "date": "2027-08-23",
    "time": "",
    "city": "Hamburg",
-   "country": "Germany*",
+   "country": "Germany",
    "region": "",
    "venue": "",
    "title": "",
@@ -616,7 +616,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://short.contrapromotion.com/4kjapn8b",
+     "u": "https://short.contrapromotion.com/2e53neuk",
      "st": ""
     }
    ],
@@ -626,7 +626,7 @@
    "date": "2027-08-25",
    "time": "",
    "city": "Berlin",
-   "country": "Germany*",
+   "country": "Germany",
    "region": "",
    "venue": "",
    "title": "",
@@ -636,7 +636,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://www.ebilet.pl/muzyka/pop/tokio-hotel",
+     "u": "https://short.contrapromotion.com/4mn2nuab",
      "st": ""
     }
    ],
@@ -646,7 +646,7 @@
    "date": "2027-08-27",
    "time": "",
    "city": "Hanover",
-   "country": "Germany*",
+   "country": "Germany",
    "region": "",
    "venue": "",
    "title": "",
@@ -656,7 +656,7 @@
    "offers": [
     {
      "l": "Billets (site officiel)",
-     "u": "https://www.frequency.at/tickets/",
+     "u": "https://short.contrapromotion.com/47ptj7ws",
      "st": ""
     }
    ],
@@ -664,5 +664,5 @@
   }
  ],
  "eventsSource": "le site officiel",
- "updatedAt": "2026-11-25T17:24:31.470Z"
+ "updatedAt": "2026-11-25T17:25:58.203Z"
 }
