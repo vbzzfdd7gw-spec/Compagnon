@@ -66,23 +66,38 @@ const MON = { JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG
 const htmlText = h => decode(h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<br\s*\/?>|<\/(div|li|p|h\d|span|a|td|tr)>/gi, '\n').replace(/<[^>]+>/g, ' ')).replace(/[ \t\u00a0]+/g, ' ').replace(/\n\s*/g, '\n');
 
 export function parseOfficial(html) {
-  // Liens « Tickets » dans l'ordre d'apparition
-  const ticketLinks = [...html.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
-    .filter(m => /ticket|billet/i.test(htmlText(m[2]))).map(m => decode(m[1]));
-  const text = htmlText(html).replace(/\n/g, ' ');
-  const re = /\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)\.?\s+(\d{1,2}),?\s+(\d{4})(?:\s*[-–]\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)\.?\s+\d{1,2},?\s+\d{4})?\s+(.{2,140}?)\s+TICKETS/gi;
-  const out = []; let m, i = 0;
-  while ((m = re.exec(text))) {
-    const date = `${m[3]}-${MON[m[1].toUpperCase()]}-${m[2].padStart(2, '0')}`;
-    let body = m[4].trim(), title = '', place = body;
+  // Découpe la page en blocs commençant chacun par une date ; les liens « Tickets » d'un bloc appartiennent à cette date.
+  const D = '(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)\\.?\\s+(\\d{1,2}),?\\s+(\\d{4})';
+  const hits = [...html.matchAll(new RegExp(D, 'gi'))];
+  const starts = [];
+  for (const h of hits) {
+    const prev = starts[starts.length - 1];
+    // « JUL. 09, 2027 - JUL. 11, 2027 » : la 2e date fait partie du même bloc
+    if (prev && /^[\s\-–]*$/.test(htmlText(html.slice(prev.end, h.index)))) { prev.end = h.index + h[0].length; continue; }
+    starts.push({ m: h, idx: h.index, end: h.index + h[0].length });
+  }
+  const out = [];
+  starts.forEach((b, i) => {
+    const chunk = html.slice(b.end, i + 1 < starts.length ? starts[i + 1].idx : b.end + 4000);
+    const links = [...chunk.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
+      .filter(m => /ticket|billet/i.test(htmlText(m[2]))).map(m => decode(m[1])).filter(u => /^https?:/.test(u));
+    const text = htmlText(chunk).replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    const body = text.split(/\bTICKETS\b/i)[0].replace(/^[\s\-–]+/, '').trim().slice(0, 160);
+    if (!body) return;
+    const [, mon, day, year] = b.m;
+    const date = `${year}-${MON[mon.toUpperCase()]}-${day.padStart(2, '0')}`;
+    let title = '', place = body;
     const k = body.lastIndexOf(' - ');
     if (k > 0) { title = body.slice(0, k).trim(); place = body.slice(k + 3).trim(); }
-    const [city, ...rest] = place.split(',').map(x => x.trim());
-    const u = ticketLinks[i++];
+    const [city, ...rest] = place.replace(/\b(sold\s*out|ausverkauft|complet|few tickets left|low tickets)\b/gi, '').split(',').map(x => x.replace(/\*/g, '').trim()).filter(Boolean);
+    const offers = [...new Set(links)].map(u => ({ l: /bandsintown/i.test(u) ? 'Bandsintown' : 'Billets (site officiel)', u, st: '' }))
+      .sort((a, b) => (a.l === 'Bandsintown') - (b.l === 'Bandsintown'));
     out.push({ date, time: '', city: city || place, country: rest.join(', '), region: '', venue: title, title, festival: /festival|fest\b/i.test(title),
-      lineup: [], url: '', offers: u && /^https?:/.test(u) ? [{ l: 'Billets (site officiel)', u, st: '' }] : [], soldOut: /sold\s*out|ausverkauft|complet/i.test(body) });
-  }
-  return out;
+      lineup: [], url: '', offers, soldOut: /sold\s*out|ausverkauft|complet/i.test(text.split(/\bTICKETS\b/i).slice(0, 2).join(' ')) });
+  });
+  // dédoublonne (même date + ville)
+  const seen = new Set();
+  return out.filter(e => { const k = e.date + norm(e.city); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 
 async function official() {
