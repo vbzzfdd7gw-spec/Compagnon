@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TH Fan Hub</title>
+<meta name="description" content="Suivre Tokio Hotel : actualités, réseaux sociaux du groupe et de chaque membre, concerts, prix des places, packs VIP et liens de réservation.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TH Fan Hub">
+<meta name="theme-color" content="#0c0b0f">
+<style>
+:root{
+  --bg:#0c0b0f;--panel:#16141b;--panel2:#211e28;--line:#34303d;
+  --fg:#f4f1f2;--muted:#a49daf;--red:#e0263c;--red-ink:#fff;--soft:#ff6b7c;
+  --good:#5fcf8f;--warn:#f2b75b;
+  --f-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0;text-align:inherit}
+a{color:var(--soft)}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+textarea{min-height:70px;resize:vertical}
+label{display:grid;gap:5px;font-size:.82rem;color:var(--muted)}
+.wrap{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 96px) max(16px,env(safe-area-inset-left,0px));display:grid;gap:14px}
+header.top{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;flex:none}
+h1{font-size:1.35rem;margin:0;line-height:1.1;letter-spacing:.01em}
+h1 b{color:var(--red)}
+h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:6px 0 0;font-weight:700}
+h3{margin:0;font-size:1.05rem}
+.sub{color:var(--muted);font-size:.88rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;min-width:0;display:grid;gap:10px}
+.list{display:grid;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 13px;font-weight:600;white-space:nowrap;text-decoration:none;color:var(--fg);font-size:.92rem}
+.btn.primary{background:var(--red);border-color:var(--red);color:var(--red-ink)}
+.btn.sm{padding:6px 10px;font-size:.84rem;border-radius:8px}
+.btn.on{border-color:var(--red);color:var(--soft)}
+.btn.danger{color:var(--soft)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.tag{display:inline-block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:2px 8px;font-weight:700;white-space:nowrap}
+.tag.red{border-color:var(--red);color:var(--soft)}
+.tag.good{border-color:color-mix(in srgb,var(--good) 60%,var(--line));color:var(--good)}
+.tag.warn{border-color:color-mix(in srgb,var(--warn) 60%,var(--line));color:var(--warn)}
+.empty{color:var(--muted);text-align:center;padding:22px 8px}
+.hint{font-size:.82rem;color:var(--muted)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{padding:8px 4px;border-radius:9px;font-weight:700;font-size:.88rem;color:var(--muted);text-align:center}
+.seg button.on{background:var(--fg);color:var(--bg)}
+
+/* hero countdown */
+.hero{background:linear-gradient(135deg,#2a0b12,#16141b 65%);border:1px solid color-mix(in srgb,var(--red) 45%,var(--line));border-radius:18px;padding:16px;display:grid;gap:8px}
+.cd{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.cd div{background:rgba(0,0,0,.35);border-radius:10px;padding:8px 2px}
+.cd b{display:block;font-family:var(--f-mono);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.cd span{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+
+/* concerts */
+.gig{display:grid;grid-template-columns:58px 1fr;gap:12px}
+.date{background:var(--panel2);border-radius:12px;text-align:center;padding:7px 2px;align-self:start}
+.date .d{font-size:1.45rem;font-weight:800;line-height:1}
+.date .m{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--soft);font-weight:700}
+.date .y{font-size:.68rem;color:var(--muted)}
+.gig.past{opacity:.6}
+.prices{display:grid;gap:4px;font-size:.9rem}
+.prices div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding-bottom:3px}
+.prices b{font-family:var(--f-mono);white-space:nowrap}
+details>summary{cursor:pointer;color:var(--muted);font-size:.88rem;font-weight:600;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"▸ "}
+details[open]>summary::before{content:"▾ "}
+
+/* socials */
+.mem{display:grid;grid-template-columns:52px 1fr;gap:12px;align-items:start}
+.av{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:1.1rem;color:#fff}
+.links{display:flex;flex-wrap:wrap;gap:6px}
+.links a{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--fg);text-decoration:none;font-size:.86rem;font-weight:600}
+.links a i{font-style:normal;width:8px;height:8px;border-radius:50%;background:var(--c,var(--red))}
+
+/* news */
+.news{display:grid;grid-template-columns:auto 1fr;gap:10px}
+.news .nd{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);white-space:nowrap;padding-top:2px}
+
+/* tab bar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+nav.tabs div{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
+nav.tabs button{display:grid;justify-items:center;gap:2px;padding:6px 2px;border-radius:10px;color:var(--muted);font-size:.7rem;font-weight:700}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button.on{color:var(--soft);background:var(--panel)}
+
+/* modal */
+dialog{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:18px;padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 40px)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog form{padding:16px;display:grid;gap:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.total{font-family:var(--f-mono);font-size:1.6rem;font-weight:800}
+.warnbox{border:1px solid color-mix(in srgb,var(--warn) 50%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--panel));border-radius:14px;padding:12px;font-size:.88rem;display:grid;gap:4px}
+</style>
+</head><body>
+<div class="wrap">
+  <header class="top">
+    <svg class="logo" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#16141b"/><circle cx="256" cy="256" r="178" fill="none" stroke="#e0263c" stroke-width="22"/><text x="256" y="318" text-anchor="middle" font-family="Arial Black,Helvetica,Arial,sans-serif" font-weight="900" font-size="190" fill="#f4f1f2" letter-spacing="-6">TH</text></svg>
+    <div style="min-width:0"><h1>Tokio Hotel <b>Fan Hub</b></h1><div class="sub" id="topSub">Actus, réseaux, concerts &amp; VIP</div></div>
+  </header>
+  <main id="view"></main>
+</div>
+
+<nav class="tabs" aria-label="Sections"><div id="tabs"></div></nav>
+
+<dialog id="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+
+<script>
+'use strict';
+/* ====================== Données de départ ======================
+   Relevées fin novembre 2026 auprès des billetteries et de la presse.
+   Les prix sont indicatifs (hors frais) : toujours vérifier sur la billetterie officielle. */
+const TODAY_INFO = '25 nov. 2026';
+const OFFICIAL = 'https://tokiohotel.com/';
+const SONGKICK = 'https://www.songkick.com/artists/58137-tokio-hotel/calendar';
+const EVENTIM_SE = 'https://www.eventim.de/artist/tokio-hotel/tokio-hotel-summer-encore-2027-4203600/';
+const TREEHOUSE = 'https://treehouse-ticketing.com/';
+
+const SEED_CONCERTS = [
+ // ---- Summer Encore 2027 ----
+ {id:'c27-ath',date:'2027-07-07',city:'Athènes',country:'Grèce',flag:'🇬🇷',venue:'Ergostasio 35 (Kallithéa) – « Release Athens »',tour:'Summer Encore 2027',type:'Concert',prices:[],tickets:[{l:'Site officiel',u:OFFICIAL},{l:'Songkick',u:SONGKICK}],note:'Format « Release » : détails à confirmer.'},
+ {id:'c27-musilac',date:'2027-07-10',city:'Aix-les-Bains',country:'France',flag:'🇫🇷',venue:'Festival Musilac',tour:'Summer Encore 2027',type:'Festival',prices:[],tickets:[{l:'Musilac',u:'https://www.musilac.com/'}],note:'Billet festival (journée ou pass).'},
+ {id:'c27-nimes',date:'2027-07-11',city:'Nîmes',country:'France',flag:'🇫🇷',venue:'Arènes de Nîmes – Festival de Nîmes',tour:'Summer Encore 2027',type:'Festival',prices:[],tickets:[{l:'Festival de Nîmes',u:'https://www.festivaldenimes.com/'}],note:'Le site du groupe annonce le festival du 9 au 11 juillet ; Songkick place le concert le 11.'},
+ {id:'c27-este',date:'2027-07-13',city:'Este',country:'Italie',flag:'🇮🇹',venue:'Este Music Festival',tour:'Summer Encore 2027',type:'Festival',prices:[],tickets:[{l:'Site officiel',u:OFFICIAL}]},
+ {id:'c27-rome',date:'2027-07-14',city:'Rome',country:'Italie',flag:'🇮🇹',venue:'Cavea – Auditorium Parco della Musica (Roma Summer Fest)',tour:'Summer Encore 2027',type:'Concert',prices:[],tickets:[{l:'Auditorium Parco della Musica',u:'https://www.auditorium.com/'}]},
+ {id:'c27-happ',date:'2027-07-16',city:'Straubenhardt',country:'Allemagne',flag:'🇩🇪',venue:'Happiness Festival (15–18 juillet)',tour:'Summer Encore 2027',type:'Festival',prices:[],tickets:[{l:'Happiness Festival',u:'https://www.happiness-festival.de/'}],note:'Jour exact du passage du groupe à confirmer (festival du 15 au 18).'},
+ {id:'c27-aurich',date:'2027-08-05',city:'Aurich',country:'Allemagne',flag:'🇩🇪',venue:'Open Air',tour:'Summer Encore 2027',type:'Open Air',prices:[{c:'Tarif à partir de',p:89.95}],tickets:[{l:'Eventim',u:EVENTIM_SE}]},
+ {id:'c27-dortmund',date:'2027-08-06',city:'Dortmund',country:'Allemagne',flag:'🇩🇪',venue:'Westfalenpark',tour:'Summer Encore 2027',type:'Open Air',prices:[{c:'Tarif à partir de (revente)',p:125}],tickets:[{l:'Eventim',u:EVENTIM_SE}]},
+ {id:'c27-wurz',date:'2027-08-08',city:'Wurtzbourg',country:'Allemagne',flag:'🇩🇪',venue:'Residenzplatz',tour:'Summer Encore 2027',type:'Open Air',prices:[{c:'Tarif à partir de (revente)',p:143}],tickets:[{l:'Eventim',u:EVENTIM_SE}],note:'Début 19h00.'},
+ {id:'c27-ffm',date:'2027-08-11',city:'Francfort',country:'Allemagne',flag:'🇩🇪',venue:'Freigelände Agora / Messe Frankfurt',tour:'Summer Encore 2027',type:'Open Air',prices:[],tickets:[{l:'Eventim',u:'https://www.eventim.de/event/tokio-hotel-summer-encore-2027-freigelaende-agora-messe-frankfurt-22054852/'}]},
+ {id:'c27-dresden',date:'2027-08-13',city:'Dresde',country:'Allemagne',flag:'🇩🇪',venue:'P5 – Messe Dresden',tour:'Summer Encore 2027',type:'Open Air',prices:[{c:'Debout',p:97.45}],tickets:[{l:'Konzertsuche',u:'https://www.konzertsuche.de/konzert/tokio-hotel-open-air-p5-messe-dresden-13-august'},{l:'Eventim',u:EVENTIM_SE}]},
+ {id:'c27-magde',date:'2027-08-15',city:'Magdebourg',country:'Allemagne',flag:'🇩🇪',venue:'Domplatz',tour:'Summer Encore 2027',type:'Open Air',prices:[{c:'Debout',p:95.95}],tickets:[{l:'Eventim',u:EVENTIM_SE}],note:'Concert « à la maison » : le groupe vient de Magdebourg.'},
+ {id:'c27-halle',date:'2027-08-17',city:'Halle (Saale)',country:'Allemagne',flag:'🇩🇪',venue:'Freilichtbühne Peißnitz',tour:'Summer Encore 2027',type:'Open Air',prices:[{c:'Catégorie standard',p:92.95},{c:'Catégorie haute',p:95.95}],tickets:[{l:'Biberticket',u:'https://www.biberticket.de/konzerte/rock-pop/56722-tokio-hotel-summer-encore-2027-freilichtbuehne-peissnitz-halle-saale'},{l:'MaWi Concert',u:'https://www.mawi-concert.de/konzerte/tokio-hotel-summer-encore-2027-open-airs-halle-saale-2027-08-17-e67067-v388445'}]},
+ {id:'c27-warsaw',date:'2027-08-19',city:'Varsovie',country:'Pologne',flag:'🇵🇱',venue:'Progresja Scena Letnia (plein air)',tour:'Summer Encore 2027',type:'Open Air',prices:[],tickets:[{l:'Songkick',u:SONGKICK}],note:'Date relevée sur une seule source : à confirmer.'},
+ {id:'c27-freq',date:'2027-08-20',city:'Sankt Pölten',country:'Autriche',flag:'🇦🇹',venue:'Frequency Festival (19–21 août)',tour:'Summer Encore 2027',type:'Festival',prices:[],tickets:[{l:'Frequency',u:'https://www.frequency.at/'}],note:'Jour exact à confirmer.'},
+ {id:'c27-hh',date:'2027-08-23',city:'Hambourg',country:'Allemagne',flag:'🇩🇪',venue:'Open Air',tour:'Summer Encore 2027',type:'Open Air',prices:[],tickets:[{l:'Eventim',u:EVENTIM_SE}],note:'Date relevée sur une seule source : à confirmer.'},
+ {id:'c27-berlin',date:'2027-08-25',city:'Berlin',country:'Allemagne',flag:'🇩🇪',venue:'Waldbühne',tour:'Summer Encore 2027',type:'Open Air',prices:[{c:'Tarif',p:91.65}],tickets:[{l:'berlin.de',u:'https://www.berlin.de/en/tickets/rock-pop/tokio-hotel-summer-encore-2027/2027-08-25-tokio-hotel-summer-encore-2027-925777c8-a733-47bb-a147-eeecfc057cfb/'},{l:'Eventim',u:EVENTIM_SE}]},
+ {id:'c27-hann',date:'2027-08-27',city:'Hanovre',country:'Allemagne',flag:'🇩🇪',venue:'Expo Plaza',tour:'Summer Encore 2027',type:'Open Air',prices:[{c:'Tarif à partir de (revente)',p:135}],tickets:[{l:'Eventim',u:EVENTIM_SE}],note:'Dernière date de la tournée d’été.'},
+ // ---- Arena Tour 2026 (terminée) ----
+ {id:'c26-lon',date:'2026-10-28',city:'Londres',country:'Royaume-Uni',flag:'🇬🇧',venue:'OVO Arena Wembley',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[{l:'Ticketmaster UK',u:'https://www.ticketmaster.co.uk/tokio-hotel-arena-tour-2026-london-28-10-2026/event/3700626EDF846B5E'}]},
+ {id:'c26-par1',date:'2026-10-30',city:'Paris',country:'France',flag:'🇫🇷',venue:'Adidas Arena',tour:'Arena Tour 2026',type:'Arena',prices:[{c:'Carré or assis',p:90.6},{c:'Fosse or debout',p:89.5},{c:'Catégorie 1 assis',p:75.2},{c:'Fosse debout',p:66.4},{c:'Catégorie 2 / visibilité réduite',p:65.3}],tickets:[{l:'Fnac Spectacles',u:'https://www.fnacspectacles.com/event/tokio-hotel-adidas-arena-19992987/'}]},
+ {id:'c26-hh',date:'2026-11-01',city:'Hambourg',country:'Allemagne',flag:'🇩🇪',venue:'Barclays Arena',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-bru',date:'2026-11-02',city:'Bruxelles',country:'Belgique',flag:'🇧🇪',venue:'—',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-ams',date:'2026-11-04',city:'Amsterdam',country:'Pays-Bas',flag:'🇳🇱',venue:'AFAS Live (1re partie : Nia Ashleigh)',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[{l:'AFAS Live',u:'https://www.afaslive.nl/en/agenda/tokio-hotel'}]},
+ {id:'c26-ffm',date:'2026-11-05',city:'Francfort',country:'Allemagne',flag:'🇩🇪',venue:'—',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-ber',date:'2026-11-07',city:'Berlin',country:'Allemagne',flag:'🇩🇪',venue:'Uber Arena',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[{l:'Uber Arena',u:'https://www.uber-arena.de/en/events/detail/tokio-hotel-2026/2026-11-07-2000'}]},
+ {id:'c26-nue',date:'2026-11-08',city:'Nuremberg',country:'Allemagne',flag:'🇩🇪',venue:'—',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-zh',date:'2026-11-10',city:'Zurich',country:'Suisse',flag:'🇨🇭',venue:'Hallenstadion',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-mil',date:'2026-11-11',city:'Milan',country:'Italie',flag:'🇮🇹',venue:'—',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-lei',date:'2026-11-13',city:'Leipzig',country:'Allemagne',flag:'🇩🇪',venue:'Quarterback Immobilien Arena',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[{l:'Arena Ticket',u:'https://arena-ticket.com/en/tokio-hotel-arena-tour-2026-leipzig-quarterback-immobilien-arena-13-11-2026-2000-uhr/'}]},
+ {id:'c26-vie',date:'2026-11-15',city:'Vienne',country:'Autriche',flag:'🇦🇹',venue:'—',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-muc',date:'2026-11-16',city:'Munich',country:'Allemagne',flag:'🇩🇪',venue:'Olympiahalle',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[{l:'Olympiapark',u:'https://www.olympiapark.de/en/events/tokio-hotel-n4932'}]},
+ {id:'c26-esch',date:'2026-11-18',city:'Esch-sur-Alzette',country:'Luxembourg',flag:'🇱🇺',venue:'—',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-dus',date:'2026-11-19',city:'Düsseldorf',country:'Allemagne',flag:'🇩🇪',venue:'—',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[]},
+ {id:'c26-par2',date:'2026-11-21',city:'Paris',country:'France',flag:'🇫🇷',venue:'Adidas Arena',tour:'Arena Tour 2026',type:'Arena',prices:[{c:'Carré or assis',p:90.6},{c:'Fosse or debout',p:89.5},{c:'Catégorie 1 assis',p:75.2},{c:'Fosse debout',p:66.4},{c:'Catégorie 2 assis',p:65.3}],tickets:[{l:'See Tickets',u:'https://www.seetickets.com/fr/tr/event/tokio-hotel/adidas-arena/11122267'}]},
+ {id:'c26-mad',date:'2026-11-23',city:'Madrid',country:'Espagne',flag:'🇪🇸',venue:'Palacio Vistalegre',tour:'Arena Tour 2026',type:'Arena',prices:[],tickets:[],note:'Dernière date de l’Arena Tour.'},
+];
+
+const SEED_PACKS = [
+ {id:'p-sound',name:'« Sound » – Soundcheck',seller:'Treehouse / Online-Ticket',price:74.97,from:true,incl:['Accès au soundcheck','Entrée prioritaire (avant l’ouverture des portes)'],excl:['Billet de concert parfois non inclus (upgrade)'],url:'https://www.online-ticket.de/index.php-view-artist-id-11',status:'Complet à Londres 2026',m:false},
+ {id:'p-mg',name:'Meet & Greet',seller:'Treehouse Ticketing',price:null,incl:['Rencontre avec le groupe','Session questions-réponses','Photo avec le groupe'],excl:[],url:TREEHOUSE,status:'Complet à Amsterdam 2026 – très rapide à partir',m:true},
+ {id:'p-backstage',name:'Backstage',seller:'Treehouse Ticketing',price:null,incl:['Accès backstage','Session questions-réponses','Photo de groupe'],excl:[],url:TREEHOUSE,status:'Quantités très limitées',m:true},
+ {id:'p-club',name:'« Backstage Club » VIP',seller:'Arena Ticket (salle)',price:140,incl:['Espace VIP / lounge de la salle','Avantages hospitalité'],excl:['PAS de rencontre avec le groupe'],url:'https://arena-ticket.com/en/tokio-hotel-arena-tour-2026-leipzig-quarterback-immobilien-arena-13-11-2026-2000-uhr/',status:'Leipzig 2026 – complet',m:false},
+ {id:'p-hotel',name:'Packs Hôtel / Limousine VIP',seller:'Online-Ticket.de',price:3123.75,upto:true,incl:['Billet + upgrade','Nuit d’hôtel','Transfert en limousine VIP (formule haute)'],excl:[],url:'https://www.online-ticket.de/index.php-view-artist-id-11',status:'Formules de ~75 € à 3 123,75 €',m:false},
+ {id:'p-hosp',name:'Hospitality / loges (revente)',seller:'SeatPick, AXS…',price:128,from:true,cur:'£',incl:['Places en loge ou hospitality selon la salle'],excl:['Revente : pas de rencontre avec le groupe sauf mention explicite'],url:'https://seatpick.com/tokio-hotel-tickets',status:'Prix de revente variables',m:false},
+];
+
+const SEED_NEWS = [
+ {d:'2026-11-23',t:'Fin de l’Arena Tour 2026 à Madrid',x:'Dernier concert de la tournée européenne au Palacio Vistalegre, après deux soirs à l’Adidas Arena de Paris (30 oct. et 21 nov.).',u:'https://www.songkick.com/artists/58137-tokio-hotel'},
+ {d:'2026-10-28',t:'Coup d’envoi de l’Arena Tour à Londres',x:'Première date à l’OVO Arena Wembley, puis Paris, Hambourg, Bruxelles, Amsterdam, Berlin, Zurich, Milan, Vienne…',u:'https://www.broadwayworld.com/bwwmusic/article/Tokio-Hotel-Release-7th-Album-ENCORE-Tour-Starts-Oct-28-20261016'},
+ {d:'2026-10-25',t:'Release show « Encore » à Berlin',x:'Concert spécial de sortie d’album à Berlin, juste avant la tournée.',u:OFFICIAL},
+ {d:'2026-10-16',t:'Sortie du 7e album studio : ENCORE',x:'Disponible sur toutes les plateformes (label Believe), CD avec pochette exclusive « Twins ». Clip du single « Perfect Ending » et podcast « ENCORE: Tokio Hotel » en 12 épisodes.',u:'https://music.apple.com/us/album/encore/6803169029'},
+ {d:'2026-09-08',t:'Single « Dye My Hair » + annonce du Summer Encore 2027',x:'Nouveau single et tournée d’été 2027 : festivals en France, Italie, Grèce puis open airs en Allemagne jusqu’au 27 août à Hanovre.',u:'https://www.broadwayworld.com/bwwmusic/article/Tokio-Hotel-Release-Dye-My-Hair-Announce-Summer-2027-Tour-Dates-20260908'},
+ {d:'2026-09-02',t:'Billetterie Summer Encore 2027 ouverte',x:'Mise en vente sur Eventim le 2 septembre 2026 à midi (certaines dates le 4).',u:EVENTIM_SE},
+ {d:'2026-05-27',t:'Annonce du nouvel album avec le clip « Memory Lane »',x:'Premier extrait de l’album qui deviendra ENCORE.',u:'https://www.antimusic.com/p/26/r0527tokio_hotel_announce_new_album_with_memory_lane_video.shtml'},
+];
+
+const q = s => encodeURIComponent(s);
+const NEWS_FEEDS = [
+ {l:'Google Actus (FR)',u:'https://news.google.com/search?q='+q('"Tokio Hotel"')+'&hl=fr&gl=FR&ceid=FR:fr'},
+ {l:'Google News (DE)',u:'https://news.google.com/search?q='+q('"Tokio Hotel" OR Kaulitz')+'&hl=de&gl=DE&ceid=DE:de'},
+ {l:'Site officiel',u:OFFICIAL},
+ {l:'Promiflash',u:'https://www.promiflash.de/thema/tokio-hotel/'},
+ {l:'Aliens Unite (fan)',u:'https://tokiohotelaliensunite.substack.com/'},
+ {l:'Songkick',u:SONGKICK},
+];
+
+const PLAT = {
+ ig:{n:'Instagram',c:'#e1306c',u:h=>'https://www.instagram.com/'+h+'/'},
+ tt:{n:'TikTok',c:'#25f4ee',u:h=>'https://www.tiktok.com/@'+h},
+ yt:{n:'YouTube',c:'#ff0000',u:h=>'https://www.youtube.com/@'+h},
+ x:{n:'X',c:'#cccccc',u:h=>'https://x.com/'+h},
+ fb:{n:'Facebook',c:'#1877f2',u:h=>'https://www.facebook.com/'+h},
+};
+const SEED_MEMBERS = [
+ {id:'band',name:'Tokio Hotel',role:'Le groupe',col:'#e0263c',ini:'TH',h:{ig:'tokiohotel',tt:'tokiohotel',yt:'TokioHotel',x:'tokiohotel',fb:'tokiohotel'},
+  extra:[{l:'Site officiel',u:OFFICIAL,c:'#e0263c'},{l:'Spotify',u:'https://open.spotify.com/search/'+q('Tokio Hotel'),c:'#1db954'},{l:'Deezer',u:'https://www.deezer.com/artist/3255',c:'#a238ff'},{l:'Apple Music',u:'https://music.apple.com/us/album/encore/6803169029',c:'#fa2d48'},{l:'Boutique',u:'https://us.tokiohotel.com/',c:'#f2b75b'}]},
+ {id:'bill',name:'Bill Kaulitz',role:'Chant',col:'#8a3ffc',ini:'BK',h:{ig:'billkaulitz',tt:'billkaulitz',x:'billkaulitz'},extra:[]},
+ {id:'tom',name:'Tom Kaulitz',role:'Guitare',col:'#1f8fff',ini:'TK',h:{ig:'tomkaulitz'},extra:[]},
+ {id:'georg',name:'Georg Listing',role:'Basse',col:'#2fb36f',ini:'GL',h:{ig:'georglisting'},extra:[]},
+ {id:'gustav',name:'Gustav Schäfer',role:'Batterie',col:'#e8892a',ini:'GS',h:{},extra:[{l:'Trouver son Instagram',u:'https://www.google.com/search?q='+q('Gustav Schäfer Tokio Hotel Instagram'),c:'#e1306c'}],note:'Compte non vérifié : ajoute son pseudo avec « Modifier ».'},
+];
+const TWINS = [
+ {l:'Podcast « Kaulitz Hills – Senf aus Hollywood »',u:'https://open.spotify.com/search/'+q('Kaulitz Hills Senf aus Hollywood'),c:'#1db954'},
+ {l:'Série Netflix « Kaulitz & Kaulitz »',u:'https://www.netflix.com/search?q='+q('Kaulitz'),c:'#e50914'},
+ {l:'Podcast « ENCORE: Tokio Hotel »',u:'https://open.spotify.com/search/'+q('ENCORE Tokio Hotel podcast'),c:'#1db954'},
+];
+
+/* ====================== Stockage ====================== */
+const KEY='th-fanhub-v1';
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
+let S=load();
+S.extraConcerts ||= [];   // concerts ajoutés
+S.edits ||= {};           // modifications des concerts de départ
+S.hidden ||= [];          // concerts de départ supprimés
+S.plan ||= {};            // id concert -> {status:'fav'|'go', ticket:number, pack:number, travel:number, note}
+S.extraPacks ||= [];
+S.extraNews ||= [];
+S.handles ||= {};         // id membre -> {ig:..}
+S.tab ||= 'home';
+S.filter ||= 'upcoming';
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+const concerts = () => [...SEED_CONCERTS.filter(c=>!S.hidden.includes(c.id)).map(c=>({...c,...(S.edits[c.id]||{})})),...S.extraConcerts]
+  .sort((a,b)=>a.date.localeCompare(b.date));
+const members = () => SEED_MEMBERS.map(m=>({...m,h:{...m.h,...(S.handles[m.id]||{})}}));
+
+/* ====================== Utilitaires ====================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur = (n,cur='€') => n==null||isNaN(n)?'—':(cur==='€'?n.toLocaleString('fr-FR',{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})+' €':cur+n.toLocaleString('fr-FR'));
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const pd = s => {const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const fmtD = s => {const d=pd(s);return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});};
+const todayStr = () => {const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const isPast = c => c.date < todayStr();
+const daysTo = s => Math.round((pd(s)-pd(todayStr()))/864e5);
+const uid = () => 'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const ticketSearch = c => 'https://www.google.com/search?q='+q('Tokio Hotel '+c.city+' '+c.date.slice(0,4)+' billets');
+const mapUrl = c => 'https://www.google.com/maps/search/?api=1&query='+q((c.venue&&c.venue!=='—'?c.venue.replace(/\(.*?\)|–.*$/g,'')+' ':'')+c.city+' '+c.country);
+
+/* ====================== Onglets ====================== */
+const ICONS = {
+ home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+ gigs:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+ vip:'<path d="M3 9a2 2 0 0 0 0 4v5h18v-5a2 2 0 0 0 0-4V6H3z"/><path d="M12 6v12" stroke-dasharray="2 2"/>',
+ social:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>',
+ plan:'<path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z"/>',
+};
+const TABS=[['home','Actus'],['gigs','Concerts'],['vip','VIP & packs'],['social','Réseaux'],['plan','Mon plan']];
+function renderTabs(){
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}" aria-current="${S.tab===k?'page':'false'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>${l}</button>`).join('');
+}
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(!b)return;S.tab=b.dataset.tab;save();render();window.scrollTo(0,0);});
+
+/* ====================== Vues ====================== */
+function nextConcert(){return concerts().find(c=>!isPast(c));}
+function heroHTML(){
+  const n=nextConcert(); if(!n) return '';
+  return `<section class="hero" aria-label="Prochain concert">
+   <div class="between"><div><h2 style="margin:0;color:var(--soft)">Prochain concert</h2><h3>${n.flag||''} ${esc(n.city)} · ${esc(n.venue)}</h3><div class="sub">${esc(fmtD(n.date))} — ${esc(n.tour)}</div></div></div>
+   <div class="cd" id="cd" data-date="${n.date}"></div>
+   <div class="row"><button class="btn sm primary" data-open="${n.id}">Voir le concert</button></div></section>`;
+}
+function tickCountdown(){
+  const el=$('#cd'); if(!el) return;
+  const [y,m,d]=el.dataset.date.split('-').map(Number);
+  let ms=Math.max(0,new Date(y,m-1,d,20,0)-new Date());
+  const D=Math.floor(ms/864e5);ms-=D*864e5;const H=Math.floor(ms/36e5);ms-=H*36e5;const M=Math.floor(ms/6e4);const Sx=Math.floor((ms-M*6e4)/1e3);
+  el.innerHTML=[[D,'jours'],[H,'heures'],[M,'min'],[Sx,'sec']].map(([v,l])=>`<div><b>${String(v).padStart(2,'0')}</b><span>${l}</span></div>`).join('');
+}
+
+function viewHome(){
+  const news=[...SEED_NEWS.map(n=>({...n,seed:true})),...S.extraNews].sort((a,b)=>b.d.localeCompare(a.d));
+  return heroHTML()+`
+  <h2>Suivre l’actu en direct</h2>
+  <div class="links">${NEWS_FEEDS.map(f=>`<a href="${esc(f.u)}" target="_blank" rel="noopener"><i></i>${esc(f.l)}</a>`).join('')}</div>
+  <div class="between"><h2>Fil d’actus</h2><button class="btn sm" id="addNews">+ Ajouter une actu</button></div>
+  <div class="list">${news.map(n=>`<article class="card news"><div class="nd">${pd(n.d).getDate()} ${MOIS[pd(n.d).getMonth()]}<br>${n.d.slice(0,4)}</div><div style="display:grid;gap:4px;min-width:0"><h3>${esc(n.t)}</h3>${n.x?`<div class="sub">${esc(n.x)}</div>`:''}<div class="row">${n.u?`<a class="btn sm" href="${esc(n.u)}" target="_blank" rel="noopener">Lire ↗</a>`:''}${n.seed?'':`<button class="btn sm danger" data-delnews="${esc(n.id)}">Supprimer</button>`}</div></div></article>`).join('')}</div>
+  <p class="hint">Actus relevées le ${TODAY_INFO}. Les liens « Suivre l’actu en direct » donnent toujours les dernières nouvelles ; ajoute toi-même celles que tu repères pour garder ton propre fil.</p>`;
+}
+
+function gigCard(c,full){
+  const p=S.plan[c.id]||{}; const past=isPast(c); const dd=pd(c.date);
+  const min=c.prices&&c.prices.length?Math.min(...c.prices.map(x=>x.p)):null;
+  const dt=daysTo(c.date);
+  return `<article class="card gig ${past?'past':''}" id="g-${c.id}">
+   <div class="date"><div class="m">${MOIS[dd.getMonth()]}</div><div class="d">${dd.getDate()}</div><div class="y">${dd.getFullYear()}</div></div>
+   <div style="display:grid;gap:7px;min-width:0">
+    <div class="between"><div style="min-width:0"><h3>${c.flag||''} ${esc(c.city)} <span class="sub">· ${esc(c.country)}</span></h3><div class="sub">${esc(c.venue)}</div></div>
+     <button class="btn sm ${p.status?'on':''}" data-fav="${c.id}" aria-label="Ajouter à mon plan">${p.status==='go'?'✔ J’y vais':p.status==='fav'?'♥ Favori':'♡'}</button></div>
+    <div class="row"><span class="tag">${esc(c.tour)}</span><span class="tag">${esc(c.type)}</span>${past?'<span class="tag">Passé</span>':dt<=60?`<span class="tag red">J-${dt}</span>`:''}${min!=null?`<span class="tag good">dès ${eur(min)}</span>`:'<span class="tag warn">Prix à venir</span>'}</div>
+    ${full?gigDetails(c):''}
+    <div class="row">${(c.tickets||[]).slice(0,2).map(t=>`<a class="btn sm primary" href="${esc(t.u)}" target="_blank" rel="noopener">🎟 ${esc(t.l)}</a>`).join('')}
+     <button class="btn sm" data-open="${c.id}">Détails</button></div>
+   </div></article>`;
+}
+function gigDetails(c){
+  return `${c.prices&&c.prices.length?`<div class="prices">${c.prices.map(x=>`<div><span>${esc(x.c)}</span><b>${eur(x.p)}</b></div>`).join('')}</div><div class="hint">Prix indicatifs hors frais de location.</div>`:''}
+   ${c.note?`<div class="hint">ℹ️ ${esc(c.note)}</div>`:''}`;
+}
+
+function viewGigs(){
+  const all=concerts(); const f=S.filter;
+  let list = f==='upcoming'?all.filter(c=>!isPast(c)):f==='past'?all.filter(isPast).reverse():all.filter(c=>c.country==='France');
+  const groups={}; list.forEach(c=>{(groups[c.tour]||=[]).push(c);});
+  return `<div class="seg" role="tablist">${[['upcoming','À venir'],['fr','En France'],['past','Passés']].map(([k,l])=>`<button data-filter="${k}" class="${f===k?'on':''}">${l}</button>`).join('')}</div>
+  <div class="row"><button class="btn sm" id="addGig">+ Ajouter un concert</button><a class="btn sm" href="${OFFICIAL}" target="_blank" rel="noopener">Dates officielles ↗</a><a class="btn sm" href="${SONGKICK}" target="_blank" rel="noopener">Songkick ↗</a></div>
+  ${list.length?Object.entries(groups).map(([t,cs])=>`<h2>${esc(t)} · ${cs.length} date${cs.length>1?'s':''}</h2><div class="list">${cs.map(c=>gigCard(c,true)).join('')}</div>`).join(''):'<div class="empty">Aucun concert dans cette liste.</div>'}
+  <p class="hint">Dates et prix relevés le ${TODAY_INFO} auprès des billetteries (Eventim, Fnac, See Tickets…). Certaines dates ne viennent que d’une source : vérifie toujours sur le site officiel avant d’acheter ou de réserver un voyage.</p>`;
+}
+
+function viewVip(){
+  const packs=[...SEED_PACKS,...S.extraPacks];
+  return `<div class="warnbox"><b>⚠️ Avant d’acheter un pack</b>
+   <span>Les vrais Meet &amp; Greet / Backstage Tokio Hotel sont vendus en quantité très limitée par le partenaire VIP officiel (Treehouse Ticketing) et partent en quelques minutes. Un « VIP » de salle ou de revente n’inclut <b>pas</b> de rencontre avec le groupe, sauf mention écrite explicite. Méfie-toi des comptes qui vendent des M&amp;G en message privé.</span></div>
+  <div class="row"><a class="btn primary" href="${TREEHOUSE}" target="_blank" rel="noopener">Treehouse (VIP officiel) ↗</a><a class="btn" href="${EVENTIM_SE}" target="_blank" rel="noopener">Eventim ↗</a><button class="btn" id="addPack">+ Ajouter un pack</button></div>
+  <h2>Formules repérées</h2>
+  <div class="list">${packs.map(p=>`<article class="card"><div class="between"><div style="min-width:0"><h3>${esc(p.name)}</h3><div class="sub">${esc(p.seller)}</div></div>
+    <div style="text-align:right"><div class="total" style="font-size:1.2rem">${p.price==null?'Sur demande':(p.from?'dès ':p.upto?'jusqu’à ':'')+eur(p.price,p.cur||'€')}</div>${p.m?'<span class="tag red">Rencontre groupe</span>':''}</div></div>
+    ${p.incl&&p.incl.length?`<div class="prices">${p.incl.map(i=>`<div><span>✔ ${esc(i)}</span></div>`).join('')}${(p.excl||[]).map(i=>`<div><span style="color:var(--soft)">✘ ${esc(i)}</span></div>`).join('')}</div>`:''}
+    ${p.status?`<div class="hint">${esc(p.status)}</div>`:''}
+    <div class="row">${p.url?`<a class="btn sm primary" href="${esc(p.url)}" target="_blank" rel="noopener">Voir / réserver ↗</a>`:''}${p.id.startsWith('u')?`<button class="btn sm danger" data-delpack="${p.id}">Supprimer</button>`:''}</div></article>`).join('')}</div>
+  <p class="hint">Prix relevés sur les tournées 2026 ; les packs du Summer Encore 2027 sont annoncés date par date. Les fourchettes générales observées vont d’environ 75 € (soundcheck) à plus de 3 000 € (formules hôtel + limousine).</p>`;
+}
+
+function viewSocial(){
+  return `<p class="sub">Les comptes officiels du groupe et de chaque membre. Un pseudo a changé ? Touche « Modifier ».</p>
+  <div class="list">${members().map(m=>{
+    const links=Object.entries(m.h).filter(([,h])=>h).map(([k,h])=>`<a href="${esc(PLAT[k].u(h))}" target="_blank" rel="noopener" style="--c:${PLAT[k].c}"><i></i>${PLAT[k].n} <span class="sub">@${esc(h)}</span></a>`);
+    const extra=(m.extra||[]).map(x=>`<a href="${esc(x.u)}" target="_blank" rel="noopener" style="--c:${x.c}"><i></i>${esc(x.l)}</a>`);
+    return `<article class="card mem"><div class="av" style="background:${m.col}">${m.ini}</div><div style="display:grid;gap:8px;min-width:0">
+     <div class="between"><div><h3>${esc(m.name)}</h3><div class="sub">${esc(m.role)}</div></div><button class="btn sm" data-edithandles="${m.id}">Modifier</button></div>
+     <div class="links">${links.join('')}${extra.join('')}</div>${m.note&&!m.h.ig?`<div class="hint">${esc(m.note)}</div>`:''}</div></article>`;}).join('')}
+   <article class="card"><h3>Les jumeaux Kaulitz</h3><div class="sub">Bill &amp; Tom en dehors du groupe</div><div class="links">${TWINS.map(x=>`<a href="${esc(x.u)}" target="_blank" rel="noopener" style="--c:${x.c}"><i></i>${esc(x.l)}</a>`).join('')}</div></article>
+  </div>`;
+}
+
+function viewPlan(){
+  const all=concerts(); const ids=Object.keys(S.plan).filter(id=>S.plan[id]&&S.plan[id].status);
+  const mine=all.filter(c=>ids.includes(c.id));
+  const go=mine.filter(c=>S.plan[c.id].status==='go');
+  const sum=k=>go.reduce((a,c)=>a+(+S.plan[c.id][k]||0),0);
+  const tot=sum('ticket')+sum('pack')+sum('travel');
+  return `<div class="card"><h2 style="margin:0">Mon budget concerts</h2><div class="total">${eur(tot)}</div>
+    <div class="prices"><div><span>Billets</span><b>${eur(sum('ticket'))}</b></div><div><span>Packs VIP</span><b>${eur(sum('pack'))}</b></div><div><span>Voyage &amp; hôtel</span><b>${eur(sum('travel'))}</b></div></div>
+    <div class="hint">Compte uniquement les concerts marqués « J’y vais ».</div></div>
+  ${mine.length?`<div class="list">${mine.map(c=>{const p=S.plan[c.id];return `<article class="card"><div class="between"><div><h3>${c.flag||''} ${esc(c.city)} — ${pd(c.date).getDate()} ${MOIS[pd(c.date).getMonth()]} ${c.date.slice(0,4)}</h3><div class="sub">${esc(c.venue)}</div></div><span class="tag ${p.status==='go'?'red':''}">${p.status==='go'?'J’y vais':'Favori'}</span></div>
+    ${p.status==='go'?`<div class="prices"><div><span>Billet</span><b>${eur(+p.ticket||0)}</b></div><div><span>Pack</span><b>${eur(+p.pack||0)}</b></div><div><span>Voyage</span><b>${eur(+p.travel||0)}</b></div></div>`:''}
+    ${p.note?`<div class="hint">📝 ${esc(p.note)}</div>`:''}
+    <div class="row"><button class="btn sm" data-planedit="${c.id}">Modifier</button><button class="btn sm" data-open="${c.id}">Concert</button>${isPast(c)?'':`<span class="tag">J-${daysTo(c.date)}</span>`}</div></article>`;}).join('')}</div>`
+   :'<div class="empty">Touche ♡ sur un concert pour l’ajouter à ton plan, puis « J’y vais » pour suivre ton budget.</div>'}
+  <h2>Sauvegarde</h2><div class="row"><button class="btn sm" id="exp">Exporter mes données</button><label class="btn sm" style="display:inline-flex;color:var(--fg);font-size:.84rem">Importer<input type="file" id="imp" accept="application/json" hidden></label></div>`;
+}
+
+const VIEWS={home:viewHome,gigs:viewGigs,vip:viewVip,social:viewSocial,plan:viewPlan};
+function render(){
+  renderTabs();
+  $('#view').innerHTML=`<div style="display:grid;gap:14px">${VIEWS[S.tab]()}</div>`;
+  const n=nextConcert(); $('#topSub').textContent=n?`Prochain concert : ${n.city}, J-${daysTo(n.date)}`:'Actus, réseaux, concerts & VIP';
+  tickCountdown();
+}
+setInterval(tickCountdown,1000);
+
+/* ====================== Dialogues ====================== */
+const dlg=$('#dlg'), F=$('#dlgForm');
+function openDlg(html,onSubmit){
+  F.innerHTML=html; dlg.showModal();
+  F.onsubmit=e=>{const btn=e.submitter; if(btn&&btn.value==='cancel')return; if(onSubmit){const r=onSubmit(new FormData(F),btn&&btn.value);if(r===false){e.preventDefault();return;}} save(); render();};
+}
+const actions=(extra='')=>`<div class="row" style="justify-content:flex-end">${extra}<button class="btn" value="cancel" formnovalidate>Annuler</button><button class="btn primary" value="ok">Enregistrer</button></div>`;
+
+function openConcert(id){
+  const c=concerts().find(x=>x.id===id); if(!c) return;
+  const p=S.plan[c.id]||{};
+  F.innerHTML=`<div class="between"><div><h3>${c.flag||''} ${esc(c.city)}</h3><div class="sub">${esc(fmtD(c.date))}</div></div><button class="btn sm" value="cancel">✕</button></div>
+   <div class="sub">📍 ${esc(c.venue)} — ${esc(c.country)}</div>
+   <div class="row"><span class="tag">${esc(c.tour)}</span><span class="tag">${esc(c.type)}</span></div>
+   ${c.prices&&c.prices.length?`<h2>Prix des places</h2>`:'<div class="hint">Prix pas encore relevés pour cette date : vérifie sur la billetterie.</div>'}
+   ${gigDetails(c)}
+   <h2>Réserver</h2>
+   <div class="row">${(c.tickets||[]).map(t=>`<a class="btn sm primary" href="${esc(t.u)}" target="_blank" rel="noopener">🎟 ${esc(t.l)} ↗</a>`).join('')}<a class="btn sm" href="${ticketSearch(c)}" target="_blank" rel="noopener">Chercher d’autres billetteries ↗</a><a class="btn sm" href="${TREEHOUSE}" target="_blank" rel="noopener">Packs VIP ↗</a></div>
+   <h2>Pratique</h2>
+   <div class="row"><a class="btn sm" href="${mapUrl(c)}" target="_blank" rel="noopener">🗺 Itinéraire</a><button class="btn sm" value="ics">📅 Ajouter au calendrier</button><button class="btn sm" value="share">↗ Partager</button></div>
+   <h2>Mon plan</h2>
+   <div class="row"><button class="btn sm ${p.status==='fav'?'on':''}" value="fav">♥ Favori</button><button class="btn sm ${p.status==='go'?'on':''}" value="go">✔ J’y vais</button>${p.status?'<button class="btn sm" value="none">Retirer</button>':''}<button class="btn sm" value="plan">Budget &amp; notes</button></div>
+   <div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:10px"><button class="btn sm" value="edit">✎ Modifier ce concert</button><button class="btn sm danger" value="del">Supprimer</button></div>`;
+  dlg.showModal();
+  F.onsubmit=e=>{const v=e.submitter&&e.submitter.value;
+    if(v==='ics'){e.preventDefault();downloadIcs(c);return;}
+    if(v==='share'){e.preventDefault();shareGig(c);return;}
+    if(v==='fav'||v==='go'){S.plan[c.id]={...(S.plan[c.id]||{}),status:v};}
+    if(v==='none'){delete S.plan[c.id];}
+    if(v==='plan'){setTimeout(()=>editPlan(c.id),0);}
+    if(v==='edit'){setTimeout(()=>editConcert(c.id),0);}
+    if(v==='del'){if(!confirm('Supprimer ce concert de la liste ?')){e.preventDefault();return;}
+      if(S.extraConcerts.some(x=>x.id===c.id))S.extraConcerts=S.extraConcerts.filter(x=>x.id!==c.id);else S.hidden.push(c.id);delete S.plan[c.id];}
+    save();render();};
+}
+
+function pricesToText(ps){return (ps||[]).map(x=>`${x.c} : ${x.p}`).join('\n');}
+function textToPrices(t){return t.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^(.*?)[\s:=-]+([\d\s.,]+)\s*€?$/);return m?{c:m[1].trim()||'Tarif',p:parseFloat(m[2].replace(/\s/g,'').replace(',','.'))}:null;}).filter(x=>x&&!isNaN(x.p));}
+function linksToText(ls){return (ls||[]).map(x=>`${x.l} | ${x.u}`).join('\n');}
+function textToLinks(t){return t.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const [a,b]=l.includes('|')?l.split('|').map(s=>s.trim()):['Billetterie',l];return /^https?:\/\//.test(b)?{l:a||'Billetterie',u:b}:null;}).filter(Boolean);}
+
+function editConcert(id){
+  const c=id?concerts().find(x=>x.id===id):{date:todayStr(),city:'',country:'',flag:'',venue:'',tour:'Summer Encore 2027',type:'Concert',prices:[],tickets:[],note:''};
+  openDlg(`<h3>${id?'Modifier le concert':'Ajouter un concert'}</h3>
+   <div class="grid2"><label>Date<input type="date" name="date" required value="${esc(c.date)}"></label><label>Type<input name="type" value="${esc(c.type)}" placeholder="Concert, Festival…"></label></div>
+   <div class="grid2"><label>Ville<input name="city" required value="${esc(c.city)}"></label><label>Pays<input name="country" value="${esc(c.country)}"></label></div>
+   <label>Salle / lieu<input name="venue" value="${esc(c.venue)}"></label>
+   <div class="grid2"><label>Tournée<input name="tour" value="${esc(c.tour)}"></label><label>Drapeau (emoji)<input name="flag" value="${esc(c.flag)}" placeholder="🇫🇷"></label></div>
+   <label>Prix (une catégorie par ligne : « Fosse : 66,40 »)<textarea name="prices">${esc(pricesToText(c.prices))}</textarea></label>
+   <label>Liens de réservation (« Nom | https://… » par ligne)<textarea name="tickets">${esc(linksToText(c.tickets))}</textarea></label>
+   <label>Note<input name="note" value="${esc(c.note||'')}"></label>
+   ${actions()}`,fd=>{
+    const o={date:fd.get('date'),type:fd.get('type').trim()||'Concert',city:fd.get('city').trim(),country:fd.get('country').trim(),venue:fd.get('venue').trim()||'—',tour:fd.get('tour').trim()||'Autre',flag:fd.get('flag').trim(),prices:textToPrices(fd.get('prices')),tickets:textToLinks(fd.get('tickets')),note:fd.get('note').trim()};
+    if(!id){S.extraConcerts.push({id:uid(),...o});}
+    else if(S.extraConcerts.some(x=>x.id===id)){S.extraConcerts=S.extraConcerts.map(x=>x.id===id?{...x,...o}:x);}
+    else S.edits[id]=o;
+  });
+}
+function editPlan(id){
+  const c=concerts().find(x=>x.id===id); const p=S.plan[id]||{status:'go'};
+  openDlg(`<h3>Mon plan — ${esc(c.city)}</h3>
+   <label>Statut<select name="status"><option value="go" ${p.status==='go'?'selected':''}>J’y vais</option><option value="fav" ${p.status==='fav'?'selected':''}>Favori</option></select></label>
+   <div class="grid2"><label>Prix de mon billet (€)<input name="ticket" inputmode="decimal" value="${esc(p.ticket||'')}"></label><label>Pack VIP (€)<input name="pack" inputmode="decimal" value="${esc(p.pack||'')}"></label></div>
+   <label>Voyage &amp; hôtel (€)<input name="travel" inputmode="decimal" value="${esc(p.travel||'')}"></label>
+   <label>Notes (place, numéro de commande, train…)<textarea name="note">${esc(p.note||'')}</textarea></label>${actions()}`,fd=>{
+    const n=k=>{const v=parseFloat(String(fd.get(k)).replace(',','.'));return isNaN(v)?'':v;};
+    S.plan[id]={status:fd.get('status'),ticket:n('ticket'),pack:n('pack'),travel:n('travel'),note:fd.get('note').trim()};
+  });
+}
+function addNews(){
+  openDlg(`<h3>Ajouter une actu</h3><label>Date<input type="date" name="d" required value="${todayStr()}"></label><label>Titre<input name="t" required></label><label>Détails<textarea name="x"></textarea></label><label>Lien (facultatif)<input name="u" type="url" placeholder="https://"></label>${actions()}`,
+   fd=>{S.extraNews.push({id:uid(),d:fd.get('d'),t:fd.get('t').trim(),x:fd.get('x').trim(),u:fd.get('u').trim()});});
+}
+function addPack(){
+  openDlg(`<h3>Ajouter un pack VIP</h3><label>Nom<input name="name" required placeholder="Meet & Greet Berlin"></label><div class="grid2"><label>Vendeur<input name="seller"></label><label>Prix (€)<input name="price" inputmode="decimal"></label></div>
+   <label>Inclus (une ligne par avantage)<textarea name="incl"></textarea></label><label>Lien<input name="url" type="url" placeholder="https://"></label><label>Statut / remarque<input name="status" placeholder="Disponible, complet…"></label>
+   <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" name="m" style="width:auto"> Inclut une rencontre avec le groupe</label>${actions()}`,
+   fd=>{const pr=parseFloat(String(fd.get('price')).replace(',','.'));S.extraPacks.push({id:uid(),name:fd.get('name').trim(),seller:fd.get('seller').trim(),price:isNaN(pr)?null:pr,incl:fd.get('incl').split('\n').map(s=>s.trim()).filter(Boolean),excl:[],url:fd.get('url').trim(),status:fd.get('status').trim(),m:!!fd.get('m')});});
+}
+function editHandles(id){
+  const m=members().find(x=>x.id===id);
+  openDlg(`<h3>Comptes de ${esc(m.name)}</h3><p class="hint">Indique seulement le pseudo, sans @ (laisser vide pour masquer).</p>
+   ${Object.entries(PLAT).map(([k,pl])=>`<label>${pl.n}<input name="${k}" value="${esc(m.h[k]||'')}" autocapitalize="off" autocorrect="off" spellcheck="false"></label>`).join('')}${actions()}`,
+   fd=>{const h={};Object.keys(PLAT).forEach(k=>{h[k]=String(fd.get(k)).trim().replace(/^@/,'');});S.handles[id]=h;});
+}
+
+/* ====================== Calendrier & partage ====================== */
+function downloadIcs(c){
+  const d=c.date.replace(/-/g,''); const nd=pd(c.date);nd.setDate(nd.getDate()+1);
+  const d2=nd.getFullYear()+String(nd.getMonth()+1).padStart(2,'0')+String(nd.getDate()).padStart(2,'0');
+  const e=s=>String(s).replace(/[,;\\]/g,m=>'\\'+m).replace(/\n/g,'\\n');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//TH Fan Hub//FR','BEGIN:VEVENT','UID:'+c.id+'@th-fanhub','DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z','DTSTART;VALUE=DATE:'+d,'DTEND;VALUE=DATE:'+d2,
+    'SUMMARY:'+e('Tokio Hotel – '+c.city),'LOCATION:'+e(c.venue+', '+c.city+', '+c.country),'DESCRIPTION:'+e(c.tour+((c.tickets||[])[0]?'\n'+c.tickets[0].u:'')),'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'}));a.download='tokio-hotel-'+c.city.toLowerCase().replace(/[^a-z]+/g,'-')+'-'+c.date+'.ics';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function shareGig(c){
+  const txt=`Tokio Hotel à ${c.city} (${c.venue}) le ${fmtD(c.date)} 🎸`+((c.tickets||[])[0]?'\nBillets : '+c.tickets[0].u:'');
+  if(navigator.share)navigator.share({title:'Tokio Hotel – '+c.city,text:txt}).catch(()=>{});
+  else navigator.clipboard?.writeText(txt).then(()=>alert('Copié dans le presse-papiers !'),()=>{});
+}
+
+/* ====================== Événements ====================== */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button'); if(!t||t.closest('dialog')) return;
+  const d=t.dataset;
+  if(d.open){openConcert(d.open);}
+  else if(d.fav){const p=S.plan[d.fav]||{};const nx=!p.status?'fav':p.status==='fav'?'go':null;if(nx)S.plan[d.fav]={...p,status:nx};else delete S.plan[d.fav];save();render();}
+  else if(d.filter){S.filter=d.filter;save();render();}
+  else if(d.edithandles){editHandles(d.edithandles);}
+  else if(d.planedit){editPlan(d.planedit);}
+  else if(d.delnews){S.extraNews=S.extraNews.filter(n=>n.id!==d.delnews);save();render();}
+  else if(d.delpack){S.extraPacks=S.extraPacks.filter(n=>n.id!==d.delpack);save();render();}
+  else if(t.id==='addGig')editConcert(null);
+  else if(t.id==='addNews')addNews();
+  else if(t.id==='addPack')addPack();
+  else if(t.id==='exp'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));a.download='th-fanhub-sauvegarde.json';a.click();}
+});
+document.addEventListener('change',e=>{
+  if(e.target.id!=='imp')return; const f=e.target.files[0]; if(!f)return;
+  f.text().then(t=>{try{const o=JSON.parse(t);if(typeof o!=='object'||!o)throw 0;S={...S,...o};save();render();alert('Données importées.');}catch(err){alert('Fichier invalide.');}});
+});
+dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close();});
+
+render();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body></html>
