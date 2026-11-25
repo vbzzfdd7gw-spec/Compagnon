@@ -50,7 +50,7 @@ async function news() {
 
 export function mapEvent(e) {
   const v = e.venue || {};
-  const offers = (e.offers || []).filter(o => o.url).map(o => ({ l: o.type === 'Tickets' ? 'Billets' : (o.type || 'Billets'), u: o.url, st: o.status || '' }));
+  const offers = (e.offers || []).filter(o => o.url).map(o => ({ l: (o.type === 'Tickets' ? 'Billets' : (o.type || 'Billets')) + ' (Bandsintown)', u: o.url, st: o.status || '' }));
   return {
     date: String(e.datetime || e.starts_at || '').slice(0, 10),
     time: String(e.datetime || '').slice(11, 16),
@@ -61,14 +61,54 @@ export function mapEvent(e) {
   };
 }
 
+// ---- Dates du site officiel (tokiohotel.com) ----
+const MON = { JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',SEPT:'09',OCT:'10',NOV:'11',DEC:'12' };
+const htmlText = h => decode(h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<br\s*\/?>|<\/(div|li|p|h\d|span|a|td|tr)>/gi, '\n').replace(/<[^>]+>/g, ' ')).replace(/[ \t\u00a0]+/g, ' ').replace(/\n\s*/g, '\n');
+
+export function parseOfficial(html) {
+  // Liens « Tickets » dans l'ordre d'apparition
+  const ticketLinks = [...html.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
+    .filter(m => /ticket|billet/i.test(htmlText(m[2]))).map(m => decode(m[1]));
+  const text = htmlText(html).replace(/\n/g, ' ');
+  const re = /\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)\.?\s+(\d{1,2}),?\s+(\d{4})(?:\s*[-–]\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)\.?\s+\d{1,2},?\s+\d{4})?\s+(.{2,140}?)\s+TICKETS/gi;
+  const out = []; let m, i = 0;
+  while ((m = re.exec(text))) {
+    const date = `${m[3]}-${MON[m[1].toUpperCase()]}-${m[2].padStart(2, '0')}`;
+    let body = m[4].trim(), title = '', place = body;
+    const k = body.lastIndexOf(' - ');
+    if (k > 0) { title = body.slice(0, k).trim(); place = body.slice(k + 3).trim(); }
+    const [city, ...rest] = place.split(',').map(x => x.trim());
+    const u = ticketLinks[i++];
+    out.push({ date, time: '', city: city || place, country: rest.join(', '), region: '', venue: title, title, festival: /festival|fest\b/i.test(title),
+      lineup: [], url: '', offers: u && /^https?:/.test(u) ? [{ l: 'Billets (site officiel)', u, st: '' }] : [], soldOut: /sold\s*out|ausverkauft|complet/i.test(body) });
+  }
+  return out;
+}
+
+async function official() {
+  for (const url of ['https://tokiohotel.com/', 'https://tokiohotel.com/tour', 'https://tokiohotel.com/live', 'https://tokiohotel.com/tour-dates']) {
+    try {
+      const html = await get(url, 'text/html');
+      const list = parseOfficial(html).filter(e => e.date >= new Date().toISOString().slice(0, 10));
+      console.log(`Site officiel ${url} : ${list.length} dates`);
+      if (!list.length) console.log('Extrait :', htmlText(html).replace(/\n+/g, ' | ').slice(0, 1500));
+      if (list.length) return list;
+    } catch (e) { console.warn('Site officiel', url, 'échec :', e.message); }
+  }
+  return null;
+}
+
 async function events() {
+  const off = await official();
+  if (off) return { list: off, source: 'le site officiel' };
+  if (!process.env.BANDSINTOWN_APP_ID) return null;
   const url = `https://rest.bandsintown.com/artists/${encodeURIComponent('Tokio Hotel')}/events?app_id=${encodeURIComponent(APP_ID)}&date=upcoming`;
   try {
     const data = await get(url, 'application/json');
     if (!Array.isArray(data)) throw new Error('réponse inattendue : ' + JSON.stringify(data).slice(0, 200));
     const list = data.map(mapEvent).filter(e => /^\d{4}-\d{2}-\d{2}$/.test(e.date)).sort((a, b) => a.date.localeCompare(b.date));
     console.log(`Concerts Bandsintown : ${list.length}`);
-    return list;
+    return { list, source: 'Bandsintown' };
   } catch (e) { console.warn('Concerts : échec :', e.message); return null; }
 }
 
@@ -78,8 +118,8 @@ async function main() {
   const [n, ev] = await Promise.all([news(), events()]);
   const next = {
     news: n.length ? n : (prev.news || []),
-    events: ev ?? (prev.events || []),
-    eventsSource: ev ? 'Bandsintown' : (prev.eventsSource || null),
+    events: ev ? ev.list : (prev.events || []),
+    eventsSource: ev ? ev.source : (prev.eventsSource || null),
   };
   const same = JSON.stringify({ ...prev, updatedAt: undefined }) === JSON.stringify({ ...next, updatedAt: undefined });
   if (same) { console.log('Aucun changement.'); return; }
