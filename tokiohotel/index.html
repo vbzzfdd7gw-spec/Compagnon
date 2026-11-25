@@ -233,24 +233,25 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 
 /* ====================== Données automatiques ======================
    data/live.json est rafraîchi plusieurs fois par jour par une tâche GitHub
-   (actus Google Actus + dates Bandsintown). */
+   (actus Google Actus + dates du site officiel). */
 let LIVE={news:[],events:[],updatedAt:null};
 const COUNTRY={Germany:['Allemagne','🇩🇪'],France:['France','🇫🇷'],Italy:['Italie','🇮🇹'],Greece:['Grèce','🇬🇷'],Poland:['Pologne','🇵🇱'],Austria:['Autriche','🇦🇹'],Switzerland:['Suisse','🇨🇭'],Netherlands:['Pays-Bas','🇳🇱'],Belgium:['Belgique','🇧🇪'],Spain:['Espagne','🇪🇸'],'United Kingdom':['Royaume-Uni','🇬🇧'],Luxembourg:['Luxembourg','🇱🇺'],'United States':['États-Unis','🇺🇸'],Mexico:['Mexique','🇲🇽'],Brazil:['Brésil','🇧🇷'],Argentina:['Argentine','🇦🇷'],Chile:['Chili','🇨🇱'],'Czech Republic':['Tchéquie','🇨🇿'],Czechia:['Tchéquie','🇨🇿'],Hungary:['Hongrie','🇭🇺'],Portugal:['Portugal','🇵🇹'],Denmark:['Danemark','🇩🇰'],Sweden:['Suède','🇸🇪'],Norway:['Norvège','🇳🇴'],Finland:['Finlande','🇫🇮'],Ireland:['Irlande','🇮🇪'],Russia:['Russie','🇷🇺'],Ukraine:['Ukraine','🇺🇦'],Japan:['Japon','🇯🇵'],Canada:['Canada','🇨🇦']};
 const slug = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-');
 function mergeLive(list){
   for(const e of (LIVE.events||[])){
-    const offers=(e.offers||[]).map(o=>({l:(o.l||'Billets')+' (Bandsintown)',u:o.u}));
-    const base=list.find(c=>c.date===e.date);
+    const offers=(e.offers||[]).map(o=>({l:o.l||'Billets',u:o.u}));
+    const near=c=>Math.abs((pd(c.date)-pd(e.date))/864e5)<=4&&slug(c.city).slice(0,4)===slug(e.city).slice(0,4);
+    const base=list.find(c=>c.date===e.date)||list.find(near);
     if(base){
       base.live=true; if(e.soldOut) base.soldOut=true;
       const have=new Set((base.tickets||[]).map(t=>t.u));
       base.tickets=[...(base.tickets||[]),...offers.filter(o=>!have.has(o.u))];
     }else{
-      const id='bit-'+e.date+'-'+slug(e.city);
+      const id='auto-'+e.date+'-'+slug(e.city);
       if(S.hidden.includes(id)) continue;
       const [cn,fl]=COUNTRY[e.country]||[e.country,''];
-      list.push({id,date:e.date,city:e.city||'?',country:cn,flag:fl,venue:e.venue||'—',tour:'Nouvelles dates',type:e.festival?'Festival':'Concert',prices:[],
-        tickets:[...offers,...(e.url?[{l:'Bandsintown',u:e.url}]:[])],note:(e.title?e.title+'. ':'')+'Date ajoutée automatiquement depuis Bandsintown.',auto:true,live:true,soldOut:e.soldOut,...(S.edits[id]||{})});
+      list.push({id,date:e.date,city:e.city||'?',country:cn,flag:fl,venue:e.venue||e.title||'—',tour:'Nouvelles dates',type:e.festival?'Festival':'Concert',prices:[],
+        tickets:[...offers,...(e.url?[{l:'Bandsintown',u:e.url}]:[])],note:(e.title?e.title+'. ':'')+'Date ajoutée automatiquement depuis '+(LIVE.eventsSource||'l’agenda officiel')+'.',auto:true,live:true,soldOut:e.soldOut,...(S.edits[id]||{})});
     }
   }
   return list;
